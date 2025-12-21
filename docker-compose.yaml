@@ -1,0 +1,73 @@
+services:
+  backend:
+    build: 
+      context: backend
+      additional_contexts:
+        common: ./
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      createbuckets:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.backend
+  
+  frontend:
+    build:
+      context: frontend
+      additional_contexts:
+        common: ./
+    env_file:
+      - frontend/.env.docker
+    profiles: [frontend]
+    ports:
+      - 8080:80
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d postgres -U postgres"]
+      interval: 1s
+      timeout: 1s
+      retries: 50
+    volumes:
+      - ./data/sql:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+
+  minio:
+    image: minio/minio:RELEASE.2023-10-25T06-33-25Z
+    container_name: minio
+    environment:
+      - MINIO_ACCESS_KEY=minio
+      - MINIO_SECRET_KEY=minio123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./data/minio:/export
+    command: server /export --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-I", "localhost:9000/minio/health/live"]
+      interval: 1s
+      timeout: 1s
+      retries: 20
+
+  createbuckets:
+    image: minio/mc:RELEASE.2023-10-24T21-42-22Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |-
+        /usr/bin/mc config host add myminio http://minio:9000 minio minio123;
+        /usr/bin/mc mb myminio/visit --ignore-existing;
