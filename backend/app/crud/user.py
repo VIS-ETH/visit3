@@ -8,8 +8,8 @@ async def get_users(session: DbSessionDep):
     user = result.scalars().all()
     return user
 
-async def get_user_by_username(session: DbSessionDep, username: str):
-    statement = select(User).where(User.username == username)
+async def get_user_by_email(session: DbSessionDep, email: str):
+    statement = select(User).where(User.email == email)
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
     return user

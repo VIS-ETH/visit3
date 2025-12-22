@@ -24,6 +24,10 @@ def read_users_me(current_user: CurrentUserDep):
 @router.post("/register")
 async def register_user(session: DbSessionDep, user_create: UserCreate):
     user = User.model_validate(user_create)
+
+    if len(user.password) < 10:
+        raise HTTPException(status_code=400, detail="Password has to be longer than 10 characters")
+
     user.password = hash_password(user.password)
     
     try:
@@ -46,7 +50,7 @@ async def login_user(session: DbSessionDep, form_data: Annotated[OAuth2PasswordR
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": user.email}, expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
 

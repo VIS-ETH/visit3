@@ -2,14 +2,14 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from pwdlib import PasswordHash
 from app.deps import DbSessionDep
-from app.crud.user import get_user_by_username
+from app.crud.user import get_user_by_email
 from app.config import get_settings
 
 password_hash = PasswordHash.recommended()
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 async def authenticate_user(session: DbSessionDep, username: str, password: str):
-    user = await get_user_by_username(session, username)
+    user = await get_user_by_email(session, username)
     if not user:
         return False
     if not verify_password(password, user.password):

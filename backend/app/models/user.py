@@ -8,9 +8,8 @@ class User(SQLModel, table=True):
         index=True,
         nullable=False
     )
-    username: str = Field(unique=True, index=True)
+    email: str = Field(unique=True, index=True)
     sub: str | None = Field(default=None, index=True)
-    email: str = Field(unique=True)
     password: str | None
     first_name: str | None = None
     last_name: str | None = None
