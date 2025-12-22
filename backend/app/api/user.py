@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.deps import CurrentUserDep, DbSessionDep, SettingsDep
+from app.deps import CurrentUserDep, DbSessionDep
 from app.schemas.user import Token, UserCreate
 from app.models.user import User
 from app.crud.user import create_user, get_users
@@ -22,24 +22,22 @@ def read_users_me(current_user: CurrentUserDep):
     return current_user
 
 @router.post("/register")
-def register_user(session: DbSessionDep, user_create: UserCreate):
+async def register_user(session: DbSessionDep, user_create: UserCreate):
     user = User.model_validate(user_create)
     user.password = hash_password(user.password)
     
     try:
-        return create_user(session, user)
+        return await create_user(session, user)
     except:
         raise HTTPException(status_code=400, detail="Creating user failed")
     
 @router.get("/list")
-def list_users(session: DbSessionDep):
-    users = get_users(session)
-    
-    return users
+async def list_users(session: DbSessionDep):
+    return await get_users(session)
 
 @router.post("/login")
-async def login_user(session: DbSessionDep, settings: SettingsDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    user = authenticate_user(session, form_data.username, form_data.password)
+async def login_user(session: DbSessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    user = await authenticate_user(session, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=401,
@@ -48,7 +46,6 @@ async def login_user(session: DbSessionDep, settings: SettingsDep, form_data: An
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        settings,
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
