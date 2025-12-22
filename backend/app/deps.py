@@ -10,17 +10,23 @@ from app.models.user import User
 from app.schemas.user import TokenData
 from app.config import get_settings
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/users/login", refreshUrl="/users/refresh"
+)
 
 
 async def get_db_session():
     session_fac = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with session_fac() as session:
         yield session
-        
+
+
 DbSessionDep = Annotated[AsyncSession, Depends(get_db_session)]
- 
-async def get_current_user(session: DbSessionDep, token: Annotated[str, Depends(oauth2_scheme)]):
+
+
+async def get_current_user(
+    session: DbSessionDep, token: Annotated[str, Depends(oauth2_scheme)]
+):
     credentials_exception = HTTPException(
         status_code=401,
         detail="Could not validate credentials",
@@ -41,5 +47,5 @@ async def get_current_user(session: DbSessionDep, token: Annotated[str, Depends(
         raise credentials_exception
     return user
 
+
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
-        
