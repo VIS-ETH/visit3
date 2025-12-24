@@ -3,7 +3,7 @@ from typing import Annotated, List
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.deps import CurrentUserDep, DbSessionDep
+from app.deps import CurrentAdminDep, CurrentUserDep, DbSessionDep
 from app.schemas.user import Token, UserCreate
 from app.models.user import User
 from app.crud.user import create_user, get_user_by_id, get_users, revoke_refresh_tokens
@@ -15,20 +15,13 @@ from app.core.security import (
     set_refresh_cookie,
     verify_refresh_token,
 )
+from app.utils.exceptions import unauth_e
 
 router = APIRouter(prefix="/users")
-
-unauth_e = HTTPException(
-    status_code=401,
-    detail="Unauthenticated",
-    headers={"WWW-Authenticate": "Bearer"},
-)
 
 
 @router.get("/me", operation_id="readUsersMe")
 def read_users_me(current_user: CurrentUserDep) -> User:
-    if not current_user:
-        raise unauth_e
     return current_user
 
 
@@ -50,7 +43,7 @@ async def register_user(session: DbSessionDep, user_create: UserCreate) -> None:
 
 
 @router.get("/list", operation_id="listUsers")
-async def list_users(session: DbSessionDep) -> List[User]:
+async def list_users(session: DbSessionDep, current_admin: CurrentAdminDep) -> List[User]:
     return await get_users(session)
 
 
@@ -62,7 +55,7 @@ async def login_user(
 ):
     user = await authenticate_user(session, form_data.username, form_data.password)
     if not user:
-        raise unauth_e
+        raise HTTPException(status_code=400, detail="Wrong password or email")
     access_token = create_access_token(data={"sub": user.email})
 
     raw_refresh_token = await create_refresh_token(session, user)

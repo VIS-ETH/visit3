@@ -1,18 +1,26 @@
 import { Button, Stack, Title } from "@mantine/core";
 import {
   useLoginUser,
+  useLogoutUser,
   useReadUsersMe,
   useRegisterUser,
 } from "../orval/generated/default/default";
+import { redirect } from "react-router";
 
 export default function Home() {
   const { mutate: register } = useRegisterUser();
-  const { data: userMe } = useReadUsersMe({
-    query: {
-      refetchInterval: 5000,
-    },
+  const { data: userMe, refetch: fetchUser } = useReadUsersMe({
+    query: { enabled: false },
   });
   const { mutate: login } = useLoginUser();
+  const { mutate: logout } = useLogoutUser({
+    mutation: {
+      onSuccess: () => {
+        sessionStorage.removeItem("token");
+        window.location.href = "/login";
+      },
+    },
+  });
 
   return (
     <Stack>
@@ -20,6 +28,13 @@ export default function Home() {
       <Title order={2}>File hierarchy</Title>
 
       {userMe?.email}
+      <Button
+        onClick={() => {
+          fetchUser();
+        }}
+      >
+        User
+      </Button>
       <Button
         onClick={() => {
           register({
@@ -43,6 +58,13 @@ export default function Home() {
         }}
       >
         Login
+      </Button>
+      <Button
+        onClick={() => {
+          logout();
+        }}
+      >
+        Logout
       </Button>
     </Stack>
   );

@@ -70,6 +70,7 @@ async def revoke_refresh_tokens(session: DbSessionDep, current_user: CurrentUser
         )
 
         await session.execute(statement)
+        await session.commit()
     except Exception as e:
         await session.rollback()
         raise e

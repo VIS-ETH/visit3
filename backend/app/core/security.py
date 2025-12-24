@@ -14,7 +14,7 @@ from app.config import get_settings
 from app.models.user import User
 
 password_hash = PasswordHash.recommended()
-ACCESS_TOKEN_EXPIRE = timedelta(minutes=30)
+ACCESS_TOKEN_EXPIRE = timedelta(minutes=1)
 REFRESH_TOKEN_EXPIRE = timedelta(days=7)
 
 

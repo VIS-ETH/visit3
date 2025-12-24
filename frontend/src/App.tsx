@@ -1,11 +1,11 @@
 import { createTheme, MantineProvider, Text } from "@mantine/core";
 import { generateColors } from "@mantine/colors-generator";
-import { Route, Routes } from "react-router";
-import RootLayout from "./pages/root";
 import "@mantine/core/styles.css";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { configOptions } from "./utils/constants";
 import Home from "./pages/Home";
+import { Route, Routes } from "react-router";
+import RootLayout from "./pages/root";
 
 const primaryColor = configOptions().primaryColor;
 const theme = createTheme({
@@ -27,10 +27,6 @@ function App() {
             <Route path="./" element={<Home />} />
           </Route>
         </Route>
-        <Route
-          path="/*"
-          element={<Text>Unauthenticated... redirect to file?</Text>}
-        />
       </Routes>
     </MantineProvider>
   );
