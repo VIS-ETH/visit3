@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
-from typing import Annotated
-import uuid
+from typing import Annotated, List
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -26,15 +25,15 @@ unauth_e = HTTPException(
 )
 
 
-@router.get("/me")
-def read_users_me(current_user: CurrentUserDep):
+@router.get("/me", operation_id="readUsersMe")
+def read_users_me(current_user: CurrentUserDep) -> User:
     if not current_user:
         raise unauth_e
     return current_user
 
 
-@router.post("/register")
-async def register_user(session: DbSessionDep, user_create: UserCreate):
+@router.post("/register", operation_id="registerUser")
+async def register_user(session: DbSessionDep, user_create: UserCreate) -> None:
     user = User.model_validate(user_create)
 
     if len(user.password) < 10:
@@ -50,12 +49,12 @@ async def register_user(session: DbSessionDep, user_create: UserCreate):
         raise HTTPException(status_code=400, detail="Creating user failed")
 
 
-@router.get("/list")
-async def list_users(session: DbSessionDep):
+@router.get("/list", operation_id="listUsers")
+async def list_users(session: DbSessionDep) -> List[User]:
     return await get_users(session)
 
 
-@router.post("/login")
+@router.post("/login", operation_id="loginUser")
 async def login_user(
     session: DbSessionDep,
     response: Response,
@@ -73,7 +72,7 @@ async def login_user(
     return Token(access_token=access_token, token_type="bearer")
 
 
-@router.post("/refresh")
+@router.post("/refresh", operation_id="refreshUser")
 async def refresh_user(
     session: DbSessionDep,
     response: Response,
@@ -101,7 +100,7 @@ async def refresh_user(
     return Token(access_token=access_token, token_type="bearer")
 
 
-@router.post("/logout")
+@router.post("/logout", operation_id="logoutUser")
 async def logout_user(session: DbSessionDep, current_user: CurrentUserDep):
     await revoke_refresh_tokens(session, current_user)
     return None

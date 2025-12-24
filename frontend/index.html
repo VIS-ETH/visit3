@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="https://static.vseth.ethz.ch/assets/%VITE_VSETH_ORG_CONFIG%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>visit-frontend</title>
+
+    <!-- Before anything else, load theme...-->
+    <script type="text/javascript" src="https://static.vseth.ethz.ch/assets/%VITE_VSETH_ORG_CONFIG%/config.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- See vite.config.ts for env var magic... -->
+    <script type="application/json" id="server-data">
+      {
+        "staticBase": "https://static.vseth.ethz.ch/assets/%VITE_VSETH_ORG_CONFIG%/",
+
+        "oidcClient": "%VITE_SIP_AUTH_OIDC_CLIENT_ID%",
+        "oidcAuthority": "%VITE_SIP_AUTH_OIDC_ISSUER_URL%",
+        "backendOidcClient": "%VITE_VISIT_BACKEND_OIDC_CLIENT_ID%",
+        "visitBackendGrpcWeb": "%VITE_VISIT_BACKEND_WEB_URL%",
+        "backendUrl": "%VITE_VISIT_BACKEND_WEB_URL%"
+      }
+    </script>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

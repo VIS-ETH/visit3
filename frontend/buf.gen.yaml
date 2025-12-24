@@ -1,0 +1,16 @@
+version: v2
+clean: true
+
+# NOTE: The servis files are in the common parent directory to be shared with the frontend.
+# The code generation is supposed to be run in this parent directory. See Makefile
+
+plugins:
+  - local: protoc-gen-es
+    include_imports: true
+    opt: target=ts
+    out: src/generated
+  - local: protoc-gen-connect-query
+    opt: target=ts
+    out: src/generated
+inputs:
+  - directory: servis
