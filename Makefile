@@ -1,21 +1,45 @@
-API_URL = http://localhost:8000/openapi.json
-DOCS_FILE = ./frontend/src/orval/
+DOCS_FILE = ./frontend/src/orval
+
+PYTHON_BACKEND = ./backend/.venv/bin/python
+PYTHON_ROOT = ./.venv/bin/python
+
+PROTOS_DST = ./backend/app/generated
+PROTOS_PREFIX = app.generated
+
+PROTOS := $(shell find ./servis -name "*.proto" -not -path "./servis/google/*")
 
 .PHONY: generate clean
 
 generate:
-	${MAKE} clean 
-	docker compose up --build -d
-
-	@until curl -s --fail $(API_URL) > /dev/null; do \
-		printf '.'; \
-		sleep 1; \
-	done
-	
-	curl -s $(API_URL) > $(DOCS_FILE)/visit.json
-	npx orval --config $(DOCS_FILE)/orvalConfig.ts
-
-	docker compose down
+	$(MAKE) generate-grpc
+	$(MAKE) generate-orval
 
 clean:
+	$(MAKE) clean-grpc
+	$(MAKE)	clean-orval
+
+generate-grpc:
+	$(MAKE) clean-grpc
+	rm -rf $(PROTOS_DST)
+	mkdir $(PROTOS_DST)
+	uv sync
+	$(PYTHON_ROOT) -m grpc_tools.protoc \
+    -I ./servis \
+    --python_out=$(PROTOS_DST) \
+    --grpc_python_out=$(PROTOS_DST) \
+    $(PROTOS)
+
+	find $(PROTOS_DST) -type d -exec touch {}/__init__.py \;
+	./fix_imports.sh $(PROTOS_DST) $(PROTOS_PREFIX)
+
+clean-grpc:
+	rm -rf $(PROTOS_DST)
+
+generate-orval:
+	$(MAKE) clean-orval
+	cd backend && uv sync
+	$(PYTHON_BACKEND) ./scripts/extract_docs.py $(DOCS_FILE)/visit.json
+	npx orval --config $(DOCS_FILE)/orvalConfig.ts
+
+clean-orval:
 	rm -rf $(DOCS_FILE)/generated $(DOCS_FILE)/visit.json

@@ -6,7 +6,7 @@ export default defineConfig({
       mode: "tags-split",
       target: "./generated/",
       client: "react-query",
-      mock: true,
+      mock: false,
       override: {
         mutator: {
           path: "../api/mutator.ts",

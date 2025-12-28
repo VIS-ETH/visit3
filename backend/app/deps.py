@@ -1,19 +1,37 @@
 from typing import Annotated
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
+import grpc
 import jwt
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import select
-from app.db import engine
 from app.models.user import User
 from app.schemas.user import TokenData
 from app.config import get_settings
 from app.utils.exceptions import unauth_e, not_allowed_e
+from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/users/login", refreshUrl="/users/refresh"
 )
+
+class GRPCClient:
+    def __init__(self):
+        self.channel = None
+        self.stub = None
+
+    async def connect(self, target: str):
+        self.channel = grpc.aio.insecure_channel(target)
+        self.stub = MailServiceStub(self.channel)
+
+    async def disconnect(self):
+        if self.channel:
+            await self.channel.close()
+
+
+engine = create_async_engine(get_settings().DATABASE_URL, echo=True)
+grpc_client = GRPCClient()
 
 
 async def get_db_session():
@@ -63,3 +81,9 @@ def get_current_admin(current_user: CurrentUserDep):
 
 
 CurrentAdminDep = Annotated[User, Depends(get_current_admin)]
+
+async def get_stub():
+    return grpc_client.stub
+
+GrpcMailStubDep = Annotated[MailServiceStub, Depends(get_stub)]
+        

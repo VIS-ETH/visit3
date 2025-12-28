@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package sip.notifications;
+
+option go_package = "servis/sip/notifications";
+
+// MailService exposes a few RPCs to send mails.
+//
+// Authorization:
+// The service can implement authentication via Keycloak:
+// the "authorization" header must contain a valid "Bearer ..." token, which includes the correct notifications API client in its audience.
+// Whether or not mails are allowed to be sent is checked based on the roles in this token.
+// - The "mail" role determines whether a client is allowed to mail at all.
+// - The "mail-sender:<address>" roles determine whether a client is allowed to send mails from the sender <address>.
+// - The "mail-header:<header>" roles determine whether a client is allowed to send mails with the extra header <header>.
+// This allows VSETH to manage one central Mail client, and handle permission management for sender addresses.
+service MailService {
+  // SendMail sends a mail immediately, better for robust error handling.
+  // This RPC may take a solid while, as SMTP and the servers behind it might be quite slow.
+  // Not recommended for bursty applications due to potential rate limits!
+  // Note that these ratelimits might be triggered by other applications at the same time, so maybe implement retry behavior.
+  rpc SendMail(Mail) returns (MailResponse);
+  // QueueMail puts a mail in the queue, useful for bursts and automatic retries.
+  // It is however less robust for catching errors!
+  // The status of a mail cannot be reviewed after this, any errors must be handled by an administrator.
+  // We strongly recommend setting up alerts based on exposed Prometheus / OTEL metrics to monitor the queue.
+  rpc QueueMail(Mail) returns (QueueResponse);
+}
+
+message Mail {
+  optional MailAddress from = 1;
+  repeated MailAddress reply_to = 2;
+  repeated MailAddress to = 3;
+  repeated MailAddress cc = 4;
+  repeated MailAddress bcc = 5;
+  // Must be explicitly allowed for user
+  repeated ExtraHeader extra_header = 6;
+  string subject = 7;
+  oneof body_oneof {
+    string plain_text = 8;
+    MimeBody multipart_body = 9;
+  }
+}
+
+message MultiPart {
+  string content_type = 1;
+  string content = 2;
+}
+
+message MimeBody {
+  repeated MultiPart parts = 1;
+}
+
+message ExtraHeader {
+  string key = 1;
+  string value = 2;
+}
+
+message MailAddress {
+  oneof address {
+    Address mail_address = 1;
+    // Unimplemented
+    string vseth_user_id = 2;
+  }
+
+  // Parsed version of "John Doe <john.doe@example.com>"
+  message Address {
+    string name = 1;
+    string address = 2;
+  }
+}
+
+message MailResponse {
+  string mail_id = 1;
+}
+
+message QueueResponse {
+  string mail_id = 1;
+}

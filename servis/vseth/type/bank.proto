@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package vseth.type;
+
+option go_package = "servis/vseth/type/bank";
+option java_package = "ch.vseth.type.bank";
+option java_multiple_files = true;
+
+import "vseth/type/address.proto";
+
+message BankAccount {
+    // the address of the account holder
+    PostalAddress account_holder_address = 1;
+    // the name of the bank
+    string bank_name = 2;
+    // the account BIC
+    string bic = 3;
+    // the account IBAN
+    string iban = 4;
+    // the name of the account holder
+    string account_holder_name = 5;
+}

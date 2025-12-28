@@ -1,0 +1,652 @@
+syntax = "proto3";
+
+package sip.people;
+
+option go_package = "servis/sip/people";
+option java_multiple_files = true;
+option java_package = "ch.sip.people";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "google/type/date.proto";
+
+// People (The PeopleAPI) is the central API for managing users and groups in the SIP architecture.
+
+service People {
+  // ListAuthorizationRoles returns information about the currently configured roles and their authorization.
+  // this endpoint can for example be used to evaluate in a client application whether a user is allowed to perform a certain
+  // action (for example in a web frontend)
+  // @authorization: no authorization is required to access this endpoint (but the user has to be logged in)
+  rpc ListAuthorizationRoles(google.protobuf.Empty) returns (ListAuthorizationRolesResponse);
+  // ListGroups returns all the groups. User may specify in the ListGroupsRequest which group types he wants to access
+  // Based on which types he wants to access different authorization scopes are required.
+  // @authorization: needs the "groups.list.*" scope
+  rpc ListGroups(ListGroupsRequest) returns (ListGroupsResponse);
+  // GetGroup returns a single group
+  // @authorization:
+  //   - groups.get to view the general group information
+  //   - groups.members.get to view the members of a group
+  rpc GetGroup(GetGroupRequest) returns (Group);
+  // BatchGetGroup returns multiple groups by identifier
+  // @authorization:
+  //   - same as GetGroup but for every element
+  rpc BatchGetGroup(BatchGetGroupRequest) returns (BatchGetGroupResponse);
+  // CreateGroup creates a new group in the system. To create a group identifier, object_type and (depending on the object_type)
+  // an org_id have to be passed.
+  // This method will generate a new global_group_identifier based on the identifier, object_type and org_id. If a group
+  // with the same global_identifier already exists this method will fail.
+  // @authorization:
+  //   - groups.create on the parent group
+  //   - groups of type KS, OU and OIOE can only be created with the `admin` scope
+  rpc CreateGroup(CreateGroupRequest) returns (Group);
+  // UpdateGroup updates the data of an existing group in the system.
+  // @authorization:
+  //  - groups.update on the group to update
+  rpc UpdateGroup(UpdateGroupRequest) returns (Group);
+  // DeleteGroup deletes an existing group. If the group does not exist the call also succeeds. It is not possible to
+  // delete groups that still have child groups.
+  // @authorization:
+  //   - groups.delete on the group to delete
+  //   - groups of type KS, OU and OIOE can only be deleted with the `admin` scope
+  rpc DeleteGroup(DeleteGroupRequest) returns (google.protobuf.Empty);
+  // ChangeGroupMembers can be used to add / remove group members
+  // @authorization:
+  //    - groups.members.update for the given group
+  rpc ChangeGroupMembers(ChangeGroupMembersRequest) returns (Group);
+  // ListUsers lists all the users in the system
+  // Note: this might take some time.
+  // @authorization:
+  //  - users.list to list the users
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  // GetUser returns the details about a single user resource
+  // @authorization:
+  //   - users.get to view the user details
+  rpc GetUser(GetUserRequest) returns (User);
+  // BatchGetUser returns a batch of users by name
+  // @authorization:
+  //  - same as GetUser but for every element
+  rpc BatchGetUser(BatchGetUserRequest) returns (BatchGetUserResponse);
+  // CreateUser creates a new user in the system.
+  // @authorization:
+  //   - users.create to create a new user
+  rpc CreateUser(CreateUserRequest) returns (User);
+  // UpdateUser updates an existing user in the system.
+  // @authorization:
+  //    - users.update to update the user
+  rpc UpdateUser(UpdateUserRequest) returns (User);
+  // DeleteUser deletes a user from the system.
+  //    - users.delete to delete a user
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
+  // ListAuditLogEntries returns all log entries in a specified timespan. The entries are sorted desc by the timestmap.
+  rpc ListAuditLogEntries(ListAuditLogEntriesRequest) returns (ListAuditLogEntriesResponse);
+  // TriggerGroupSyncToLdap triggers the synchronisation of groups from Keycloak to ldap, unfortunately this is a long running
+  // operation that may fail and there is not really a sensible way of getting an error code from the operation since
+  // the underlying http request will time out.
+  rpc TriggerGroupSyncToLdap(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+
+//
+// **Authentication**: All calls to the API need to be authenticated. You need to send a valid jwt access token in the metadata
+// field "Authorization" in the format "Bearer $token".
+// **Authorization**:
+// - list of scopes can be combined into roles.
+// `admin` role can do everything (also stuff that does not have an explicit scope yet.
+
+// GlobalScopes are not restricted to any specific resources or subresources
+enum GlobalScope {
+  GLOBAL_SCOPE_UNSPECIFIED = 0;
+  ADMIN = 1; // admin is allowed to do anything
+  GROUPS_LIST = 2; // list all groups (without members)
+  //  GROUPS_LIST_KS = 3; // list all ks groups
+  //  GROUPS_LIST_OU = 4; // lists all ou groups
+  //  GROUPS_LIST_OIOE = 5; // list all oioe groups
+  //  GROUPS_LIST_FIOE = 6; // list all fioe groups
+
+  GROUPS_CREATE = 7; // create new groups
+  GROUPS_CREATE_TAG = 30; // only scope who can create tags
+  GROUPS_UPDATE = 8; // update existing groups
+  GROUPS_UPDATE_TAG = 31; // only scope who can update tags
+  GROUPS_DELETE = 9; // delete groups
+  GROUPS_DELETE_TAG = 32; // only scope who can delete tags
+  USERS_LIST = 10; // list all users
+  USERS_CREATE = 11; // create new users
+  USERS_UPDATE = 12; // update existing users
+  USERS_DELETE = 13; // delete users
+  USERS_GET = 14; // this is the base permission needed to call the GetUser Endpoint, the following permissions then correspond to which data will be returned
+  USERS_GET_PROFILE = 15;
+  USERS_GET_EMAIL = 16; // get email
+  USERS_GET_PHONE = 17;
+  USERS_GET_ADDRESS = 18; // get address
+  USERS_GET_BIRTHDATE = 19; // get birthdate
+  USERS_GET_UNIVERSITY_AFFILIATION = 20; // get university affiliation
+  USERS_GET_STUDENT_NUMBER = 21; // get legi number
+  USERS_GET_STUDY_INFORMATION = 22; // get study fields etc.
+  USERS_GET_VSETH_PROFILE = 23; // get vseth membership information
+  USERS_GET_GROUP_MEMBERSHIP = 28; // get the groups a user is a member of
+  USERS_GET_RFID_INFORMATION = 29; // get rfid information (advant_uid and kaba_group_header)
+  USERS_GET_BANK_ACCOUNT = 24; // get bank account information
+  USERS_GET_ALL = 25; // get everything
+  AUDITLOG_LIST = 26;
+  LDAPSYNC_TRIGGER = 27;
+}
+
+enum ResourceScope {
+  RESOURCE_SCOPE_UNSPECIFIED = 0;
+  GROUPS_GET = 4; // retrieve group information
+  GROUPS_MEMBERS_GET = 5; // retrieve members of a group
+  GROUPS_MEMBERS_UPDATE = 6; // update the members of a group
+  //  GROUP_USERS_GET = 11; // this is the base permission needed to call the GetUser Endpoint, the following permissions then determine which data will be returned.
+  //  GROUP_USERS_GET_PROFILE = 12;
+  //  GROUP_USERS_GET_EMAIL = 13;
+  //  GROUP_USERS_GET_ADDRESS = 14;
+  //  GROUP_USERS_GET_BIRTHDATE = 15;
+  //  GROUP_USERS_GET_UNIVERSITY_AFFILIATION = 16;
+  //  GROUP_USERS_GET_STUDENT_NUMBER = 17;
+  //  GROUP_USERS_GET_STUDY_INFORMATION = 18;
+  //  GROUP_USERS_GET_VSETH_PROFILE = 19;
+  //  GROUP_USERS_GET_BANK_ACCOUNT = 20;
+
+}
+
+// ScopesOnResource are authorization scopes applied to a resource (group / user)
+message ScopesOnResource {
+  string resource_name = 1; // name of the resource this is applied to
+  bool inherit = 2; // whether this scope will also giver permissions on sub resources
+  repeated ResourceScope scopes = 3; // the scopes
+  bool deny_permission = 4; // whether this is a negative scope (removes a permission)
+}
+
+// AuthorizationRole collects global and resource specific scope
+message AuthorizationRole {
+  string name = 1; // name of the role: "authorizationrole/$name"
+  string display_name = 2; // the name of the role, e.g. vis-1116-oiv
+  repeated GlobalScope global_scopes = 3; // the global scopes that are contained in this role
+  repeated ScopesOnResource scopes_on_resource = 4; // the resource scopes in this role
+}
+
+// AuthorizationInformation carries all the authorization information of the API. Can for example be used in frontends.
+message ListAuthorizationRolesResponse {
+  repeated AuthorizationRole roles = 1;
+}
+
+// GroupObjectType represents the 4 different types of group, according to the vseth group concept
+enum GroupObjectType {
+  GROUP_OBJECT_TYPE_UNSPECIFIED = 0;
+  GROUP_OBJECT_TYPE_KS = 1; // Konsolidierungsstufe
+  GROUP_OBJECT_TYPE_OU = 2; // Organisationseinheit
+  GROUP_OBJECT_TYPE_OIOE = 3; // Obligatorisches Internes Organisationselement
+  GROUP_OBJECT_TYPE_FIOE = 4; // Fakultatives Internes Organisationselement
+  GROUP_OBJECT_TYPE_TAG = 5; // Tags are used to collect groups into one, without a hierarchic structure
+}
+
+// Message representing the details of a group.
+message Group {
+  // `groups/$groupIdentifier`
+  string name = 1;
+  // the name of the parent group
+  string parent_name = 2;
+  // transitively resolve all parents
+  repeated string parent_names_transitive = 21;
+  // the org_id of the group
+  string org_id = 3;
+  // the type of the group according to the vseth group concept
+  GroupObjectType object_type = 4;
+  // the resource names of the group members
+  repeated string members = 5;
+  // the resource names of all sub members
+  repeated string members_transitive = 6;
+  // the subGroups of this group
+  repeated string sub_groups = 7;
+  // the transitive subGroups of this groups
+  repeated string sub_groups_transitive = 22;
+  // output-only: timestamp when this group was created
+  google.protobuf.Timestamp create_time = 8;
+  // output-only: timestamp when this group was last updated
+  google.protobuf.Timestamp update_time = 9;
+  // the (internal) description of the group, should give information about the purpose of the group, e.g. "group of the vis board"
+  string description = 10;
+  // the short name of the group, e.g. "VIS"
+  string display_name = 11;
+  // the full name of the group in german, e.g. "Verein der Informatik Studierenden an der ETH Zurich"
+  string title_de = 12;
+  //  // the full name of the group in english, e.g. "Association of computer science students at ETH Zurich"
+  string title_en = 13;
+  // the main contact email of the group, e.g. vis@vis.ethz.ch or info@vseth.ethz.ch
+  string email = 14;
+  // the postal address of the group
+  PostalAddress postal_address = 15;
+  // the eth office address, e.g. "CAB E 18"
+  string eth_office = 16;
+  // the website of the group, e.g. https://vis.ethz.ch
+  string website = 17;
+  // the telephone number of the group
+  string telephone = 18;
+  // the eth org id of the group, e.g. 04800 (if defined)
+  string eth_org_id = 19;
+  // input-only: the leading identifier for the group name
+  string leading_identifier = 20;
+  // output only:
+  View view = 23;
+  enum View {
+    // equivalent to BASIC
+    VIEW_UNSPECIFIED = 0;
+    // basic does not include members
+    BASIC = 1;
+    // includes subgroups
+    INCLUDE_SUBGROUPS = 2;
+    // ldap full includes subgroups and members
+    INCLUDE_MEMBERS = 3;
+    // reads everything from Keycloak
+    // ATTENTION: transitive subgroups and transitive members are not available through this endpoint
+    KEYCLOAK = 4;
+  }
+  // members and subgroups transitive as filters are not supported at the moment
+  message Filter {
+    string name = 1;
+    string org_id = 3;
+    repeated string parent_names_transitive = 21;
+    GroupObjectType object_type = 4;
+    repeated string members = 5;
+    repeated string sub_groups = 7;
+    google.protobuf.Timestamp create_time = 8;
+    google.protobuf.Timestamp update_time = 9;
+    string description = 10;
+    string display_name = 11;
+    string title_de = 12;
+    string title_en = 13;
+    string email = 14;
+    string eth_office = 16;
+    string website = 17;
+    string telephone = 18;
+    string eth_org_id = 19;
+    bool with_tags = 40;
+    SortBy sort_by = 30;
+    bool descending = 31;
+    enum SortBy {
+      NAME = 0;
+      PARENT_NAME = 1;
+      ORG_ID = 2;
+      OBJECT_TYPE = 3;
+      CREATE_TIME = 4;
+      UPDATE_TIME = 5;
+      DESCRIPTION = 6;
+      DISPLAY_NAME = 7;
+      TITLE_DE = 8;
+      TITLE_EN = 9;
+      EMAIL = 10;
+      ETH_OFFICE = 11;
+      WEBSITE = 12;
+      TELEPHONE = 13;
+      ETH_ORG_ID = 14;
+    }
+  }
+}
+
+// ListGroupsRequest used to list groups
+message ListGroupsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  Group.Filter filter = 3;
+  Group.View view = 4;
+}
+
+// ListsGroupsResponse the response for the list groups endpoint
+message ListGroupsResponse {
+  repeated Group groups = 1;
+  string next_page_token = 2;
+  int32 total_size = 3;
+}
+
+// Load a single group
+message GetGroupRequest {
+  // name of the group resource
+  string name = 1;
+  // what should be returned
+  Group.View view = 2;
+}
+
+message BatchGetGroupRequest {
+  repeated string names = 1;
+  Group.View view = 2;
+}
+
+message BatchGetGroupResponse {
+  repeated Group groups = 1;
+}
+
+// A message for creating a new group in the system.
+message CreateGroupRequest {
+  Group group = 1;
+  // audit_message explaining why this change was necessary (will be used in logs)
+  string audit_message = 2;
+}
+
+// Update the attributes of a group
+message UpdateGroupRequest {
+  // name of the group resource to update
+  string name = 1;
+  // audit_message why was this change necessary (will be used in logging)
+  string audit_message = 2;
+  Group group = 3;
+  // the fields to update, there are several fields that can not be changed, group identifier, group type
+  google.protobuf.FieldMask update_mask = 4;
+}
+
+// A message for deleting an existing group in the system.
+message DeleteGroupRequest {
+  // the name of the group to delete
+  string name = 1;
+  // audit_message why was this change necessary.
+  string audit_message = 2;
+}
+
+// Message for requesting a change of group members (add or delete)
+message ChangeGroupMembersRequest {
+  // ChangeGroupMembersAction specifies the modification to make on the group
+  enum ChangeGroupMembersAction {
+    CHANGE_GROUP_MEMBERS_ACTION_UNSPECIFIED = 0;
+    CHANGE_GROUP_MEMBERS_ACTION_ADD = 1;
+    CHANGE_GROUP_MEMBERS_ACTION_REMOVE = 2;
+  }
+  // the name of the group resources to change
+  string group_name = 1;
+  // the resource names of the users to add / remove from the group
+  repeated string user_names = 2;
+  // audit_message why this change was necessary, will be used for logging
+  string audit_message = 3;
+  // adding / removing group members
+  ChangeGroupMembersAction action = 4;
+}
+
+// VsethMembership defines whether a person is a VSETH member
+enum VsethMembership {
+  VSETH_MEMBERSHIP_UNSPECIFIED = 0;
+  VSETH_MEMBERSHIP_MEMBER = 1;
+  VSETH_MEMBERSHIP_NOT_MEMBER = 2;
+}
+
+// VsethMembershipType The type of vseth membersip according to Art 6. of the VSETH constitution
+enum VsethMembershipType {
+  VSETH_MEMBERSHIP_TYPE_UNSPECIFIED = 0;
+  // type a)
+  VSETH_MEMBERSHIP_TYPE_BACHELOR_OR_MASTER = 1;
+  // type b)
+  VSETH_MEMBERSHIP_TYPE_PHD = 2;
+  // type c)
+  VSETH_MEMBERSHIP_TYPE_VSETH_EMPLOYEES = 3;
+  // type d)
+  VSETH_MEMBERSHIP_TYPE_ETH_APPRENTICES = 4;
+  // type e)
+  VSETH_MEMBERSHIP_TYPE_MOBILITY_STUDENTS = 5;
+  // type f)
+  VSETH_MEMBERSHIP_TYPE_STUDENTS_IN_CONTINUING_EDUCATION = 6;
+  // type g)
+  VSETH_MEMBERSHIPO_TYPE_AUDITORS = 7;
+}
+
+// The PostalAddress contains information about a postal address.
+message PostalAddress {
+  // street address including number, may be multiline separated with \n
+  string street_address = 1;
+  // the name of the city
+  string locality = 2;
+  // postal code
+  string postal_code = 3;
+  // country code in [ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2)
+  // a list of all current codes can be found [here](https://www.iso.org/obp/ui/#search)
+  string country = 4;
+  // formatted address, multiline
+  string formatted = 5;
+}
+
+// The employment message combines all the information needed to employ a person
+message EmploymentInformation {
+  string swiss_salary_identifier = 1;
+}
+
+// Contains information about a Users Bank account
+message BankAccount {
+  // need to support a separate address for the bank
+  PostalAddress banking_address = 1;
+  // the name of the bank
+  string bank_name = 2;
+  // BIC
+  string bic = 3;
+  // IBAN
+  string iban = 4;
+  // account holder name
+  string account_holder_name = 5;
+}
+
+// message that combines all the membership info about a single user
+message VsethMembershipInfo {
+  // whether the person is a member of VSETH
+  VsethMembership membership = 1;
+  // the type of membership, only applicable if the person is a member
+  VsethMembershipType membership_type = 2;
+  // the orgid of the fv the user is a member of
+  string fv_org_id = 3;
+  // the org key of the fv the user is a member of
+  string fv_org_key = 4;
+}
+
+// message that combines the information related to eth studies
+message EthStudyInfo {
+  // fachid of the student (eth) (0: is for undefined)
+  string eth_fachid = 1;
+  // the department the student is a member of
+  string department = 2;
+  // the full name of the department the user is a member of in english
+  string department_display_label_en = 3;
+  // the full name of the department the user is a member of in german
+  string department_display_label_de = 4;
+  // the full name of the "Studiengang" the user is enrolled in (english)
+  string study_program_display_label_en = 5;
+  // the full name of the "Studiengang" the user is enrolled in (german)
+  string study_program_display_label_de = 6;
+  // the full name of the "Fachrichtung" the user is enrolled in (english)
+  string study_fachrichtung_display_label_en = 7;
+  // the full name of the "Fachrichtung" the user is enrolled in (german)
+  string study_fachrichtung_display_label_de = 8;
+  // the exit date from eth
+  google.type.Date exit_date = 9;
+}
+
+// Message for details about a user
+message User {
+  // unique identifier of the user
+  // `users/$keycloakId`
+  string name = 1;
+  // the username of the user (=nethz for ETH members)
+  string username = 2;
+  // the email address of the user
+  string email = 3;
+  // an alternative email address for the user
+  string alternative_email = 4;
+  // first_name of the user
+  string given_name = 5;
+  // secondName of the user
+  string family_name = 6;
+  // the unique identifier of the home organization
+  string swiss_edu_person_unique_id = 7;
+  // legi number (if applicable)
+  string student_number = 8;
+  // the semester the user is currently studying in. (0: is for undefined)
+  int32 study_semester = 9;
+  // study information at ETH, only defined for vseth members
+  EthStudyInfo eth_study_info = 10;
+  // telephone of the student
+  string telephone = 11;
+  // birthdate represented as [ISO8601‑2004](https://en.wikipedia.org/wiki/ISO_8601)
+  google.type.Date birthdate = 12;
+  // specifies the relationship with vseth, read the vseth_membership field to check whether the other fields are defined
+  VsethMembershipInfo vseth_membership_info = 13;
+  // reserved for mobile phone / mobile phone validated fields
+  reserved 14, 15;
+  // the postal address of the user
+  PostalAddress postal_address = 16;
+  //   the bank account of the user
+  BankAccount bank_account = 17;
+  // information used if the user is employed at VSETH such as civil status, ahv number etc.
+  //    EmploymentInformation employment_information = 18;
+  // reserved for employment information
+  reserved 18;
+  // the list of groups this user is a member of.
+  repeated string group_membership = 19;
+  // the list of groups (including parent groups the user is a member of)
+  repeated string group_membership_transitive = 22;
+  // the partial order over group_membership_transitive.
+  // If entry i has value j, then the i'th group in group_membership_transitive has the j'th group as parent.
+  repeated int32 group_membership_transitive_order = 26;
+  // Advant UID
+  string advant_uid = 24;
+  // Kaba group header
+  string kaba_group_header = 25;
+  // output-only: timestamp when this group was created
+  google.protobuf.Timestamp create_time = 20;
+  // output-only: timestamp when this group was last updated
+  google.protobuf.Timestamp update_time = 21;
+  // output only:
+  View view = 23;
+  enum View {
+    // Not specified, equivalent to LDAP_BASIC
+    VIEW_UNSPECIFIED = 0;
+    // Server response will include all the fields the user is allowed to access, but not the group memberships
+    // the data is read from ldap
+    BASIC = 1;
+    // Data read from ldap, including group memberships
+    INCLUDE_MEMBERSHIPS = 2;
+    // includes the fields that can only be read from Keycloak (such as consents)
+    KEYCLOAK = 3;
+  }
+  message Filter {
+    // if you add fields here make sure to also change the fields in the CustomPermissionEvaluator
+    string name = 1;
+    string username = 2;
+    string email = 3;
+    string alternative_email = 4;
+    string given_name = 5;
+    string family_name = 6;
+    string swiss_edu_person_unique_id = 7;
+    string student_number = 8;
+    int32 study_semester = 9;
+    //    EthStudyInfo eth_study_info = 10;
+    string telephone = 11;
+    google.type.Date birthdate = 12;
+    VsethMembershipInfo vseth_membership_info = 13;
+    //    PostalAddress postal_address = 16;
+    //    BankAccount bank_account = 17;
+    repeated string group_membership_transitive = 22;
+    string advant_uid = 24;
+    string kaba_group_header = 25;
+    bool descending = 30;
+    SortBy sort_by = 31;
+    enum SortBy {
+      NAME = 0;
+      USERNAME = 1;
+      EMAIL = 2;
+    }
+  }
+}
+
+message ListUsersRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  User.Filter filter = 3;
+  // specifies which data will be returned, KEYCLOAK_FULL is not allowed for the list endpoint
+  User.View view = 4;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  string next_page_token = 2;
+  int32 total_size = 3;
+}
+
+message GetUserRequest {
+  string name = 1;
+  User.View view = 2;
+}
+
+message BatchGetUserRequest {
+  repeated string names = 1;
+  User.View view = 2;
+}
+
+message BatchGetUserResponse {
+  repeated User users = 1;
+}
+
+// Message to create a new user.
+message CreateUserRequest {
+  User user = 1;
+  string audit_message = 2;
+}
+
+// Message to update an existing user.
+message UpdateUserRequest {
+  // the resource name of the user resource to upodate
+  string name = 1;
+  // the data to update the user with
+  User user = 2;
+  // which fields should be updated
+  google.protobuf.FieldMask update_mask = 3;
+  string audit_message = 4;
+}
+
+// Message for deleting a user from the system.
+message DeleteUserRequest {
+  // name of the user to delete
+  string name = 1;
+  // the audit message to write to the log
+  string audit_message = 2;
+}
+
+// Entry in the group change log
+message AuditLogEntry {
+  // name of the AuditLogEntry name /auditlogentry/$id
+  string name = 1;
+  // name of the resource that was affected by the change
+  string affected_resource = 2;
+  // resource type
+  string resource_type = 3;
+  // timestamp when the log was written
+  google.protobuf.Timestamp create_time = 4;
+  // the request key
+  string request_key = 5;
+  // the unique user identifier of the user who executed the request
+  string executed_by_user = 6;
+  // the audit message for the request
+  string audit_message = 7;
+  // request object as json
+  string request_object = 8;
+  // output only
+  View view = 9;
+  enum View {
+    AUDIT_LOG_ENTRY_VIEW_UNSPECIFIED = 0;
+  }
+  message Filter {
+    string name = 1;
+    string affected_resource = 2;
+    string resource_type = 3;
+    bool descending = 20;
+    enum SortBy {
+      NAME = 0;
+      AFFECTED_RESOURCE = 1;
+    }
+  }
+}
+
+message ListAuditLogEntriesRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  AuditLogEntry.Filter filter = 3;
+  AuditLogEntry.View view = 4;
+}
+
+message ListAuditLogEntriesResponse {
+  repeated AuditLogEntry audit_log_entries = 1;
+  string next_page_token = 2;
+  int32 total_size = 3;
+}

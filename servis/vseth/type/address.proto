@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package vseth.type;
+
+option go_package = "servis/vseth/type/address";
+option java_package = "ch.vseth.type.address";
+option java_multiple_files = true;
+
+// The PostalAddress contains information about a postal address.
+message PostalAddress {
+    // the street name and number, c/o field and any other address lines not contained in this message
+    // may be multiline separated with \n
+    string address_lines = 1;
+    // the name of the city
+    string locality = 2;
+    // the postal code
+    string postal_code = 3;
+    // the country code in [ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2)
+    // a list of all current codes can be found [here](https://www.iso.org/obp/ui/#search)
+    string country = 4;
+    // the entire formatted address, multiline
+    string formatted = 5;
+    // The name of the addressee
+    string addressee_name = 6;
+}

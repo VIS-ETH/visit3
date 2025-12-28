@@ -1,6 +1,6 @@
 services:
   backend:
-    build: 
+    build:
       context: backend
       additional_contexts:
         common: ./
@@ -15,7 +15,7 @@ services:
       - "8000:8000"
     env_file:
       - .env.backend
-  
+
   frontend:
     build:
       context: frontend
@@ -71,3 +71,12 @@ services:
       - |-
         /usr/bin/mc config host add myminio http://minio:9000 minio minio123;
         /usr/bin/mc mb myminio/visit --ignore-existing;
+        
+  notifications-api:
+    image: eu.gcr.io/vseth-public/notifications-api
+    ports:
+      - 6781:6781
+    environment:
+      NOTIFICATIONS_LOGGING_ONLY: true
+      NOTIFICATIONS_UNAUTHENTICATED: true
+      LOG_LEVEL: trace

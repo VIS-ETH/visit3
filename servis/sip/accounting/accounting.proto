@@ -1,0 +1,566 @@
+syntax = "proto3";
+
+package sip.accounting;
+
+option go_package = "servis/sip/accounting";
+option java_multiple_files = true;
+option java_package = "ch.sip.accounting";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "google/type/date.proto";
+import "vseth/type/address.proto";
+import "vseth/type/bank.proto";
+import "vseth/type/money.proto";
+
+// The Accounting Service provides a way to facilitate all communications between the VSETH webservices and the
+// accounting software. It is designed to run all communications between the payment gateway and the accounting software.
+// The Accounting Service serves as an intermediary allowing the booking information to be as non-specific as possible.
+// This approach allows it to be used with different ERPs which might require different information to be sent.
+service Accounting {
+  // CreateBooking is provided with a booking, containing one or more positions and returns a booking and a error
+  // message which might be empty. The format of the error message is defined below.
+  rpc CreateBooking(CreateBookingRequest) returns (CreateBookingResponse);
+  // ListAccounts returns a paginated list of all accounts in the general ledger used by the organisation
+  rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
+  // ListCenters returns a paginated list of all cost and profit centers in the accounting system. For the ease of use
+  // they are referred to as "centers"
+  rpc ListCenters(ListCentersRequest) returns (ListCentersResponse);
+  // ListVATInfos provides the source of truth for the information on VAT. It returns a list of all VAT codes, the
+  // associated values and the expiration time.
+  // If you are calculating the VAT for a sale, pick the VAT which is before your sale and has the LEAST difference of the
+  // date of the sale of the item.
+  rpc ListVATInfos(google.protobuf.Empty) returns (ListVATInfosResponse);
+  // ListBookings returns a paginated list of all bookings. You can use this to create a file containing all open
+  // bookings which can be read into your accounting software.
+  rpc ListBookings(ListBookingsRequest) returns (ListBookingsResponse);
+  // ListSuppliers returns the list of suppliers according to the provided filter
+  rpc ListSuppliers(ListSuppliersRequest) returns (ListSuppliersResponse);
+  // ListAuditLog returns a paginated list containing messages of the audit log. This log can be used to find out about
+  // actions happening with orders.
+  // The audit log is only additive. Entries cannot be deleted from the audit log.
+  rpc ListAuditLog(ListAuditLogRequest) returns (ListAuditLogResponse);
+  // CreateSupplierInvoice creates an invoice for a specified supplier
+  rpc CreateSupplierInvoice(CreateSupplierInvoiceRequest) returns (CreateSupplierInvoiceResponse);
+  // CreateCustomerInvoice creates an invoice for a specified customer.
+  rpc CreateCustomerInvoice(CreateCustomerInvoiceRequest) returns (google.protobuf.Empty);
+  // ConfirmBookings allow confirmation of manual bookings
+  rpc ConfirmBookings(ConfirmBookingsRequest) returns (google.protobuf.Empty);
+  // CreateSupplier creates a supplier in accounting system
+  rpc CreateSupplier(CreateSupplierRequest) returns (CreateSupplierResponse);
+  // UpdateSupplier updates a supplier (Lieferant) in accounting system, a supplier can be specified by
+  // an internal ID that is managed by the accounting system
+  rpc UpdateSupplier(UpdateSupplierRequest) returns (UpdateSupplierResponse);
+  // GetSupplier returns a supplier with an internal ID
+  rpc GetSupplier(GetSupplierRequest) returns (Supplier);
+  // QuerySupplierInvoice returns the status of a supplier invoice
+  rpc QuerySupplierInvoice(QuerySupplierInvoiceRequest) returns (QuerySupplierInvoiceResponse);
+
+  rpc GetAccountBalances(GetAccountBalancesRequest) returns (GetAccountBalancesResponse);
+}
+
+message GetAccountBalancesRequest {
+  GetAccountBalancesRequest.Filter filter = 1;
+  google.type.Date from_date = 2;
+  google.type.Date to_date = 3;
+
+  message Filter {
+    repeated string account_names = 1;
+    repeated string center_names = 2;
+  }
+}
+
+message GetAccountBalancesResponse {
+  repeated Balance balances = 1;
+}
+
+message Balance {
+  string account_name = 1;
+  string account_display_name = 2;
+  string cost_center_name = 3;
+  string cost_center_display_name = 4;
+  vseth.type.Money budgeted_cents = 5;
+  vseth.type.Money actual_cents = 6;
+}
+
+// A position is an arbitrary amount of money being debited and credited to an account of a cost or profit center.
+message Position {
+  // Required. The label of the position.
+  string display_name = 1;
+  // Required. The expense account of the position, which is debited in the booking.
+  // On this account the amount + amount_vat will be deducted.
+  string debit_account = 2;
+  // Required. The income account of the position, which is credited in the booking.
+  // On this account the amount (without amount_vat) will be added.
+  string credit_account = 3;
+  // The cost center of the position.
+  string cost_center = 4;
+  // The profit center of the position.
+  string profit_center = 5;
+  // Required. The VAT code.
+  string vat_code = 6;
+  // Required. The amount excluding VAT.
+  vseth.type.Money amount = 7;
+  // Required. The total amount of VAT.
+  vseth.type.Money amount_vat = 8;
+}
+
+// A Booking consists of multiple positions that are associated with one transaction.
+message Booking {
+  // Required. The receipt number or the booking.
+  // Example: order/59178997-e5fd-48d9-8599-af3ca15ff65d
+  string order = 1;
+  // the name of the booking. This is the name of the order
+  // If none is given, the receipt number of the booking is used
+  // If none is given, the receipt number of the booking is used
+  string order_display_name = 2;
+  // Required. The date the order was issued.
+  google.type.Date order_date = 3;
+  // The booking date.
+  // Default: now
+  google.type.Date booking_date = 4;
+  // Required. The Booking positions of the booking.
+  // Credit minus Debit positions need to be zero.
+  repeated Position positions = 5;
+  // Optional. The database ID of the invoice. Only used to confirm bookings and send back when requesting bookings.
+  int64 db_id = 6;
+}
+
+message CreateBookingRequest {
+  // Required. The booking to be created.
+  Booking booking = 1;
+}
+
+message CreateBookingResponse {
+  // Required. The booking that should be created
+  Booking booking = 1;
+}
+
+// The Account concerned in a Position
+message Account {
+  // Required. The name of this account.
+  // Example: 400150
+  string account_name = 1;
+  // Required. The canonical name of this account
+  // Example: Aufwand Verpflegung nicht Eigenverbrauch
+  string display_name = 3;
+  // Indicates if an account is bookable. This can be disabled for accounts like "40 Materialaufwand"
+  bool bookable = 4;
+  // A filter message which can be used to request specific sets of accounts
+  // It will only filter for the field bookable_filter if the flag filter_for_bookable is
+  // set to true
+  message Filter {
+    // Valid filters are a string of numbers, up to 6 digits long
+    // Accounts with an account_name starting with filter are returned
+    string account_name = 1;
+    // If set, returns the accounts that are bookable or not, depending on the set value
+    google.protobuf.BoolValue bookable = 2;
+  }
+}
+
+message ListAccountsRequest {
+  // An filter object to filter the returned supplier invoices
+  Account.Filter filter = 1;
+  // Required. Information for pagination
+  int32 page_size = 2;
+  // Required. The identifier for the requested page
+  string page_token = 3;
+}
+
+message ListAccountsResponse {
+  // The accounts that are returned in accordance with the applied filter
+  repeated Account accounts = 1;
+  // Identifier for the next page
+  string next_page_token = 2;
+  // The total count of items in the list irrespective of pagination.
+  int32 total_size = 3;
+}
+
+message Center {
+  // Required. The unique number code assigned in the VSETH
+  // Example: 101
+  string center_name = 1;
+  // Required. The name if the center in the VSETH
+  // Example: Verband
+  string display_name = 2;
+  // Required.
+  bool has_sub_centers = 3;
+  bool bookable = 4;
+  repeated string ksv_groups = 5;
+  string display_name_en = 6;
+  string display_name_de = 7;
+  google.type.Date inactive_from = 8;
+  google.type.Date active_from = 9;
+
+  message Filter {
+    // Valid filters are a string of numbers, up to 6 digits long
+    // Centers with an center_name starting with filter are returned
+    string center_name = 1;
+    string display_name = 2;
+    // Filters on has_sub_center and bookable
+    google.protobuf.BoolValue has_sub_centers = 3;
+    google.protobuf.BoolValue bookable = 4;
+    repeated string ksv_groups = 5;
+    string display_name_en = 6;
+    string display_name_de = 7;
+    google.type.Date active_at = 8;
+  }
+}
+
+message PaymentReference {
+  enum PaymentReferenceType {
+    UNSPECIFIED = 0;
+    // No reference
+    NO_REFERENCE = 1;
+    // QR reference (QRR)
+    QR_REFERENCE = 2;
+    // Structured creditor reference (SCOR) ISO-11649
+    ISO_REFERENCE = 3;
+  }
+  // The payment reference type
+  PaymentReferenceType reference_type = 1;
+  // IBAN or QR-IBAN (QR-IBAN if and only if reference is QRR)
+  string iban = 2;
+  // Reference (27-digit QR reference or ISO-11649 reference up to 25 chars)
+  string reference_id = 3;
+  // Additional information
+  string additional_information = 4;
+}
+
+message ListCentersRequest {
+  // An filter object to filter the returned centers
+  Center.Filter filter = 1;
+  // Required. Information for pagination
+  int32 page_size = 3;
+  // Required. The identifier for the requested page
+  string page_token = 4;
+}
+
+message ListCentersResponse {
+  // The cost centers that are returned in accordance with the applied filter
+  repeated Center centers = 1;
+  // Identifier for the next page
+  string next_page_token = 2;
+  // The total count of items in the list irrespective of pagination.
+  int32 total_size = 3;
+}
+
+message ListSuppliersRequest {
+  // Supplier filter
+  Supplier.Filter filter = 1;
+  // Requested page size
+  int32 page_size = 2;
+  // Requested page
+  string page_token = 3;
+}
+
+message ListSuppliersResponse {
+  // Returned suppliers
+  repeated Supplier suppliers = 1;
+  // Next page token
+  string next_page_token = 2;
+  // Total items returned
+  int32 total_size = 3;
+}
+
+// A VAT Code (Mehrwertsteuercode) which contains the identifier of the code, the associated validity and percentages
+message VATInfo {
+  // Required.The VAT code in the underlying Accounting Solution
+  // Example: 503
+  string vat_code = 1;
+  // Required. the canonical name for this vat code
+  // Default: vat_code
+  // Example: Normalsatz
+  string display_name = 2;
+  // Required. The percentage of the VAR for the given Code
+  // Format: with two decimals e.g. 7.7% as 770
+  // Example: 770
+  int32 percent = 3;
+  // Required. the time this code goes into effect
+  // Example: 01.01.2018
+  google.type.Date valid_from = 4;
+}
+
+message ListVATInfosResponse {
+  // The vats that are returned
+  repeated VATInfo vats = 1;
+}
+
+message ListBookingsRequest {
+  // Required. Information for pagination
+  int32 page_size = 1;
+  // Required. The identifier for the requested page
+  string page_token = 2;
+  // A filter object to filter the returned bookings
+  BookingEntry.Filter filter = 3;
+}
+
+message BookingEntry {
+  Booking booking = 1;
+  State booking_state = 2;
+  string message = 3;
+  google.protobuf.Timestamp created_timestamp = 4;
+  google.protobuf.Timestamp updated_timestamp = 5;
+  Filter filter = 6;
+  // The database id of the booking. Used only for confirming.
+  int32 db_id = 7;
+  enum State {
+    UNSPECIFIED = 0;
+    SUBMITTED = 1;
+    REJECTED = 2;
+    FAILED = 3;
+    UNDEFINED = 4;
+    BOOKED = 5;
+  }
+  message Filter {
+    State state = 1;
+  }
+}
+
+message ListBookingsResponse {
+  // The bookings and their state that are returned in accordance with the applied filter
+  repeated BookingEntry booking_entries = 1;
+  // Identifier for the next page
+  string next_page_token = 2;
+  // The total count of items in the list irrespective of pagination.
+  int32 total_size = 3;
+}
+
+message AuditLog {
+  Booking booking = 1;
+  SupplierInvoice invoice = 2;
+  string from_state = 3;
+  string to_state = 4;
+  google.protobuf.Timestamp created_timestamp = 5;
+  Type type = 6;
+  string message = 7;
+  enum Type {
+    UNSPECIFIED = 0;
+    BOOKING = 1;
+    SUPPLIER_INVOICE = 2;
+  }
+}
+
+message ListAuditLogRequest {
+  // Required. Information for pagination
+  int32 page_size = 1;
+  // Required. The identifier for the requested page
+  string page_token = 2;
+}
+
+message ListAuditLogResponse {
+  // The entries in the audit log that are returned in accordance with the applied filter
+  repeated AuditLog log_entries = 1;
+  // Identifier for the next page
+  string next_page_token = 2;
+  // The total count of items in the list irrespective of pagination.
+  int32 total_size = 3;
+}
+
+// A supplier can currently only be an individual with a keycloak id
+message Supplier {
+  // Name of the supplier
+  string name = 1;
+  // Alternative name
+  string alternative_name = 2;
+  // Address of the partner
+  vseth.type.PostalAddress address = 3;
+  // Bank account of the partner
+  vseth.type.BankAccount bank = 4;
+  // ID of the supplier in the accounting system
+  string internal_id = 5;
+  string first_name = 6;
+  string last_name = 7;
+  string vseth_sub = 8;
+  string vseth_username = 9;
+  message Filter {
+    string name = 1;
+    string alternative_name = 2;
+    vseth.type.PostalAddress address = 3;
+    string internal_id = 4;
+    string first_name = 6;
+    string last_name = 7;
+    string vseth_sub = 8;
+    string vseth_username = 9;
+    Type type = 10;
+  }
+
+  enum Type {
+    VSETH = 0;
+    NON_VSETH = 1;
+    UNSPECIFIED = 2;
+  }
+}
+
+message InvoiceItem {
+  // The ID of the item. Can be numbered from 1 upwards
+  int32 id = 1;
+  // Required. A description of the item
+  string description = 2;
+  // Required. The VAT code.
+  string vat_code = 3;
+  // Optional.
+  string product_category_id = 4;
+  // Optional
+  string product_id = 5;
+  // Required. The quantity of items
+  int32 quantity = 6;
+  // Required. Price per unit
+  vseth.type.Money unit_price = 7;
+  // Required. The account (Sachkonto) of the item.
+  string credit_account = 8;
+  // Optional, can be set for supplier invoices
+  string cost_center = 9;
+  // Type of invoice item
+  InvoiceItem.Type invoice_item_type = 10;
+  enum Type {
+    UNSPECIFIED = 0;
+    CREDIT_ITEM = 1;
+    DEBIT_ITEM = 2;
+  }
+}
+
+message Attachment {
+  // Name of the attachment
+  string name = 1;
+  // Description of the attachment
+  string description = 2;
+  // MIME type of the attachment
+  string mime_type = 3;
+  // The file content
+  bytes file_content = 4;
+}
+
+// A supplier invoice consists of multiple invoice items which are grouped into one invoice
+message SupplierInvoice {
+  // The ID of the invoice, assigned by the system. Return value only
+  string id = 1;
+  // The external ID on the invoice (externe Belegsnummer)
+  string external_id = 2;
+  // Required. The date the order was issued.
+  // Corresponds to Rechnungsdatum
+  google.type.Date order_date = 3;
+  // Required. The date the order was issued.
+  // Corresponds to Eingangsdatum
+  google.type.Date receipt_date = 4;
+  // The booking date.
+  // Default: now
+  // Corresponds to Buchungsdatum
+  google.type.Date booking_date = 5;
+  // Supplier ID of supplier in SAP
+  string supplier_id = 6;
+  // Required. The items of the invoice
+  repeated InvoiceItem items = 7;
+  // A description of the invoice
+  string description = 8;
+  // Attachments of the supplier invoice
+  repeated Attachment attachments = 9;
+  // Payment reference, if provided
+  PaymentReference payment_reference = 10;
+  message Filter {
+    // TODO
+
+  }
+  // Status of the supplier invoice, return value only
+  Status status = 11;
+  enum Status {
+    UNSPECIFIED = 0;
+    IN_PROCESS = 1;
+    READY = 2;
+    POSTED = 3;
+    PAID = 4;
+    CANCELLED = 5;
+    EXCEPTION = 6;
+    VOID = 7;
+  }
+}
+
+// A supplier invoice consists of multiple invoice items which are grouped into one invoice
+message CustomerInvoice {
+  // The ID on the invoice. Corresponds to externe Belegnummer
+  string id = 1;
+  // Required. The date the order was issued.
+  // Corresponds to Eingangsdatum
+  google.type.Date invoice_date = 2;
+  // The booking date.
+  // Default: now
+  // Corresponds to Buchungsdatum
+  google.type.Date booking_date = 3;
+  // Supplier ID of supplier in SAP
+  string customer_id = 4;
+  // Required. The items of the invoice
+  repeated InvoiceItem items = 5;
+  // Required. Cost center
+  string cost_center = 6;
+  // Brutto or netto pricing indicator
+  bool brutto_pricing = 7;
+  // A description of the invoice
+  string description = 8;
+  // Attachments of the supplier invoice
+  repeated Attachment attachments = 9;
+  message Filter {
+    // TODO
+
+  }
+}
+
+// An invoice request contains the details about the invoice and the information required to identify or create the
+// correct supplier
+message CreateSupplierInvoiceRequest {
+  SupplierInvoice invoice = 1;
+}
+
+message CreateSupplierInvoiceResponse {
+  // The ID of the created supplier invoice
+  string id = 1;
+}
+
+message CreateCustomerInvoiceRequest {
+  CustomerInvoice invoice = 1;
+}
+
+// The request contains a list of invoices which should be set to the status BOOKED.
+// The invoices are identified by their db_id
+message ConfirmSupplierInvoicesRequest {
+  repeated SupplierInvoice invoices = 1;
+}
+
+// The request contains a list of invoices which should be set to the status BOOKED.
+// The invoices are identified by their db_id
+message ConfirmBookingsRequest {
+  repeated BookingEntry bookings = 1;
+}
+
+// UpdateSupplierRequest contains the details of a supplier to be updated
+message UpdateSupplierRequest {
+  Supplier supplier_details = 1;
+}
+
+message UpdateSupplierResponse {
+  // The internal ID of the updated supplier in the accounting system
+  string internal_id = 1;
+}
+
+// CreateSupplierRequest contains the details of a supplier to be created
+message CreateSupplierRequest {
+  Supplier supplier_details = 1;
+}
+
+message CreateSupplierResponse {
+  // The internal ID of the created supplier in the accounting system
+  string internal_id = 1;
+}
+
+message GetSupplierRequest {
+  string internal_id = 1;
+}
+
+message QuerySupplierInvoiceRequest {
+  string id = 1;
+}
+
+message QuerySupplierInvoiceResponse {
+  string id = 1;
+  SupplierInvoice.Status status = 2;
+}
