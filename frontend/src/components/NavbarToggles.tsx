@@ -1,4 +1,9 @@
-import { Group, HoverCard, Text, useMantineColorScheme } from "@mantine/core";
+import {
+  Group,
+  HoverCard,
+  Text,
+  useMantineColorScheme,
+} from "@mantine/core";
 import {
   IconLanguage,
   IconMoon,
@@ -19,6 +24,7 @@ const NavbarToggles = () => {
       i18n.changeLanguage("en");
     }
   };
+
   return (
     <Group justify="center">
       <Button

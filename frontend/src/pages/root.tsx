@@ -10,10 +10,10 @@ import {
 } from "@mantine/core";
 import { IconHome2, IconLogout2 } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
-import ColorSchemeToggle from "../components/NavbarToggles";
-import { NavLink, Outlet, redirect } from "react-router";
+import { NavLink, Outlet, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useLogoutUser } from "../orval/generated/users/users";
+import NavbarToggles from "../components/NavbarToggles";
 
 interface RootLayoutProps {
   navbarHidden: boolean;
@@ -22,8 +22,15 @@ interface RootLayoutProps {
 export default function RootLayout({ navbarHidden }: RootLayoutProps) {
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
+  const navigate = useNavigate();
 
-  const { mutate: logout } = useLogoutUser();
+  const { mutate: logout } = useLogoutUser({
+    mutation: {
+      onSuccess: () => {
+        navigate("/login");
+      },
+    },
+  });
 
   const { t } = useTranslation();
 
@@ -65,7 +72,7 @@ export default function RootLayout({ navbarHidden }: RootLayoutProps) {
               {t("welcome")}
             </Title>
           </Group>
-          <ColorSchemeToggle />
+          <NavbarToggles />
         </Group>
       </AppShell.Header>
       <AppShell.Navbar p="md">
@@ -83,7 +90,6 @@ export default function RootLayout({ navbarHidden }: RootLayoutProps) {
             <Button
               onClick={() => {
                 logout();
-                redirect("/login");
               }}
               leftSection={<IconLogout2 />}
             >

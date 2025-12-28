@@ -1,4 +1,13 @@
 {
+  "server": {
+    "error": "Server error"
+  },
+  "login": {
+    "title": "Log in",
+    "register": {
+      "title": "Sign up to VISIT"
+    }
+  },
   "welcome": "Welcome",
   "system-theme-follow": "Follow system theme",
   "language-change": "Change language",
@@ -6,12 +15,19 @@
     "title": "Register",
     "button": "Register",
     "fail": "Registration Failed",
-    "email": "Email",
+    "email": {
+      "title": "Email",
+      "placeholder": "your@email.com",
+      "valid": "Enter a valid email",
+      "used": "This email is already being used by another user."
+    },
     "password": {
+      "wrong": "Wrong password or email",
       "confirm": "Confirm Password",
       "title": "Password",
       "min": "Password has to be longer than 10 characters",
       "nomatch": "Passwords do not match"
-    }
+    },
+    "failed": "Registration failed, contact us if this persists."
   }
 }

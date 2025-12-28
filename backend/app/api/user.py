@@ -16,6 +16,7 @@ from app.core.security import (
     verify_refresh_token,
 )
 from app.utils.exceptions import unauth_e
+from sqlalchemy.exc import IntegrityError
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -31,15 +32,17 @@ async def register_user(session: DbSessionDep, user_create: UserCreate) -> None:
 
     if len(user.password) < 10:
         raise HTTPException(
-            status_code=400, detail="Password has to be longer than 10 characters"
+            status_code=400, detail="register.password.min"
         )
 
     user.password = hash_password(user.password)
 
     try:
         return await create_user(session, user)
+    except IntegrityError as e:
+        raise HTTPException(status_code=400, detail="register.email.used")
     except:
-        raise HTTPException(status_code=400, detail="Creating user failed")
+        raise HTTPException(status_code=400, detail="register.failed")
 
 
 @router.get("/list", operation_id="listUsers")
@@ -55,7 +58,7 @@ async def login_user(
 ):
     user = await authenticate_user(session, form_data.username, form_data.password)
     if not user:
-        raise HTTPException(status_code=400, detail="Wrong password or email")
+        raise HTTPException(status_code=400, detail="password.wrong")
     access_token = create_access_token(data={"sub": user.email})
 
     raw_refresh_token = await create_refresh_token(session, user)
