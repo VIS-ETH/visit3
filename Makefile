@@ -4,6 +4,7 @@ DOCS_FILE = ./frontend/src/orval/
 .PHONY: generate clean
 
 generate:
+	${MAKE} clean 
 	docker compose up --build -d
 
 	@until curl -s --fail $(API_URL) > /dev/null; do \

@@ -17,7 +17,7 @@ from app.core.security import (
 )
 from app.utils.exceptions import unauth_e
 
-router = APIRouter(prefix="/users")
+router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("/me", operation_id="readUsersMe")

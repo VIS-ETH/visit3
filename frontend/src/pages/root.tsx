@@ -8,38 +8,24 @@ import {
   Button,
   Text,
 } from "@mantine/core";
-import {
-  IconHome2,
-  IconInfoCircle,
-  IconFolder,
-  IconLink,
-} from "@tabler/icons-react";
+import { IconHome2, IconLogout2 } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
-import ColorSchemeToggle from "../components/ColorSchemeToggle";
-import { NavLink, Outlet } from "react-router";
+import ColorSchemeToggle from "../components/NavbarToggles";
+import { NavLink, Outlet, redirect } from "react-router";
 import { useTranslation } from "react-i18next";
+import { useLogoutUser } from "../orval/generated/users/users";
 
-const navLinks = [
-  { label: "Home", to: "/", icon: IconHome2 },
-  { label: "Files", to: "/~/files", icon: IconFolder },
-  { label: "Links", to: "/~/links", icon: IconLink },
-  { label: "About", to: "/about", icon: IconInfoCircle },
-];
+interface RootLayoutProps {
+  navbarHidden: boolean;
+}
 
-export default function RootLayout() {
+export default function RootLayout({ navbarHidden }: RootLayoutProps) {
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
 
-  const { t, i18n } = useTranslation();
+  const { mutate: logout } = useLogoutUser();
 
-  const changeLanguage = () => {
-    const lng = i18n.language;
-    if (lng === "en") {
-      i18n.changeLanguage("de");
-    } else {
-      i18n.changeLanguage("en");
-    }
-  };
+  const { t } = useTranslation();
 
   return (
     <AppShell
@@ -49,28 +35,32 @@ export default function RootLayout() {
         width: 300,
         breakpoint: "sm",
         collapsed: {
-          mobile: !mobileOpened,
-          desktop: !desktopOpened,
+          mobile: !mobileOpened || navbarHidden,
+          desktop: !desktopOpened || navbarHidden,
         },
       }}
     >
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
           <Group h="100%" px="md">
-            <Burger
-              opened={mobileOpened}
-              onClick={toggleMobile}
-              hiddenFrom="sm"
-              size="sm"
-            />
-            <Burger
-              opened={desktopOpened}
-              onClick={toggleDesktop}
-              visibleFrom="sm"
-              size="sm"
-            />
-            <div></div>
-            <Divider orientation="vertical" my="sm" />
+            {!navbarHidden && (
+              <>
+                <Burger
+                  opened={mobileOpened}
+                  onClick={toggleMobile}
+                  hiddenFrom="sm"
+                  size="sm"
+                />
+                <Burger
+                  opened={desktopOpened}
+                  onClick={toggleDesktop}
+                  visibleFrom="sm"
+                  size="sm"
+                />
+                <div></div>
+                <Divider orientation="vertical" my="sm" />
+              </>
+            )}
             <Title order={3} px="lg">
               {t("welcome")}
             </Title>
@@ -82,28 +72,23 @@ export default function RootLayout() {
         <Stack m="sm" align="stretch">
           <Group align="center" gap="xs" mb="xs">
             <Text fw={700} size="xl" ta="center" w="100%">
-              CDN Dashboard
+              VISIT
             </Text>
           </Group>
-          <Text size="sm" c="dimmed" m="sm" ml={2} ta="center" w="100%">
-            Fast, reliable file delivery
-          </Text>
-          <Button onClick={changeLanguage}>{t("language-change")}</Button>
           <Divider my="xs" label="Navigation" labelPosition="center" />
           <Stack gap="xs">
-            {navLinks.map(({ label, to, icon: Icon }) => (
-              <Button
-                key={to}
-                component={NavLink}
-                to={to}
-                variant="filled"
-                leftSection={<Icon size={28} />}
-                fullWidth
-                radius="md"
-              >
-                {label}
-              </Button>
-            ))}
+            <Button component={NavLink} to="/" leftSection={<IconHome2 />}>
+              Home
+            </Button>
+            <Button
+              onClick={() => {
+                logout();
+                redirect("/login");
+              }}
+              leftSection={<IconLogout2 />}
+            >
+              Logout
+            </Button>
           </Stack>
         </Stack>
       </AppShell.Navbar>

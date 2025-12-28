@@ -1,4 +1,4 @@
-import { createTheme, MantineProvider, Text } from "@mantine/core";
+import { createTheme, MantineProvider } from "@mantine/core";
 import { generateColors } from "@mantine/colors-generator";
 import "@mantine/core/styles.css";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -6,6 +6,8 @@ import { configOptions } from "./utils/constants";
 import Home from "./pages/Home";
 import { Route, Routes } from "react-router";
 import RootLayout from "./pages/root";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 
 const primaryColor = configOptions().primaryColor;
 const theme = createTheme({
@@ -21,7 +23,11 @@ function App() {
     <MantineProvider theme={theme}>
       <ReactQueryDevtools />
       <Routes>
-        <Route element={<RootLayout />}>
+        <Route element={<RootLayout navbarHidden={true}/>}>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        </Route>
+        <Route element={<RootLayout navbarHidden={false}/>}>
           <Route index path="/" element={<Home />} />
           <Route path="~">
             <Route path="./" element={<Home />} />

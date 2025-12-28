@@ -4,8 +4,7 @@ export default defineConfig({
   visit: {
     output: {
       mode: "tags-split",
-      target: "./generated/visit.ts",
-      schemas: "./generated/model",
+      target: "./generated/",
       client: "react-query",
       mock: true,
       override: {

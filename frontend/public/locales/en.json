@@ -1,4 +1,17 @@
 {
   "welcome": "Welcome",
-  "language-change": "Change language"
+  "system-theme-follow": "Follow system theme",
+  "language-change": "Change language",
+  "register": {
+    "title": "Register",
+    "button": "Register",
+    "fail": "Registration Failed",
+    "email": "Email",
+    "password": {
+      "confirm": "Confirm Password",
+      "title": "Password",
+      "min": "Password has to be longer than 10 characters",
+      "nomatch": "Passwords do not match"
+    }
+  }
 }
