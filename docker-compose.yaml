@@ -14,7 +14,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env.backend
+      - backend/.env
 
   frontend:
     build:
@@ -71,7 +71,7 @@ services:
       - |-
         /usr/bin/mc config host add myminio http://minio:9000 minio minio123;
         /usr/bin/mc mb myminio/visit --ignore-existing;
-        
+
   notifications-api:
     image: eu.gcr.io/vseth-public/notifications-api
     ports:
