@@ -1,5 +1,6 @@
 import { Stack, Title } from "@mantine/core";
 import { useReadUsersMe } from "../orval/generated/users/users";
+import { isCompany } from "../api/auth";
 
 export default function Home() {
   const { data: userMe} = useReadUsersMe({
@@ -7,7 +8,7 @@ export default function Home() {
 
   return (
     <Stack>
-      <Title order={3}>Welcome {userMe?.email}</Title>
+      <Title order={3}>Welcome {isCompany() ? "Company" : "Admin"} {userMe?.email}</Title>
     </Stack>
   );
 }

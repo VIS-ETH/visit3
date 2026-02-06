@@ -7,7 +7,8 @@ backend_dir = Path(__file__).resolve().parent.parent / "backend"
 
 sys.path.append(str(backend_dir))
 
-load_dotenv(".env.backend")
+dotenv_path = backend_dir / ".env"
+load_dotenv(dotenv_path)
 
 from app.main import app
 import json

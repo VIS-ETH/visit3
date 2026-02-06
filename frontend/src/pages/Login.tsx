@@ -8,7 +8,6 @@ import {
   Center,
   Title,
   Paper,
-  Box,
 } from "@mantine/core";
 import type { AxiosError } from "axios";
 import { NavLink, useNavigate } from "react-router";
@@ -17,6 +16,8 @@ import { useLoginUser } from "../orval/generated/users/users";
 import { useTranslatedForm } from "../utils/translator";
 import { loginSchema } from "../schemas/loginSchema";
 import { useTranslation } from "react-i18next";
+import { setToken } from "../api/auth";
+import type { Token } from "../orval/generated/fastAPI.schemas";
 
 const Login = () => {
   const { t } = useTranslation();
@@ -26,13 +27,15 @@ const Login = () => {
 
   const { mutate: login, isPending } = useLoginUser({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (data: Token) => {
+        setToken(data.access_token);
         navigate("/");
       },
       onError: (e: AxiosError<{ detail?: any }>) => {
-        const message = e.response?.data?.detail
-          ? JSON.stringify(e.response.data.detail)
-          : "server.error";
+        const message =
+          typeof e.response?.data?.detail === "string"
+            ? e.response?.data?.detail
+            : "server.error";
 
         setError(message);
       },
@@ -63,12 +66,12 @@ const Login = () => {
           <Paper w="100%" maw={380} p="xl" radius="md" withBorder>
             <Stack>
               {error && (
-                <Alert color="red" title="Login Failed">
+                <Alert color="red" title={t("login.fail")}>
                   {t(error)}
                 </Alert>
               )}
               <TextInput
-                label={t("register.email.title")}
+                label={t("email.title")}
                 placeholder="your@email.com"
                 autoComplete="email"
                 {...form.getInputProps("username")}
@@ -90,6 +93,9 @@ const Login = () => {
         <Stack>
           <Button component={NavLink} to="/register">
             {t("login.register.title")}
+          </Button>
+          <Button component={NavLink} to="/forget_password">
+            {t("forget_password.login")}
           </Button>
         </Stack>
       </Center>

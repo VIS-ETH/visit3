@@ -3,6 +3,7 @@
     "error": "Server error"
   },
   "login": {
+    "fail": "Login Failed",
     "title": "Log in",
     "register": {
       "title": "Sign up to VISIT"
@@ -16,18 +17,36 @@
     "button": "Register",
     "fail": "Registration Failed",
     "email": {
-      "title": "Email",
       "placeholder": "your@email.com",
-      "valid": "Enter a valid email",
       "used": "This email is already being used by another user."
     },
     "password": {
-      "wrong": "Wrong password or email",
       "confirm": "Confirm Password",
       "title": "Password",
-      "min": "Password has to be longer than 10 characters",
       "nomatch": "Passwords do not match"
     },
     "failed": "Registration failed, contact us if this persists."
+  },
+  "password": {
+    "wrong": "Wrong password or email",
+    "min": "Password has to be longer than 10 characters"
+  },
+  "email": {
+    "title": "Email",
+    "valid": "Enter a valid email"
+  },
+  "forget_password": {
+    "fail": "Resetting password failed",
+    "login": "Did you forget your password?",
+    "title": "Send password reset email",
+    "submit": "Send email",
+    "sent": "Reset email has been sent"
+  },
+  "reset_password": {
+    "title": "Change your password",
+    "error": "Error while changing password",
+    "submit": "Change password",
+    "done": "Password change was successful",
+    "invalid": "This link is invalid or expired"
   }
 }

@@ -14,6 +14,7 @@ import { NavLink, Outlet, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useLogoutUser } from "../orval/generated/users/users";
 import NavbarToggles from "../components/NavbarToggles";
+import { clearToken } from "../api/auth";
 
 interface RootLayoutProps {
   navbarHidden: boolean;
@@ -28,6 +29,7 @@ export default function RootLayout({ navbarHidden }: RootLayoutProps) {
     mutation: {
       onSuccess: () => {
         navigate("/login");
+        clearToken();
       },
     },
   });

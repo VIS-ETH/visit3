@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   Button,
@@ -8,7 +8,6 @@ import {
   Center,
   Paper,
   Title,
-  Group,
   Box,
   ActionIcon,
 } from "@mantine/core";
@@ -20,6 +19,7 @@ import { registerSchema } from "../schemas/registerSchema";
 import { useTranslation } from "react-i18next";
 import { IconArrowBackUp } from "@tabler/icons-react";
 import { useTranslatedForm } from "../utils/translator";
+import BackButton from "../components/BackButton";
 
 const Register = () => {
   const { t } = useTranslation();
@@ -33,9 +33,10 @@ const Register = () => {
         navigate("/");
       },
       onError: (e: AxiosError<{ detail?: any }>) => {
-        const message = e.response?.data?.detail
-          ? JSON.stringify(e.response.data.detail)
-          : "server.error";
+        const message =
+          typeof e.response?.data?.detail === "string"
+            ? e.response?.data?.detail
+            : "server.error";
 
         setError(message);
       },
@@ -51,18 +52,8 @@ const Register = () => {
   });
 
   return (
-    <Box pos="relative">
-      <ActionIcon
-        size="input-md"
-        component={NavLink}
-        to="/login"
-        variant=""
-        left="0"
-        top="0"
-        pos="absolute"
-      >
-        <IconArrowBackUp />
-      </ActionIcon>
+    <>
+      <BackButton to="/login" />
       <form
         onSubmit={form.onSubmit((values) => {
           setError("");
@@ -83,7 +74,7 @@ const Register = () => {
                 </Alert>
               )}
               <TextInput
-                label={t("register.email.title")}
+                label={t("email.title")}
                 autoComplete="email"
                 placeholder={t("register.email.placeholder")}
                 {...form.getInputProps("email")}
@@ -107,7 +98,7 @@ const Register = () => {
           </Paper>
         </Center>
       </form>
-    </Box>
+    </>
   );
 };
 

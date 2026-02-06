@@ -25,12 +25,12 @@ generate-grpc:
 	uv sync
 	$(PYTHON_ROOT) -m grpc_tools.protoc \
     -I ./servis \
-    --python_out=$(PROTOS_DST) \
+    --python_out=pyi_out:$(PROTOS_DST) \
     --grpc_python_out=$(PROTOS_DST) \
     $(PROTOS)
 
 	find $(PROTOS_DST) -type d -exec touch {}/__init__.py \;
-	./fix_imports.sh $(PROTOS_DST) $(PROTOS_PREFIX)
+	./scripts/fix_imports.sh $(PROTOS_DST) $(PROTOS_PREFIX)
 
 clean-grpc:
 	rm -rf $(PROTOS_DST)

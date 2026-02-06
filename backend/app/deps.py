@@ -16,6 +16,7 @@ oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/users/login", refreshUrl="/users/refresh"
 )
 
+
 class GRPCClient:
     def __init__(self):
         self.channel = None
@@ -40,11 +41,9 @@ async def get_db_session():
         yield session
 
 
-DbSessionDep = Annotated[AsyncSession, Depends(get_db_session)]
-
-
-async def get_current_user(
-    session: DbSessionDep, token: Annotated[str, Depends(oauth2_scheme)]
+async def get_user(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    token: Annotated[str, Depends(oauth2_scheme)],
 ):
     try:
         payload = jwt.decode(token, get_settings().SECRET_KEY, algorithms=["HS256"])
@@ -62,28 +61,38 @@ async def get_current_user(
     return user
 
 
-CurrentUserDep = Annotated[User, Depends(get_current_user)]
-
-
-def get_current_staff(current_user: CurrentUserDep):
-    if not current_user.is_staff:
-        raise not_allowed_e
-    return current_user
-
-
-CurrentStaffDep = Annotated[User, Depends(get_current_staff)]
-
-
-def get_current_admin(current_user: CurrentUserDep):
-    if not current_user.is_admin:
-        raise not_allowed_e
-    return current_user
-
-
-CurrentAdminDep = Annotated[User, Depends(get_current_admin)]
-
 async def get_stub():
     return grpc_client.stub
 
-GrpcMailStubDep = Annotated[MailServiceStub, Depends(get_stub)]
-        
+
+class _Context:
+    def __init__(
+        self,
+        session: Annotated[AsyncSession, Depends(get_db_session)],
+        mail_stub: Annotated[MailServiceStub, Depends(get_stub)],
+    ):
+        self.session = session
+        self.mail_stub = mail_stub
+
+
+class _UserContext(_Context):
+    def __init__(
+        self,
+        session: Annotated[AsyncSession, Depends(get_db_session)],
+        mail_stub: Annotated[MailServiceStub, Depends(get_stub)],
+        user: Annotated[User, Depends(get_user)],
+    ):
+        super().__init__(session, mail_stub)
+        self.user = user
+
+    def verify_staff(self):
+        if not self.user.is_staff:
+            raise not_allowed_e
+
+    def verify_admin(self):
+        if not self.user.is_admin:
+            raise not_allowed_e
+
+
+Context = Annotated[_Context, Depends()]
+UserContext = Annotated[_UserContext, Depends()]

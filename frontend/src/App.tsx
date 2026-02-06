@@ -8,6 +8,8 @@ import { Route, Routes } from "react-router";
 import RootLayout from "./pages/root";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgetPassword from "./pages/ForgetPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 const primaryColor = configOptions().primaryColor;
 const theme = createTheme({
@@ -23,11 +25,13 @@ function App() {
     <MantineProvider theme={theme}>
       <ReactQueryDevtools />
       <Routes>
-        <Route element={<RootLayout navbarHidden={true}/>}>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route element={<RootLayout navbarHidden={true} />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forget_password" element={<ForgetPassword />} />
+          <Route path="/reset/:token" element={<ResetPassword />} />
         </Route>
-        <Route element={<RootLayout navbarHidden={false}/>}>
+        <Route element={<RootLayout navbarHidden={false} />}>
           <Route index path="/" element={<Home />} />
           <Route path="~">
             <Route path="./" element={<Home />} />
