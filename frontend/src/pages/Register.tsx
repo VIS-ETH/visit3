@@ -8,18 +8,15 @@ import {
   Center,
   Paper,
   Title,
-  Box,
-  ActionIcon,
 } from "@mantine/core";
 import type { AxiosError } from "axios";
-import { NavLink, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { useDocumentTitle } from "@mantine/hooks";
-import { useRegisterUser } from "../orval/generated/users/users";
 import { registerSchema } from "../schemas/registerSchema";
 import { useTranslation } from "react-i18next";
-import { IconArrowBackUp } from "@tabler/icons-react";
 import { useTranslatedForm } from "../utils/translator";
 import BackButton from "../components/BackButton";
+import { useRegisterUser } from "../orval/generated/auth/auth";
 
 const Register = () => {
   const { t } = useTranslation();
@@ -30,7 +27,7 @@ const Register = () => {
   const { mutate: register, isPending } = useRegisterUser({
     mutation: {
       onSuccess: () => {
-        navigate("/");
+        navigate("/login");
       },
       onError: (e: AxiosError<{ detail?: any }>) => {
         const message =

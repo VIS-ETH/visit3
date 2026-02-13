@@ -6,9 +6,6 @@ import react from "@vitejs/plugin-react";
 // List of all environment variables that are required to be configurable at runtime
 const ENV_VARS_FOR_ENVSUBST = [
   "VSETH_ORG_CONFIG",
-  "SIP_AUTH_OIDC_CLIENT_ID",
-  "SIP_AUTH_OIDC_ISSUER_URL",
-  "VISIT_BACKEND_OIDC_CLIENT_ID",
   "VISIT_BACKEND_WEB_URL",
 ];
 

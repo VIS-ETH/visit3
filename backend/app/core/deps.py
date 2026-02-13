@@ -1,0 +1,114 @@
+from typing import Annotated
+from fastapi import Depends, Request
+from fastapi.security import OAuth2PasswordBearer
+from fastapi_csrf_protect import CsrfProtect
+import jwt
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlmodel import select
+from app.models.user import User
+from app.repositories.role_repository import RoleRepository
+from app.repositories.user_repository import UserRepository
+from app.schemas.user import TokenData
+from app.core.config import get_settings
+from app.core.exceptions import unauth_e
+from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
+from app.core.grpc import grpc_client
+from app.services.auth_service import AuthService
+from app.services.mail_service import MailService
+from app.services.user_service import UserService
+
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/users/login", refreshUrl="/users/refresh"
+)
+
+engine = create_async_engine(get_settings().DATABASE_URL, echo=True)
+
+SessionLocal = sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+
+async def get_db_session():
+    async with SessionLocal() as session:
+        yield session
+
+
+async def get_current_user(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    token: Annotated[str, Depends(oauth2_scheme)],
+):
+    try:
+        payload = jwt.decode(token, get_settings().SECRET_KEY, algorithms=["HS256"])
+        username = payload.get("sub")
+        if username is None:
+            raise unauth_e
+        token_data = TokenData(username=username)
+    except jwt.InvalidTokenError:
+        raise unauth_e
+    statement = select(User).where(User.email == token_data.username)
+    result = await session.execute(statement)
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise unauth_e
+    return user
+
+
+async def get_stub():
+    return grpc_client.stub
+
+
+async def _csrf_dep(request: Request, csrf_protect: Annotated[CsrfProtect, Depends()]):
+    if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
+        await csrf_protect.validate_csrf(request)
+
+
+CsrfDep = Depends(_csrf_dep)
+
+DbSessionDep = Annotated[AsyncSession, Depends(get_db_session)]
+MailDep = Annotated[MailServiceStub, Depends(get_stub)]
+CurrentUserDep = Annotated[User, Depends(get_current_user)]
+
+
+async def get_user_repository(
+    session: DbSessionDep,
+):
+    return UserRepository(session)
+
+
+UserRepositoryDep = Annotated[UserRepository, Depends(get_user_repository)]
+
+async def get_role_repository(
+    session: DbSessionDep,
+):
+    return RoleRepository(session)
+
+
+RoleRepositoryDep = Annotated[RoleRepository, Depends(get_role_repository)]
+
+
+async def get_user_service(
+    session: DbSessionDep, mail: MailDep, current_user: CurrentUserDep
+):
+    return UserService(session, mail, current_user)
+
+
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+
+
+async def get_mail_service(mail: MailDep):
+    return MailService(mail)
+
+
+MailServiceDep = Annotated[MailService, Depends(get_mail_service)]
+
+
+async def get_auth_service(
+    user_repository: UserRepositoryDep, role_repository: RoleRepositoryDep, mail_service: MailServiceDep
+):
+    return AuthService(user_repository, role_repository, mail_service)
+
+
+AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]

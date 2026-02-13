@@ -13,8 +13,8 @@ import { useDocumentTitle } from "@mantine/hooks";
 import { useTranslatedForm } from "../utils/translator";
 import { forgetPasswordSchema } from "../schemas/forgetPasswordSchema";
 import { useTranslation } from "react-i18next";
-import { useForgetPassword } from "../orval/generated/users/users";
 import BackButton from "../components/BackButton";
+import { useForgetPassword } from "../orval/generated/auth/auth";
 
 const ForgetPassword = () => {
   const { t } = useTranslation();

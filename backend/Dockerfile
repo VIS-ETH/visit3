@@ -19,5 +19,3 @@ COPY --from=compiler /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 COPY . .
 
-CMD ["fastapi", "dev", "--host", "0.0.0.0", "--port", "8000"]
-

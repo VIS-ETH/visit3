@@ -1,8 +1,6 @@
 interface ServerData {
   staticBase: string;
 
-  oidcClient: string;
-  oidcAuthority: string;
   backendUrl: string;
 }
 

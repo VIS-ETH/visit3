@@ -1,10 +1,5 @@
 import { useNavigate, useParams } from "react-router";
 import {
-  useResetPassword,
-  useValidResetPassword,
-} from "../orval/generated/users/users";
-import { useState } from "react";
-import {
   Alert,
   Button,
   Center,
@@ -18,6 +13,8 @@ import { useTranslation } from "react-i18next";
 import { useTranslatedForm } from "../utils/translator";
 import { resetPasswordSchema } from "../schemas/resetPasswordSchema";
 import BackButton from "../components/BackButton";
+import { useState } from "react";
+import { useResetPassword, useValidResetPassword } from "../orval/generated/auth/auth";
 
 export default function ResetPassword() {
   const { token } = useParams();

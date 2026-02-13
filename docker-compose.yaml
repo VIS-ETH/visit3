@@ -11,10 +11,15 @@ services:
         condition: service_healthy
       createbuckets:
         condition: service_completed_successfully
+    command: >
+      sh -c "alembic upgrade head && 
+             fastapi dev --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
     env_file:
       - backend/.env
+    volumes:
+      - ./backend:/app
 
   frontend:
     build:
@@ -80,3 +85,17 @@ services:
       NOTIFICATIONS_LOGGING_ONLY: true
       NOTIFICATIONS_UNAUTHENTICATED: true
       LOG_LEVEL: trace
+
+  keycloak:
+    container_name: "visit-keycloak"
+    image: quay.io/keycloak/keycloak:21.1.2
+    environment:
+      - KEYCLOAK_ADMIN=keycloak
+      - KEYCLOAK_ADMIN_PASSWORD=keycloak
+      - KC_HTTP_PORT=8181
+    command: start-dev --import-realm --log-level=ERROR
+    volumes:
+      - "./testdata/fake-vseth.json:/opt/keycloak/data/import/test-data.json"
+    ports:
+      - "8181:8181"
+

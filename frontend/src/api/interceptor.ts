@@ -1,6 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import serverData from "../utils/server-data";
-import { clearToken, getToken, isTokenExpired, refreshToken } from "./auth";
+import { clearToken, getCsrfToken, getToken, isTokenExpired, refreshToken } from "./utils";
 
 const backend_url = serverData.backendUrl;
 
@@ -10,7 +10,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(
-  async (config: InternalAxiosRequestConfig) => {
+  async (config: InternalAxiosRequestConfig) => {    
     let token;
 
     if (isTokenExpired()) {
@@ -22,9 +22,12 @@ api.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    config.headers["X-CSRF-Token"] = await getCsrfToken();
+
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 api.interceptors.response.use(
@@ -35,7 +38,7 @@ api.interceptors.response.use(
       window.location.href = "/login";
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

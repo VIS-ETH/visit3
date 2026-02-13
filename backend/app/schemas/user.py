@@ -13,10 +13,12 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: str | None = None
-    
+
+
 class ForgetPasswordRequest(BaseModel):
     email: str
-    
+
+
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str

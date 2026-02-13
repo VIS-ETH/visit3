@@ -12,9 +12,9 @@ import { IconHome2, IconLogout2 } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { useLogoutUser } from "../orval/generated/users/users";
 import NavbarToggles from "../components/NavbarToggles";
-import { clearToken } from "../api/auth";
+import { clearToken } from "../api/utils";
+import { useLogoutUser } from "../orval/generated/user/user";
 
 interface RootLayoutProps {
   navbarHidden: boolean;

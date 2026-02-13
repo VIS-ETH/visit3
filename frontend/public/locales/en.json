@@ -48,5 +48,9 @@
     "submit": "Change password",
     "done": "Password change was successful",
     "invalid": "This link is invalid or expired"
+  },
+  "keycloak": {
+    "redirecting": "Redirecting",
+    "login": "VIS Login"
   }
 }

@@ -12,12 +12,12 @@ import {
 import type { AxiosError } from "axios";
 import { NavLink, useNavigate } from "react-router";
 import { useDocumentTitle } from "@mantine/hooks";
-import { useLoginUser } from "../orval/generated/users/users";
 import { useTranslatedForm } from "../utils/translator";
 import { loginSchema } from "../schemas/loginSchema";
 import { useTranslation } from "react-i18next";
-import { setToken } from "../api/auth";
+import { setToken } from "../api/utils";
 import type { Token } from "../orval/generated/fastAPI.schemas";
+import { useKeycloakInit, useLoginUser } from "../orval/generated/auth/auth";
 
 const Login = () => {
   const { t } = useTranslation();
@@ -41,6 +41,18 @@ const Login = () => {
       },
     },
   });
+
+  const { refetch, isFetching } = useKeycloakInit({
+    query: { enabled: false },
+  });
+
+  const handleLogin = async () => {
+    const { data } = await refetch();
+
+    if (data) {
+      window.location.replace(data)
+    }
+  };
 
   const form = useTranslatedForm<typeof loginSchema>(loginSchema, {
     initialValues: {
@@ -96,6 +108,9 @@ const Login = () => {
           </Button>
           <Button component={NavLink} to="/forget_password">
             {t("forget_password.login")}
+          </Button>
+          <Button onClick={handleLogin} disabled={isFetching}>
+            {isFetching ? t("keycloak.redirecting") : t("keycloak.login")}
           </Button>
         </Stack>
       </Center>
