@@ -1,4 +1,5 @@
 import secrets
+import logging
 from typing import Annotated
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
@@ -21,6 +22,8 @@ from app.core.exceptions import (
 )
 from app.core.deps import CsrfDep, AuthServiceDep
 from app.services.auth_service import REFRESH_TOKEN_EXPIRE
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"], dependencies=[CsrfDep])
 
@@ -81,7 +84,7 @@ async def refresh_user(
         set_refresh_cookie(response, refresh_token)
         return Token(access_token=access_token, token_type="bearer")
     except TokenInvalid as e:
-        raise Unauthenticated("")
+        raise Unauthenticated(e.identifier)
 
 
 @router.post("/forget_password", operation_id="forgetPassword")
@@ -102,8 +105,11 @@ async def reset_password(
     request: ResetPasswordRequest, auth_service: AuthServiceDep
 ) -> bool:
     try:
-        return await auth_service.reset_password(request.token, request.new_password)
+        result = await auth_service.reset_password(request.token, request.new_password)
+        logger.info("Password reset successful")
+        return result
     except Exception as e:
+        logger.error(f"Password reset error: {str(e)}")
         raise HTTPException(status_code=400, detail="reset_password.error")
 
 

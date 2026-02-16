@@ -67,8 +67,26 @@
     "redirecting": "Redirecting",
     "login": "VIS Login"
   },
+  "not_allowed": {
+    "title": "Access Denied",
+    "description": "You do not have permission to access this page."
+  },
   "nav": {
     "home": "Home",
+    "user_management": "User Management",
     "logout": "Logout"
+  },
+  "user_management": {
+    "title": "User Management",
+    "email": "Email",
+    "name": "Name",
+    "status": "Status",
+    "company": "Company",
+    "unconfirmed": "Unconfirmed",
+    "no_users": "No Unconfirmed Users",
+    "no_users_description": "All users have been confirmed.",
+    "error": "Failed to load unconfirmed users",
+    "confirm": "Confirm User",
+    "confirm_error": "Failed to confirm user"
   }
 }

@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+import logging
+import os
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
@@ -8,6 +10,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from fastapi_csrf_protect import CsrfProtect
 from app.core.grpc import grpc_client
+
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=LOG_LEVEL,
+    format="%(levelname)s:%(name)s:%(message)s",
+    force=True,
+)
 
 
 class CsrfSettings(BaseModel):

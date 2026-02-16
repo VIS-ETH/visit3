@@ -68,6 +68,9 @@ export const refreshToken = async () => {
 
 export const setToken = (token: string) => {
   sessionStorage.setItem("token", token);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("auth-token-changed"));
+  }
 };
 
 export const getToken = () => {
@@ -76,6 +79,9 @@ export const getToken = () => {
 
 export const clearToken = () => {
   sessionStorage.removeItem("token");
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("auth-token-changed"));
+  }
 };
 
 export const isTokenExpired = () => {

@@ -1,4 +1,5 @@
 from typing import Annotated
+import logging
 from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi_csrf_protect import CsrfProtect
@@ -13,6 +14,8 @@ from app.schemas.user import TokenData
 from app.core.config import get_settings
 from app.core.exceptions import Unauthenticated
 from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
+
+logger = logging.getLogger(__name__)
 from app.core.grpc import grpc_client
 from app.services.auth_service import AuthService
 from app.services.mail_service import MailService
@@ -44,15 +47,19 @@ async def get_current_user(
         payload = jwt.decode(token, get_settings().SECRET_KEY, algorithms=["HS256"])
         username = payload.get("sub")
         if username is None:
-            raise Unauthenticated("")
+            logger.warning("JWT decode failed - no sub claim")
+            raise Unauthenticated("jwt_decode:no_sub")
         token_data = TokenData(username=username)
     except jwt.InvalidTokenError:
-        raise Unauthenticated("")
+        logger.warning("JWT decode failed - invalid token")
+        raise Unauthenticated("jwt_decode:invalid_token")
     statement = select(User).where(User.email == token_data.username)
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
     if user is None:
-        raise Unauthenticated("")
+        logger.warning(f"JWT user lookup failed - user not found: {token_data.username}")
+        raise Unauthenticated(f"jwt_decode:user_not_found:{token_data.username}")
+    logger.debug(f"User authenticated: {user.email}")
     return user
 
 

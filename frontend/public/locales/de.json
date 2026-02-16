@@ -67,8 +67,26 @@
     "redirecting": "Weiterleitung",
     "login": "VIS-Anmeldung"
   },
+  "not_allowed": {
+    "title": "Zugriff verweigert",
+    "description": "Sie haben keine Berechtigung, um auf diese Seite zuzugreifen."
+  },
   "nav": {
     "home": "Startseite",
+    "user_management": "Benutzerverwaltung",
     "logout": "Abmelden"
+  },
+  "user_management": {
+    "title": "Benutzerverwaltung",
+    "email": "E-Mail",
+    "name": "Name",
+    "status": "Status",
+    "company": "Unternehmen",
+    "unconfirmed": "Unbestätigt",
+    "no_users": "Keine unbestätigten Benutzer",
+    "no_users_description": "Alle Benutzer wurden bestätigt.",
+    "error": "Fehler beim Laden unbestätigter Benutzer",
+    "confirm": "Benutzer bestätigen",
+    "confirm_error": "Fehler beim Bestätigen des Benutzers"
   }
 }

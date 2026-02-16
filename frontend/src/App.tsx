@@ -4,6 +4,7 @@ import "@mantine/core/styles.css";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { configOptions } from "./utils/constants";
 import Home from "./pages/Home";
+import UserManagement from "./pages/UserManagement";
 import { Route, Routes } from "react-router";
 import RootLayout from "./pages/root";
 import Login from "./pages/Login";
@@ -39,6 +40,7 @@ function App() {
           <Route path="/unconfirmed_email" element={<UnconfirmedEmail />} />
           <Route path="/confirm_email/:token" element={<ConfirmEmail />} />
           <Route path="/unconfirmed_user" element={<UnconfirmedUser />} />
+          <Route path="/user-management" element={<UserManagement />} />
         </Route>
       </Routes>
     </MantineProvider>

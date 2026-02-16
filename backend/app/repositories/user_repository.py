@@ -29,6 +29,23 @@ class UserRepository(BaseRepository[User]):
     async def get_by_sub(self, sub: str):
         return await self._get_by_field(User.sub, sub)
 
+    async def get_unconfirmed_users(self) -> List[User]:
+        statement = select(User).where(User.user_confirmed == False)
+        result = await self.session.execute(statement)
+        users = result.scalars().all()
+        return users
+
+    async def confirm_user(self, user: User):
+        try:
+            user.user_confirmed = True
+            self.session.add(user)
+            await self.session.commit()
+            await self.session.refresh(user)
+            return user
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
     async def create_user(self, user: User):
         try:
             self.session.add(user)
@@ -164,7 +181,7 @@ class UserRepository(BaseRepository[User]):
             token = result.scalar_one_or_none()
 
             if not token:
-                raise TokenInvalid("")
+                raise TokenInvalid(f"change_password:{token_str}")
 
             user_update = (
                 update(User)

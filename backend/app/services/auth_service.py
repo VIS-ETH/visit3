@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import hashlib
 import secrets
+import logging
 from typing import List
 import httpx
 import jwt
@@ -8,11 +9,13 @@ from pwdlib import PasswordHash
 from app.core.security import decode_token
 from app.core.utils import hash_str
 from app.models.user import User
-from app.core.exceptions import KeycloakExchangeFailed, TokenInvalid, UserNotFound
+from app.core.exceptions import KeycloakExchangeFailed, TokenInvalid, UserNotFound, NotAllowed
 from app.core.config import get_settings
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
 from app.services.mail_service import MailService
+
+logger = logging.getLogger(__name__)
 
 password_hash = PasswordHash.recommended()
 ACCESS_TOKEN_EXPIRE = timedelta(minutes=15)
@@ -102,19 +105,24 @@ class AuthService:
         user.is_company = True
 
         try:
-            return await self.user_repository.create_user(user)
+            result = await self.user_repository.create_user(user)
+            logger.info(f"User registered: {user.email}")
+            return result
         except Exception as e:
+            logger.error(f"User registration failed: {user.email} - {str(e)}")
             raise e
 
     async def login_user(self, username: str, password: str):
         user = await self.authenticate_user(username, password)
         if not user:
-            raise UserNotFound("User Not Found During Login")
+            logger.warning(f"Login failed: invalid credentials for {username}")
+            raise UserNotFound(f"login:{username}")
+        logger.info(f"User login successful: {username}")
         return await self.create_tokens(user)
 
     async def refresh_user(self, refresh_token: str):
         if not refresh_token:
-            raise TokenInvalid("Refresh Token Invalid")
+            raise TokenInvalid("refresh:no_token")
 
         token = await self.verify_refresh_token(refresh_token)
 
@@ -123,12 +131,12 @@ class AuthService:
             or token.is_revoked
             or datetime.now(timezone.utc) > token.expires_at.astimezone(timezone.utc)
         ):
-            raise TokenInvalid("Refresh Token Invalid")
+            raise TokenInvalid(f"refresh:{token.user_id if token else 'unknown'}")
 
         user = await self.user_repository.get_by_id(token.user_id)
 
         if not user:
-            raise TokenInvalid("Refresh Token Invalid")
+            raise TokenInvalid(f"refresh:{token.user_id}")
 
         return await self.create_tokens(user)
 
@@ -136,20 +144,29 @@ class AuthService:
         user = await self.user_repository.get_by_email(email)
 
         if not user:
+            logger.debug(f"Forget password request for non-existent user: {email}")
             return None
 
-        token = await self.create_forget_password_token(email, user)
+        if not user.password:
+            logger.warning(f"Forget password requested for OAuth-only user: {email}")
+            raise NotAllowed(f"forget_password:{user.id}")
 
+        token = await self.create_forget_password_token(email, user)
+        logger.info(f"Password reset token created for user: {email}")
         await self.mail_service.send_forget_password_mail(email, token)
 
     async def reset_password(self, token: str, new_password: str):
         if not await self.validate_reset_token(token):
-            raise TokenInvalid("Reset Password Token Expired")
+            logger.warning(f"Password reset attempted with invalid/expired token: {token}")
+            raise TokenInvalid(f"reset_password:{token}")
         try:
-            return await self.user_repository.change_password(
+            result = await self.user_repository.change_password(
                 token, self.hash_password(new_password)
             )
+            logger.info(f"Password reset successful with token")
+            return result
         except Exception as e:
+            logger.error(f"Password reset failed: {str(e)}")
             raise e
 
     async def validate_reset_token(self, token: str):
@@ -171,7 +188,7 @@ class AuthService:
             response = await client.post(token_url, data=payload)
 
         if response.status_code != 200:
-            raise KeycloakExchangeFailed("Keycloak return non-200 status code")
+            raise KeycloakExchangeFailed(f"keycloak_callback:{code}")
 
         decoded_token = decode_token(response.json().get("access_token"))
 
@@ -200,7 +217,8 @@ class AuthService:
                 email=email,
                 sub=sub,
                 roles=roles,
-                is_confirmed=True,
+                user_confirmed=True,
+                email_confirmed=True,
                 is_admin=admin,
                 is_staff=True,
                 is_company=False,

@@ -1,12 +1,16 @@
 from datetime import datetime, timedelta, timezone
 import hashlib
 import secrets
-from app.core.decorators import require_confirmed_company
-from app.core.exceptions import TokenInvalid
+import logging
+from uuid import UUID
+from app.core.decorators import require_confirmed_company, require_staff
+from app.core.exceptions import TokenInvalid, UserNotFound
 from app.core.utils import hash_str
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.services.mail_service import MailService
+
+logger = logging.getLogger(__name__)
 
 CONFIRM_EMAIL_TOKEN_EXPIRE = timedelta(days=3)
 
@@ -51,13 +55,14 @@ class UserService:
         )
 
         if not token_is_valid:
-            raise TokenInvalid("")
+            logger.warning(f"Email confirmation failed for user: {self.current_user.email}")
+            raise TokenInvalid(f"confirm_email:{self.current_user.id}")
 
         await self.user_repository.confirm_email(self.current_user)
         await self.user_repository.revoke_confirm_email_tokens(self.current_user)
+        logger.info(f"Email confirmed for user: {self.current_user.email}")
         return True
 
-    @require_confirmed_company
     async def get_current_user(self):
         return self.current_user
 
@@ -65,3 +70,18 @@ class UserService:
         await self.user_repository.revoke_refresh_token(
             self.current_user, hash_str(refresh_token)
         )
+
+    @require_staff
+    async def get_unconfirmed_users(self):
+        return await self.user_repository.get_unconfirmed_users()
+
+    @require_staff
+    async def confirm_user(self, user_id: UUID):
+        user = await self.user_repository.get_by_id(user_id)
+        if not user:
+            logger.warning(f"Confirm user failed - user not found: {user_id}")
+            raise UserNotFound(f"confirm_user:{user_id}")
+        
+        result = await self.user_repository.confirm_user(user)
+        logger.info(f"User confirmed by staff {self.current_user.email}: {user.email}")
+        return result
