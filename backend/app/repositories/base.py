@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 T = TypeVar("T", bound=SQLModel)
 
+
 class BaseRepository(Generic[T]):
     def __init__(self, model: type[T], session: AsyncSession):
         self.model = model

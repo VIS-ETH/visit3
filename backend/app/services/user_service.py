@@ -28,8 +28,10 @@ class UserService:
 
         await self.user_repository.revoke_confirm_email_tokens(self.current_user)
         raw_token = await self.create_confirm_email_token()
-        
-        await self.mail_service.send_confirm_email_mail(self.current_user.email, raw_token)
+
+        await self.mail_service.send_confirm_email_mail(
+            self.current_user.email, raw_token
+        )
 
     async def create_confirm_email_token(self):
         raw_token = secrets.token_urlsafe(32)
@@ -42,22 +44,24 @@ class UserService:
         )
 
         return raw_token
-    
+
     async def confirm_email(self, token: str):
-        token_is_valid = await self.user_repository.validate_confirm_email_token(self.current_user, hash_str(token))
-        
+        token_is_valid = await self.user_repository.validate_confirm_email_token(
+            self.current_user, hash_str(token)
+        )
+
         if not token_is_valid:
             raise TokenInvalid("")
-        
+
         await self.user_repository.confirm_email(self.current_user)
         await self.user_repository.revoke_confirm_email_tokens(self.current_user)
         return True
-        
+
     @require_confirmed_company
     async def get_current_user(self):
         return self.current_user
-    
+
     async def logout_user(self, refresh_token: str):
-        await self.user_repository.revoke_refresh_token(self.current_user, hash_str(refresh_token))
-        
-        
+        await self.user_repository.revoke_refresh_token(
+            self.current_user, hash_str(refresh_token)
+        )

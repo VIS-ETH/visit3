@@ -12,11 +12,18 @@ from app.schemas.user import (
 from app.models.user import User
 from sqlalchemy.exc import IntegrityError
 from app.core.config import get_settings
-from app.core.exceptions import KeycloakExchangeFailed, TokenInvalid, Unauthenticated, UserNotFound, unauth_e
+from app.core.exceptions import (
+    KeycloakExchangeFailed,
+    TokenInvalid,
+    Unauthenticated,
+    UserNotFound,
+    unauth_e,
+)
 from app.core.deps import CsrfDep, AuthServiceDep
 from app.services.auth_service import REFRESH_TOKEN_EXPIRE
 
 router = APIRouter(prefix="/auth", tags=["auth"], dependencies=[CsrfDep])
+
 
 def set_refresh_cookie(response: Response, raw_refresh_token: str):
     response.set_cookie(
@@ -27,6 +34,7 @@ def set_refresh_cookie(response: Response, raw_refresh_token: str):
         samesite="lax",
         max_age=int(REFRESH_TOKEN_EXPIRE.total_seconds()),
     )
+
 
 @router.post("/register", operation_id="registerUser")
 async def register_user(
@@ -74,7 +82,7 @@ async def refresh_user(
         return Token(access_token=access_token, token_type="bearer")
     except TokenInvalid as e:
         raise Unauthenticated("")
-    
+
 
 @router.post("/forget_password", operation_id="forgetPassword")
 async def forget_password(auth_service: AuthServiceDep, request: ForgetPasswordRequest):
@@ -113,11 +121,11 @@ async def keycloak_callback(
         refresh_token = await auth_service.keycloak_callback(code)
     except KeycloakExchangeFailed as e:
         raise HTTPException(status_code=400, detail=f"Exchange failed: {e.identifier}")
-    
+
     response = RedirectResponse(url=get_settings().FRONTEND_SERVER)
 
     response.delete_cookie("oauth_state")
-    
+
     set_refresh_cookie(response, refresh_token)
 
     return response

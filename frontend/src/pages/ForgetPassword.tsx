@@ -7,7 +7,6 @@ import {
   Center,
   Title,
   Paper,
-  Text,
 } from "@mantine/core";
 import { IconMailSearch } from "@tabler/icons-react";
 import type { AxiosError } from "axios";
@@ -56,9 +55,7 @@ const ForgetPassword = () => {
       <Center py="xl">
         <Stack align="center" gap="xl" maw={400} px="md">
           <Stack gap="xs" align="center">
-            <Title ta="center">
-              {t("forget_password.title")}
-            </Title>
+            <Title ta="center">{t("forget_password.title")}</Title>
           </Stack>
 
           <Paper w="100%" p="xl" radius="md" withBorder>

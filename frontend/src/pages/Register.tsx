@@ -9,7 +9,6 @@ import {
   Paper,
   Title,
   Text,
-  Group,
 } from "@mantine/core";
 import { IconMailSearch, IconLock } from "@tabler/icons-react";
 import type { AxiosError } from "axios";
@@ -101,7 +100,12 @@ const Register = () => {
                   leftSection={<IconLock size={16} />}
                   {...form.getInputProps("confirmPassword")}
                 />
-                <Button type="submit" loading={isPending} disabled={isPending} size="md">
+                <Button
+                  type="submit"
+                  loading={isPending}
+                  disabled={isPending}
+                  size="md"
+                >
                   {t("register.button")}
                 </Button>
               </Stack>

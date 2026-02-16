@@ -8,7 +8,6 @@ import {
   PasswordInput,
   Stack,
   Title,
-  Text,
 } from "@mantine/core";
 import { IconLock } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -16,7 +15,10 @@ import { useTranslatedForm } from "../utils/translator";
 import { resetPasswordSchema } from "../schemas/resetPasswordSchema";
 import BackButton from "../components/BackButton";
 import { useState } from "react";
-import { useResetPassword, useValidResetPassword } from "../orval/generated/auth/auth";
+import {
+  useResetPassword,
+  useValidResetPassword,
+} from "../orval/generated/auth/auth";
 
 export default function ResetPassword() {
   const { token } = useParams();
@@ -24,18 +26,14 @@ export default function ResetPassword() {
   const [passwordReset, setPasswordReset] = useState(false);
   const navigate = useNavigate();
 
-  if (token === undefined) {
-    navigate("/login");
-    return;
-  }
-
   const {
     data: valid,
-    isPending:validPending,
+    isPending: validPending,
     isError: validError,
-  } = useValidResetPassword(token, {
+  } = useValidResetPassword(token || "", {
     query: {
       retry: false,
+      enabled: token !== undefined,
     },
   });
 
@@ -60,6 +58,11 @@ export default function ResetPassword() {
       },
     },
   );
+
+  if (token === undefined) {
+    navigate("/login");
+    return;
+  }
 
   if (validPending) {
     return <LoadingOverlay />;
@@ -91,9 +94,7 @@ export default function ResetPassword() {
       <Center py="xl">
         <Stack align="center" gap="xl" maw={400} px="md">
           <Stack gap="xs" align="center">
-            <Title ta="center">
-              {t("reset_password.title")}
-            </Title>
+            <Title ta="center">{t("reset_password.title")}</Title>
           </Stack>
 
           <Paper w="100%" p="xl" radius="md" withBorder>
@@ -124,7 +125,12 @@ export default function ResetPassword() {
                   leftSection={<IconLock size={16} />}
                   {...form.getInputProps("confirmPassword")}
                 />
-                <Button type="submit" loading={resetPending} disabled={resetPending} size="md">
+                <Button
+                  type="submit"
+                  loading={resetPending}
+                  disabled={resetPending}
+                  size="md"
+                >
                   {t("reset_password.submit")}
                 </Button>
               </Stack>

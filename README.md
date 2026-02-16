@@ -82,8 +82,24 @@ alembic downgrade -1
 
 ## Important Bits
 
-Backend and frontend are both formatted. Use black formatted for the backend python code and prettier for the frontend typescript code.
+### Code Formatting
 
-Make sure that fastapi routes are types properly and named properly, otherwise orval can't properly generate the files.
+- **Backend**: Use [Black](https://github.com/psf/black) for Python code formatting
+- **Frontend**: Use [Prettier](https://prettier.io/) for code formatting
 
-For translation we use i18next and save the translations as json. Don't write any text in typescript, otherwise it won't be translated.
+### API Routes & Types
+
+- Ensure FastAPI routes are **properly typed** with return types and request body schemas
+- Use **meaningful route names** - Orval uses these to generate client code
+- Example:
+  ```python
+  @router.post("/login", operation_id="login")
+  async def login(request: LoginRequest) -> TokenResponse:
+      ...
+  ```
+
+### Translations
+
+- Use **i18next** for all UI text - never hardcode strings
+- Save translations in `frontend/public/locales/[language].json`
+- Always use translation keys: `t("key.path")` instead of plain text

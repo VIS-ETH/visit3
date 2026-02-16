@@ -4,14 +4,11 @@ import react from "@vitejs/plugin-react";
 // https://vite.dev/config/
 
 // List of all environment variables that are required to be configurable at runtime
-const ENV_VARS_FOR_ENVSUBST = [
-  "VSETH_ORG_CONFIG",
-  "VISIT_BACKEND_WEB_URL",
-];
+const ENV_VARS_FOR_ENVSUBST = ["VSETH_ORG_CONFIG", "VISIT_BACKEND_WEB_URL"];
 
 export default defineConfig({
   server: {
-    port: 3000, 
+    port: 3000,
     strictPort: true,
   },
   plugins: [

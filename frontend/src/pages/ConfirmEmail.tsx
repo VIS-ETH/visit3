@@ -8,19 +8,17 @@ export default function ConfirmEmail() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
+  const { data, isPending } = useConfirmEmail(token || "", {
+    query: {
+      retry: false,
+      enabled: token !== undefined,
+    },
+  });
+
   if (token === undefined) {
     navigate("/login");
     return;
   }
-
-  const {
-    data,
-    isPending
-  } = useConfirmEmail(token, {
-    query: {
-      retry: false,
-    },
-  });
 
   if (data) {
     return <Title>{t("email.confirm.success")}</Title>;

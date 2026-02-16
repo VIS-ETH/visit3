@@ -179,9 +179,9 @@ class AuthService:
 
     async def login_keycloak_user(self, decoded_token: str):
         user = await self.map_keycloak_to_user(decoded_token)
-        
+
         return await self.create_refresh_token(user)
-        
+
     async def map_keycloak_to_user(self, decoded_token: str):
         email = decoded_token["email"]
         keycloak_roles = decoded_token["resource_access"][

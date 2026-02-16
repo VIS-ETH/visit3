@@ -1,9 +1,4 @@
-import {
-  Group,
-  HoverCard,
-  Text,
-  useMantineColorScheme,
-} from "@mantine/core";
+import { Group, HoverCard, Text, useMantineColorScheme } from "@mantine/core";
 import {
   IconLanguage,
   IconMoon,

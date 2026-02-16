@@ -1,7 +1,6 @@
 import axios from "axios";
 import serverData from "../utils/server-data";
 import { jwtDecode } from "jwt-decode";
-import Cookies from "js-cookie";
 
 interface TokenPayload {
   sub: string;

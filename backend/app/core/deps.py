@@ -80,6 +80,7 @@ async def get_user_repository(
 
 UserRepositoryDep = Annotated[UserRepository, Depends(get_user_repository)]
 
+
 async def get_role_repository(
     session: DbSessionDep,
 ):
@@ -87,15 +88,6 @@ async def get_role_repository(
 
 
 RoleRepositoryDep = Annotated[RoleRepository, Depends(get_role_repository)]
-
-
-async def get_user_service(
-    session: DbSessionDep, mail: MailDep, current_user: CurrentUserDep
-):
-    return UserService(session, mail, current_user)
-
-
-UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 
 async def get_mail_service(mail: MailDep):
@@ -117,7 +109,9 @@ UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 
 async def get_auth_service(
-    user_repository: UserRepositoryDep, role_repository: RoleRepositoryDep, mail_service: MailServiceDep
+    user_repository: UserRepositoryDep,
+    role_repository: RoleRepositoryDep,
+    mail_service: MailServiceDep,
 ):
     return AuthService(user_repository, role_repository, mail_service)
 

@@ -10,8 +10,9 @@ def require_confirmed_company(func):
             raise EmailNotConfirmed(self.current_user.email)
         if not self.current_user.user_confirmed:
             raise UserNotConfirmed(self.current_user.email)
-        
+
         result = func(*args, **kwargs)
-        
+
         return result
+
     return wrapper

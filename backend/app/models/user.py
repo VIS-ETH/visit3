@@ -6,18 +6,24 @@ from sqlmodel import Column, DateTime, Relationship, SQLModel, Field, func
 
 from app.core.utils import normalize_email
 
+
 class UserRole(SQLModel, table=True):
     user_id: UUID = Field(foreign_key="user.id", primary_key=True)
     role_id: UUID = Field(foreign_key="role.id", primary_key=True)
-    
+
+
 class Role(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     name: str = Field(index=True, unique=True)
-    
+
     users: list["User"] = Relationship(back_populates="roles", link_model=UserRole)
 
+
 class User(SQLModel, table=True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True,)
+    id: UUID = Field(
+        default_factory=uuid4,
+        primary_key=True,
+    )
     email: str = Field(unique=True, index=True)
     sub: Optional[str] = Field(default=None, index=True)
     password: Optional[str]
@@ -27,12 +33,12 @@ class User(SQLModel, table=True):
     is_staff: bool = False
     is_admin: bool = False
     is_company: bool = False
-    
+
     user_confirmed: bool = False
     email_confirmed: bool = False
-    
+
     roles: List["Role"] = Relationship(back_populates="users", link_model=UserRole)
-    
+
     @field_validator("email", mode="before")
     @classmethod
     def transform_email(cls, v: str) -> str:
@@ -43,7 +49,9 @@ class RefreshToken(SQLModel, table=True):
     id: UUID = Field(
         default_factory=uuid4, primary_key=True, index=True, nullable=False
     )
-    user_id: UUID = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False, index=True)
+    user_id: UUID = Field(
+        foreign_key="user.id", ondelete="CASCADE", nullable=False, index=True
+    )
     token: str = Field(index=True, unique=True)
 
     is_revoked: bool = Field(default=False)
@@ -61,7 +69,9 @@ class ForgetPasswordToken(SQLModel, table=True):
     id: UUID = Field(
         default_factory=uuid4, primary_key=True, index=True, nullable=False
     )
-    user_id: UUID = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False, index=True)
+    user_id: UUID = Field(
+        foreign_key="user.id", ondelete="CASCADE", nullable=False, index=True
+    )
     token: str = Field(index=True, unique=True)
 
     is_revoked: bool = Field(default=False)
@@ -73,12 +83,15 @@ class ForgetPasswordToken(SQLModel, table=True):
     expires_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False)
     )
-    
+
+
 class ConfirmEmailToken(SQLModel, table=True):
     id: UUID = Field(
         default_factory=uuid4, primary_key=True, index=True, nullable=False
     )
-    user_id: UUID = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False, index=True)
+    user_id: UUID = Field(
+        foreign_key="user.id", ondelete="CASCADE", nullable=False, index=True
+    )
     token: str = Field(index=True, unique=True)
 
     is_revoked: bool = Field(default=False)

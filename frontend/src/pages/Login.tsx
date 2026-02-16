@@ -9,7 +9,6 @@ import {
   Title,
   Paper,
   Text,
-  Group,
   Divider,
 } from "@mantine/core";
 import { IconLock, IconMailSearch } from "@tabler/icons-react";
