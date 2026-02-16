@@ -1,11 +1,11 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
-from sqlmodel import SQLModel
-from app.routers.router import router as api_router
+from app.core.exceptions import AppError
+from app.routes.router import router as api_router
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
-from app.core.deps import engine
 from fastapi_csrf_protect import CsrfProtect
 from app.core.grpc import grpc_client
 
@@ -30,6 +30,20 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+@app.exception_handler(AppError)
+async def app_error_handler(request: Request, exc: AppError):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "statusCode": exc.status_code,
+            "identifier": exc.identifier,
+            "message": exc.message,
+            **({"redirectTo": exc.redirect_to} if hasattr(exc, "redirect_to") else {}),
+        },
+    )
+
 
 origins = [get_settings().FRONTEND_SERVER, get_settings().KEYCLOAK_URL]
 

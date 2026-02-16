@@ -8,7 +8,6 @@ dependencies = [
     "pydantic==2.12.5",
     "pydantic-settings==2.12.0",
     "sqlmodel==0.0.27",
-    "psycopg2-binary>=2.9.11",
     "alembic>=1.17.2",
     "pyjwt[crypto]>=2.10.1",
     "pwdlib[argon2]>=0.3.0",

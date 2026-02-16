@@ -1,6 +1,12 @@
 {
+  "user": {
+    "unconfirmed": "Your account is not confirmed, wait until an admin confirms your account."
+  },
   "server": {
     "error": "Server error"
+  },
+  "company": {
+    "login": "Company Login"
   },
   "login": {
     "fail": "Login Failed",
@@ -33,7 +39,15 @@
   },
   "email": {
     "title": "Email",
-    "valid": "Enter a valid email"
+    "valid": "Enter a valid email",
+    "confirm": {
+      "success": "Email confirmed",
+      "invalid": "This link is invalid or expired",
+      "unconfirmed": "To use VISIT you have to confirm your email",
+      "button": "Send confirmation email",
+      "error": "Error while sending the confirmation mail",
+      "sent": "Confirmation mail has been sent to your email"
+    }
   },
   "forget_password": {
     "fail": "Resetting password failed",
@@ -52,5 +66,9 @@
   "keycloak": {
     "redirecting": "Redirecting",
     "login": "VIS Login"
+  },
+  "nav": {
+    "home": "Home",
+    "logout": "Logout"
   }
 }

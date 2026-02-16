@@ -1,4 +1,74 @@
 {
+  "user": {
+    "unconfirmed": "Ihr Konto ist nicht bestätigt, warten Sie, bis ein Admin Ihr Konto bestätigt."
+  },
+  "server": {
+    "error": "Serverfehler"
+  },
+  "company": {
+    "login": "Unternehmensanmeldung"
+  },
+  "login": {
+    "fail": "Anmeldung fehlgeschlagen",
+    "title": "Anmelden",
+    "register": {
+      "title": "Registrierung bei VISIT"
+    }
+  },
   "welcome": "Willkommen",
-  "language-change": "Sprache aendern"
+  "system-theme-follow": "Systemthema folgen",
+  "language-change": "Sprache ändern",
+  "register": {
+    "title": "Registrieren",
+    "button": "Registrieren",
+    "fail": "Registrierung fehlgeschlagen",
+    "email": {
+      "placeholder": "deine@email.com",
+      "used": "Diese E-Mail wird bereits von einem anderen Benutzer verwendet."
+    },
+    "password": {
+      "confirm": "Passwort bestätigen",
+      "title": "Passwort",
+      "nomatch": "Passwörter stimmen nicht überein"
+    },
+    "failed": "Die Registrierung ist fehlgeschlagen. Kontaktieren Sie uns, wenn dies weiterhin der Fall ist."
+  },
+  "password": {
+    "wrong": "Falsches Passwort oder E-Mail",
+    "min": "Das Passwort muss länger als 10 Zeichen sein"
+  },
+  "email": {
+    "title": "E-Mail",
+    "valid": "Geben Sie eine gültige E-Mail ein",
+    "confirm": {
+      "success": "E-Mail bestätigt",
+      "invalid": "Dieser Link ist ungültig oder abgelaufen",
+      "unconfirmed": "Um VISIT zu nutzen, müssen Sie Ihre E-Mail bestätigen",
+      "button": "Bestätigungsmail senden",
+      "error": "Fehler beim Senden der Bestätigungsmail",
+      "sent": "Bestätigungsmail wurde an Ihre E-Mail gesendet"
+    }
+  },
+  "forget_password": {
+    "fail": "Passwort-Zurücksetzen fehlgeschlagen",
+    "login": "Haben Sie Ihr Passwort vergessen?",
+    "title": "E-Mail zum Zurücksetzen des Passworts senden",
+    "submit": "E-Mail senden",
+    "sent": "Zurücksetze-Mail wurde gesendet"
+  },
+  "reset_password": {
+    "title": "Ändern Sie Ihr Passwort",
+    "error": "Fehler beim Ändern des Passworts",
+    "submit": "Passwort ändern",
+    "done": "Passwortänderung war erfolgreich",
+    "invalid": "Dieser Link ist ungültig oder abgelaufen"
+  },
+  "keycloak": {
+    "redirecting": "Weiterleitung",
+    "login": "VIS-Anmeldung"
+  },
+  "nav": {
+    "home": "Startseite",
+    "logout": "Abmelden"
+  }
 }

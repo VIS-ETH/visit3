@@ -10,6 +10,9 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgetPassword from "./pages/ForgetPassword";
 import ResetPassword from "./pages/ResetPassword";
+import UnconfirmedEmail from "./pages/UnconfirmedEmail";
+import ConfirmEmail from "./pages/ConfirmEmail";
+import UnconfirmedUser from "./pages/UnconfirmedUser";
 
 const primaryColor = configOptions().primaryColor;
 const theme = createTheme({
@@ -33,9 +36,9 @@ function App() {
         </Route>
         <Route element={<RootLayout navbarHidden={false} />}>
           <Route index path="/" element={<Home />} />
-          <Route path="~">
-            <Route path="./" element={<Home />} />
-          </Route>
+          <Route path="/unconfirmed_email" element={<UnconfirmedEmail />} />
+          <Route path="/confirm_email/:token" element={<ConfirmEmail />} />
+          <Route path="/unconfirmed_user" element={<UnconfirmedUser />} />
         </Route>
       </Routes>
     </MantineProvider>

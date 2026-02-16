@@ -6,10 +6,6 @@ WORKDIR /app/frontend
 COPY package.json yarn.lock ./
 RUN npm install yarn && yarn
 
-COPY --from=common servis ../servis
-COPY buf.yaml buf.gen.yaml ./
-RUN yarn build:protos
-
 COPY tsconfig*.json vite.config.ts eslint.config.js index.html ./
 COPY src src
 

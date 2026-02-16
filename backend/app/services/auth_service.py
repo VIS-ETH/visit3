@@ -6,8 +6,9 @@ import httpx
 import jwt
 from pwdlib import PasswordHash
 from app.core.security import decode_token
+from app.core.utils import hash_str
 from app.models.user import User
-from app.core.exceptions import KeycloakExchangeFailed, UserNotFoundError, unauth_e
+from app.core.exceptions import KeycloakExchangeFailed, TokenInvalid, UserNotFound
 from app.core.config import get_settings
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
@@ -50,7 +51,7 @@ class AuthService:
 
     async def create_refresh_token(self, user: User):
         raw_token = secrets.token_urlsafe(64)
-        hashed_token = hashlib.sha256(raw_token.encode()).hexdigest()
+        hashed_token = hash_str(raw_token)
         token = await self.user_repository.create_refresh_token_by_user(
             user,
             hashed_token,
@@ -61,7 +62,7 @@ class AuthService:
             raise Exception
 
         return raw_token
-    
+
     async def create_tokens(self, user: User):
         access_token = await self.create_access_token(user)
 
@@ -70,7 +71,7 @@ class AuthService:
         return (access_token, refresh_token)
 
     async def verify_refresh_token(self, raw_token: str):
-        hashed_token = hashlib.sha256(raw_token.encode()).hexdigest()
+        hashed_token = hash_str(raw_token)
         token = await self.user_repository.get_refresh_token(hashed_token)
         if not token:
             return None
@@ -83,12 +84,8 @@ class AuthService:
     def hash_password(self, password: str):
         return password_hash.hash(password)
 
-    async def create_forget_password_token(self, email: str):
+    async def create_forget_password_token(self, email: str, user: User):
         token = secrets.token_urlsafe(32)
-        user = await self.user_repository.get_by_email(email)
-
-        if not user:
-            return None
 
         expire = datetime.now(timezone.utc) + FORGET_PASSWORD_TOKEN_EXPIRE
 
@@ -112,12 +109,12 @@ class AuthService:
     async def login_user(self, username: str, password: str):
         user = await self.authenticate_user(username, password)
         if not user:
-            raise UserNotFoundError("User Not Found During Login")
+            raise UserNotFound("User Not Found During Login")
         return await self.create_tokens(user)
 
     async def refresh_user(self, refresh_token: str):
         if not refresh_token:
-            raise unauth_e
+            raise TokenInvalid("Refresh Token Invalid")
 
         token = await self.verify_refresh_token(refresh_token)
 
@@ -126,25 +123,28 @@ class AuthService:
             or token.is_revoked
             or datetime.now(timezone.utc) > token.expires_at.astimezone(timezone.utc)
         ):
-            raise unauth_e
+            raise TokenInvalid("Refresh Token Invalid")
 
         user = await self.user_repository.get_by_id(token.user_id)
 
         if not user:
-            raise unauth_e
+            raise TokenInvalid("Refresh Token Invalid")
 
         return await self.create_tokens(user)
-        
 
     async def forget_password(self, email: str):
-        token = await self.create_forget_password_token(email)
+        user = await self.user_repository.get_by_email(email)
 
-        if not token:
+        if not user:
             return None
+
+        token = await self.create_forget_password_token(email, user)
 
         await self.mail_service.send_forget_password_mail(email, token)
 
     async def reset_password(self, token: str, new_password: str):
+        if not await self.validate_reset_token(token):
+            raise TokenInvalid("Reset Password Token Expired")
         try:
             return await self.user_repository.change_password(
                 token, self.hash_password(new_password)

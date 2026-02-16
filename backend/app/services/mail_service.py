@@ -18,7 +18,16 @@ class MailService:
         def __init__(self, multiparts: List[Multipart]):
             self.parts = multiparts
 
+    async def send_mail(self, request):
+        try:
+            await self.mail.SendMail(request)
+            return None
+        except grpc.RpcError as e:
+            print(f"gRPC Error: {e.code()} - {e.details()}")
+            raise e
+
     def construct_mail(
+        self,
         email_to: List[str],
         subject: str,
         plain_text: Optional[str] = None,
@@ -62,9 +71,12 @@ class MailService:
             "VISIT Reset Password",
             plain_text=f"Go to this link to reset your password {get_settings().FRONTEND_SERVER}/reset/{token}",
         )
-        try:
-            await self.mail_stub.SendMail(request)
-            return None
-        except grpc.RpcError as e:
-            print(f"gRPC Error: {e.code()} - {e.details()}")
-            raise e
+        await self.send_mail(request)
+
+    async def send_confirm_email_mail(self, email: str, token: str):
+        request = self.construct_mail(
+            [email],
+            "Confirm Your Account For VISIT",
+            plain_text=f"Go to this link to confirm your account: {get_settings().FRONTEND_SERVER}/confirm_email/{token}",
+        )
+        await self.send_mail(request)

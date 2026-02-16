@@ -30,13 +30,26 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+interface ErrorResponse {
+  code: string,
+  identifier: string,
+  message: string,
+  redirectTo: string | undefined,
+  statusCode: number
+}
+
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (error.response?.status === 401) {
+    const errorResponse = error?.response?.data as ErrorResponse;
+    if (error?.response?.status == 401) {
       clearToken();
       window.location.href = "/login";
     }
+    else if (errorResponse && errorResponse.statusCode === 307 && errorResponse.redirectTo) {
+      window.location.href = errorResponse.redirectTo;
+    }
+    console.log(errorResponse)
     return Promise.reject(error);
   },
 );

@@ -12,7 +12,7 @@ from app.schemas.user import (
 from app.models.user import User
 from sqlalchemy.exc import IntegrityError
 from app.core.config import get_settings
-from app.core.exceptions import KeycloakExchangeFailed, UserNotFoundError
+from app.core.exceptions import KeycloakExchangeFailed, TokenInvalid, Unauthenticated, UserNotFound, unauth_e
 from app.core.deps import CsrfDep, AuthServiceDep
 from app.services.auth_service import REFRESH_TOKEN_EXPIRE
 
@@ -57,7 +57,7 @@ async def login_user(
 
         set_refresh_cookie(response, refresh_token)
         return Token(access_token=access_token, token_type="bearer")
-    except UserNotFoundError as e:
+    except UserNotFound as e:
         raise HTTPException(status_code=400, detail="password.wrong")
 
 
@@ -67,11 +67,14 @@ async def refresh_user(
     response: Response,
     refresh_token: Annotated[str | None, Cookie()] = None,
 ) -> Token:
-    (access_token, refresh_token) = await auth_service.refresh_user(refresh_token)
+    try:
+        (access_token, refresh_token) = await auth_service.refresh_user(refresh_token)
 
-    set_refresh_cookie(response, refresh_token)
-    return Token(access_token=access_token, token_type="bearer")
-
+        set_refresh_cookie(response, refresh_token)
+        return Token(access_token=access_token, token_type="bearer")
+    except TokenInvalid as e:
+        raise Unauthenticated("")
+    
 
 @router.post("/forget_password", operation_id="forgetPassword")
 async def forget_password(auth_service: AuthServiceDep, request: ForgetPasswordRequest):
@@ -83,7 +86,7 @@ async def forget_password(auth_service: AuthServiceDep, request: ForgetPasswordR
 
 @router.get("/validate_reset/{token}", operation_id="validResetPassword")
 async def validate_reset_token(auth_service: AuthServiceDep, token: str) -> bool:
-    return await auth_service.validate_reset_token()
+    return await auth_service.validate_reset_token(token)
 
 
 @router.post("/reset", operation_id="resetPassword")
@@ -107,7 +110,7 @@ async def keycloak_callback(
         raise HTTPException(status_code=400, detail="State mismatch. CSRF suspected.")
 
     try:
-        (access_token, refresh_token) = await auth_service.keycloak_callback(code)
+        refresh_token = await auth_service.keycloak_callback(code)
     except KeycloakExchangeFailed as e:
         raise HTTPException(status_code=400, detail=f"Exchange failed: {e.identifier}")
     

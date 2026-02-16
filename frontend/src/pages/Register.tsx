@@ -8,7 +8,10 @@ import {
   Center,
   Paper,
   Title,
+  Text,
+  Group,
 } from "@mantine/core";
+import { IconMailSearch, IconLock } from "@tabler/icons-react";
 import type { AxiosError } from "axios";
 import { useNavigate } from "react-router";
 import { useDocumentTitle } from "@mantine/hooks";
@@ -51,50 +54,61 @@ const Register = () => {
   return (
     <>
       <BackButton to="/login" />
-      <form
-        onSubmit={form.onSubmit((values) => {
-          setError("");
-          register({
-            data: { email: values.email, password: values.password },
-          });
-        })}
-      >
-        <Center mb="md">
-          <Title>{t("register.title")}</Title>
-        </Center>
-        <Center>
-          <Paper w="100%" maw={380} p="xl" radius="md" withBorder>
-            <Stack>
-              {error && (
-                <Alert color="red" title={t("register.fail")}>
-                  {t(error)}
-                </Alert>
-              )}
-              <TextInput
-                label={t("email.title")}
-                autoComplete="email"
-                placeholder={t("register.email.placeholder")}
-                {...form.getInputProps("email")}
-              />
-              <PasswordInput
-                label={t("register.password.title")}
-                autoComplete="new-password"
-                placeholder="************"
-                {...form.getInputProps("password")}
-              />
-              <PasswordInput
-                label={t("register.password.confirm")}
-                autoComplete="new-password"
-                placeholder="************"
-                {...form.getInputProps("confirmPassword")}
-              />
-              <Button type="submit" loading={isPending} disabled={isPending}>
-                {t("register.button")}
-              </Button>
-            </Stack>
+      <Center py="xl">
+        <Stack align="center" gap="xl" maw={600} w="90%" px="md">
+          <div>
+            <Title ta="center" order={1}>
+              {t("register.title")}
+            </Title>
+            <Text ta="center" c="dimmed" size="sm">
+              {t("welcome")}
+            </Text>
+          </div>
+
+          <Paper w="100%" p="xl" radius="md" withBorder>
+            <form
+              onSubmit={form.onSubmit((values) => {
+                setError("");
+                register({
+                  data: { email: values.email, password: values.password },
+                });
+              })}
+            >
+              <Stack gap="md">
+                {error && (
+                  <Alert color="red" title={t("register.fail")}>
+                    {t(error)}
+                  </Alert>
+                )}
+                <TextInput
+                  label={t("email.title")}
+                  autoComplete="email"
+                  placeholder={t("register.email.placeholder")}
+                  leftSection={<IconMailSearch size={16} />}
+                  {...form.getInputProps("email")}
+                />
+                <PasswordInput
+                  label={t("register.password.title")}
+                  autoComplete="new-password"
+                  placeholder="************"
+                  leftSection={<IconLock size={16} />}
+                  {...form.getInputProps("password")}
+                />
+                <PasswordInput
+                  label={t("register.password.confirm")}
+                  autoComplete="new-password"
+                  placeholder="************"
+                  leftSection={<IconLock size={16} />}
+                  {...form.getInputProps("confirmPassword")}
+                />
+                <Button type="submit" loading={isPending} disabled={isPending} size="md">
+                  {t("register.button")}
+                </Button>
+              </Stack>
+            </form>
           </Paper>
-        </Center>
-      </form>
+        </Stack>
+      </Center>
     </>
   );
 };

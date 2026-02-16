@@ -10,9 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@connectrpc/connect": "^2.1.0",
-    "@connectrpc/connect-query": "^2.2.0",
-    "@connectrpc/connect-web": "^2.1.0",
     "@faker-js/faker": "faker-js/faker",
     "@mantine/colors-generator": "^8.3.7",
     "@mantine/core": "^8.3.7",
@@ -42,8 +39,6 @@
     "zod": "^4.2.1"
   },
   "devDependencies": {
-    "@bufbuild/protoc-gen-es": "^2.10.0",
-    "@connectrpc/protoc-gen-connect-query": "^2.2.0",
     "@eslint/js": "^9.36.0",
     "@types/js-cookie": "^3.0.6",
     "@types/node": "^24.6.0",

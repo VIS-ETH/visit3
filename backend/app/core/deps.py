@@ -11,7 +11,7 @@ from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import TokenData
 from app.core.config import get_settings
-from app.core.exceptions import unauth_e
+from app.core.exceptions import Unauthenticated
 from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 from app.core.grpc import grpc_client
 from app.services.auth_service import AuthService
@@ -44,15 +44,15 @@ async def get_current_user(
         payload = jwt.decode(token, get_settings().SECRET_KEY, algorithms=["HS256"])
         username = payload.get("sub")
         if username is None:
-            raise unauth_e
+            raise Unauthenticated("")
         token_data = TokenData(username=username)
     except jwt.InvalidTokenError:
-        raise unauth_e
+        raise Unauthenticated("")
     statement = select(User).where(User.email == token_data.username)
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
     if user is None:
-        raise unauth_e
+        raise Unauthenticated("")
     return user
 
 
@@ -103,6 +103,17 @@ async def get_mail_service(mail: MailDep):
 
 
 MailServiceDep = Annotated[MailService, Depends(get_mail_service)]
+
+
+async def get_user_service(
+    user_repository: UserRepositoryDep,
+    mail_service: MailServiceDep,
+    current_user: CurrentUserDep,
+):
+    return UserService(user_repository, mail_service, current_user)
+
+
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 
 async def get_auth_service(

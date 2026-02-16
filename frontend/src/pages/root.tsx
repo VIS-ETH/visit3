@@ -50,8 +50,8 @@ export default function RootLayout({ navbarHidden }: RootLayoutProps) {
       }}
     >
       <AppShell.Header>
-        <Group h="100%" px="md" justify="space-between">
-          <Group h="100%" px="md">
+        <Group h="100%" px="md" justify="space-between" wrap="nowrap" gap="xs">
+          <Group h="100%" gap="xs" wrap="nowrap">
             {!navbarHidden && (
               <>
                 <Burger
@@ -66,11 +66,10 @@ export default function RootLayout({ navbarHidden }: RootLayoutProps) {
                   visibleFrom="sm"
                   size="sm"
                 />
-                <div></div>
                 <Divider orientation="vertical" my="sm" />
               </>
             )}
-            <Title order={3} px="lg">
+            <Title order={3} px="lg" visibleFrom="sm">
               {t("welcome")}
             </Title>
           </Group>
@@ -87,7 +86,7 @@ export default function RootLayout({ navbarHidden }: RootLayoutProps) {
           <Divider my="xs" label="Navigation" labelPosition="center" />
           <Stack gap="xs">
             <Button component={NavLink} to="/" leftSection={<IconHome2 />}>
-              Home
+              {t("nav.home")}
             </Button>
             <Button
               onClick={() => {
@@ -95,7 +94,7 @@ export default function RootLayout({ navbarHidden }: RootLayoutProps) {
               }}
               leftSection={<IconLogout2 />}
             >
-              Logout
+              {t("nav.logout")}
             </Button>
           </Stack>
         </Stack>

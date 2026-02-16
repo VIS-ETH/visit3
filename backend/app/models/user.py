@@ -24,10 +24,12 @@ class User(SQLModel, table=True):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
 
-    is_confirmed: bool = False
     is_staff: bool = False
     is_admin: bool = False
     is_company: bool = False
+    
+    user_confirmed: bool = False
+    email_confirmed: bool = False
     
     roles: List["Role"] = Relationship(back_populates="users", link_model=UserRole)
     
@@ -56,6 +58,23 @@ class RefreshToken(SQLModel, table=True):
 
 
 class ForgetPasswordToken(SQLModel, table=True):
+    id: UUID = Field(
+        default_factory=uuid4, primary_key=True, index=True, nullable=False
+    )
+    user_id: UUID = Field(foreign_key="user.id", ondelete="CASCADE", nullable=False, index=True)
+    token: str = Field(index=True, unique=True)
+
+    is_revoked: bool = Field(default=False)
+
+    created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), server_default=func.now())
+    )
+
+    expires_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    
+class ConfirmEmailToken(SQLModel, table=True):
     id: UUID = Field(
         default_factory=uuid4, primary_key=True, index=True, nullable=False
     )
