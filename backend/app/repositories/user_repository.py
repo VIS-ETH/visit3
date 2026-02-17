@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import List
 import uuid
 from sqlalchemy import inspect
+from sqlalchemy.orm import selectinload
 from sqlmodel import DateTime, update, select
 from app.core.exceptions import TokenInvalid
 from app.core.utils import normalize_email
@@ -12,8 +13,28 @@ from app.repositories.base import BaseRepository
 
 
 class UserRepository(BaseRepository[User]):
+
     def __init__(self, session: AsyncSession):
         super().__init__(User, session)
+
+    async def get_admins(self) -> list[User]:
+        statement = select(User).where(User.is_admin == True)
+        result = await self.session.execute(statement)
+        return result.scalars().all()
+
+    async def get_staff(self) -> list[User]:
+        statement = select(User).where(User.is_staff == True)
+        result = await self.session.execute(statement)
+        return result.scalars().all()
+
+    async def get_company_users(self) -> list[User]:
+        statement = (
+            select(User)
+            .where(User.is_company == True)
+            .options(selectinload(User.company))
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().all()
 
     async def _load_user_company(self, user: User | None) -> User | None:
         if user is None:
@@ -43,13 +64,13 @@ class UserRepository(BaseRepository[User]):
         return await self._get_by_field(User.sub, sub)
 
     async def get_unconfirmed_users(self) -> List[User]:
-        statement = select(User).where(User.user_confirmed == False)
+        statement = (
+            select(User)
+            .where(User.user_confirmed == False)
+            .options(selectinload(User.company))
+        )
         result = await self.session.execute(statement)
         users = result.scalars().all()
-
-        for user in users:
-            await self._load_user_company(user)
-
         return users
 
     async def confirm_user(self, user: User):

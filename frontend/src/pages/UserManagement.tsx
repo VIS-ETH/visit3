@@ -1,18 +1,67 @@
-import { Center, Stack, Title, Table, Loader, Alert, Paper, Badge, Button } from "@mantine/core";
+import {
+  Center,
+  Stack,
+  Title,
+  Loader,
+  Alert,
+  Button,
+  Tabs,
+} from "@mantine/core";
 import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { useConfirmUser, useGetUnconfirmedUsers } from "../orval/generated/user/user";
+import {
+  useConfirmUser,
+  useGetAllAdmins,
+  useGetAllCompanies,
+  useGetAllStaff,
+  useGetUnconfirmedUsers,
+} from "../orval/generated/user/user";
 import { isStaff } from "../api/utils";
+
+import UserTable from "../components/UserTable";
+import type {
+  CompanyUserResponse,
+  User,
+} from "../orval/generated/fastAPI.schemas";
 import NotAllowed from "../components/NotAllowed";
 
 export default function UserManagement() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: users, isLoading, isError } = useGetUnconfirmedUsers();
+  const [activeTab, setActiveTab] = useState<string | null>("unconfirmed");
+
+  const {
+    data: unconfirmedUsers,
+    isLoading: isUnconfirmedLoading,
+    isError: isUnconfirmedError,
+  } = useGetUnconfirmedUsers({
+    query: { enabled: activeTab === "unconfirmed" },
+  });
+  const {
+    data: staffUsers,
+    isLoading: isStaffLoading,
+    isError: isStaffError,
+  } = useGetAllStaff({ query: { enabled: activeTab === "staff" } });
+  const {
+    data: companyUsers,
+    isLoading: isCompaniesLoading,
+    isError: isCompaniesError,
+  } = useGetAllCompanies({ query: { enabled: activeTab === "companies" } });
+  const {
+    data: adminUsers,
+    isLoading: isAdminsLoading,
+    isError: isAdminsError,
+  } = useGetAllAdmins({ query: { enabled: activeTab === "admins" } });
+
   const staffStatus = isStaff();
 
-  const { mutate: confirm, isPending: isConfirming, isError: isConfirmError } = useConfirmUser({
+  const {
+    mutate: confirm,
+    isPending: isConfirming,
+    isError: isConfirmError,
+  } = useConfirmUser({
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["/user/unconfirmed"] });
@@ -34,69 +83,151 @@ export default function UserManagement() {
       <Stack w="100%" maw={1000} gap="lg">
         <Title order={2}>{t("user_management.title")}</Title>
 
-        {isLoading && (
-          <Center py="xl">
-            <Loader />
-          </Center>
-        )}
-
-        {isError && (
-          <Alert icon={<IconAlertCircle />} color="red" title={t("server.error")}>
-            {t("user_management.error")}
-          </Alert>
-        )}
-
         {isConfirmError && (
-          <Alert icon={<IconAlertCircle />} color="red" title={t("server.error")}>
+          <Alert
+            icon={<IconAlertCircle />}
+            color="red"
+            title={t("server.error")}
+          >
             {t("user_management.confirm_error")}
           </Alert>
         )}
 
-        {users && users.length === 0 && (
-          <Alert icon={<IconAlertCircle />} color="blue" title={t("user_management.no_users")}>
-            {t("user_management.no_users_description")}
-          </Alert>
-        )}
+        <Tabs value={activeTab} onChange={setActiveTab}>
+          <Tabs.List>
+            <Tabs.Tab value="unconfirmed">
+              {t("user_management.tabs.unconfirmed")}
+            </Tabs.Tab>
+            <Tabs.Tab value="staff">{t("user_management.tabs.staff")}</Tabs.Tab>
+            <Tabs.Tab value="companies">
+              {t("user_management.tabs.companies")}
+            </Tabs.Tab>
+            <Tabs.Tab value="admins">
+              {t("user_management.tabs.admins")}
+            </Tabs.Tab>
+          </Tabs.List>
 
-        {users && users.length > 0 && (
-          <Paper withBorder p="md">
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t("user_management.email")}</Table.Th>
-                  <Table.Th>{t("user_management.name")}</Table.Th>
-                  <Table.Th>{t("user_management.status")}</Table.Th>
-                  <Table.Th>{t("user_management.company")}</Table.Th>
-                  <Table.Th style={{ width: 100 }}>Actions</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {users.map((user) => (
-                  <Table.Tr key={user.id}>
-                    <Table.Td>{user.email}</Table.Td>
-                    <Table.Td>{user.first_name || "-"}</Table.Td>
-                    <Table.Td>
-                      <Badge color="yellow">{t("user_management.unconfirmed")}</Badge>
-                    </Table.Td>
-                    <Table.Td>{user.company?.name || "-"}</Table.Td>
-                    <Table.Td>
-                      <Button
-                        size="xs"
-                        variant="light"
-                        leftSection={<IconCheck size={14} />}
-                        onClick={() => handleConfirmUser(user.id)}
-                        disabled={isConfirming || !user.id}
-                        loading={isConfirming}
-                      >
-                        {t("user_management.confirm")}
-                      </Button>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Paper>
-        )}
+          <Tabs.Panel value="unconfirmed" pt="md">
+            {isUnconfirmedLoading ? (
+              <Center py="xl">
+                <Loader />
+              </Center>
+            ) : isUnconfirmedError ? (
+              <Alert
+                icon={<IconAlertCircle />}
+                color="red"
+                title={t("server.error")}
+              >
+                {t("user_management.error")}
+              </Alert>
+            ) : unconfirmedUsers && unconfirmedUsers.length > 0 ? (
+              <UserTable
+                users={unconfirmedUsers as CompanyUserResponse[]}
+                t={t}
+                actionButton={(user) => (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    leftSection={<IconCheck size={14} />}
+                    onClick={() => handleConfirmUser(user.id)}
+                    disabled={isConfirming || !user.id}
+                    loading={isConfirming}
+                  >
+                    {t("user_management.confirm")}
+                  </Button>
+                )}
+              />
+            ) : (
+              <Alert
+                icon={<IconAlertCircle />}
+                color="blue"
+                title={t("user_management.no_users")}
+              >
+                {t("user_management.no_users_description")}
+              </Alert>
+            )}
+          </Tabs.Panel>
+
+          <Tabs.Panel value="staff" pt="md">
+            {isStaffLoading ? (
+              <Center py="xl">
+                <Loader />
+              </Center>
+            ) : isStaffError ? (
+              <Alert
+                icon={<IconAlertCircle />}
+                color="red"
+                title={t("server.error")}
+              >
+                {t("user_management.error")}
+              </Alert>
+            ) : staffUsers && staffUsers.length > 0 ? (
+              <UserTable
+                users={staffUsers as User[]}
+                t={t}
+                showCompany={false}
+              />
+            ) : (
+              <Alert
+                icon={<IconAlertCircle />}
+                color="blue"
+                title={t("user_management.no_staff")}
+              />
+            )}
+          </Tabs.Panel>
+
+          <Tabs.Panel value="companies" pt="md">
+            {isCompaniesLoading ? (
+              <Center py="xl">
+                <Loader />
+              </Center>
+            ) : isCompaniesError ? (
+              <Alert
+                icon={<IconAlertCircle />}
+                color="red"
+                title={t("server.error")}
+              >
+                {t("user_management.error")}
+              </Alert>
+            ) : companyUsers && companyUsers.length > 0 ? (
+              <UserTable users={companyUsers as unknown as User[]} t={t} />
+            ) : (
+              <Alert
+                icon={<IconAlertCircle />}
+                color="blue"
+                title={t("user_management.no_companies")}
+              />
+            )}
+          </Tabs.Panel>
+
+          <Tabs.Panel value="admins" pt="md">
+            {isAdminsLoading ? (
+              <Center py="xl">
+                <Loader />
+              </Center>
+            ) : isAdminsError ? (
+              <Alert
+                icon={<IconAlertCircle />}
+                color="red"
+                title={t("server.error")}
+              >
+                {t("user_management.error")}
+              </Alert>
+            ) : adminUsers && adminUsers.length > 0 ? (
+              <UserTable
+                users={adminUsers as User[]}
+                t={t}
+                showCompany={false}
+              />
+            ) : (
+              <Alert
+                icon={<IconAlertCircle />}
+                color="blue"
+                title={t("user_management.no_admins")}
+              />
+            )}
+          </Tabs.Panel>
+        </Tabs>
       </Stack>
     </Center>
   );

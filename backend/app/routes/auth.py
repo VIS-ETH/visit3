@@ -43,7 +43,13 @@ async def register_user(
     auth_service: AuthServiceDep,
     request: RegisterUserRequest,
 ) -> User:
-    user = User(email=request.email, password=request.password, company_id=request.company_id)
+    user = User(
+        email=request.email,
+        password=request.password,
+        first_name=request.first_name,
+        last_name=request.last_name,
+        company_id=request.company_id,
+    )
 
     if len(user.password) < 10:
         raise HTTPException(status_code=400, detail="register.password.min")

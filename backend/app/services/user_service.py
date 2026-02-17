@@ -15,6 +15,7 @@ CONFIRM_EMAIL_TOKEN_EXPIRE = timedelta(days=3)
 
 
 class UserService:
+
     def __init__(
         self,
         user_repository: UserRepository,
@@ -84,3 +85,15 @@ class UserService:
         result = await self.user_repository.confirm_user(user)
         logger.info(f"User confirmed by staff {self.current_user.email}: {user.email}")
         return result
+
+    @require_staff
+    async def get_company_users(self):
+        return await self.user_repository.get_company_users()
+
+    @require_staff
+    async def get_admins(self):
+        return await self.user_repository.get_admins()
+
+    @require_staff
+    async def get_staff(self):
+        return await self.user_repository.get_staff()

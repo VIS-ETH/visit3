@@ -22,6 +22,10 @@
     "title": "Registrieren",
     "button": "Registrieren",
     "fail": "Registrierung fehlgeschlagen",
+    "first_name": "Vorname",
+    "first_name_placeholder": "Ihr Vorname",
+    "last_name": "Nachname",
+    "last_name_placeholder": "Ihr Nachname",
     "company": {
       "select": "Unternehmen auswählen",
       "select_placeholder": "Wählen Sie ein bestehendes Unternehmen",
@@ -91,9 +95,18 @@
     "name": "Name",
     "status": "Status",
     "company": "Unternehmen",
+    "tabs": {
+      "unconfirmed": "Unbestätigt",
+      "staff": "Mitarbeiter",
+      "companies": "Unternehmen",
+      "admins": "Admins"
+    },
     "unconfirmed": "Unbestätigt",
     "no_users": "Keine unbestätigten Benutzer",
     "no_users_description": "Alle Benutzer wurden bestätigt.",
+    "no_staff": "Keine Mitarbeiter",
+    "no_companies": "Keine Unternehmen",
+    "no_admins": "Keine Admins",
     "error": "Fehler beim Laden unbestätigter Benutzer",
     "confirm": "Benutzer bestätigen",
     "confirm_error": "Fehler beim Bestätigen des Benutzers"

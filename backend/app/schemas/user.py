@@ -7,7 +7,7 @@ class CompanyResponse(BaseModel):
     name: str
 
 
-class UnconfirmedUserResponse(BaseModel):
+class CompanyUserResponse(BaseModel):
     id: UUID
     email: str
     first_name: str | None = None
@@ -17,9 +17,15 @@ class UnconfirmedUserResponse(BaseModel):
     company: CompanyResponse | None = None
 
 
+class UnconfirmedUserResponse(CompanyUserResponse):
+    pass
+
+
 class RegisterUserRequest(BaseModel):
     email: str
     password: str
+    first_name: str
+    last_name: str
     company_id: str | None = None
     company_name: str | None = None
 

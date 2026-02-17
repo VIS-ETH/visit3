@@ -5,6 +5,8 @@ export const registerSchema = z
     email: z.string(),
     password: z.string().min(11, "password.min"),
     confirmPassword: z.string(),
+    firstName: z.string(),
+    lastName: z.string(),
     companyId: z.string().optional(),
     companyName: z.string().optional(),
   })

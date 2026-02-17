@@ -1,11 +1,13 @@
 from typing import Annotated, List
 import logging
 from uuid import UUID
+
 from fastapi import APIRouter, Cookie
+
 from app.core.deps import CsrfDep, UserServiceDep
-from app.models.user import User
 from app.core.exceptions import TokenInvalid
-from app.schemas.user import UnconfirmedUserResponse
+from app.models.user import User
+from app.schemas.user import CompanyUserResponse
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +19,19 @@ async def read_users_me(user_service: UserServiceDep) -> User:
     return await user_service.get_current_user()
 
 
-@router.get("/list", operation_id="listUsers")
-async def list_users(user_service: UserServiceDep) -> List[User]:
-    return None
+@router.get("/companies", operation_id="getAllCompanies")
+async def get_all_companies(user_service: UserServiceDep) -> list[CompanyUserResponse]:
+    return await user_service.get_company_users()
+
+
+@router.get("/admins", operation_id="getAllAdmins")
+async def get_all_admins(user_service: UserServiceDep) -> list[CompanyUserResponse]:
+    return await user_service.get_admins()
+
+
+@router.get("/staff", operation_id="getAllStaff")
+async def get_all_staff(user_service: UserServiceDep) -> list[CompanyUserResponse]:
+    return await user_service.get_staff()
 
 
 @router.post("/send_confirmation_email", operation_id="sendConfirmationMail")
@@ -35,7 +47,7 @@ async def confirm_email(user_service: UserServiceDep, token: str):
 @router.get("/unconfirmed", operation_id="getUnconfirmedUsers")
 async def get_unconfirmed_users(
     user_service: UserServiceDep,
-) -> List[UnconfirmedUserResponse]:
+) -> List[CompanyUserResponse]:
     return await user_service.get_unconfirmed_users()
 
 
@@ -48,9 +60,10 @@ async def confirm_user(user_service: UserServiceDep, user_id: UUID) -> User:
 async def logout_user(
     user_service: UserServiceDep, refresh_token: Annotated[str | None, Cookie()] = None
 ):
-
     if not refresh_token:
-        logger.warning(f"Logout failed - no refresh token: {user_service.current_user.email}")
+        logger.warning(
+            f"Logout failed - no refresh token: {user_service.current_user.email}"
+        )
         raise TokenInvalid(f"logout:{user_service.current_user.id}")
 
     await user_service.logout_user(refresh_token)

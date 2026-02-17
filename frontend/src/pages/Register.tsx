@@ -78,6 +78,8 @@ const Register = () => {
       email: "",
       password: "",
       confirmPassword: "",
+      firstName: "",
+      lastName: "",
       companyId: "",
       companyName: "",
     },
@@ -128,6 +130,8 @@ const Register = () => {
                   data: {
                     email: values.email,
                     password: values.password,
+                    first_name: values.firstName?.trim(),
+                    last_name: values.lastName?.trim(),
                     company_id: companyId,
                     company_name: companyName,
                   },
@@ -140,6 +144,16 @@ const Register = () => {
                     {t(error)}
                   </Alert>
                 )}
+                <TextInput
+                  label={t("register.first_name")}
+                  placeholder={t("register.first_name_placeholder")}
+                  {...form.getInputProps("firstName")}
+                />
+                <TextInput
+                  label={t("register.last_name")}
+                  placeholder={t("register.last_name_placeholder")}
+                  {...form.getInputProps("lastName")}
+                />
                 <TextInput
                   label={t("email.title")}
                   autoComplete="email"

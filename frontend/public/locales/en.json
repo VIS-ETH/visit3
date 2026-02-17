@@ -22,6 +22,10 @@
     "title": "Register",
     "button": "Register",
     "fail": "Registration Failed",
+    "first_name": "First Name",
+    "first_name_placeholder": "Your first name",
+    "last_name": "Last Name",
+    "last_name_placeholder": "Your last name",
     "company": {
       "select": "Select Company",
       "select_placeholder": "Choose an existing company",
@@ -91,9 +95,18 @@
     "name": "Name",
     "status": "Status",
     "company": "Company",
+    "tabs": {
+      "unconfirmed": "Unconfirmed",
+      "staff": "Staff",
+      "companies": "Companies",
+      "admins": "Admins"
+    },
     "unconfirmed": "Unconfirmed",
     "no_users": "No Unconfirmed Users",
     "no_users_description": "All users have been confirmed.",
+    "no_staff": "No Staff Users",
+    "no_companies": "No Companies",
+    "no_admins": "No Admin Users",
     "error": "Failed to load unconfirmed users",
     "confirm": "Confirm User",
     "confirm_error": "Failed to confirm user"
