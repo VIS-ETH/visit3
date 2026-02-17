@@ -22,6 +22,15 @@
     "title": "Registrieren",
     "button": "Registrieren",
     "fail": "Registrierung fehlgeschlagen",
+    "company": {
+      "select": "Unternehmen auswählen",
+      "select_placeholder": "Wählen Sie ein bestehendes Unternehmen",
+      "or": "ODER",
+      "add": "Unternehmen hinzufügen",
+      "add_placeholder": "Neuen Unternehmensnamen eingeben",
+      "required": "Bitte wählen Sie ein Unternehmen aus oder fügen Sie eines hinzu",
+      "pick_or_add": "Bitte wählen Sie ein Unternehmen aus oder fügen Sie ein neues hinzu, nicht beides"
+    },
     "email": {
       "placeholder": "deine@email.com",
       "used": "Diese E-Mail wird bereits von einem anderen Benutzer verwendet."

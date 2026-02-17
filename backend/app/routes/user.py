@@ -5,6 +5,7 @@ from fastapi import APIRouter, Cookie
 from app.core.deps import CsrfDep, UserServiceDep
 from app.models.user import User
 from app.core.exceptions import TokenInvalid
+from app.schemas.user import UnconfirmedUserResponse
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,9 @@ async def confirm_email(user_service: UserServiceDep, token: str):
 
 
 @router.get("/unconfirmed", operation_id="getUnconfirmedUsers")
-async def get_unconfirmed_users(user_service: UserServiceDep) -> List[User]:
+async def get_unconfirmed_users(
+    user_service: UserServiceDep,
+) -> List[UnconfirmedUserResponse]:
     return await user_service.get_unconfirmed_users()
 
 

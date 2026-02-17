@@ -1,9 +1,8 @@
 from datetime import datetime, timedelta, timezone
-import hashlib
 import secrets
 import logging
 from uuid import UUID
-from app.core.decorators import require_confirmed_company, require_staff
+from app.core.decorators import require_staff
 from app.core.exceptions import TokenInvalid, UserNotFound
 from app.core.utils import hash_str
 from app.models.user import User

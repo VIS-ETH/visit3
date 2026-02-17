@@ -22,6 +22,15 @@
     "title": "Register",
     "button": "Register",
     "fail": "Registration Failed",
+    "company": {
+      "select": "Select Company",
+      "select_placeholder": "Choose an existing company",
+      "or": "OR",
+      "add": "Add Company",
+      "add_placeholder": "Enter a new company name",
+      "required": "Please select or add a company",
+      "pick_or_add": "Please select a company or add a new one, not both"
+    },
     "email": {
       "placeholder": "your@email.com",
       "used": "This email is already being used by another user."

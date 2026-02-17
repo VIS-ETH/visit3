@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import List
 import uuid
+from sqlalchemy import inspect
 from sqlmodel import DateTime, update, select
 from app.core.exceptions import TokenInvalid
 from app.core.utils import normalize_email
@@ -13,6 +14,18 @@ from app.repositories.base import BaseRepository
 class UserRepository(BaseRepository[User]):
     def __init__(self, session: AsyncSession):
         super().__init__(User, session)
+
+    async def _load_user_company(self, user: User | None) -> User | None:
+        if user is None:
+            return None
+
+        state = inspect(user)
+
+        if state.detached:
+            user = await self.session.merge(user)
+
+        await self.session.refresh(user, attribute_names=["company"])
+        return user
 
     async def get_users(self):
         statement = select(User)
@@ -33,6 +46,10 @@ class UserRepository(BaseRepository[User]):
         statement = select(User).where(User.user_confirmed == False)
         result = await self.session.execute(statement)
         users = result.scalars().all()
+
+        for user in users:
+            await self._load_user_company(user)
+
         return users
 
     async def confirm_user(self, user: User):

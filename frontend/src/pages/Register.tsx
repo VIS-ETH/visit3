@@ -4,9 +4,9 @@ import {
   Button,
   TextInput,
   PasswordInput,
+  Paper,
   Stack,
   Center,
-  Paper,
   Title,
   Text,
 } from "@mantine/core";
@@ -18,13 +18,19 @@ import { registerSchema } from "../schemas/registerSchema";
 import { useTranslation } from "react-i18next";
 import { useTranslatedForm } from "../utils/translator";
 import BackButton from "../components/BackButton";
+import SearchDropdown from "../components/SearchDropdown";
 import { useRegisterUser } from "../orval/generated/auth/auth";
+import {
+  useCreateCompany,
+  useListCompanies,
+} from "../orval/generated/company/company";
 
 const Register = () => {
   const { t } = useTranslation();
   useDocumentTitle(t("register.title"));
   const navigate = useNavigate();
   const [error, setError] = useState("");
+  const [companyQuery, setCompanyQuery] = useState("");
 
   const { mutate: register, isPending } = useRegisterUser({
     mutation: {
@@ -42,13 +48,61 @@ const Register = () => {
     },
   });
 
+  const {
+    data: companies = [],
+    isLoading: companiesLoading,
+    refetch: refetchCompanies,
+  } = useListCompanies();
+
+  const { mutate: createCompany, isPending: isCreatingCompany } = useCreateCompany({
+    mutation: {
+      onSuccess: async (company) => {
+        if (!company.id) {
+          setError("server.error");
+          return;
+        }
+
+        form.setFieldValue("companyId", company.id);
+        form.setFieldValue("companyName", "");
+        setCompanyQuery(company.name);
+        await refetchCompanies();
+      },
+      onError: () => {
+        setError("server.error");
+      },
+    },
+  });
+
   const form = useTranslatedForm<typeof registerSchema>(registerSchema, {
     initialValues: {
       email: "",
       password: "",
       confirmPassword: "",
+      companyId: "",
+      companyName: "",
     },
   });
+
+  const normalizedCompanyQuery = companyQuery.trim().toLowerCase();
+  const filteredCompanies = companies.filter(
+    (company) =>
+      Boolean(company.id) &&
+      company.name.toLowerCase().includes(normalizedCompanyQuery),
+  );
+
+  const showCompanySuggestions =
+    normalizedCompanyQuery.length > 0 && !form.values.companyId;
+
+  const handleCreateCompany = () => {
+    const name = companyQuery.trim();
+    if (!name) {
+      return;
+    }
+
+    createCompany({
+      data: { name },
+    });
+  };
 
   return (
     <>
@@ -68,8 +122,15 @@ const Register = () => {
             <form
               onSubmit={form.onSubmit((values) => {
                 setError("");
+                const companyId = values.companyId?.trim() || undefined;
+                const companyName = values.companyName?.trim() || undefined;
                 register({
-                  data: { email: values.email, password: values.password },
+                  data: {
+                    email: values.email,
+                    password: values.password,
+                    company_id: companyId,
+                    company_name: companyName,
+                  },
                 });
               })}
             >
@@ -99,6 +160,32 @@ const Register = () => {
                   placeholder="************"
                   leftSection={<IconLock size={16} />}
                   {...form.getInputProps("confirmPassword")}
+                />
+                <SearchDropdown
+                  label={t("register.company.select")}
+                  placeholder={t("register.company.select_placeholder")}
+                  error={form.errors.companyId}
+                  isLoading={companiesLoading}
+                  visible={showCompanySuggestions}
+                  items={filteredCompanies}
+                  query={companyQuery}
+                  createLabel={t("register.company.add")}
+                  isCreating={isCreatingCompany}
+                  onQueryChange={(value) => {
+                    setCompanyQuery(value);
+                    form.setFieldValue("companyId", "");
+                    form.setFieldValue("companyName", value);
+                  }}
+                  onSelect={(item) => {
+                    if (!item.id) {
+                      return;
+                    }
+
+                    form.setFieldValue("companyId", item.id);
+                    form.setFieldValue("companyName", "");
+                    setCompanyQuery(item.name);
+                  }}
+                  onCreate={handleCreateCompany}
                 />
                 <Button
                   type="submit"

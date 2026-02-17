@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-import hashlib
 import secrets
 import logging
 from typing import List
@@ -8,11 +7,13 @@ import jwt
 from pwdlib import PasswordHash
 from app.core.security import decode_token
 from app.core.utils import hash_str
+from app.models.company import Company
 from app.models.user import User
-from app.core.exceptions import KeycloakExchangeFailed, TokenInvalid, UserNotFound, NotAllowed
+from app.core.exceptions import KeycloakExchangeFailed, TokenInvalid, UserNotFound, NotAllowed, CompanyNotFound
 from app.core.config import get_settings
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.company_repository import CompanyRepository
 from app.services.mail_service import MailService
 
 logger = logging.getLogger(__name__)
@@ -29,10 +30,12 @@ class AuthService:
         user_repository: UserRepository,
         role_repository: RoleRepository,
         mail_service: MailService,
+        company_repository: CompanyRepository,
     ):
         self.user_repository = user_repository
         self.role_repository = role_repository
         self.mail_service = mail_service
+        self.company_repository = company_repository
 
     async def authenticate_user(self, email: str, password: str):
         user = await self.user_repository.get_by_email(email)
@@ -87,7 +90,7 @@ class AuthService:
     def hash_password(self, password: str):
         return password_hash.hash(password)
 
-    async def create_forget_password_token(self, email: str, user: User):
+    async def create_forget_password_token(self, user: User):
         token = secrets.token_urlsafe(32)
 
         expire = datetime.now(timezone.utc) + FORGET_PASSWORD_TOKEN_EXPIRE
@@ -96,7 +99,25 @@ class AuthService:
 
         return token
 
-    async def register_user(self, user: User):
+    async def register_user(self, user: User, company_name: str | None = None):
+
+        normalized_company_name = company_name.strip() if company_name else None
+
+        if user.company_id:
+            company = await self.company_repository.get_by_id(user.company_id)
+            if not company:
+                raise CompanyNotFound(f"register_user:{user.company_id}")
+        elif normalized_company_name:
+            existing_company = await self.company_repository.get_by_name(
+                normalized_company_name
+            )
+            if existing_company:
+                user.company_id = existing_company.id
+            else:
+                company = await self.company_repository.create_company(
+                    normalized_company_name
+                )
+                user.company_id = company.id
 
         user.password = self.hash_password(user.password)
 
@@ -111,6 +132,18 @@ class AuthService:
         except Exception as e:
             logger.error(f"User registration failed: {user.email} - {str(e)}")
             raise e
+
+    async def get_companies(self) -> list[Company]:
+        return await self.company_repository.get_companies()
+
+    async def create_company(self, name: str) -> Company:
+        normalized_name = name.strip()
+
+        existing_company = await self.company_repository.get_by_name(normalized_name)
+        if existing_company:
+            return existing_company
+
+        return await self.company_repository.create_company(normalized_name)
 
     async def login_user(self, username: str, password: str):
         user = await self.authenticate_user(username, password)

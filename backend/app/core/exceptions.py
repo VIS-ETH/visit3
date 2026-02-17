@@ -41,6 +41,16 @@ class UserNotFound(AppError):
         )
 
 
+class CompanyNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Company not found in the database",
+            "error.company_not_found",
+            identifier,
+            404,
+        )
+
+
 class KeycloakExchangeFailed(AppError):
     def __init__(self, identifier: str):
         super().__init__(

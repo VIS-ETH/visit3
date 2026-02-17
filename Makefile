@@ -39,7 +39,7 @@ generate-orval:
 	$(MAKE) clean-orval
 	cd backend && uv sync
 	$(PYTHON_BACKEND) ./scripts/extract_docs.py $(DOCS_FILE)/visit.json
-	npx orval --config $(DOCS_FILE)/orvalConfig.ts
+	cd frontend && ./node_modules/.bin/orval --config src/orval/orvalConfig.ts
 
 clean-orval:
 	rm -rf $(DOCS_FILE)/generated $(DOCS_FILE)/visit.json

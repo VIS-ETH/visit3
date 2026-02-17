@@ -78,7 +78,7 @@ export default function UserManagement() {
                     <Table.Td>
                       <Badge color="yellow">{t("user_management.unconfirmed")}</Badge>
                     </Table.Td>
-                    <Table.Td>{"-"}</Table.Td>
+                    <Table.Td>{user.company?.name || "-"}</Table.Td>
                     <Table.Td>
                       <Button
                         size="xs"

@@ -10,6 +10,7 @@ from sqlmodel import select
 from app.models.user import User
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.company_repository import CompanyRepository
 from app.schemas.user import TokenData
 from app.core.config import get_settings
 from app.core.exceptions import Unauthenticated
@@ -20,6 +21,7 @@ from app.core.grpc import grpc_client
 from app.services.auth_service import AuthService
 from app.services.mail_service import MailService
 from app.services.user_service import UserService
+from app.services.company_service import CompanyService
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/users/login", refreshUrl="/users/refresh"
@@ -97,6 +99,15 @@ async def get_role_repository(
 RoleRepositoryDep = Annotated[RoleRepository, Depends(get_role_repository)]
 
 
+async def get_company_repository(
+    session: DbSessionDep,
+):
+    return CompanyRepository(session)
+
+
+CompanyRepositoryDep = Annotated[CompanyRepository, Depends(get_company_repository)]
+
+
 async def get_mail_service(mail: MailDep):
     return MailService(mail)
 
@@ -119,8 +130,21 @@ async def get_auth_service(
     user_repository: UserRepositoryDep,
     role_repository: RoleRepositoryDep,
     mail_service: MailServiceDep,
+    company_repository: CompanyRepositoryDep,
 ):
-    return AuthService(user_repository, role_repository, mail_service)
+    return AuthService(
+        user_repository, role_repository, mail_service, company_repository
+    )
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+
+
+async def get_company_service(
+    company_repository: CompanyRepositoryDep,
+    current_user: CurrentUserDep,
+):
+    return CompanyService(company_repository, current_user)
+
+
+CompanyServiceDep = Annotated[CompanyService, Depends(get_company_service)]

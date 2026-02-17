@@ -18,7 +18,6 @@ from app.core.exceptions import (
     TokenInvalid,
     Unauthenticated,
     UserNotFound,
-    unauth_e,
 )
 from app.core.deps import CsrfDep, AuthServiceDep
 from app.services.auth_service import REFRESH_TOKEN_EXPIRE
@@ -44,13 +43,13 @@ async def register_user(
     auth_service: AuthServiceDep,
     request: RegisterUserRequest,
 ) -> User:
-    user = User.model_validate(request)
+    user = User(email=request.email, password=request.password, company_id=request.company_id)
 
     if len(user.password) < 10:
         raise HTTPException(status_code=400, detail="register.password.min")
 
     try:
-        return await auth_service.register_user(user)
+        return await auth_service.register_user(user, request.company_name)
     except IntegrityError as e:
         raise HTTPException(status_code=400, detail="register.email.used")
 

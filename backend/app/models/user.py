@@ -5,6 +5,7 @@ from pydantic import field_validator
 from sqlmodel import Column, DateTime, Relationship, SQLModel, Field, func
 
 from app.core.utils import normalize_email
+from app.models.company import Company
 
 
 class UserRole(SQLModel, table=True):
@@ -38,6 +39,9 @@ class User(SQLModel, table=True):
     email_confirmed: bool = False
 
     roles: List["Role"] = Relationship(back_populates="users", link_model=UserRole)
+
+    company_id: Optional[UUID] = Field(default=None, foreign_key="company.id")
+    company: Optional["Company"] = Relationship(back_populates="users")
 
     @field_validator("email", mode="before")
     @classmethod
