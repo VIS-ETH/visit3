@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 import logging
 import os
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from app.core.exceptions import AppError
 from app.routes.router import router as api_router
@@ -55,7 +55,12 @@ async def app_error_handler(request: Request, exc: AppError):
     )
 
 
-origins = [get_settings().FRONTEND_SERVER, get_settings().KEYCLOAK_URL]
+frontend_origins = [
+    origin.strip()
+    for origin in get_settings().FRONTEND_SERVER.split(",")
+    if origin.strip()
+]
+origins = [*frontend_origins, get_settings().KEYCLOAK_URL]
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,5 +1,4 @@
 import { AppShell, Burger, Divider, Group, Title } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
 import NavbarToggles from "./NavbarToggles";
 

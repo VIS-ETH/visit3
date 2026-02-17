@@ -1,5 +1,5 @@
 {
-  "name": "cdn-frontend",
+  "name": "visit3",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@faker-js/faker": "faker-js/faker",
+    "@faker-js/faker": "^10.3.0",
     "@mantine/colors-generator": "^8.3.7",
     "@mantine/core": "^8.3.7",
     "@mantine/form": "^8.3.10",

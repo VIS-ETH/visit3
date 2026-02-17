@@ -30,7 +30,7 @@ services:
       - frontend/.env.docker
     profiles: [frontend]
     ports:
-      - 8080:80
+      - 3000:80
 
   postgres:
     image: postgres:17

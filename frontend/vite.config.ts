@@ -35,13 +35,13 @@ export default defineConfig({
         order: "pre",
         handler: (html, { server }) => {
           // If using the vite server and not bundler: dev mode - do not change anything to use .env.development variables
-          if (!!server) return;
+          if (server) return;
 
           // Plugin only does something if enabled...
           if (process.env.REPLACE_ENV_FORMAT_ENVSUBST !== "true") return;
 
           // Go through all env vars, replace the format. These will then be set at nginx startup
-          return ENV_VARS_FOR_ENVSUBST.reduce((previous, current, _) => {
+          return ENV_VARS_FOR_ENVSUBST.reduce((previous, current) => {
             return previous.replaceAll(`%VITE_${current}%`, `\$\{${current}\}`);
           }, html);
         },
