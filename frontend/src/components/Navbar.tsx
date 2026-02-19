@@ -4,6 +4,7 @@ import {
   IconHome2,
   IconLogout2,
   IconSettings,
+  IconUser,
 } from "@tabler/icons-react";
 import { NavLink, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
@@ -54,6 +55,9 @@ export default function Navbar() {
         <Stack gap="xs">
           <Button component={NavLink} to="/" leftSection={<IconHome2 />}>
             {t("nav.home")}
+          </Button>
+          <Button component={NavLink} to="/profile" leftSection={<IconUser />}>
+            {t("nav.profile")}
           </Button>
           {staffStatus && (
             <>

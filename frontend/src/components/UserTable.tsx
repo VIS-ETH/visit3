@@ -14,6 +14,7 @@ interface User {
   email?: string;
   first_name?: string | null;
   last_name?: string | null;
+  phone_number?: string | null;
   company?: Company | null;
 }
 
@@ -32,6 +33,7 @@ const UserTable: React.FC<UserTableProps> = ({ users, t, actionButton, showCompa
         <Table.Tr>
           <Table.Th>{t("user_management.email")}</Table.Th>
           <Table.Th>{t("user_management.name")}</Table.Th>
+          <Table.Th>{t("user_management.phone")}</Table.Th>
           {showCompany ? <Table.Th>{t("user_management.company")}</Table.Th> : null}
           {actionButton ? <Table.Th style={{ width: 100 }}>Actions</Table.Th> : null}
         </Table.Tr>
@@ -45,6 +47,7 @@ const UserTable: React.FC<UserTableProps> = ({ users, t, actionButton, showCompa
                 ? "-"
                 : `${user.first_name ? user.first_name + " " : ""}${user.last_name ? user.last_name : ""}`}
             </Table.Td>
+            <Table.Td>{user.phone_number || "-"}</Table.Td>
             {showCompany ? <Table.Td>{user.company?.name || "-"}</Table.Td> : null}
             {actionButton ? <Table.Td>{actionButton(user)}</Table.Td> : null}
           </Table.Tr>

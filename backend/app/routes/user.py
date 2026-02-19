@@ -15,7 +15,7 @@ router = APIRouter(prefix="/user", tags=["user"], dependencies=[CsrfDep])
 
 
 @router.get("/me", operation_id="readUsersMe")
-async def read_users_me(user_service: UserServiceDep) -> User:
+async def read_users_me(user_service: UserServiceDep) -> CompanyUserResponse:
     return await user_service.get_current_user()
 
 

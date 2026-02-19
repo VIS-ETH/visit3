@@ -1,6 +1,8 @@
 import { createTheme, MantineProvider } from "@mantine/core";
 import { generateColors } from "@mantine/colors-generator";
 import "@mantine/core/styles.css";
+import "@mantine/notifications/styles.css";
+import { Notifications } from "@mantine/notifications";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { configOptions } from "./utils/constants";
 import Home from "./pages/Home";
@@ -15,6 +17,7 @@ import UnconfirmedEmail from "./pages/UnconfirmedEmail";
 import ConfirmEmail from "./pages/ConfirmEmail";
 import UnconfirmedUser from "./pages/UnconfirmedUser";
 import CompanyManagement from "./pages/CompanyManagement";
+import Profile from "./pages/Profile";
 import NotAllowed from "./pages/NotAllowed";
 import NotFound from "./pages/NotFound";
 import { isStaff } from "./api/utils";
@@ -35,6 +38,12 @@ function StaffRoute() {
 function App() {
   return (
     <MantineProvider theme={theme}>
+      <Notifications
+        position="top-center"
+        limit={1}
+        zIndex={1000}
+        autoClose={5000}
+      />
       <ReactQueryDevtools />
       <Routes>
         <Route element={<RootLayout navbarHidden={true} />}>
@@ -47,6 +56,7 @@ function App() {
         </Route>
         <Route element={<RootLayout navbarHidden={false} />}>
           <Route index path="/" element={<Home />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/unconfirmed-email" element={<UnconfirmedEmail />} />
           <Route path="/confirm-email/:token" element={<ConfirmEmail />} />
           <Route path="/unconfirmed-user" element={<UnconfirmedUser />} />

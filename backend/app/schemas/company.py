@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from uuid import UUID
 
 
+
 class CreateCompanyRequest(BaseModel):
 	name: str
 
@@ -11,6 +12,7 @@ class CompanyAssignedUserResponse(BaseModel):
 	email: str
 	first_name: str | None = None
 	last_name: str | None = None
+	phone_number: str | None = None
 	user_confirmed: bool
 	email_confirmed: bool
 

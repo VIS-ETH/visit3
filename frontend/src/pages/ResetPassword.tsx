@@ -1,6 +1,5 @@
 import { useNavigate, useParams } from "react-router";
 import {
-  Alert,
   Button,
   Center,
   LoadingOverlay,
@@ -40,7 +39,6 @@ export default function ResetPassword() {
   const {
     mutate: reset,
     isPending: resetPending,
-    isError: resetError,
   } = useResetPassword({
     mutation: {
       onSuccess: () => {
@@ -106,11 +104,6 @@ export default function ResetPassword() {
               })}
             >
               <Stack gap="md">
-                {resetError && (
-                  <Alert color="red" title={t("forget_password.fail")}>
-                    {t("reset_password.error")}
-                  </Alert>
-                )}
                 <PasswordInput
                   label={t("register.password.title")}
                   autoComplete="new-password"

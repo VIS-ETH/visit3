@@ -11,10 +11,11 @@ from app.schemas.user import (
     Token,
 )
 from app.models.user import User
-from sqlalchemy.exc import IntegrityError
 from app.core.config import get_settings
 from app.core.exceptions import (
     KeycloakExchangeFailed,
+    PasswordWrong,
+    ResetPasswordError,
     TokenInvalid,
     Unauthenticated,
     UserNotFound,
@@ -49,15 +50,10 @@ async def register_user(
         first_name=request.first_name,
         last_name=request.last_name,
         company_id=request.company_id,
+        phone_number=request.phone_number,
     )
 
-    if len(user.password) < 10:
-        raise HTTPException(status_code=400, detail="register.password.min")
-
-    try:
-        return await auth_service.register_user(user, request.company_name)
-    except IntegrityError as e:
-        raise HTTPException(status_code=400, detail="register.email.used")
+    return await auth_service.register_user(user, request.company_name)
 
 
 @router.post("/login", operation_id="loginUser")
@@ -66,15 +62,12 @@ async def login_user(
     response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
-    try:
-        (access_token, refresh_token) = await auth_service.login_user(
-            form_data.username, form_data.password
-        )
+    (access_token, refresh_token) = await auth_service.login_user(
+        form_data.username, form_data.password
+    )
 
-        set_refresh_cookie(response, refresh_token)
-        return Token(access_token=access_token, token_type="bearer")
-    except UserNotFound as e:
-        raise HTTPException(status_code=400, detail="password.wrong")
+    set_refresh_cookie(response, refresh_token)
+    return Token(access_token=access_token, token_type="bearer")
 
 
 @router.post("/refresh", operation_id="refreshUser")
@@ -114,8 +107,7 @@ async def reset_password(
         logger.info("Password reset successful")
         return result
     except Exception as e:
-        logger.error(f"Password reset error: {str(e)}")
-        raise HTTPException(status_code=400, detail="reset_password.error")
+        raise ResetPasswordError(str(e))
 
 
 @router.get("/callback", operation_id="keycloakCallback")

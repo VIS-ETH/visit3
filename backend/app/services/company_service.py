@@ -35,6 +35,7 @@ class CompanyService:
                         email=user.email,
                         first_name=user.first_name,
                         last_name=user.last_name,
+                        phone_number=user.phone_number,
                         user_confirmed=user.user_confirmed,
                         email_confirmed=user.email_confirmed,
                     )

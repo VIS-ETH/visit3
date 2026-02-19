@@ -28,12 +28,15 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, index=True)
     sub: Optional[str] = Field(default=None, index=True)
     password: Optional[str]
+    
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    phone_number: Optional[str] = None
 
     is_staff: bool = False
     is_admin: bool = False
     is_company: bool = False
+    
 
     user_confirmed: bool = False
     email_confirmed: bool = False

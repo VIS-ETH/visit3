@@ -1,6 +1,4 @@
-import { useState } from "react";
 import {
-  Alert,
   Button,
   TextInput,
   PasswordInput,
@@ -12,7 +10,6 @@ import {
   Divider,
 } from "@mantine/core";
 import { IconLock, IconMailSearch } from "@tabler/icons-react";
-import type { AxiosError } from "axios";
 import { NavLink, useNavigate } from "react-router";
 import { useDocumentTitle } from "@mantine/hooks";
 import { useTranslatedForm } from "../utils/translator";
@@ -26,21 +23,12 @@ const Login = () => {
   const { t } = useTranslation();
   useDocumentTitle(t("login.title"));
   const navigate = useNavigate();
-  const [error, setError] = useState("");
 
   const { mutate: login, isPending } = useLoginUser({
     mutation: {
       onSuccess: (data: Token) => {
         setToken(data.access_token);
         navigate("/");
-      },
-      onError: (e: AxiosError<{ detail?: any }>) => {
-        const message =
-          typeof e.response?.data?.detail === "string"
-            ? e.response?.data?.detail
-            : "server.error";
-
-        setError(message);
       },
     },
   });
@@ -80,7 +68,6 @@ const Login = () => {
           <Paper w="100%" p="xl" radius="md" withBorder>
             <form
               onSubmit={form.onSubmit((values) => {
-                setError("");
                 login({
                   data: {
                     username: values.username,
@@ -90,11 +77,6 @@ const Login = () => {
               })}
             >
               <Stack gap="md">
-                {error && (
-                  <Alert color="red" title={t("login.fail")}>
-                    {t(error)}
-                  </Alert>
-                )}
                 <TextInput
                   label={t("email.title")}
                   placeholder="your@email.com"

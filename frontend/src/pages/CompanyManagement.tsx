@@ -232,6 +232,7 @@ export default function CompanyManagement() {
 											<Table.Tr>
 												<Table.Th>{t("company_management.user_name")}</Table.Th>
 												<Table.Th>{t("company_management.user_email")}</Table.Th>
+												<Table.Th>{t("company_management.user_phone")}</Table.Th>
 											</Table.Tr>
 										</Table.Thead>
 										<Table.Tbody>
@@ -239,6 +240,7 @@ export default function CompanyManagement() {
 												<Table.Tr key={user.id}>
 													<Table.Td>{getDisplayName(user)}</Table.Td>
 													<Table.Td>{user.email}</Table.Td>
+													<Table.Td>{user.phone_number ?? "-"}</Table.Td>
 												</Table.Tr>
 											))}
 										</Table.Tbody>

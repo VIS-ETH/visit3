@@ -1,12 +1,14 @@
 import { z } from "zod";
+import { zPhone } from "./utils";
 
 export const registerSchema = z
   .object({
-    email: z.string(),
-    password: z.string().min(11, "password.min"),
-    confirmPassword: z.string(),
-    firstName: z.string(),
-    lastName: z.string(),
+    email: z.string().trim().min(1, "register.required"),
+    password: z.string().min(1, "register.required").min(11, "password.min"),
+    confirmPassword: z.string().min(1, "register.required"),
+    firstName: z.string().trim().min(1, "register.required"),
+    lastName: z.string().trim().min(1, "register.required"),
+    phoneNumber: z.string().optional(),
     companyId: z.string().optional(),
     companyName: z.string().optional(),
   })
@@ -20,5 +22,9 @@ export const registerSchema = z
   })
   .refine((data) => Boolean(data.companyId?.trim()) || Boolean(data.companyName?.trim()), {
     message: "register.company.required",
-    path: ["companyName"],
+    path: ["companyId"],
+  })
+  .refine((data) => !data.phoneNumber?.trim() || zPhone.safeParse(data.phoneNumber).success, {
+    message: "register.phoneNumber.invalid",
+    path: ["phoneNumber"],
   });

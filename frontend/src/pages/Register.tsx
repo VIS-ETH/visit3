@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Alert,
   Button,
   TextInput,
   PasswordInput,
@@ -10,8 +9,8 @@ import {
   Title,
   Text,
 } from "@mantine/core";
-import { IconMailSearch, IconLock } from "@tabler/icons-react";
-import type { AxiosError } from "axios";
+import { notifications } from "@mantine/notifications";
+import { IconMailSearch, IconLock, IconPhone } from "@tabler/icons-react";
 import { useNavigate } from "react-router";
 import { useDocumentTitle } from "@mantine/hooks";
 import { registerSchema } from "../schemas/registerSchema";
@@ -29,21 +28,12 @@ const Register = () => {
   const { t } = useTranslation();
   useDocumentTitle(t("register.title"));
   const navigate = useNavigate();
-  const [error, setError] = useState("");
   const [companyQuery, setCompanyQuery] = useState("");
 
   const { mutate: register, isPending } = useRegisterUser({
     mutation: {
       onSuccess: () => {
         navigate("/login");
-      },
-      onError: (e: AxiosError<{ detail?: any }>) => {
-        const message =
-          typeof e.response?.data?.detail === "string"
-            ? e.response?.data?.detail
-            : "server.error";
-
-        setError(message);
       },
     },
   });
@@ -58,7 +48,12 @@ const Register = () => {
     mutation: {
       onSuccess: async (company) => {
         if (!company.id) {
-          setError("server.error");
+          notifications.show({
+            color: "red",
+            title: t("register.fail"),
+            message: t("server.error"),
+            autoClose: 4000,
+          });
           return;
         }
 
@@ -66,9 +61,6 @@ const Register = () => {
         form.setFieldValue("companyName", "");
         setCompanyQuery(company.name);
         await refetchCompanies();
-      },
-      onError: () => {
-        setError("server.error");
       },
     },
   });
@@ -82,6 +74,7 @@ const Register = () => {
       lastName: "",
       companyId: "",
       companyName: "",
+      phoneNumber: "",
     },
   });
 
@@ -123,7 +116,6 @@ const Register = () => {
           <Paper w="100%" p="xl" radius="md" withBorder>
             <form
               onSubmit={form.onSubmit((values) => {
-                setError("");
                 const companyId = values.companyId?.trim() || undefined;
                 const companyName = values.companyName?.trim() || undefined;
                 register({
@@ -134,28 +126,36 @@ const Register = () => {
                     last_name: values.lastName?.trim(),
                     company_id: companyId,
                     company_name: companyName,
+                    phone_number: values.phoneNumber?.trim() || undefined,
                   },
                 });
               })}
             >
               <Stack gap="md">
-                {error && (
-                  <Alert color="red" title={t("register.fail")}>
-                    {t(error)}
-                  </Alert>
-                )}
                 <TextInput
                   label={t("register.first_name")}
+                  withAsterisk
+                  autoComplete="given-name"
                   placeholder={t("register.first_name_placeholder")}
                   {...form.getInputProps("firstName")}
                 />
                 <TextInput
                   label={t("register.last_name")}
+                  withAsterisk
+                  autoComplete="family-name"
                   placeholder={t("register.last_name_placeholder")}
                   {...form.getInputProps("lastName")}
                 />
                 <TextInput
+                  label={t("register.phone_number")}
+                  autoComplete="tel"
+                  placeholder={t("register.phone_number_placeholder")}
+                  leftSection={<IconPhone size={16} />}
+                  {...form.getInputProps("phoneNumber")}
+                />
+                <TextInput
                   label={t("email.title")}
+                  withAsterisk
                   autoComplete="email"
                   placeholder={t("register.email.placeholder")}
                   leftSection={<IconMailSearch size={16} />}
@@ -163,6 +163,7 @@ const Register = () => {
                 />
                 <PasswordInput
                   label={t("register.password.title")}
+                  withAsterisk
                   autoComplete="new-password"
                   placeholder="************"
                   leftSection={<IconLock size={16} />}
@@ -170,6 +171,7 @@ const Register = () => {
                 />
                 <PasswordInput
                   label={t("register.password.confirm")}
+                  withAsterisk
                   autoComplete="new-password"
                   placeholder="************"
                   leftSection={<IconLock size={16} />}
@@ -178,7 +180,8 @@ const Register = () => {
                 <SearchDropdown
                   label={t("register.company.select")}
                   placeholder={t("register.company.select_placeholder")}
-                  error={form.errors.companyId}
+                  withAsterisk
+                  error={form.errors.companyId ?? form.errors.companyName}
                   isLoading={companiesLoading}
                   visible={showCompanySuggestions}
                   items={filteredCompanies}

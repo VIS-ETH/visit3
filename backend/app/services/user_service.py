@@ -70,7 +70,7 @@ class UserService:
         )
 
     async def get_current_user(self):
-        return self.current_user
+        return await self.user_repository.load_user_company(self.current_user)
 
     async def logout_user(self, refresh_token: str):
         await self.user_repository.revoke_refresh_token(

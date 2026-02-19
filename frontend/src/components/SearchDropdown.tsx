@@ -9,6 +9,7 @@ export type SearchDropdownItem = {
 type SearchDropdownProps = {
   label: string;
   placeholder: string;
+  withAsterisk?: boolean;
   error?: ReactNode;
   isLoading: boolean;
   visible: boolean;
@@ -24,6 +25,7 @@ type SearchDropdownProps = {
 const SearchDropdown = ({
   label,
   placeholder,
+  withAsterisk,
   error,
   isLoading,
   visible,
@@ -40,6 +42,7 @@ const SearchDropdown = ({
       <TextInput
         label={label}
         placeholder={placeholder}
+        withAsterisk={withAsterisk}
         value={query}
         onChange={(event) => onQueryChange(event.currentTarget.value)}
         error={error}

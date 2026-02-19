@@ -4,12 +4,13 @@ import logging
 from typing import List
 import httpx
 import jwt
+import phonenumbers
 from pwdlib import PasswordHash
 from app.core.security import decode_token
 from app.core.utils import hash_str
 from app.models.company import Company
 from app.models.user import User
-from app.core.exceptions import KeycloakExchangeFailed, TokenInvalid, UserNotFound, NotAllowed, CompanyNotFound
+from app.core.exceptions import EmailUsed, KeycloakExchangeFailed, PasswordTooShort, PasswordWrong, PasswordWrong, PhoneNumberInvalid, TokenInvalid, UserNotFound, NotAllowed, CompanyNotFound
 from app.core.config import get_settings
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
@@ -100,6 +101,20 @@ class AuthService:
         return token
 
     async def register_user(self, user: User, company_name: str | None = None):
+        
+        if await self.user_repository.get_by_email(user.email):
+            raise EmailUsed(f"register_user:{user.email}")
+        
+        if len(user.password) < 10:
+            raise PasswordTooShort("register:register_password_too_short")
+        
+        # This does not cover all cases but it's better than nothing
+        if user.phone_number:
+            phone_number = phonenumbers.parse(user.phone_number, "CH")
+            if not phonenumbers.is_valid_number(phone_number):
+                raise PhoneNumberInvalid("register:phone_number_invalid")
+            phone_number_e164 = phonenumbers.format_number(phone_number, phonenumbers.PhoneNumberFormat.E164)
+            user.phone_number = phone_number_e164
 
         normalized_company_name = company_name.strip() if company_name else None
 
@@ -149,7 +164,7 @@ class AuthService:
         user = await self.authenticate_user(username, password)
         if not user:
             logger.warning(f"Login failed: invalid credentials for {username}")
-            raise UserNotFound(f"login:{username}")
+            raise PasswordWrong(f"login:{username}")
         logger.info(f"User login successful: {username}")
         return await self.create_tokens(user)
 

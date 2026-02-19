@@ -5,6 +5,22 @@
   "server": {
     "error": "Server error"
   },
+  "error": {
+    "title": "Error",
+    "unauthenticated": "User is not authenticated",
+    "user_not_found": "User not found in the database",
+    "company_not_found": "Company not found in the database",
+    "keycloak_exchange_failed": "Keycloak exchange failed",
+    "token_invalid": "Token is invalid",
+    "not_allowed": "User is not allowed to make this request",
+    "email_not_confirmed": "User email is not confirmed",
+    "not_confirmed": "User is not confirmed by an admin",
+    "phone_number_invalid": "Phone number is invalid",
+    "password_wrong": "Password is wrong",
+    "email_used": "Email is already used",
+    "password_too_short": "Password is too short",
+    "reset_password_failed": "Password reset failed"
+  },
   "company": {
     "login": "Company Login"
   },
@@ -22,13 +38,17 @@
     "title": "Register",
     "button": "Register",
     "fail": "Registration Failed",
+    "required": "This field is required",
+    "optional": "optional",
     "first_name": "First Name",
     "first_name_placeholder": "Your first name",
     "last_name": "Last Name",
     "last_name_placeholder": "Your last name",
+    "phone_number": "Phone Number",
+    "phone_number_placeholder": "Your phone number",
     "company": {
       "select": "Select Company",
-      "select_placeholder": "Choose an existing company",
+      "select_placeholder": "Choose a company",
       "or": "OR",
       "add": "Add Company",
       "add_placeholder": "Enter a new company name",
@@ -42,7 +62,11 @@
     "password": {
       "confirm": "Confirm Password",
       "title": "Password",
+      "min": "Password has to be longer than 10 characters",
       "nomatch": "Passwords do not match"
+    },
+    "phoneNumber": {
+      "invalid": "Phone number is invalid"
     },
     "failed": "Registration failed, contact us if this persists."
   },
@@ -91,9 +115,18 @@
   },
   "nav": {
     "home": "Home",
+    "profile": "Profile",
     "user_management": "User Management",
     "company_management": "Company Management",
     "logout": "Logout"
+  },
+  "profile": {
+    "title": "Profile",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone Number",
+    "company": "Company",
+    "load_error": "Failed to load profile"
   },
   "company_management": {
     "title": "Company Management",
@@ -101,6 +134,7 @@
     "delete_error": "Failed to delete company",
     "user_name": "Name",
     "user_email": "Email",
+    "user_phone": "Phone Number",
     "user_status": "Status",
     "confirmed": "Confirmed",
     "unconfirmed": "Unconfirmed",
@@ -121,6 +155,7 @@
     "title": "User Management",
     "email": "Email",
     "name": "Name",
+    "phone": "Phone Number",
     "status": "Status",
     "company": "Company",
     "tabs": {

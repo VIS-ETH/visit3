@@ -5,6 +5,22 @@
   "server": {
     "error": "Serverfehler"
   },
+  "error": {
+    "title": "Fehler",
+    "unauthenticated": "Benutzer ist nicht authentifiziert",
+    "user_not_found": "Benutzer wurde in der Datenbank nicht gefunden",
+    "company_not_found": "Unternehmen wurde in der Datenbank nicht gefunden",
+    "keycloak_exchange_failed": "Keycloak-Austausch fehlgeschlagen",
+    "token_invalid": "Token ist ungültig",
+    "not_allowed": "Benutzer darf diese Anfrage nicht ausführen",
+    "email_not_confirmed": "Die E-Mail des Benutzers ist nicht bestätigt",
+    "not_confirmed": "Benutzer ist nicht durch einen Administrator bestätigt",
+    "phone_number_invalid": "Telefonnummer ist ungültig",
+    "password_wrong": "Passwort ist falsch",
+    "email_used": "E-Mail wird bereits verwendet",
+    "password_too_short": "Passwort ist zu kurz",
+    "reset_password_failed": "Zurücksetzen des Passworts fehlgeschlagen"
+  },
   "company": {
     "login": "Unternehmensanmeldung"
   },
@@ -22,13 +38,17 @@
     "title": "Registrieren",
     "button": "Registrieren",
     "fail": "Registrierung fehlgeschlagen",
+    "required": "Dieses Feld ist erforderlich",
+    "optional": "optional",
     "first_name": "Vorname",
     "first_name_placeholder": "Ihr Vorname",
     "last_name": "Nachname",
     "last_name_placeholder": "Ihr Nachname",
+    "phone_number": "Telefonnummer",
+    "phone_number_placeholder": "Ihre Telefonnummer",
     "company": {
       "select": "Unternehmen auswählen",
-      "select_placeholder": "Wählen Sie ein bestehendes Unternehmen",
+      "select_placeholder": "Wählen Sie ein Unternehmen",
       "or": "ODER",
       "add": "Unternehmen hinzufügen",
       "add_placeholder": "Neuen Unternehmensnamen eingeben",
@@ -42,7 +62,11 @@
     "password": {
       "confirm": "Passwort bestätigen",
       "title": "Passwort",
+      "min": "Das Passwort muss länger als 10 Zeichen sein",
       "nomatch": "Passwörter stimmen nicht überein"
+    },
+    "phoneNumber": {
+      "invalid": "Telefonnummer ist ungültig"
     },
     "failed": "Die Registrierung ist fehlgeschlagen. Kontaktieren Sie uns, wenn dies weiterhin der Fall ist."
   },
@@ -91,9 +115,18 @@
   },
   "nav": {
     "home": "Startseite",
+    "profile": "Profil",
     "user_management": "Benutzerverwaltung",
     "company_management": "Unternehmensverwaltung",
     "logout": "Abmelden"
+  },
+  "profile": {
+    "title": "Profil",
+    "name": "Name",
+    "email": "E-Mail",
+    "phone": "Telefonnummer",
+    "company": "Unternehmen",
+    "load_error": "Profil konnte nicht geladen werden"
   },
   "company_management": {
     "title": "Unternehmensverwaltung",
@@ -101,6 +134,7 @@
     "delete_error": "Unternehmen konnte nicht gelöscht werden",
     "user_name": "Name",
     "user_email": "E-Mail",
+    "user_phone": "Telefonnummer",
     "user_status": "Status",
     "confirmed": "Bestätigt",
     "unconfirmed": "Unbestätigt",
@@ -121,6 +155,7 @@
     "title": "Benutzerverwaltung",
     "email": "E-Mail",
     "name": "Name",
+    "phone": "Telefonnummer",
     "status": "Status",
     "company": "Unternehmen",
     "tabs": {

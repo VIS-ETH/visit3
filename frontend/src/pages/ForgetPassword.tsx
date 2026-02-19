@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Alert,
   Button,
   TextInput,
   Stack,
@@ -8,8 +7,8 @@ import {
   Title,
   Paper,
 } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { IconMailSearch } from "@tabler/icons-react";
-import type { AxiosError } from "axios";
 import { useDocumentTitle } from "@mantine/hooks";
 import { useTranslatedForm } from "../utils/translator";
 import { forgetPasswordSchema } from "../schemas/forgetPasswordSchema";
@@ -20,22 +19,18 @@ import { useForgetPassword } from "../orval/generated/auth/auth";
 const ForgetPassword = () => {
   const { t } = useTranslation();
   useDocumentTitle(t("forget_password.title"));
-  const [error, setError] = useState("");
-
   const [emailSent, setEmailSent] = useState(false);
 
   const { mutate: forgotPassword, isPending } = useForgetPassword({
     mutation: {
       onSuccess: () => {
         setEmailSent(true);
-      },
-      onError: (e: AxiosError<{ detail?: any }>) => {
-        const message =
-          typeof e.response?.data?.detail === "string"
-            ? e.response?.data?.detail
-            : "server.error";
-
-        setError(message);
+        notifications.show({
+          color: "green",
+          title: t("forget_password.title"),
+          message: t("forget_password.sent"),
+          autoClose: 4000,
+        });
       },
     },
   });
@@ -61,23 +56,12 @@ const ForgetPassword = () => {
           <Paper w="100%" p="xl" radius="md" withBorder>
             <form
               onSubmit={form.onSubmit((values) => {
-                setError("");
                 forgotPassword({
                   data: { email: values.email },
                 });
               })}
             >
               <Stack gap="md">
-                {emailSent && (
-                  <Alert color="green" title="Success">
-                    {t("forget_password.sent")}
-                  </Alert>
-                )}
-                {error && (
-                  <Alert color="red" title={t("forget_password.fail")}>
-                    {t(error)}
-                  </Alert>
-                )}
                 <TextInput
                   label={t("email.title")}
                   placeholder="your@email.com"

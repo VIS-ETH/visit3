@@ -12,6 +12,7 @@ class CompanyUserResponse(BaseModel):
     email: str
     first_name: str | None = None
     last_name: str | None = None
+    phone_number: str | None = None
     user_confirmed: bool
     email_confirmed: bool
     company: CompanyResponse | None = None
@@ -22,6 +23,7 @@ class RegisterUserRequest(BaseModel):
     password: str
     first_name: str
     last_name: str
+    phone_number: str | None = None
     company_id: str | None = None
     company_name: str | None = None
 
