@@ -92,7 +92,7 @@ async def refresh_user(
         raise Unauthenticated(e.identifier)
 
 
-@router.post("/forget_password", operation_id="forgetPassword")
+@router.post("/forget-password", operation_id="forgetPassword")
 async def forget_password(auth_service: AuthServiceDep, request: ForgetPasswordRequest):
     try:
         return await auth_service.forget_password(request.email)
@@ -100,7 +100,7 @@ async def forget_password(auth_service: AuthServiceDep, request: ForgetPasswordR
         raise HTTPException(status_code=500, detail="gRPC call failed")
 
 
-@router.get("/validate_reset/{token}", operation_id="validResetPassword")
+@router.get("/reset/{token}", operation_id="validResetPassword")
 async def validate_reset_token(auth_service: AuthServiceDep, token: str) -> bool:
     return await auth_service.validate_reset_token(token)
 

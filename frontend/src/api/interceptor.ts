@@ -40,23 +40,27 @@ interface ErrorResponse {
   code: string;
   identifier: string;
   message: string;
-  redirectTo: string | undefined;
   statusCode: number;
+  redirectTo?: string;
 }
 
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     const errorResponse = error?.response?.data as ErrorResponse;
-    if (error?.response?.status == 401) {
+    const status = error?.response?.status;
+    const redirectTo = errorResponse?.redirectTo ?? undefined;
+
+    if (status === 401) {
       clearToken();
       window.location.href = "/login";
-    } else if (
-      errorResponse &&
-      errorResponse.statusCode === 307 &&
-      errorResponse.redirectTo
-    ) {
-      window.location.href = errorResponse.redirectTo;
+    } else if (status === 403) {
+      if (redirectTo) {
+        clearToken();
+        window.location.href = "/login";
+      } else {
+        window.location.href = "/not-allowed";
+      }
     }
     console.log(errorResponse);
     return Promise.reject(error);

@@ -6,31 +6,39 @@ import {
   Alert,
   Button,
   Tabs,
+  Modal,
+  Text,
+  Group,
 } from "@mantine/core";
-import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
+import { IconAlertCircle, IconCheck, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  getGetAllCompanyUsersQueryKey,
+  getGetUnconfirmedUsersQueryKey,
   useConfirmUser,
+  useDeleteUser,
   useGetAllAdmins,
-  useGetAllCompanies,
+  useGetAllCompanyUsers,
   useGetAllStaff,
   useGetUnconfirmedUsers,
 } from "../orval/generated/user/user";
-import { isStaff } from "../api/utils";
+import { isAdmin } from "../api/utils";
 
 import UserTable from "../components/UserTable";
 import type {
   CompanyUserResponse,
   User,
 } from "../orval/generated/fastAPI.schemas";
-import NotAllowed from "../components/NotAllowed";
 
 export default function UserManagement() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const adminStatus = isAdmin();
   const [activeTab, setActiveTab] = useState<string | null>("unconfirmed");
+  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   const {
     data: unconfirmedUsers,
@@ -48,14 +56,12 @@ export default function UserManagement() {
     data: companyUsers,
     isLoading: isCompaniesLoading,
     isError: isCompaniesError,
-  } = useGetAllCompanies({ query: { enabled: activeTab === "companies" } });
+  } = useGetAllCompanyUsers({ query: { enabled: activeTab === "companies" } });
   const {
     data: adminUsers,
     isLoading: isAdminsLoading,
     isError: isAdminsError,
   } = useGetAllAdmins({ query: { enabled: activeTab === "admins" } });
-
-  const staffStatus = isStaff();
 
   const {
     mutate: confirm,
@@ -64,7 +70,24 @@ export default function UserManagement() {
   } = useConfirmUser({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["/user/unconfirmed"] });
+        queryClient.invalidateQueries({
+          queryKey: getGetUnconfirmedUsersQueryKey(),
+        });
+      },
+    },
+  });
+
+  const {
+    mutate: deleteUser,
+    isPending: isDeleting,
+    isError: isDeleteError,
+  } = useDeleteUser({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: getGetAllCompanyUsersQueryKey(),
+        });
+        setDeleteModalOpened(false);
       },
     },
   });
@@ -74,14 +97,72 @@ export default function UserManagement() {
     confirm({ userId });
   };
 
-  if (!staffStatus) {
-    return <NotAllowed />;
-  }
+  const handleDeleteUser = (userId: string | undefined) => {
+    if (!adminStatus) return;
+    if (!userId) return;
+    const targetUser = companyUsers?.find((user) => user.id === userId);
+    if (!targetUser) return;
+    setUserToDelete(targetUser as unknown as User);
+    setDeleteModalOpened(true);
+  };
+
+  const confirmDeleteUser = () => {
+    if (!adminStatus) return;
+    if (!userToDelete?.id) return;
+    deleteUser({ userId: userToDelete.id });
+  };
 
   return (
     <Center h="100%" w="100%" py="xl">
       <Stack w="100%" maw={1000} gap="lg">
         <Title order={2}>{t("user_management.title")}</Title>
+
+        <Modal
+          opened={adminStatus && deleteModalOpened}
+          onClose={() => {
+            if (!isDeleting) {
+              setDeleteModalOpened(false);
+            }
+          }}
+          onExitTransitionEnd={() => {
+            if (!deleteModalOpened) {
+              setUserToDelete(null);
+            }
+          }}
+          closeOnClickOutside={!isDeleting}
+          closeOnEscape={!isDeleting}
+          withCloseButton={!isDeleting}
+          title={t("user_management.delete_modal.title")}
+          centered
+        >
+          <Stack gap="sm">
+            <Text>
+              {t("user_management.delete_modal.message", {
+                email: userToDelete?.email ?? "-",
+              })}
+            </Text>
+            <Text c="red" fw={600}>
+              {t("user_management.delete_modal.irreversible")}
+            </Text>
+            <Group justify="flex-end" mt="md">
+              <Button
+                variant="default"
+                onClick={() => setDeleteModalOpened(false)}
+                disabled={isDeleting}
+              >
+                {t("user_management.delete_modal.cancel")}
+              </Button>
+              <Button
+                color="red"
+                onClick={confirmDeleteUser}
+                loading={isDeleting}
+                disabled={!userToDelete?.id}
+              >
+                {t("user_management.delete_modal.confirm")}
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
 
         {isConfirmError && (
           <Alert
@@ -93,15 +174,25 @@ export default function UserManagement() {
           </Alert>
         )}
 
+        {adminStatus && isDeleteError && (
+          <Alert
+            icon={<IconAlertCircle />}
+            color="red"
+            title={t("server.error")}
+          >
+            {t("user_management.delete_error")}
+          </Alert>
+        )}
+
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>
             <Tabs.Tab value="unconfirmed">
               {t("user_management.tabs.unconfirmed")}
             </Tabs.Tab>
-            <Tabs.Tab value="staff">{t("user_management.tabs.staff")}</Tabs.Tab>
             <Tabs.Tab value="companies">
               {t("user_management.tabs.companies")}
             </Tabs.Tab>
+            <Tabs.Tab value="staff">{t("user_management.tabs.staff")}</Tabs.Tab>
             <Tabs.Tab value="admins">
               {t("user_management.tabs.admins")}
             </Tabs.Tab>
@@ -127,7 +218,6 @@ export default function UserManagement() {
                 actionButton={(user) => (
                   <Button
                     size="xs"
-                    variant="light"
                     leftSection={<IconCheck size={14} />}
                     onClick={() => handleConfirmUser(user.id)}
                     disabled={isConfirming || !user.id}
@@ -145,6 +235,49 @@ export default function UserManagement() {
               >
                 {t("user_management.no_users_description")}
               </Alert>
+            )}
+          </Tabs.Panel>
+
+          <Tabs.Panel value="companies" pt="md">
+            {isCompaniesLoading ? (
+              <Center py="xl">
+                <Loader />
+              </Center>
+            ) : isCompaniesError ? (
+              <Alert
+                icon={<IconAlertCircle />}
+                color="red"
+                title={t("server.error")}
+              >
+                {t("user_management.error")}
+              </Alert>
+            ) : companyUsers && companyUsers.length > 0 ? (
+              <UserTable
+                users={companyUsers as unknown as User[]}
+                t={t}
+                actionButton={
+                  adminStatus
+                    ? (user) => (
+                        <Button
+                          leftSection={<IconTrash size={14} />}
+                          size="xs"
+                          color="red"
+                          variant="light"
+                          onClick={() => handleDeleteUser(user.id)}
+                          disabled={!user.id}
+                        >
+                          {t("user_management.delete")}
+                        </Button>
+                      )
+                    : undefined
+                }
+              />
+            ) : (
+              <Alert
+                icon={<IconAlertCircle />}
+                color="blue"
+                title={t("user_management.no_companies")}
+              />
             )}
           </Tabs.Panel>
 
@@ -172,30 +305,6 @@ export default function UserManagement() {
                 icon={<IconAlertCircle />}
                 color="blue"
                 title={t("user_management.no_staff")}
-              />
-            )}
-          </Tabs.Panel>
-
-          <Tabs.Panel value="companies" pt="md">
-            {isCompaniesLoading ? (
-              <Center py="xl">
-                <Loader />
-              </Center>
-            ) : isCompaniesError ? (
-              <Alert
-                icon={<IconAlertCircle />}
-                color="red"
-                title={t("server.error")}
-              >
-                {t("user_management.error")}
-              </Alert>
-            ) : companyUsers && companyUsers.length > 0 ? (
-              <UserTable users={companyUsers as unknown as User[]} t={t} />
-            ) : (
-              <Alert
-                icon={<IconAlertCircle />}
-                color="blue"
-                title={t("user_management.no_companies")}
               />
             )}
           </Tabs.Panel>

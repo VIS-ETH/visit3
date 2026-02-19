@@ -1,5 +1,10 @@
 import { AppShell, Button, Divider, Group, Stack, Text } from "@mantine/core";
-import { IconHome2, IconLogout2, IconSettings } from "@tabler/icons-react";
+import {
+  IconBuilding,
+  IconHome2,
+  IconLogout2,
+  IconSettings,
+} from "@tabler/icons-react";
 import { NavLink, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
@@ -33,7 +38,8 @@ export default function Navbar() {
 
     updateStaffStatus();
     window.addEventListener("auth-token-changed", updateStaffStatus);
-    return () => window.removeEventListener("auth-token-changed", updateStaffStatus);
+    return () =>
+      window.removeEventListener("auth-token-changed", updateStaffStatus);
   }, []);
 
   return (
@@ -50,9 +56,22 @@ export default function Navbar() {
             {t("nav.home")}
           </Button>
           {staffStatus && (
-            <Button component={NavLink} to="/user-management" leftSection={<IconSettings />}>
-              {t("nav.user_management")}
-            </Button>
+            <>
+              <Button
+                component={NavLink}
+                to="/user-management"
+                leftSection={<IconSettings />}
+              >
+                {t("nav.user_management")}
+              </Button>
+              <Button
+                component={NavLink}
+                to="/company-management"
+                leftSection={<IconBuilding />}
+              >
+                {t("nav.company_management")}
+              </Button>
+            </>
           )}
           <Button
             onClick={() => {

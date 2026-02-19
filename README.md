@@ -23,6 +23,15 @@ Download these before running the project.
 * [uv](https://docs.astral.sh/uv/)
 * [yarn](https://yarnpkg.com/)
 
+### Code Generation
+
+Run this first. The generate step updates both backend and frontend artifacts (grpc + orval).
+
+```bash
+# Run this in project root
+make generate
+```
+
 ### Backend
 
 There is a docker compose file including the backend, minio, keycloak, notification api and the database.
@@ -52,15 +61,6 @@ When the backend is up, you can go to http://localhost:8000/docs and see the aut
 - Keycloak (Auth): http://localhost:8181
 - Notifications API: http://localhost:6781
 - Database: localhost:5432
-
-### Code Generation
-
-The generate step updates both backend and frontend artifacts (grpc + orval).
-
-```bash
-# Run this in project root
-make generate
-```
 
 ### Frontend
 
@@ -105,6 +105,23 @@ To revert to a previous migration:
 ```bash
 alembic downgrade -1
 ```
+
+## Test Data Seeding
+
+You can seed demo users and companies directly inside the running backend container.
+
+```bash
+# Run this in project root (backend service must be running)
+docker compose exec backend sh -lc "cd /app && .venv/bin/python scripts/seed_test_data.py"
+```
+
+The seed script creates/updates test records for:
+- Unconfirmed company users
+- Staff users
+- Admin users
+- Confirmed company users
+
+The script is idempotent for its email pool, so running it again updates existing seeded users instead of duplicating them.
 
 ## Important Bits
 

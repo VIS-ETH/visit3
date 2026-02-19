@@ -131,8 +131,8 @@ const Login = () => {
               {t("login.register.title")}
             </Button>
             <Button
-              component={NavLink}
-              to="/forget_password"
+                component={NavLink}
+                to="/forget-password"
               variant="light"
               size="sm"
             >

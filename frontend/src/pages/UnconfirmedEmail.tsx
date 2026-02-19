@@ -1,8 +1,9 @@
-import { Button, Center, Stack, Title, ThemeIcon } from "@mantine/core";
+import { Button, Center, Stack, Title } from "@mantine/core";
 import { IconMail } from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSendConfirmationMail } from "../orval/generated/user/user";
+import IconTitle from "../components/IconTitle";
 
 export default function UnconfirmedEmail() {
   const { t } = useTranslation();
@@ -24,10 +25,11 @@ export default function UnconfirmedEmail() {
     <Center>
       {!emailSent ? (
         <Stack align="center" gap="lg">
-          <ThemeIcon size={80} radius="xl" variant="light" color="blue">
-            <IconMail size={50} />
-          </ThemeIcon>
-          <Title ta="center">{t("email.confirm.unconfirmed")}</Title>
+          <IconTitle
+            icon={<IconMail size={50} />}
+            title={t("email.confirm.unconfirmed")}
+            color="blue"
+          />
           {isError && <Title c="red">{t("email.confirm.error")}</Title>}
           <Button
             size="lg"
@@ -41,10 +43,11 @@ export default function UnconfirmedEmail() {
         </Stack>
       ) : (
         <Stack align="center" gap="lg">
-          <ThemeIcon size={80} radius="xl" variant="light" color="green">
-            <IconMail size={50} />
-          </ThemeIcon>
-          <Title ta="center">{t("email.confirm.sent")}</Title>
+          <IconTitle
+            icon={<IconMail size={50} />}
+            title={t("email.confirm.sent")}
+            color="green"
+          />
         </Stack>
       )}
     </Center>

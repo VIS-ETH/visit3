@@ -72,7 +72,7 @@ class NotAllowed(AppError):
             "User is not allowed to make this request",
             "error.not_allowed",
             identifier,
-            405,
+            403,
         )
 
 
@@ -81,7 +81,7 @@ class EmailNotConfirmed(AppError):
         super().__init__(
             "User email is not confirmed", "error.email_not_confirmed", identifier, 307
         )
-        self.redirect_to = "/unconfirmed_email"
+        self.redirect_to = "/unconfirmed-email"
 
 
 class UserNotConfirmed(AppError):
@@ -89,4 +89,4 @@ class UserNotConfirmed(AppError):
         super().__init__(
             "User is not confirmed by an admin", "error.not_confirmed", identifier, 307
         )
-        self.redirect_to = "/unconfirmed_user"
+        self.redirect_to = "/unconfirmed-user"

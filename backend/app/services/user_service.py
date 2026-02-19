@@ -2,8 +2,8 @@ from datetime import datetime, timedelta, timezone
 import secrets
 import logging
 from uuid import UUID
-from app.core.decorators import require_staff
-from app.core.exceptions import TokenInvalid, UserNotFound
+from app.core.decorators import require_admin, require_staff
+from app.core.exceptions import NotAllowed, TokenInvalid, UserNotFound
 from app.core.utils import hash_str
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
@@ -63,6 +63,12 @@ class UserService:
         logger.info(f"Email confirmed for user: {self.current_user.email}")
         return True
 
+    async def validate_confirm_email_token(self, token: str) -> bool:
+        return await self.user_repository.validate_confirm_email_token(
+            self.current_user,
+            hash_str(token),
+        )
+
     async def get_current_user(self):
         return self.current_user
 
@@ -97,3 +103,16 @@ class UserService:
     @require_staff
     async def get_staff(self):
         return await self.user_repository.get_staff()
+    
+    @require_admin
+    async def delete_user(self, user_id: UUID):
+        user = await self.user_repository.get_by_id(user_id)
+        if not user:
+            logger.warning(f"Delete user failed - user not found: {user_id}")
+            raise UserNotFound(f"delete_user:{user_id}")
+        if (user.is_admin or user.is_staff):
+            logger.warning(f"Delete user failed - user is admin or staff: {user_id}")
+            raise NotAllowed(f"delete_user:{user_id}")
+        
+        await self.user_repository.delete_user(user)
+        logger.info(f"User deleted by admin {self.current_user.email}: {user.email}")

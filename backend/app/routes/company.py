@@ -1,9 +1,9 @@
 from uuid import UUID
-from fastapi import APIRouter
-from app.core.deps import AuthServiceDep, CompanyServiceDep, CsrfDep
+from fastapi import APIRouter, status
+from app.core.deps import AuthServiceDep, CompanyServiceDep, CsrfDep, UserServiceDep
 from app.models.company import Company
 from app.models.user import User
-from app.schemas.company import CreateCompanyRequest
+from app.schemas.company import CompanyWithUsersResponse, CreateCompanyRequest
 
 router = APIRouter(prefix="/company", tags=["company"], dependencies=[CsrfDep])
 
@@ -27,3 +27,44 @@ async def get_company_users(
     company_id: UUID,
 ) -> list[User]:
     return await company_service.get_company_users(company_id)
+
+
+@router.get("/management", operation_id="listCompaniesWithUsers")
+async def list_companies_with_users(
+    company_service: CompanyServiceDep,
+) -> list[CompanyWithUsersResponse]:
+    return await company_service.get_companies_with_users()
+
+
+@router.delete(
+    "/{company_id}/delete-with-users",
+    operation_id="deleteCompanyWithUsers",
+)
+async def delete_company_with_users(
+    company_service: CompanyServiceDep,
+    company_id: UUID,
+):
+    await company_service.delete_company_with_users(company_id)
+
+
+@router.delete(
+    "/{company_id}/delete-keep-users",
+    operation_id="deleteCompanyKeepUsers",
+)
+async def delete_company_keep_users(
+    company_service: CompanyServiceDep,
+    company_id: UUID,
+):
+    await company_service.delete_company_keep_users(company_id)
+
+
+@router.delete(
+    "/{company_id}/users/{user_id}",
+    operation_id="removeCompanyUser",
+)
+async def remove_company_user(
+    user_service: UserServiceDep,
+    company_id: UUID,
+    user_id: UUID,
+):
+    await user_service.remove_company_user(company_id, user_id)

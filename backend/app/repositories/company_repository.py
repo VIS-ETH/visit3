@@ -1,5 +1,6 @@
 from typing import List, Optional
-from sqlmodel import select
+from sqlmodel import select, delete, update
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.company import Company
 from app.models.user import User
@@ -27,11 +28,38 @@ class CompanyRepository(BaseRepository[Company]):
         return await self._get_by_field(Company.name, name)
 
     async def get_users(self, company: Company) -> List[User]:
-        stmt = select(User).where(User.company_id == company.id)
-        result = await self.session.execute(stmt)
+        statement = select(User).where(User.company_id == company.id)
+        result = await self.session.execute(statement)
         return result.scalars().all()
 
     async def get_companies(self) -> List[Company]:
-        stmt = select(Company)
-        result = await self.session.execute(stmt)
+        statement = select(Company)
+        result = await self.session.execute(statement)
         return result.scalars().all()
+
+    async def get_companies_with_users(self) -> List[Company]:
+        statement = select(Company).options(selectinload(Company.users))
+        result = await self.session.execute(statement)
+        return result.scalars().all()
+
+    async def delete_company_with_users(self, company: Company):
+        try:
+            delete_users_statement = delete(User).where(User.company_id == company.id)
+            await self.session.execute(delete_users_statement)
+            await self.session.delete(company)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def delete_company_keep_users(self, company: Company):
+        try:
+            unassign_users_statement = (
+                update(User).where(User.company_id == company.id).values(company_id=None)
+            )
+            await self.session.execute(unassign_users_statement)
+            await self.session.delete(company)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e

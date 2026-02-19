@@ -17,10 +17,6 @@ class CompanyUserResponse(BaseModel):
     company: CompanyResponse | None = None
 
 
-class UnconfirmedUserResponse(CompanyUserResponse):
-    pass
-
-
 class RegisterUserRequest(BaseModel):
     email: str
     password: str

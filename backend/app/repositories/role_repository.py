@@ -1,4 +1,4 @@
-from app.models.user import Role
+from app.models.user import Role, User
 from app.repositories.base import BaseRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 

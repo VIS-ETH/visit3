@@ -184,7 +184,7 @@ class AuthService:
             logger.warning(f"Forget password requested for OAuth-only user: {email}")
             raise NotAllowed(f"forget_password:{user.id}")
 
-        token = await self.create_forget_password_token(email, user)
+        token = await self.create_forget_password_token(user)
         logger.info(f"Password reset token created for user: {email}")
         await self.mail_service.send_forget_password_mail(email, token)
 

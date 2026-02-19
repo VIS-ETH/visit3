@@ -19,29 +19,34 @@ async def read_users_me(user_service: UserServiceDep) -> User:
     return await user_service.get_current_user()
 
 
-@router.get("/companies", operation_id="getAllCompanies")
-async def get_all_companies(user_service: UserServiceDep) -> list[CompanyUserResponse]:
+@router.get("/companies", operation_id="getAllCompanyUsers")
+async def get_all_company_users(user_service: UserServiceDep) -> list[CompanyUserResponse]:
     return await user_service.get_company_users()
 
 
 @router.get("/admins", operation_id="getAllAdmins")
-async def get_all_admins(user_service: UserServiceDep) -> list[CompanyUserResponse]:
+async def get_all_admins(user_service: UserServiceDep) -> list[User]:
     return await user_service.get_admins()
 
 
 @router.get("/staff", operation_id="getAllStaff")
-async def get_all_staff(user_service: UserServiceDep) -> list[CompanyUserResponse]:
+async def get_all_staff(user_service: UserServiceDep) -> list[User]:
     return await user_service.get_staff()
 
 
-@router.post("/send_confirmation_email", operation_id="sendConfirmationMail")
+@router.post("/send-confirmation-email", operation_id="sendConfirmationMail")
 async def send_confirmation_mail(user_service: UserServiceDep) -> None:
     return await user_service.send_confirmation_mail()
 
 
-@router.get("/confirm_email/{token}", operation_id="confirmEmail")
+@router.post("/confirm-email/{token}", operation_id="confirmEmail")
 async def confirm_email(user_service: UserServiceDep, token: str):
     return await user_service.confirm_email(token)
+
+
+@router.get("/confirm-email/{token}", operation_id="validateConfirmEmailToken")
+async def validate_confirm_email_token(user_service: UserServiceDep, token: str) -> bool:
+    return await user_service.validate_confirm_email_token(token)
 
 
 @router.get("/unconfirmed", operation_id="getUnconfirmedUsers")
@@ -54,6 +59,14 @@ async def get_unconfirmed_users(
 @router.post("/confirm/{user_id}", operation_id="confirmUser")
 async def confirm_user(user_service: UserServiceDep, user_id: UUID) -> User:
     return await user_service.confirm_user(user_id)
+
+
+@router.delete(
+    "/{user_id}",
+    operation_id="deleteUser",
+)
+async def delete_user(user_service: UserServiceDep, user_id: UUID):
+    await user_service.delete_user(user_id)
 
 
 @router.post("/logout", operation_id="logoutUser")

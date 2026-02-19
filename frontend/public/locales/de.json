@@ -58,6 +58,7 @@
       "invalid": "Dieser Link ist ungültig oder abgelaufen",
       "unconfirmed": "Um VISIT zu nutzen, müssen Sie Ihre E-Mail bestätigen",
       "button": "Bestätigungsmail senden",
+      "confirm_button": "E-Mail bestätigen",
       "error": "Fehler beim Senden der Bestätigungsmail",
       "sent": "Bestätigungsmail wurde an Ihre E-Mail gesendet"
     }
@@ -84,10 +85,37 @@
     "title": "Zugriff verweigert",
     "description": "Sie haben keine Berechtigung, um auf diese Seite zuzugreifen."
   },
+  "not_found": {
+    "title": "Seite nicht gefunden",
+    "description": "Die gesuchte Seite existiert nicht."
+  },
   "nav": {
     "home": "Startseite",
     "user_management": "Benutzerverwaltung",
+    "company_management": "Unternehmensverwaltung",
     "logout": "Abmelden"
+  },
+  "company_management": {
+    "title": "Unternehmensverwaltung",
+    "delete": "Unternehmen löschen",
+    "delete_error": "Unternehmen konnte nicht gelöscht werden",
+    "user_name": "Name",
+    "user_email": "E-Mail",
+    "user_status": "Status",
+    "confirmed": "Bestätigt",
+    "unconfirmed": "Unbestätigt",
+    "no_users": "Keine Benutzer diesem Unternehmen zugewiesen",
+    "no_companies": "Keine Unternehmen",
+    "no_companies_description": "Es wurden keine Unternehmen gefunden.",
+    "error": "Unternehmen konnten nicht geladen werden",
+    "delete_modal": {
+      "title": "Unternehmen löschen",
+      "message": "Wählen Sie, wie {{name}} gelöscht werden soll.",
+      "irreversible": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "cancel": "Abbrechen",
+      "keep_users": "Unternehmen löschen, Benutzer behalten",
+      "delete_with_users": "Unternehmen und Benutzer löschen"
+    }
   },
   "user_management": {
     "title": "Benutzerverwaltung",
@@ -98,7 +126,7 @@
     "tabs": {
       "unconfirmed": "Unbestätigt",
       "staff": "Mitarbeiter",
-      "companies": "Unternehmen",
+      "companies": "Unternehmensbenutzer",
       "admins": "Admins"
     },
     "unconfirmed": "Unbestätigt",
@@ -109,6 +137,15 @@
     "no_admins": "Keine Admins",
     "error": "Fehler beim Laden unbestätigter Benutzer",
     "confirm": "Benutzer bestätigen",
-    "confirm_error": "Fehler beim Bestätigen des Benutzers"
+    "confirm_error": "Fehler beim Bestätigen des Benutzers",
+    "delete": "Benutzer löschen",
+    "delete_error": "Fehler beim Löschen des Benutzers",
+    "delete_modal": {
+      "title": "Unternehmensbenutzer löschen",
+      "message": "Möchten Sie {{email}} wirklich löschen?",
+      "irreversible": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "cancel": "Abbrechen",
+      "confirm": "Dauerhaft löschen"
+    }
   }
 }

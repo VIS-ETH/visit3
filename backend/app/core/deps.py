@@ -1,6 +1,6 @@
 from typing import Annotated
 import logging
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi_csrf_protect import CsrfProtect
 import jwt
@@ -71,7 +71,16 @@ async def get_stub():
 
 async def _csrf_dep(request: Request, csrf_protect: Annotated[CsrfProtect, Depends()]):
     if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
-        await csrf_protect.validate_csrf(request)
+        try:
+            await csrf_protect.validate_csrf(request)
+        except Exception:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "message": "csrf.validation_failed",
+                    "redirectTo": "/login",
+                },
+            )
 
 
 CsrfDep = Depends(_csrf_dep)

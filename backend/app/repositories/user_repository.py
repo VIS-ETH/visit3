@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 from typing import List
 import uuid
-from sqlalchemy import inspect
 from sqlalchemy.orm import selectinload
 from sqlmodel import DateTime, update, select
 from app.core.exceptions import TokenInvalid
@@ -36,15 +35,7 @@ class UserRepository(BaseRepository[User]):
         result = await self.session.execute(statement)
         return result.scalars().all()
 
-    async def _load_user_company(self, user: User | None) -> User | None:
-        if user is None:
-            return None
-
-        state = inspect(user)
-
-        if state.detached:
-            user = await self.session.merge(user)
-
+    async def load_user_company(self, user: User) -> User:
         await self.session.refresh(user, attribute_names=["company"])
         return user
 
@@ -78,8 +69,17 @@ class UserRepository(BaseRepository[User]):
             user.user_confirmed = True
             self.session.add(user)
             await self.session.commit()
+
             await self.session.refresh(user)
             return user
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def delete_user(self, user: User):
+        try:
+            await self.session.delete(user)
+            await self.session.commit()
         except Exception as e:
             await self.session.rollback()
             raise e
@@ -99,7 +99,8 @@ class UserRepository(BaseRepository[User]):
         try:
             db_user = await self.get_by_email(user.email)
             if db_user is None:
-                return await self.create_user(user)
+                user = await self.create_user(user)
+                return user
             else:
                 update_data = user.dict(exclude={"id"})
                 for key, value in update_data.items():

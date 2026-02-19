@@ -12,6 +12,6 @@ class BaseRepository(Generic[T]):
         self.session = session
 
     async def _get_by_field(self, field: ColumnElement, value) -> T | None:
-        stmt = select(self.model).where(field == value)
-        result = await self.session.execute(stmt)
+        statement = select(self.model).where(field == value)
+        result = await self.session.execute(statement)
         return result.scalar_one_or_none()

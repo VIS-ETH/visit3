@@ -1,8 +1,12 @@
 from typing import List, Optional
+import logging
 import grpc
 from app.generated.sip.notifications import mail_pb2 as mail_pb
 from app.core.config import get_settings
 from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
+
+
+logger = logging.getLogger(__name__)
 
 
 class MailService:
@@ -20,10 +24,12 @@ class MailService:
 
     async def send_mail(self, request):
         try:
+            logger.info("MailService sending mail via gRPC")
             await self.mail.SendMail(request)
+            logger.info("MailService gRPC send completed")
             return None
         except grpc.RpcError as e:
-            print(f"gRPC Error: {e.code()} - {e.details()}")
+            logger.error(f"gRPC Error: {e.code()} - {e.details()}")
             raise e
 
     def construct_mail(
@@ -66,6 +72,7 @@ class MailService:
         return mail
 
     async def send_forget_password_mail(self, email: str, token: str):
+        logger.info(f"Preparing forget-password mail for: {email}")
         request = self.construct_mail(
             [email],
             "VISIT Reset Password",
@@ -74,9 +81,10 @@ class MailService:
         await self.send_mail(request)
 
     async def send_confirm_email_mail(self, email: str, token: str):
+        logger.info(f"Preparing confirm-email mail for: {email}")
         request = self.construct_mail(
             [email],
             "Confirm Your Account For VISIT",
-            plain_text=f"Go to this link to confirm your account: {get_settings().FRONTEND_SERVER}/confirm_email/{token}",
+            plain_text=f"Go to this link to confirm your account: {get_settings().FRONTEND_SERVER}/confirm-email/{token}",
         )
         await self.send_mail(request)
