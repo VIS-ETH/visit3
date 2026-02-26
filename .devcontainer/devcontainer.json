@@ -1,0 +1,34 @@
+{
+  "name": "visit3-dev",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.13"
+    }
+  },
+  "workspaceFolder": "/workspaces/visit3",
+  "remoteUser": "node",
+  "mounts": [
+    "source=visit3-frontend-node_modules,target=/workspaces/visit3/frontend/node_modules,type=volume",
+    "source=visit3-yarn-cache,target=/home/node/.cache/yarn,type=volume",
+    "source=visit3-uv-cache,target=/home/node/.cache/uv,type=volume"
+  ],
+  "postCreateCommand": "sudo chown -R node:node frontend/node_modules && cd frontend && yarn install && cd ../backend && uv sync",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next",
+        "ms-python.python"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "python.defaultInterpreterPath": "/workspaces/visit3/backend/.venv/bin/python"
+      }
+    }
+  }
+}
