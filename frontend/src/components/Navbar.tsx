@@ -9,13 +9,14 @@ import {
 import { NavLink, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
-import { clearToken, isStaff } from "../api/utils";
+import { clearToken, isCompany, isStaff } from "../api/utils";
 import { useLogoutUser } from "../orval/generated/user/user";
 
 export default function Navbar() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [staffStatus, setStaffStatus] = useState(false);
+  const [companyStatus, setCompanyStatus] = useState(false);
 
   const { mutate: logout } = useLogoutUser({
     mutation: {
@@ -29,18 +30,20 @@ export default function Navbar() {
   // Listen for changes in authentication token to update staff status
   // Otherwise the navbar won't update after login/logout until a page refresh
   useEffect(() => {
-    const updateStaffStatus = () => {
+    const updateRoleStatus = () => {
       try {
         setStaffStatus(isStaff());
+        setCompanyStatus(isCompany());
       } catch {
         setStaffStatus(false);
+        setCompanyStatus(false);
       }
     };
 
-    updateStaffStatus();
-    window.addEventListener("auth-token-changed", updateStaffStatus);
+    updateRoleStatus();
+    window.addEventListener("auth-token-changed", updateRoleStatus);
     return () =>
-      window.removeEventListener("auth-token-changed", updateStaffStatus);
+      window.removeEventListener("auth-token-changed", updateRoleStatus);
   }, []);
 
   return (
@@ -56,9 +59,15 @@ export default function Navbar() {
           <Button component={NavLink} to="/" leftSection={<IconHome2 />}>
             {t("nav.home")}
           </Button>
-          <Button component={NavLink} to="/profile" leftSection={<IconUser />}>
-            {t("nav.profile")}
-          </Button>
+          {companyStatus && (
+            <Button
+              component={NavLink}
+              to="/profile"
+              leftSection={<IconUser />}
+            >
+              {t("nav.profile")}
+            </Button>
+          )}
           {staffStatus && (
             <>
               <Button
