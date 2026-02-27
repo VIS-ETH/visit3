@@ -45,10 +45,8 @@ yarn dev
 
 ### Dependencies
 
-Download these before running the project.
+You only need docker for this project, other dependencies are managed inside the containers.
 
-- [uv](https://docs.astral.sh/uv/)
-- [yarn](https://yarnpkg.com/)
 - [Docker Engine / Docker Desktop](https://docs.docker.com/get-docker/)
 
 ### Development workflow
@@ -178,6 +176,8 @@ The script is idempotent for its email pool, so running it again updates existin
 
 - **Backend**: Use [Black](https://github.com/psf/black) for Python code formatting
 - **Frontend**: Use [Prettier](https://prettier.io/) for code formatting
+
+They are already set up as pre-commit hooks, so you don't have to manually format the files.
 
 ### API Routes & Types
 
