@@ -84,6 +84,26 @@ class UserRepository(BaseRepository[User]):
             await self.session.rollback()
             raise e
 
+    async def update_user_profile(
+        self,
+        user: User,
+        first_name: str | None,
+        last_name: str | None,
+        phone_number: str | None,
+    ) -> User:
+        try:
+            user.first_name = first_name
+            user.last_name = last_name
+            user.phone_number = phone_number
+
+            self.session.add(user)
+            await self.session.commit()
+            await self.session.refresh(user, attribute_names=["company"])
+            return user
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
     async def create_user(self, user: User):
         try:
             self.session.add(user)

@@ -126,7 +126,19 @@
     "email": "E-Mail",
     "phone": "Telefonnummer",
     "company": "Unternehmen",
-    "load_error": "Profil konnte nicht geladen werden"
+    "load_error": "Profil konnte nicht geladen werden",
+    "edit": {
+      "button": "Einstellungen",
+      "title": "Profil bearbeiten",
+      "first_name": "Vorname",
+      "last_name": "Nachname",
+      "phone_number": "Telefonnummer",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "success_title": "Profil aktualisiert",
+      "success_message": "Ihr Profil wurde erfolgreich aktualisiert.",
+      "error_message": "Profil konnte nicht aktualisiert werden"
+    }
   },
   "company_management": {
     "title": "Unternehmensverwaltung",

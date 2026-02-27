@@ -28,6 +28,12 @@ class RegisterUserRequest(BaseModel):
     company_name: str | None = None
 
 
+class UpdateUserProfileRequest(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    phone_number: str | None = None
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str

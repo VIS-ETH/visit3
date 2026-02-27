@@ -126,7 +126,19 @@
     "email": "Email",
     "phone": "Phone Number",
     "company": "Company",
-    "load_error": "Failed to load profile"
+    "load_error": "Failed to load profile",
+    "edit": {
+      "button": "Settings",
+      "title": "Edit profile",
+      "first_name": "First Name",
+      "last_name": "Last Name",
+      "phone_number": "Phone Number",
+      "cancel": "Cancel",
+      "save": "Save",
+      "success_title": "Profile updated",
+      "success_message": "Your profile was updated successfully.",
+      "error_message": "Failed to update your profile"
+    }
   },
   "company_management": {
     "title": "Company Management",

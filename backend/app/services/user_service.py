@@ -72,6 +72,21 @@ class UserService:
     async def get_current_user(self):
         return await self.user_repository.load_user_company(self.current_user)
 
+    async def update_current_user_profile(
+        self,
+        first_name: str | None,
+        last_name: str | None,
+        phone_number: str | None,
+    ) -> User:
+        updated_user = await self.user_repository.update_user_profile(
+            self.current_user,
+            first_name,
+            last_name,
+            phone_number,
+        )
+        logger.info(f"User profile updated: {self.current_user.email}")
+        return updated_user
+
     async def logout_user(self, refresh_token: str):
         await self.user_repository.revoke_refresh_token(
             self.current_user, hash_str(refresh_token)

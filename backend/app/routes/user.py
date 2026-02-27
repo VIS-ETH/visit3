@@ -7,7 +7,7 @@ from fastapi import APIRouter, Cookie
 from app.core.deps import CsrfDep, UserServiceDep
 from app.core.exceptions import TokenInvalid
 from app.models.user import User
-from app.schemas.user import CompanyUserResponse
+from app.schemas.user import CompanyUserResponse, UpdateUserProfileRequest
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +17,17 @@ router = APIRouter(prefix="/user", tags=["user"], dependencies=[CsrfDep])
 @router.get("/me", operation_id="readUsersMe")
 async def read_users_me(user_service: UserServiceDep) -> CompanyUserResponse:
     return await user_service.get_current_user()
+
+
+@router.patch("/me", operation_id="updateUserProfile")
+async def update_user_profile(
+    user_service: UserServiceDep, request: UpdateUserProfileRequest
+) -> CompanyUserResponse:
+    return await user_service.update_current_user_profile(
+        request.first_name,
+        request.last_name,
+        request.phone_number,
+    )
 
 
 @router.get("/companies", operation_id="getAllCompanyUsers")
