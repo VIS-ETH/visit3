@@ -48,7 +48,7 @@ export const refreshToken = async () => {
           headers: {
             "X-CSRF-Token": await getCsrfToken(),
           },
-        },
+        }
       )
       .then((res) => {
         setToken(res.data.access_token);
@@ -92,36 +92,5 @@ export const isTokenExpired = () => {
     return exp < Date.now() / 1000 + 10;
   } catch {
     return true;
-  }
-};
-
-const decodeRoles = () => {
-  const token = getToken();
-  if (!token) return [];
-  const { roles } = jwtDecode<TokenPayload>(token);
-  return roles;
-};
-
-export const isAdmin = () => {
-  try {
-    return decodeRoles().includes("admin");
-  } catch {
-    return false;
-  }
-};
-
-export const isStaff = () => {
-  try {
-    return decodeRoles().includes("staff");
-  } catch {
-    return false;
-  }
-};
-
-export const isCompany = () => {
-  try {
-    return decodeRoles().includes("company");
-  } catch {
-    return false;
   }
 };

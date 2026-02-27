@@ -24,18 +24,19 @@ import {
   useGetAllStaff,
   useGetUnconfirmedUsers,
 } from "../orval/generated/user/user";
-import { isAdmin } from "../api/utils";
 
 import UserTable from "../components/UserTable";
 import type {
   CompanyUserResponse,
   User,
 } from "../orval/generated/fastAPI.schemas";
+import { useCurrentUser } from "../context/useCurrentUser";
 
 export default function UserManagement() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const adminStatus = isAdmin();
+  const { user } = useCurrentUser();
+  const adminStatus = user?.is_admin ?? false;
   const [activeTab, setActiveTab] = useState<string | null>("unconfirmed");
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);

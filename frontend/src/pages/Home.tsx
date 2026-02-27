@@ -1,5 +1,4 @@
 import { Stack, Title } from "@mantine/core";
-import { isCompany } from "../api/utils";
 import { useCurrentUser } from "../context/useCurrentUser";
 
 export default function Home() {
@@ -7,9 +6,7 @@ export default function Home() {
 
   return (
     <Stack>
-      <Title order={3}>
-        Welcome {isCompany() ? "Company" : "Admin"} {user?.email}
-      </Title>
+      <Title order={3}>Welcome {user?.first_name}</Title>
     </Stack>
   );
 }

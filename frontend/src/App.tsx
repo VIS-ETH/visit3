@@ -1,4 +1,5 @@
 import { createTheme, MantineProvider, Center, Loader } from "@mantine/core";
+import { useEffect, useState } from "react";
 import { generateColors } from "@mantine/colors-generator";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
@@ -7,14 +8,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { configOptions } from "./utils/constants";
 import Home from "./pages/Home";
 import UserManagement from "./pages/UserManagement";
-import {
-  Navigate,
-  Outlet,
-  Route,
-  Routes,
-  useNavigate,
-  useLocation,
-} from "react-router";
+import { Navigate, Outlet, Route, Routes } from "react-router";
 import RootLayout from "./pages/root";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -27,11 +21,10 @@ import CompanyManagement from "./pages/CompanyManagement";
 import Profile from "./pages/Profile";
 import NotAllowed from "./pages/NotAllowed";
 import NotFound from "./pages/NotFound";
-import { getToken } from "./api/utils";
-import { useEffect } from "react";
 import { UserProvider } from "./context/UserContext";
 import { useCurrentUser } from "./context/useCurrentUser";
 import { useGetCurrentUser } from "./orval/generated/user/user";
+import { getToken, refreshToken } from "./api/utils";
 
 const primaryColor = configOptions().primaryColor;
 const theme = createTheme({
@@ -50,6 +43,12 @@ function StaffRoute() {
   ) : (
     <Navigate to="/not-allowed" replace />
   );
+}
+
+function CompanyRoute() {
+  const { user } = useCurrentUser();
+  if (!user) return <Navigate to="/login" replace />;
+  return user?.is_company ? <Outlet /> : <Navigate to="/not-allowed" replace />;
 }
 
 function ConfirmedRoute() {
@@ -78,6 +77,8 @@ function AppRoutes() {
       <Route element={<RootLayout navbarHidden={false} />}>
         <Route element={<ConfirmedRoute />}>
           <Route index path="/" element={<Home />} />
+        </Route>
+        <Route element={<CompanyRoute />}>
           <Route path="/profile" element={<Profile />} />
         </Route>
         <Route path="/unconfirmed-email" element={<UnconfirmedEmail />} />
@@ -93,50 +94,48 @@ function AppRoutes() {
 }
 
 function AppWithAuth() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const hasToken = !!getToken();
+  const [hasToken, setHasToken] = useState<boolean>(() => !!getToken());
+  const [isBootstrapping, setIsBootstrapping] = useState<boolean>(!getToken());
+
+  // This is needed because the user has no token on first load if they are using keycloak
+  // So we get them a new token before trying to load the user
+  useEffect(() => {
+    if (hasToken) {
+      setIsBootstrapping(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsBootstrapping(true);
+
+    refreshToken().finally(() => {
+      if (!isMounted) return;
+      setHasToken(!!getToken());
+      setIsBootstrapping(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [hasToken]);
 
   const { data: user, isLoading } = useGetCurrentUser({
     query: {
       enabled: hasToken,
+      retry: false,
     },
   });
 
-  useEffect(() => {
-    if (!hasToken || isLoading) return;
-
-    const isConfirmationPage =
-      location.pathname === "/unconfirmed-email" ||
-      location.pathname === "/unconfirmed-user" ||
-      location.pathname.startsWith("/confirm-email/");
-
-    const isPublicPage =
-      location.pathname === "/login" ||
-      location.pathname === "/register" ||
-      location.pathname === "/forget-password" ||
-      location.pathname.startsWith("/reset/") ||
-      location.pathname === "/not-allowed";
-
-    if (isConfirmationPage || isPublicPage) return;
-
-    if (user && !user.email_confirmed) {
-      navigate("/unconfirmed-email", { replace: true });
-    } else if (user && !user.user_confirmed) {
-      navigate("/unconfirmed-user", { replace: true });
-    }
-  }, [user, isLoading, hasToken, navigate, location.pathname]);
-
-  if (hasToken && isLoading) {
+  if (isBootstrapping || (hasToken && isLoading)) {
     return (
-      <Center h="100vh">
+      <Center>
         <Loader />
       </Center>
     );
   }
 
   return (
-    <UserProvider user={user} isLoading={isLoading}>
+    <UserProvider user={user} isLoading={isBootstrapping || isLoading}>
       <AppRoutes />
     </UserProvider>
   );

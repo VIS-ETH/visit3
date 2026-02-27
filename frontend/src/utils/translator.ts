@@ -5,7 +5,7 @@ import { z } from "zod";
 
 export function useTranslatedForm<T extends z.ZodType<any>>(
   schema: T,
-  options: UseFormInput<z.infer<T>>,
+  options: UseFormInput<z.infer<T>>
 ) {
   const { t } = useTranslation();
 
@@ -18,7 +18,7 @@ export function useTranslatedForm<T extends z.ZodType<any>>(
         Object.entries(errors).map(([key, value]) => [
           key,
           typeof value === "string" ? t(value) : value,
-        ]),
+        ])
       );
     },
   });

@@ -39,7 +39,7 @@ export default function Navbar() {
           <Button component={NavLink} to="/" leftSection={<IconHome2 />}>
             {t("nav.home")}
           </Button>
-          {user?.email_confirmed && user?.user_confirmed && (
+          {user?.email_confirmed && user.user_confirmed && user.is_company && (
             <Button
               component={NavLink}
               to="/profile"
@@ -48,25 +48,24 @@ export default function Navbar() {
               {t("nav.profile")}
             </Button>
           )}
-          {user?.is_staff ||
-            (user?.is_admin && (
-              <>
-                <Button
-                  component={NavLink}
-                  to="/user-management"
-                  leftSection={<IconSettings />}
-                >
-                  {t("nav.user_management")}
-                </Button>
-                <Button
-                  component={NavLink}
-                  to="/company-management"
-                  leftSection={<IconBuilding />}
-                >
-                  {t("nav.company_management")}
-                </Button>
-              </>
-            ))}
+          {(user?.is_staff || user?.is_admin) && (
+            <>
+              <Button
+                component={NavLink}
+                to="/user-management"
+                leftSection={<IconSettings />}
+              >
+                {t("nav.user_management")}
+              </Button>
+              <Button
+                component={NavLink}
+                to="/company-management"
+                leftSection={<IconBuilding />}
+              >
+                {t("nav.company_management")}
+              </Button>
+            </>
+          )}
           <Button
             onClick={() => {
               logout();
