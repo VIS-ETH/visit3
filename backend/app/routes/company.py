@@ -3,7 +3,11 @@ from fastapi import APIRouter, status
 from app.core.deps import AuthServiceDep, CompanyServiceDep, CsrfDep, UserServiceDep
 from app.models.company import Company
 from app.models.user import User
-from app.schemas.company import CompanyWithUsersResponse, CreateCompanyRequest
+from app.schemas.company import (
+    CompanyWithUsersResponse,
+    CreateCompanyRequest,
+    UpdateCompanyRequest,
+)
 
 router = APIRouter(prefix="/company", tags=["company"], dependencies=[CsrfDep])
 
@@ -68,3 +72,11 @@ async def remove_company_user(
     user_id: UUID,
 ):
     await user_service.remove_company_user(company_id, user_id)
+
+
+@router.patch("/me", operation_id="updateMyCompany")
+async def update_my_company(
+    company_service: CompanyServiceDep,
+    request: UpdateCompanyRequest,
+) -> Company:
+    return await company_service.update_company_name(request.name)

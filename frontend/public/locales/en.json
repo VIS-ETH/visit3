@@ -78,11 +78,20 @@
     "title": "Email",
     "valid": "Enter a valid email",
     "confirm": {
+      "title": "Confirm Your Email",
+      "description": "Click the button below to verify your email address",
       "success": "Email confirmed",
-      "invalid": "This link is invalid or expired",
+      "success_description": "Your email has been successfully verified. You can now log in to your account.",
+      "invalid": "Invalid or Expired Link",
+      "link_expired": "This confirmation link has expired. Please request a new confirmation email.",
       "unconfirmed": "To use VISIT you have to confirm your email",
       "button": "Send confirmation email",
       "confirm_button": "Confirm email",
+      "cancel": "Cancel",
+      "validating": "Validating your link",
+      "please_wait": "Please wait while we validate your confirmation link",
+      "back_to_login": "Back to Login",
+      "go_to_login": "Go to Login",
       "error": "Error while sending the confirmation mail",
       "sent": "Confirmation mail has been sent to your email"
     }
@@ -126,6 +135,8 @@
     "email": "Email",
     "phone": "Phone Number",
     "company": "Company",
+    "company_section_title": "Company Information",
+    "company_name": "Company Name",
     "load_error": "Failed to load profile",
     "edit": {
       "button": "Settings",
@@ -138,6 +149,17 @@
       "success_title": "Profile updated",
       "success_message": "Your profile was updated successfully.",
       "error_message": "Failed to update your profile"
+    },
+    "company_edit": {
+      "button": "Settings",
+      "title": "Edit company",
+      "name": "Company Name",
+      "name_placeholder": "Enter company name",
+      "cancel": "Cancel",
+      "save": "Save",
+      "success_title": "Company updated",
+      "success_message": "Company information was updated successfully.",
+      "error_message": "Failed to update company"
     }
   },
   "company_management": {

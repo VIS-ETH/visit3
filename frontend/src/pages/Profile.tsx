@@ -16,11 +16,13 @@ import { IconAlertCircle, IconSettings } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  getReadUsersMeQueryKey,
-  useReadUsersMe,
+  getGetUserProfileQueryKey,
+  useGetUserProfile,
   useUpdateUserProfile,
 } from "../orval/generated/user/user";
+import { useUpdateMyCompany } from "../orval/generated/company/company";
 import { profileSchema } from "../schemas/profileSchema";
+import { companySchema } from "../schemas/companySchema";
 import { useTranslatedForm } from "../utils/translator";
 import { useState } from "react";
 
@@ -54,7 +56,7 @@ function toNormalizedProfile(values: {
 
 function hasMeaningfulChanges(
   next: NormalizedProfile,
-  current: NormalizedProfile,
+  current: NormalizedProfile
 ) {
   return (
     next.firstName !== current.firstName ||
@@ -67,7 +69,8 @@ export default function Profile() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [settingsOpened, setSettingsOpened] = useState(false);
-  const { data: user, isLoading, isError } = useReadUsersMe();
+  const [companySettingsOpened, setCompanySettingsOpened] = useState(false);
+  const { data: user, isLoading, isError } = useGetUserProfile();
 
   const form = useTranslatedForm<typeof profileSchema>(profileSchema, {
     initialValues: {
@@ -78,18 +81,42 @@ export default function Profile() {
     validateInputOnChange: true,
   });
 
+  const companyForm = useTranslatedForm<typeof companySchema>(companySchema, {
+    initialValues: {
+      name: "",
+    },
+    validateInputOnChange: true,
+  });
+
   const { mutate: updateUserProfile, isPending: isUpdating } =
     useUpdateUserProfile({
       mutation: {
         onSuccess: async () => {
           await queryClient.invalidateQueries({
-            queryKey: getReadUsersMeQueryKey(),
+            queryKey: getGetUserProfileQueryKey(),
           });
           setSettingsOpened(false);
           notifications.show({
             color: "green",
             title: t("profile.edit.success_title"),
             message: t("profile.edit.success_message"),
+          });
+        },
+      },
+    });
+
+  const { mutate: updateCompany, isPending: isUpdatingCompany } =
+    useUpdateMyCompany({
+      mutation: {
+        onSuccess: async () => {
+          await queryClient.invalidateQueries({
+            queryKey: getGetUserProfileQueryKey(),
+          });
+          setCompanySettingsOpened(false);
+          notifications.show({
+            color: "green",
+            title: t("profile.company_edit.success_title"),
+            message: t("profile.company_edit.success_message"),
           });
         },
       },
@@ -107,6 +134,16 @@ export default function Profile() {
     setSettingsOpened(true);
   };
 
+  const openCompanySettings = () => {
+    const values = {
+      name: user?.company?.name ?? "",
+    };
+    companyForm.setInitialValues(values);
+    companyForm.setValues(values);
+    companyForm.clearErrors();
+    setCompanySettingsOpened(true);
+  };
+
   const nextProfile = toNormalizedProfile(form.values);
   const currentProfile = toNormalizedProfile({
     firstName: user?.first_name,
@@ -117,6 +154,10 @@ export default function Profile() {
   const hasChanges = hasMeaningfulChanges(nextProfile, currentProfile);
 
   const disableSave = isUpdating || !hasChanges || !form.isValid();
+  const disableCompanySave =
+    isUpdatingCompany ||
+    companyForm.values.name.trim() === user?.company?.name ||
+    !companyForm.isValid();
 
   if (isLoading) {
     return (
@@ -216,6 +257,57 @@ export default function Profile() {
           </form>
         </Modal>
 
+        <Modal
+          opened={companySettingsOpened}
+          onClose={() => {
+            if (!isUpdatingCompany) {
+              setCompanySettingsOpened(false);
+            }
+          }}
+          title={t("profile.company_edit.title")}
+          centered
+          closeOnEscape={!isUpdatingCompany}
+          closeOnClickOutside={!isUpdatingCompany}
+          withCloseButton={!isUpdatingCompany}
+        >
+          <form
+            onSubmit={companyForm.onSubmit((values) => {
+              updateCompany({
+                data: {
+                  name: values.name,
+                },
+              });
+            })}
+          >
+            <Stack>
+              <TextInput
+                label={t("profile.company_edit.name")}
+                placeholder={t("profile.company_edit.name_placeholder")}
+                {...companyForm.getInputProps("name")}
+                disabled={isUpdatingCompany}
+              />
+
+              <Group justify="flex-end" gap="sm">
+                <Button
+                  type="button"
+                  variant="default"
+                  onClick={() => setCompanySettingsOpened(false)}
+                  disabled={isUpdatingCompany}
+                >
+                  {t("profile.company_edit.cancel")}
+                </Button>
+                <Button
+                  type="submit"
+                  loading={isUpdatingCompany}
+                  disabled={disableCompanySave}
+                >
+                  {t("profile.company_edit.save")}
+                </Button>
+              </Group>
+            </Stack>
+          </form>
+        </Modal>
+
         <Paper withBorder p="md" radius="md">
           <Stack gap="sm">
             <Text>
@@ -236,14 +328,34 @@ export default function Profile() {
               </Text>
               {user.phone_number ?? "-"}
             </Text>
-            <Text>
-              <Text span fw={600}>
-                {t("profile.company")}:{" "}
-              </Text>
-              {user.company?.name ?? "-"}
-            </Text>
           </Stack>
         </Paper>
+
+        {user.company && (
+          <>
+            <Group justify="space-between" align="center">
+              <Title order={3}>{t("profile.company_section_title")}</Title>
+              <Button
+                variant="light"
+                leftSection={<IconSettings size={16} />}
+                onClick={openCompanySettings}
+              >
+                {t("profile.company_edit.button")}
+              </Button>
+            </Group>
+
+            <Paper withBorder p="md" radius="md">
+              <Stack gap="sm">
+                <Text>
+                  <Text span fw={600}>
+                    {t("profile.company_name")}:{" "}
+                  </Text>
+                  {user.company.name}
+                </Text>
+              </Stack>
+            </Paper>
+          </>
+        )}
       </Stack>
     </Center>
   );

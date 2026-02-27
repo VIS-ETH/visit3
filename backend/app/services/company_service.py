@@ -1,9 +1,12 @@
 from uuid import UUID
-from app.core.decorators import require_admin, require_admin, require_staff
-from app.core.exceptions import CompanyNotFound
+import logging
+from app.core.decorators import require_admin, require_confirmed_company, require_staff
+from app.core.exceptions import CompanyNotFound, NotAllowed
 from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
 from app.schemas.company import CompanyAssignedUserResponse, CompanyWithUsersResponse
+
+logger = logging.getLogger(__name__)
 
 
 class CompanyService:
@@ -51,10 +54,33 @@ class CompanyService:
         if not company:
             raise CompanyNotFound(f"delete_company_with_users:{company_id}")
         await self.company_repository.delete_company_with_users(company)
-    
+
     @require_admin
     async def delete_company_keep_users(self, company_id: UUID):
         company = await self.company_repository.get_by_id(company_id)
         if not company:
             raise CompanyNotFound(f"delete_company_keep_users:{company_id}")
         await self.company_repository.delete_company_keep_users(company)
+
+    @require_confirmed_company
+    async def update_company_name(self, name: str):
+        if not self.current_user.company_id:
+            logger.warning(
+                f"Update company name failed - user has no company: {self.current_user.email}"
+            )
+            raise NotAllowed(f"update_company_name:{self.current_user.id}")
+
+        company = await self.company_repository.get_by_id(self.current_user.company_id)
+        if not company:
+            logger.warning(
+                f"Update company name failed - company not found: {self.current_user.company_id}"
+            )
+            raise CompanyNotFound(f"update_company_name:{self.current_user.company_id}")
+
+        updated_company = await self.company_repository.update_company_name(
+            company, name
+        )
+        logger.info(
+            f"Company name updated by {self.current_user.email}: {company.name} -> {name}"
+        )
+        return updated_company

@@ -39,6 +39,10 @@ class UserRepository(BaseRepository[User]):
         await self.session.refresh(user, attribute_names=["company"])
         return user
 
+    async def load_user_roles(self, user: User) -> User:
+        await self.session.refresh(user, attribute_names=["roles"])
+        return user
+
     async def get_users(self):
         statement = select(User)
         result = await self.session.execute(statement)
@@ -133,30 +137,12 @@ class UserRepository(BaseRepository[User]):
             await self.session.rollback()
             raise e
 
-    async def get_roles_list(self, user: User):
-        roles = []
-        if user.is_admin:
-            roles.append("admin")
-        if user.is_staff:
-            roles.append("staff")
-        if user.is_company:
-            roles.append("company")
-
-        await self.session.refresh(user, attribute_names=["roles"])
-
-        try:
-            db_role_names = [r.name for r in user.roles]
-            roles.extend(db_role_names)
-        except Exception:
-            pass
-
-        return list(set(roles))
-
     async def create_refresh_token_by_user(
         self, user: User, token: str, expires_at: DateTime
     ):
         try:
-            token = RefreshToken(user_id=user.id, token=token, expires_at=expires_at)
+            token = RefreshToken(
+                user_id=user.id, token=token, expires_at=expires_at)
 
             self.session.add(token)
             await self.session.commit()
@@ -168,7 +154,8 @@ class UserRepository(BaseRepository[User]):
             raise e
 
     async def get_refresh_token(self, hashed_token: str):
-        statement = select(RefreshToken).where(RefreshToken.token == hashed_token)
+        statement = select(RefreshToken).where(
+            RefreshToken.token == hashed_token)
         result = await self.session.execute(statement)
         token = result.scalar_one_or_none()
         return token

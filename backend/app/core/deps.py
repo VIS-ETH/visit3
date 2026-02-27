@@ -59,7 +59,9 @@ async def get_current_user(
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
     if user is None:
-        logger.warning(f"JWT user lookup failed - user not found: {token_data.username}")
+        logger.warning(
+            f"JWT user lookup failed - user not found: {token_data.username}"
+        )
         raise Unauthenticated(f"jwt_decode:user_not_found:{token_data.username}")
     logger.debug(f"User authenticated: {user.email}")
     return user

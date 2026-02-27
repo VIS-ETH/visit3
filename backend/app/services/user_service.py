@@ -55,7 +55,9 @@ class UserService:
         )
 
         if not token_is_valid:
-            logger.warning(f"Email confirmation failed for user: {self.current_user.email}")
+            logger.warning(
+                f"Email confirmation failed for user: {self.current_user.email}"
+            )
             raise TokenInvalid(f"confirm_email:{self.current_user.id}")
 
         await self.user_repository.confirm_email(self.current_user)
@@ -70,6 +72,9 @@ class UserService:
         )
 
     async def get_current_user(self):
+        return await self.user_repository.load_user_roles(self.current_user)
+
+    async def get_current_user_profile(self):
         return await self.user_repository.load_user_company(self.current_user)
 
     async def update_current_user_profile(
@@ -102,9 +107,10 @@ class UserService:
         if not user:
             logger.warning(f"Confirm user failed - user not found: {user_id}")
             raise UserNotFound(f"confirm_user:{user_id}")
-        
+
         result = await self.user_repository.confirm_user(user)
-        logger.info(f"User confirmed by staff {self.current_user.email}: {user.email}")
+        logger.info(
+            f"User confirmed by staff {self.current_user.email}: {user.email}")
         return result
 
     @require_staff
@@ -118,16 +124,18 @@ class UserService:
     @require_staff
     async def get_staff(self):
         return await self.user_repository.get_staff()
-    
+
     @require_admin
     async def delete_user(self, user_id: UUID):
         user = await self.user_repository.get_by_id(user_id)
         if not user:
             logger.warning(f"Delete user failed - user not found: {user_id}")
             raise UserNotFound(f"delete_user:{user_id}")
-        if (user.is_admin or user.is_staff):
-            logger.warning(f"Delete user failed - user is admin or staff: {user_id}")
+        if user.is_admin or user.is_staff:
+            logger.warning(
+                f"Delete user failed - user is admin or staff: {user_id}")
             raise NotAllowed(f"delete_user:{user_id}")
-        
+
         await self.user_repository.delete_user(user)
-        logger.info(f"User deleted by admin {self.current_user.email}: {user.email}")
+        logger.info(
+            f"User deleted by admin {self.current_user.email}: {user.email}")

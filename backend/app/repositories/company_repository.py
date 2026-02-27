@@ -6,6 +6,7 @@ from app.models.company import Company
 from app.models.user import User
 from app.repositories.base import BaseRepository
 
+
 class CompanyRepository(BaseRepository[Company]):
     def __init__(self, session: AsyncSession):
         super().__init__(Company, session)
@@ -23,7 +24,7 @@ class CompanyRepository(BaseRepository[Company]):
         except Exception as e:
             await self.session.rollback()
             raise e
-        
+
     async def get_by_name(self, name: str) -> Optional[Company]:
         return await self._get_by_field(Company.name, name)
 
@@ -55,11 +56,24 @@ class CompanyRepository(BaseRepository[Company]):
     async def delete_company_keep_users(self, company: Company):
         try:
             unassign_users_statement = (
-                update(User).where(User.company_id == company.id).values(company_id=None)
+                update(User)
+                .where(User.company_id == company.id)
+                .values(company_id=None)
             )
             await self.session.execute(unassign_users_statement)
             await self.session.delete(company)
             await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def update_company_name(self, company: Company, name: str) -> Company:
+        try:
+            company.name = name
+            self.session.add(company)
+            await self.session.commit()
+            await self.session.refresh(company)
+            return company
         except Exception as e:
             await self.session.rollback()
             raise e

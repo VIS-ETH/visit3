@@ -50,12 +50,16 @@ interface ErrorResponse {
 
 const getErrorMessage = (errorResponse: ErrorResponse | undefined): string => {
   const detail =
-    typeof errorResponse?.detail === "string" ? errorResponse.detail : undefined;
+    typeof errorResponse?.detail === "string"
+      ? errorResponse.detail
+      : undefined;
   const translationKeyCandidates = [errorResponse?.code, detail].filter(
     (value): value is string => Boolean(value),
   );
 
-  const translatedKey = translationKeyCandidates.find((key) => i18n.exists(key));
+  const translatedKey = translationKeyCandidates.find((key) =>
+    i18n.exists(key),
+  );
 
   if (translatedKey) {
     return i18n.t(translatedKey);
@@ -90,13 +94,11 @@ api.interceptors.response.use(
     if (status === 401) {
       clearToken();
       window.location.href = "/login";
+    } else if (redirectTo) {
+      window.location.href = redirectTo;
     } else if (status === 403) {
-      if (redirectTo) {
-        clearToken();
-        window.location.href = "/login";
-      } else {
-        window.location.href = "/not-allowed";
-      }
+      clearToken();
+      window.location.href = "/login";
     } else {
       notifications.show({
         color: "red",

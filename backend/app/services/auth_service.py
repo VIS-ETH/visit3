@@ -10,7 +10,18 @@ from app.core.security import decode_token
 from app.core.utils import hash_str
 from app.models.company import Company
 from app.models.user import User
-from app.core.exceptions import EmailUsed, KeycloakExchangeFailed, PasswordTooShort, PasswordWrong, PasswordWrong, PhoneNumberInvalid, TokenInvalid, UserNotFound, NotAllowed, CompanyNotFound
+from app.core.exceptions import (
+    EmailUsed,
+    KeycloakExchangeFailed,
+    PasswordTooShort,
+    PasswordWrong,
+    PasswordWrong,
+    PhoneNumberInvalid,
+    TokenInvalid,
+    UserNotFound,
+    NotAllowed,
+    CompanyNotFound,
+)
 from app.core.config import get_settings
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
@@ -47,8 +58,7 @@ class AuthService:
         return user
 
     async def create_access_token(self, user: User):
-        roles = await self.user_repository.get_roles_list(user)
-        to_encode = {"sub": user.email, "roles": roles}
+        to_encode = {"sub": user.email}
         expire = datetime.now(timezone.utc) + ACCESS_TOKEN_EXPIRE
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(
@@ -101,19 +111,21 @@ class AuthService:
         return token
 
     async def register_user(self, user: User, company_name: str | None = None):
-        
+
         if await self.user_repository.get_by_email(user.email):
             raise EmailUsed(f"register_user:{user.email}")
-        
+
         if len(user.password) < 10:
             raise PasswordTooShort("register:register_password_too_short")
-        
+
         # This does not cover all cases but it's better than nothing
         if user.phone_number:
             phone_number = phonenumbers.parse(user.phone_number, "CH")
             if not phonenumbers.is_valid_number(phone_number):
                 raise PhoneNumberInvalid("register:phone_number_invalid")
-            phone_number_e164 = phonenumbers.format_number(phone_number, phonenumbers.PhoneNumberFormat.E164)
+            phone_number_e164 = phonenumbers.format_number(
+                phone_number, phonenumbers.PhoneNumberFormat.E164
+            )
             user.phone_number = phone_number_e164
 
         normalized_company_name = company_name.strip() if company_name else None
@@ -179,7 +191,8 @@ class AuthService:
             or token.is_revoked
             or datetime.now(timezone.utc) > token.expires_at.astimezone(timezone.utc)
         ):
-            raise TokenInvalid(f"refresh:{token.user_id if token else 'unknown'}")
+            raise TokenInvalid(
+                f"refresh:{token.user_id if token else 'unknown'}")
 
         user = await self.user_repository.get_by_id(token.user_id)
 
@@ -192,11 +205,13 @@ class AuthService:
         user = await self.user_repository.get_by_email(email)
 
         if not user:
-            logger.debug(f"Forget password request for non-existent user: {email}")
+            logger.debug(
+                f"Forget password request for non-existent user: {email}")
             return None
 
         if not user.password:
-            logger.warning(f"Forget password requested for OAuth-only user: {email}")
+            logger.warning(
+                f"Forget password requested for OAuth-only user: {email}")
             raise NotAllowed(f"forget_password:{user.id}")
 
         token = await self.create_forget_password_token(user)
@@ -205,7 +220,9 @@ class AuthService:
 
     async def reset_password(self, token: str, new_password: str):
         if not await self.validate_reset_token(token):
-            logger.warning(f"Password reset attempted with invalid/expired token: {token}")
+            logger.warning(
+                f"Password reset attempted with invalid/expired token: {token}"
+            )
             raise TokenInvalid(f"reset_password:{token}")
         try:
             result = await self.user_repository.change_password(

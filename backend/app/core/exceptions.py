@@ -79,7 +79,7 @@ class NotAllowed(AppError):
 class EmailNotConfirmed(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "User email is not confirmed", "error.email_not_confirmed", identifier, 307
+            "User email is not confirmed", "error.email_not_confirmed", identifier, 403
         )
         self.redirect_to = "/unconfirmed-email"
 
@@ -87,34 +87,35 @@ class EmailNotConfirmed(AppError):
 class UserNotConfirmed(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "User is not confirmed by an admin", "error.not_confirmed", identifier, 307
+            "User is not confirmed by an admin", "error.not_confirmed", identifier, 403
         )
         self.redirect_to = "/unconfirmed-user"
+
 
 class PhoneNumberInvalid(AppError):
     def __init__(self, identifier: str):
         super().__init__(
             "Phone number is invalid", "error.phone_number_invalid", identifier, 400
         )
-        
+
+
 class PasswordWrong(AppError):
     def __init__(self, identifier: str):
-        super().__init__(
-            "Password is wrong", "error.password_wrong", identifier, 400
-        )
+        super().__init__("Password is wrong", "error.password_wrong", identifier, 400)
+
 
 class EmailUsed(AppError):
     def __init__(self, identifier: str):
-        super().__init__(
-            "Email is already used", "error.email_used", identifier, 400
-        )
-        
+        super().__init__("Email is already used", "error.email_used", identifier, 400)
+
+
 class PasswordTooShort(AppError):
     def __init__(self, identifier: str):
         super().__init__(
             "Password is too short", "error.password_too_short", identifier, 400
         )
-        
+
+
 class ResetPasswordError(AppError):
     def __init__(self, identifier: str):
         super().__init__(

@@ -14,9 +14,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/user", tags=["user"], dependencies=[CsrfDep])
 
 
-@router.get("/me", operation_id="readUsersMe")
-async def read_users_me(user_service: UserServiceDep) -> CompanyUserResponse:
+@router.get("/me", operation_id="getCurrentUser")
+async def get_current_user(user_service: UserServiceDep) -> User:
     return await user_service.get_current_user()
+
+
+@router.get("/profile", operation_id="getUserProfile")
+async def get_user_profile(user_service: UserServiceDep) -> CompanyUserResponse:
+    return await user_service.get_current_user_profile()
 
 
 @router.patch("/me", operation_id="updateUserProfile")
@@ -31,7 +36,9 @@ async def update_user_profile(
 
 
 @router.get("/companies", operation_id="getAllCompanyUsers")
-async def get_all_company_users(user_service: UserServiceDep) -> list[CompanyUserResponse]:
+async def get_all_company_users(
+    user_service: UserServiceDep,
+) -> list[CompanyUserResponse]:
     return await user_service.get_company_users()
 
 
@@ -56,7 +63,9 @@ async def confirm_email(user_service: UserServiceDep, token: str):
 
 
 @router.get("/confirm-email/{token}", operation_id="validateConfirmEmailToken")
-async def validate_confirm_email_token(user_service: UserServiceDep, token: str) -> bool:
+async def validate_confirm_email_token(
+    user_service: UserServiceDep, token: str
+) -> bool:
     return await user_service.validate_confirm_email_token(token)
 
 

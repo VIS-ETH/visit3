@@ -78,11 +78,20 @@
     "title": "E-Mail",
     "valid": "Geben Sie eine gültige E-Mail ein",
     "confirm": {
+      "title": "Bestätigen Sie Ihre E-Mail",
+      "description": "Klicken Sie auf die untenstehende Schaltfläche, um Ihre E-Mail-Adresse zu bestätigen",
       "success": "E-Mail bestätigt",
-      "invalid": "Dieser Link ist ungültig oder abgelaufen",
+      "success_description": "Ihre E-Mail wurde erfolgreich bestätigt. Sie können sich jetzt in Ihr Konto einloggen.",
+      "invalid": "Ungültiger oder abgelaufener Link",
+      "link_expired": "Dieser Bestätigungslink ist abgelaufen. Bitte fordern Sie eine neue Bestätigungsmail an.",
       "unconfirmed": "Um VISIT zu nutzen, müssen Sie Ihre E-Mail bestätigen",
       "button": "Bestätigungsmail senden",
       "confirm_button": "E-Mail bestätigen",
+      "cancel": "Abbrechen",
+      "validating": "Link wird validiert",
+      "please_wait": "Bitte warten Sie, während wir Ihren Bestätigungslink validieren",
+      "back_to_login": "Zurück zur Anmeldung",
+      "go_to_login": "Zur Anmeldung",
       "error": "Fehler beim Senden der Bestätigungsmail",
       "sent": "Bestätigungsmail wurde an Ihre E-Mail gesendet"
     }
@@ -126,6 +135,8 @@
     "email": "E-Mail",
     "phone": "Telefonnummer",
     "company": "Unternehmen",
+    "company_section_title": "Unternehmensinformationen",
+    "company_name": "Unternehmensname",
     "load_error": "Profil konnte nicht geladen werden",
     "edit": {
       "button": "Einstellungen",
@@ -138,6 +149,17 @@
       "success_title": "Profil aktualisiert",
       "success_message": "Ihr Profil wurde erfolgreich aktualisiert.",
       "error_message": "Profil konnte nicht aktualisiert werden"
+    },
+    "company_edit": {
+      "button": "Einstellungen",
+      "title": "Unternehmen bearbeiten",
+      "name": "Unternehmensname",
+      "name_placeholder": "Unternehmensname eingeben",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "success_title": "Unternehmen aktualisiert",
+      "success_message": "Unternehmensinformationen wurden erfolgreich aktualisiert.",
+      "error_message": "Unternehmen konnte nicht aktualisiert werden"
     }
   },
   "company_management": {

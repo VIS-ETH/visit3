@@ -8,15 +8,14 @@ import {
 } from "@tabler/icons-react";
 import { NavLink, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { useEffect, useState } from "react";
-import { clearToken, isCompany, isStaff } from "../api/utils";
+import { clearToken } from "../api/utils";
 import { useLogoutUser } from "../orval/generated/user/user";
+import { useCurrentUser } from "../context/useCurrentUser";
 
 export default function Navbar() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [staffStatus, setStaffStatus] = useState(false);
-  const [companyStatus, setCompanyStatus] = useState(false);
+  const { user } = useCurrentUser();
 
   const { mutate: logout } = useLogoutUser({
     mutation: {
@@ -26,25 +25,6 @@ export default function Navbar() {
       },
     },
   });
-
-  // Listen for changes in authentication token to update staff status
-  // Otherwise the navbar won't update after login/logout until a page refresh
-  useEffect(() => {
-    const updateRoleStatus = () => {
-      try {
-        setStaffStatus(isStaff());
-        setCompanyStatus(isCompany());
-      } catch {
-        setStaffStatus(false);
-        setCompanyStatus(false);
-      }
-    };
-
-    updateRoleStatus();
-    window.addEventListener("auth-token-changed", updateRoleStatus);
-    return () =>
-      window.removeEventListener("auth-token-changed", updateRoleStatus);
-  }, []);
 
   return (
     <AppShell.Navbar p="md">
@@ -59,7 +39,7 @@ export default function Navbar() {
           <Button component={NavLink} to="/" leftSection={<IconHome2 />}>
             {t("nav.home")}
           </Button>
-          {companyStatus && (
+          {user?.email_confirmed && user?.user_confirmed && (
             <Button
               component={NavLink}
               to="/profile"
@@ -68,24 +48,25 @@ export default function Navbar() {
               {t("nav.profile")}
             </Button>
           )}
-          {staffStatus && (
-            <>
-              <Button
-                component={NavLink}
-                to="/user-management"
-                leftSection={<IconSettings />}
-              >
-                {t("nav.user_management")}
-              </Button>
-              <Button
-                component={NavLink}
-                to="/company-management"
-                leftSection={<IconBuilding />}
-              >
-                {t("nav.company_management")}
-              </Button>
-            </>
-          )}
+          {user?.is_staff ||
+            (user?.is_admin && (
+              <>
+                <Button
+                  component={NavLink}
+                  to="/user-management"
+                  leftSection={<IconSettings />}
+                >
+                  {t("nav.user_management")}
+                </Button>
+                <Button
+                  component={NavLink}
+                  to="/company-management"
+                  leftSection={<IconBuilding />}
+                >
+                  {t("nav.company_management")}
+                </Button>
+              </>
+            ))}
           <Button
             onClick={() => {
               logout();

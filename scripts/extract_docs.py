@@ -13,10 +13,12 @@ load_dotenv(dotenv_path)
 from app.main import app
 import json
 
+
 def export_openapi(location: str):
     openapi_schema = app.openapi()
     with open(location, "w") as f:
         json.dump(openapi_schema, f, indent=2)
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
