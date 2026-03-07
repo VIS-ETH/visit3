@@ -123,11 +123,30 @@
     "description": "Die gesuchte Seite existiert nicht."
   },
   "nav": {
+    "company_portal_of": "Unternehmensportal von",
+    "vis_short": "VIS",
+    "vis_logo_alt": "VIS-Logo",
+    "navigation": "Navigation",
     "home": "Startseite",
     "profile": "Profil",
     "user_management": "Benutzerverwaltung",
     "company_management": "Unternehmensverwaltung",
     "logout": "Abmelden"
+  },
+  "kp": {
+    "title": "Kontaktparty",
+    "description": "Kontaktparty ist eine ETH-Jobmesse, organisiert von VIS.",
+    "join_button": "KP beitreten",
+    "dashboard_button": "Dashboard",
+    "image_alt": "Kontaktparty Platzhalter",
+    "join": {
+      "title": "KP beitreten",
+      "description": "Die Firmenanmeldung fuer die Kontaktparty wird hier verfuegbar sein."
+    },
+    "dashboard": {
+      "title": "KP Dashboard",
+      "description": "Das Staff-Dashboard fuer die Kontaktparty wird hier verfuegbar sein."
+    }
   },
   "profile": {
     "title": "Profil",

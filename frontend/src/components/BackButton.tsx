@@ -14,9 +14,6 @@ const BackButton = ({ to }: BackButtonProps) => {
       component={Link}
       to={to}
       variant="transparent"
-      left="10"
-      top="10"
-      pos="absolute"
     >
       <IconArrowBackUp />
     </ActionIcon>

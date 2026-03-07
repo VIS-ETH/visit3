@@ -1,24 +1,18 @@
 import { AppShell, Burger, Divider, Group, Title } from "@mantine/core";
-import { useTranslation } from "react-i18next";
+import { NavLink } from "react-router";
 import NavbarToggles from "./NavbarToggles";
 
 interface HeaderProps {
   showNavbar: boolean;
-  mobileOpened: boolean;
-  desktopOpened: boolean;
-  toggleMobile: () => void;
-  toggleDesktop: () => void;
+  navbarOpened: boolean;
+  toggleNavbar: () => void;
 }
 
 export default function Header({
   showNavbar,
-  mobileOpened,
-  desktopOpened,
-  toggleMobile,
-  toggleDesktop,
+  navbarOpened,
+  toggleNavbar,
 }: HeaderProps) {
-  const { t } = useTranslation();
-
   return (
     <AppShell.Header>
       <Group h="100%" px="md" justify="space-between" wrap="nowrap" gap="xs">
@@ -26,23 +20,25 @@ export default function Header({
           {showNavbar && (
             <>
               <Burger
-                opened={mobileOpened}
-                onClick={toggleMobile}
+                opened={navbarOpened}
+                onClick={toggleNavbar}
                 hiddenFrom="sm"
                 size="sm"
               />
               <Burger
-                opened={desktopOpened}
-                onClick={toggleDesktop}
+                opened={navbarOpened}
+                onClick={toggleNavbar}
                 visibleFrom="sm"
                 size="sm"
               />
               <Divider orientation="vertical" my="sm" />
             </>
           )}
-          <Title order={3} px="lg" visibleFrom="sm">
-            {t("welcome")}
-          </Title>
+          <NavLink to="/" style={{ textDecoration: "none", color: "inherit" }}>
+            <Title order={3} px="lg" visibleFrom="sm">
+              VISIT
+            </Title>
+          </NavLink>
         </Group>
         <NavbarToggles />
       </Group>

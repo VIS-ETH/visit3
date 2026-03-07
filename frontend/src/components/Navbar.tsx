@@ -1,4 +1,13 @@
-import { AppShell, Button, Divider, Group, Stack, Text } from "@mantine/core";
+import {
+  Anchor,
+  AppShell,
+  Button,
+  Divider,
+  Group,
+  Image,
+  Stack,
+  Text,
+} from "@mantine/core";
 import {
   IconBuilding,
   IconHome2,
@@ -11,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import { clearToken } from "../api/utils";
 import { useLogoutUser } from "../orval/generated/user/user";
 import { useCurrentUser } from "../context/useCurrentUser";
+import serverData from "../utils/server-data";
 
 export default function Navbar() {
   const { t } = useTranslation();
@@ -29,12 +39,28 @@ export default function Navbar() {
   return (
     <AppShell.Navbar p="md">
       <Stack m="sm" align="stretch">
-        <Group align="center" gap="xs" mb="xs">
-          <Text fw={700} size="xl" ta="center" w="100%">
-            VISIT
+        <Group justify="center" align="center" gap="xs" mb="xs" wrap="nowrap">
+          <Image
+            src={`${serverData.staticBase}favicon.ico`}
+            alt={t("nav.vis_logo_alt")}
+            h={22}
+            w={22}
+            fit="contain"
+          />
+          <Text fw={700} size="lg" ta="center">
+            {t("nav.company_portal_of") + " "}
+            <Anchor
+              href={serverData.visWebsiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              fw={700}
+              td="underline"
+            >
+              {t("nav.vis_short")}
+            </Anchor>
           </Text>
         </Group>
-        <Divider my="xs" label="Navigation" labelPosition="center" />
+        <Divider my="xs" label={t("nav.navigation")} labelPosition="center" />
         <Stack gap="xs">
           <Button component={NavLink} to="/" leftSection={<IconHome2 />}>
             {t("nav.home")}

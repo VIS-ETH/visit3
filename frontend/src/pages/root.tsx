@@ -1,16 +1,34 @@
 import { AppShell } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { useEffect, useState } from "react";
 import { Outlet } from "react-router";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
+import { readSessionBool, setSessionBool } from "../utils/session-storage";
 
 interface RootLayoutProps {
   navbarHidden: boolean;
 }
 
+const NAVBAR_OPEN_KEY = "visit-navbar-open";
+const MOBILE_MEDIA_QUERY = "(max-width: 48em)";
+
+const defaultNavbarOpen = () => {
+  if (typeof window === "undefined") return true;
+  return !window.matchMedia(MOBILE_MEDIA_QUERY).matches;
+};
+
 export default function RootLayout({ navbarHidden }: RootLayoutProps) {
-  const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
-  const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
+  const [navbarOpened, setNavbarOpened] = useState<boolean>(() =>
+    readSessionBool(NAVBAR_OPEN_KEY, defaultNavbarOpen())
+  );
+
+  const toggleNavbar = () => {
+    setNavbarOpened((previous) => !previous);
+  };
+
+  useEffect(() => {
+    setSessionBool(NAVBAR_OPEN_KEY, navbarOpened);
+  }, [navbarOpened]);
 
   return (
     <AppShell
@@ -22,8 +40,8 @@ export default function RootLayout({ navbarHidden }: RootLayoutProps) {
               width: 300,
               breakpoint: "sm",
               collapsed: {
-                mobile: !mobileOpened,
-                desktop: !desktopOpened,
+                mobile: !navbarOpened,
+                desktop: !navbarOpened,
               },
             }
           : undefined
@@ -31,10 +49,8 @@ export default function RootLayout({ navbarHidden }: RootLayoutProps) {
     >
       <Header
         showNavbar={!navbarHidden}
-        mobileOpened={mobileOpened}
-        desktopOpened={desktopOpened}
-        toggleMobile={toggleMobile}
-        toggleDesktop={toggleDesktop}
+        navbarOpened={navbarOpened}
+        toggleNavbar={toggleNavbar}
       />
       {!navbarHidden && <Navbar />}
       <AppShell.Main>

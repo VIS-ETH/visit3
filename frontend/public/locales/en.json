@@ -123,11 +123,30 @@
     "description": "The page you are looking for does not exist."
   },
   "nav": {
+    "company_portal_of": "Company portal of",
+    "vis_short": "VIS",
+    "vis_logo_alt": "VIS logo",
+    "navigation": "Navigation",
     "home": "Home",
     "profile": "Profile",
     "user_management": "User Management",
     "company_management": "Company Management",
     "logout": "Logout"
+  },
+  "kp": {
+    "title": "Kontaktparty",
+    "description": "Kontaktparty is an ETH job messe organized by VIS.",
+    "join_button": "Join KP",
+    "dashboard_button": "Dashboard",
+    "image_alt": "Kontaktparty placeholder",
+    "join": {
+      "title": "Join KP",
+      "description": "Company registration for Kontaktparty will be available here."
+    },
+    "dashboard": {
+      "title": "KP Dashboard",
+      "description": "Staff dashboard for Kontaktparty will be available here."
+    }
   },
   "profile": {
     "title": "Profile",

@@ -2,6 +2,8 @@ interface ServerData {
   staticBase: string;
 
   backendUrl: string;
+
+  visWebsiteUrl: string;
 }
 
 const getServerData = () => {
