@@ -15,3 +15,8 @@ class BaseRepository(Generic[T]):
         statement = select(self.model).where(field == value)
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
+    
+    async def get_by_ids(self, ids: list) -> list[T]:
+        statement = select(self.model).where(self.model.id.in_(ids))
+        result = await self.session.execute(statement)
+        return result.scalars().all()

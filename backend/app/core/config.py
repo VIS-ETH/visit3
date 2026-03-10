@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     KEYCLOAK_JWKS_URL: str
     KEYCLOAK_ALGORITHM: str
     ADMIN_GROUP: str
+    KP_PRESIDENT_ROLE: str
 
 
 @lru_cache
