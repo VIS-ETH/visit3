@@ -11,7 +11,7 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi_csrf_protect import CsrfProtect
 import jwt
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, selectinload
 from sqlmodel import select
 from app.models.user import User
 from app.repositories.role_repository import RoleRepository
@@ -58,7 +58,11 @@ async def get_current_user(
     except jwt.InvalidTokenError:
         logger.warning("JWT decode failed - invalid token")
         raise Unauthenticated("jwt_decode:invalid_token")
-    statement = select(User).where(User.email == token_data.username)
+    statement = (
+        select(User)
+        .where(User.email == token_data.username)
+        .options(selectinload(User.roles))
+    )
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
     if user is None:
@@ -177,9 +181,10 @@ CompanyServiceDep = Annotated[CompanyService, Depends(get_company_service)]
 
 async def get_kp_service(
     kp_repository: KpRepositoryDep,
+    company_repository: CompanyRepositoryDep,
     current_user: CurrentUserDep,
 ):
-    return KpService(kp_repository, current_user)
+    return KpService(kp_repository, company_repository, current_user)
 
 
 KpServiceDep = Annotated[KpService, Depends(get_kp_service)]

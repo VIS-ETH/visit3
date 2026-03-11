@@ -2,10 +2,9 @@ from typing import Annotated, List
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Cookie
+from fastapi import APIRouter, Cookie, Response
 
 from app.core.deps import CsrfDep, UserServiceDep
-from app.core.exceptions import TokenInvalid
 from app.models.user import User
 from app.schemas.user import CompanyUserResponse, UpdateUserProfileRequest
 
@@ -91,14 +90,11 @@ async def delete_user(user_service: UserServiceDep, user_id: UUID):
 
 @router.post("/logout", operation_id="logoutUser")
 async def logout_user(
-    user_service: UserServiceDep, refresh_token: Annotated[str | None, Cookie()] = None
+    user_service: UserServiceDep,
+    response: Response,
+    refresh_token: Annotated[str | None, Cookie()] = None,
 ):
-    if not refresh_token:
-        logger.warning(
-            f"Logout failed - no refresh token: {user_service.current_user.email}"
-        )
-        raise TokenInvalid(f"logout:{user_service.current_user.id}")
-
     await user_service.logout_user(refresh_token)
+    response.delete_cookie("refresh_token", samesite="lax")
     logger.info(f"User logout successful: {user_service.current_user.email}")
     return None

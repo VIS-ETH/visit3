@@ -51,7 +51,7 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
         
-    async def register_company_for_event(self, company_id: UUID, event_id: UUID):
+    async def register_company_for_kp(self, company_id: UUID, event_id: UUID):
         try:
             link = KpEventCompanyLink(event_id=event_id, company_id=company_id)
             self.session.add(link)
@@ -60,7 +60,7 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
         
-    async def deregister_company_from_event(self, company_id: UUID, event_id: UUID):
+    async def deregister_company_from_kp(self, company_id: UUID, event_id: UUID):
         try:
             statement = select(KpEventCompanyLink).where(
                 KpEventCompanyLink.event_id == event_id,
@@ -76,7 +76,7 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
         
-    async def list_companies_for_event(self, event_id: UUID) -> list[UUID]:
+    async def list_companies_for_kp(self, event_id: UUID) -> list[UUID]:
         statement = select(KpEventCompanyLink).where(
             KpEventCompanyLink.event_id == event_id,
             KpEventCompanyLink.deleted == False

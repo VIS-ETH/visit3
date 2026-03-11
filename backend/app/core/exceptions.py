@@ -51,6 +51,16 @@ class CompanyNotFound(AppError):
         )
 
 
+class KpYearExists(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP event for this year already exists",
+            "error.kp_year_exists",
+            identifier,
+            400,
+        )
+
+
 class KeycloakExchangeFailed(AppError):
     def __init__(self, identifier: str):
         super().__init__(

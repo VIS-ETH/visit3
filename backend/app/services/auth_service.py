@@ -18,7 +18,6 @@ from app.core.exceptions import (
     PasswordWrong,
     PhoneNumberInvalid,
     TokenInvalid,
-    UserNotFound,
     NotAllowed,
     CompanyNotFound,
 )

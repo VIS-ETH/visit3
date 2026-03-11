@@ -48,6 +48,7 @@ async def app_error_handler(request: Request, exc: AppError):
         status_code=exc.status_code,
         content={
             "statusCode": exc.status_code,
+            "code": exc.code,
             "identifier": exc.identifier,
             "message": exc.message,
             **({"redirectTo": exc.redirect_to} if hasattr(exc, "redirect_to") else {}),

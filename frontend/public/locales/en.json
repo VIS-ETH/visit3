@@ -19,7 +19,8 @@
     "password_wrong": "Password is wrong",
     "email_used": "Email is already used",
     "password_too_short": "Password is too short",
-    "reset_password_failed": "Password reset failed"
+    "reset_password_failed": "Password reset failed",
+    "kp_year_exists": "KP event for this year already exists"
   },
   "company": {
     "login": "Company Login"
@@ -139,13 +140,60 @@
     "join_button": "Join KP",
     "dashboard_button": "Dashboard",
     "image_alt": "Kontaktparty placeholder",
+    "error": "Failed to load KP data",
+    "latest": {
+      "title": "Latest event",
+      "year": "Year",
+      "registration_open": "Registration opens",
+      "registration_end": "Registration ends",
+      "event_date": "Event date",
+      "none": "No KP event found."
+    },
+    "history": {
+      "title": "Event history",
+      "year": "Year",
+      "registration": "Registration window",
+      "event_date": "Event date",
+      "none": "No KP events available yet."
+    },
     "join": {
       "title": "Join KP",
-      "description": "Company registration for Kontaktparty will be available here."
+      "description": "Company registration for Kontaktparty is managed below.",
+      "error": "Failed to load registration data",
+      "current_event": "Current event",
+      "year": "Year",
+      "registration_window": "Registration window",
+      "event_date": "Event date",
+      "register_button": "Register company",
+      "deregister_button": "Cancel registration",
+      "register_success_title": "Registration successful",
+      "register_success_message": "Your company is now registered for this event.",
+      "deregister_success_title": "Registration cancelled",
+      "deregister_success_message": "Your company has been removed from this event.",
+      "no_event": "No active KP event available."
     },
     "dashboard": {
       "title": "KP Dashboard",
-      "description": "Staff dashboard for Kontaktparty will be available here."
+      "description": "Create events and inspect participating companies.",
+      "error": "Failed to load KP dashboard data",
+      "create_title": "Create new event",
+      "create_button": "Create KP event",
+      "create_success_title": "KP event created",
+      "create_success_message": "The event has been saved successfully.",
+      "invalid_year": "Please enter a valid year.",
+      "list_title": "All KP events",
+      "year": "Year",
+      "registration_open": "Registration opens",
+      "registration_end": "Registration ends",
+      "registration_window": "Registration window",
+      "event_date": "Event date",
+      "no_events": "No KP events found.",
+      "companies_title": "Registered companies by event",
+      "choose_event": "Choose event",
+      "choose_event_placeholder": "Select a KP event",
+      "companies_error": "Failed to load companies for selected event",
+      "company_name": "Company",
+      "no_companies": "No companies registered for this event."
     }
   },
   "profile": {

@@ -92,10 +92,12 @@ class UserService:
         logger.info(f"User profile updated: {self.current_user.email}")
         return updated_user
 
-    async def logout_user(self, refresh_token: str):
-        await self.user_repository.revoke_refresh_token(
-            self.current_user, hash_str(refresh_token)
-        )
+    async def logout_user(self, refresh_token: str | None):
+        if refresh_token:
+            await self.user_repository.revoke_refresh_token(
+                self.current_user, hash_str(refresh_token)
+            )
+            return
 
     @require_staff
     async def get_unconfirmed_users(self):

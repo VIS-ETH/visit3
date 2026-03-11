@@ -19,7 +19,8 @@
     "password_wrong": "Passwort ist falsch",
     "email_used": "E-Mail wird bereits verwendet",
     "password_too_short": "Passwort ist zu kurz",
-    "reset_password_failed": "Zurücksetzen des Passworts fehlgeschlagen"
+    "reset_password_failed": "Zurücksetzen des Passworts fehlgeschlagen",
+    "kp_year_exists": "KP-Event für dieses Jahr existiert bereits"
   },
   "company": {
     "login": "Unternehmensanmeldung"
@@ -139,13 +140,60 @@
     "join_button": "KP beitreten",
     "dashboard_button": "Dashboard",
     "image_alt": "Kontaktparty Platzhalter",
+    "error": "KP-Daten konnten nicht geladen werden",
+    "latest": {
+      "title": "Letztes Event",
+      "year": "Jahr",
+      "registration_open": "Anmeldung offen ab",
+      "registration_end": "Anmeldung endet",
+      "event_date": "Eventdatum",
+      "none": "Kein KP-Event gefunden."
+    },
+    "history": {
+      "title": "Eventverlauf",
+      "year": "Jahr",
+      "registration": "Anmeldefenster",
+      "event_date": "Eventdatum",
+      "none": "Noch keine KP-Events verfuegbar."
+    },
     "join": {
       "title": "KP beitreten",
-      "description": "Die Firmenanmeldung fuer die Kontaktparty wird hier verfuegbar sein."
+      "description": "Die Firmenanmeldung fuer die Kontaktparty wird unten verwaltet.",
+      "error": "Anmeldedaten konnten nicht geladen werden",
+      "current_event": "Aktuelles Event",
+      "year": "Jahr",
+      "registration_window": "Anmeldefenster",
+      "event_date": "Eventdatum",
+      "register_button": "Firma anmelden",
+      "deregister_button": "Anmeldung stornieren",
+      "register_success_title": "Anmeldung erfolgreich",
+      "register_success_message": "Ihre Firma ist jetzt fuer dieses Event angemeldet.",
+      "deregister_success_title": "Anmeldung storniert",
+      "deregister_success_message": "Ihre Firma wurde von diesem Event abgemeldet.",
+      "no_event": "Kein aktives KP-Event verfuegbar."
     },
     "dashboard": {
       "title": "KP Dashboard",
-      "description": "Das Staff-Dashboard fuer die Kontaktparty wird hier verfuegbar sein."
+      "description": "Events erstellen und teilnehmende Firmen einsehen.",
+      "error": "KP-Dashboard-Daten konnten nicht geladen werden",
+      "create_title": "Neues Event erstellen",
+      "create_button": "KP-Event erstellen",
+      "create_success_title": "KP-Event erstellt",
+      "create_success_message": "Das Event wurde erfolgreich gespeichert.",
+      "invalid_year": "Bitte ein gueltiges Jahr eingeben.",
+      "list_title": "Alle KP-Events",
+      "year": "Jahr",
+      "registration_open": "Anmeldung offen ab",
+      "registration_end": "Anmeldung endet",
+      "registration_window": "Anmeldefenster",
+      "event_date": "Eventdatum",
+      "no_events": "Keine KP-Events gefunden.",
+      "companies_title": "Angemeldete Firmen pro Event",
+      "choose_event": "Event auswaehlen",
+      "choose_event_placeholder": "KP-Event auswaehlen",
+      "companies_error": "Firmen fuer das ausgewaehlte Event konnten nicht geladen werden",
+      "company_name": "Firma",
+      "no_companies": "Keine Firmen fuer dieses Event angemeldet."
     }
   },
   "profile": {
