@@ -103,6 +103,17 @@ function AppWithAuth() {
   const [hasToken, setHasToken] = useState<boolean>(() => !!getToken());
   const [isBootstrapping, setIsBootstrapping] = useState<boolean>(!getToken());
 
+  useEffect(() => {
+    const onTokenChanged = () => {
+      setHasToken(!!getToken());
+    };
+
+    window.addEventListener("auth-token-changed", onTokenChanged);
+    return () => {
+      window.removeEventListener("auth-token-changed", onTokenChanged);
+    };
+  }, []);
+
   // This is needed because the user has no token on first load if they are using keycloak
   // So we get them a new token before trying to load the user
   useEffect(() => {
@@ -132,6 +143,8 @@ function AppWithAuth() {
     },
   });
 
+  const contextUser = hasToken ? user : undefined;
+
   if (isBootstrapping || (hasToken && isLoading)) {
     return (
       <Center>
@@ -141,7 +154,7 @@ function AppWithAuth() {
   }
 
   return (
-    <UserProvider user={user} isLoading={isBootstrapping || isLoading}>
+    <UserProvider user={contextUser} isLoading={isBootstrapping || isLoading}>
       <AppRoutes />
     </UserProvider>
   );
