@@ -26,8 +26,8 @@ async def get_kp_by_year(kp_service: KpServiceDep, year: int) -> KpEvent | None:
 
 
 @router.post("/create", operation_id="createKp")
-async def create_kp(kp_service: KpServiceDep, request: CreateKpRequest):
-    await kp_service.create_kp(
+async def create_kp(kp_service: KpServiceDep, request: CreateKpRequest) -> KpEvent:
+    return await kp_service.create_kp(
         year=request.year,
         registration_open=request.registration_open,
         registration_end=request.registration_end,

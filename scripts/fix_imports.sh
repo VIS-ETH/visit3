@@ -27,7 +27,7 @@ fi
 
 cd "$TARGET"
 
-for dir in $(find . -type d); do
+for dir in $(find . -mindepth 1 -type d); do
   pkgName="$( echo $dir | perl -pE 's/^\.\///g' | perl -pE 's/\//\./g' )"
   echo "$pkgName -> $PREFIX.$pkgName"
   pkgRegex="$( echo $pkgName | perl -pE 's/\./\\\./g' )"

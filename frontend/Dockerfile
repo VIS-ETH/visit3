@@ -1,3 +1,38 @@
+# Stage 1: Generate gRPC stubs and OpenAPI spec
+FROM python:3.12-slim AS code-generator
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+RUN apt-get update && apt-get install -y perl && rm -rf /var/lib/apt/lists/*
+
+ENV UV_PROJECT_ENVIRONMENT="/opt/venv"
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+
+WORKDIR /repo
+
+COPY --from=common backend/pyproject.toml backend/uv.lock ./backend/
+RUN uv sync --frozen --no-dev --project ./backend
+
+COPY --from=common servis ./servis
+COPY --from=common scripts/fix_imports.sh ./scripts/fix_imports.sh
+RUN chmod +x ./scripts/fix_imports.sh
+
+COPY --from=common backend/app ./backend/app
+RUN mkdir -p ./backend/app/generated
+RUN /opt/venv/bin/python -m grpc_tools.protoc \
+    -I ./servis \
+    --python_out=pyi_out:./backend/app/generated \
+    --grpc_python_out=./backend/app/generated \
+    $(find ./servis -name "*.proto" -not -path "./servis/google/*")
+RUN find ./backend/app/generated -type d -exec touch {}/__init__.py \;
+RUN ./scripts/fix_imports.sh ./backend/app/generated app.generated
+
+COPY --from=common scripts/extract_docs.py ./scripts/extract_docs.py
+COPY --from=common backend/.env ./backend/.env
+RUN /opt/venv/bin/python ./scripts/extract_docs.py /repo/visit.json
+
+
 # Build stage
 FROM node:24-alpine AS builder
 
@@ -9,6 +44,9 @@ RUN npm install yarn && yarn
 COPY tsconfig*.json vite.config.ts eslint.config.js index.html ./
 COPY public public
 COPY src src
+
+COPY --from=code-generator /repo/visit.json ./src/orval/visit.json
+RUN ./node_modules/.bin/orval --config src/orval/orvalConfig.ts
 
 # Enable Vite plugin to allow handling environment variables via nginx at runtime
 # See vite.config.ts
