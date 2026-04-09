@@ -76,7 +76,7 @@ class MailService:
         request = self.construct_mail(
             [email],
             "VISIT Reset Password",
-            plain_text=f"Go to this link to reset your password {get_settings().FRONTEND_SERVER}/reset/{token}",
+            plain_text=f"Go to this link to reset your password {get_settings().VISIT_FRONTEND_SERVER_URL}/reset/{token}",
         )
         await self.send_mail(request)
 
@@ -85,6 +85,6 @@ class MailService:
         request = self.construct_mail(
             [email],
             "Confirm Your Account For VISIT",
-            plain_text=f"Go to this link to confirm your account: {get_settings().FRONTEND_SERVER}/confirm-email/{token}",
+            plain_text=f"Go to this link to confirm your account: {get_settings().VISIT_FRONTEND_SERVER_URL}/confirm-email/{token}",
         )
         await self.send_mail(request)

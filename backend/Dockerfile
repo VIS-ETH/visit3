@@ -48,3 +48,5 @@ COPY --from=compiler /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 COPY . .
 COPY --from=grpc-generator /build/app/generated ./app/generated
+
+CMD ["sh", "-c", "alembic upgrade head && fastapi run --host 0.0.0.0 --port 8000"]

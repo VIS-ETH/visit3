@@ -32,7 +32,7 @@ class KpService:
     async def get_event_by_year(self, year: int) -> Optional[KpEvent]:
         return await self.kp_repository.get_by_year(year)
 
-    @require_role(get_settings().KP_PRESIDENT_ROLE)
+    @require_role(get_settings().VISIT_KP_PRESIDENT_ROLE)
     async def create_kp(
         self,
         year: int,
@@ -63,7 +63,7 @@ class KpService:
             company_id=self.current_user.company_id, event_id=event_id
         )
 
-    @require_role(get_settings().KP_PRESIDENT_ROLE)
+    @require_role(get_settings().VISIT_KP_PRESIDENT_ROLE)
     async def deregister_company_from_kp(self, event_id: UUID):
         kp = await self.kp_repository.get_by_id(event_id)
         if kp is None:

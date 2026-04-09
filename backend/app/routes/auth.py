@@ -127,7 +127,7 @@ async def keycloak_callback(
         raise HTTPException(
             status_code=400, detail=f"Exchange failed: {e.identifier}")
 
-    response = RedirectResponse(url=get_settings().FRONTEND_SERVER)
+    response = RedirectResponse(url=get_settings().VISIT_FRONTEND_SERVER_URL)
 
     response.delete_cookie("oauth_state")
 

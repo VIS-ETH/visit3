@@ -32,7 +32,7 @@ def get_csrf_config():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await grpc_client.connect(get_settings().GRPC_SERVER)
+    await grpc_client.connect(get_settings().NOTIFICATION_API_URL)
 
     yield
 
@@ -56,7 +56,7 @@ async def app_error_handler(request: Request, exc: AppError):
     )
 
 
-origins = [get_settings().FRONTEND_SERVER, get_settings().KEYCLOAK_URL]
+origins = [get_settings().VISIT_FRONTEND_SERVER_URL, get_settings().KEYCLOAK_URL]
 
 app.add_middleware(
     CORSMiddleware,
@@ -66,4 +66,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(api_router)
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+app.include_router(api_router, prefix="/api")
