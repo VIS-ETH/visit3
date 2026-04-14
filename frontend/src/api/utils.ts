@@ -22,7 +22,7 @@ export const getCsrfToken = async () => {
     return await csrfPromise;
   } else {
     csrfPromise = axios
-      .get(`${backend_url}/csrftoken`, { withCredentials: true })
+      .get(`${backend_url}/api/csrftoken`, { withCredentials: true })
       .then((res) => {
         csrfToken = res.data.token;
         return res.data.token;
@@ -41,7 +41,7 @@ export const refreshToken = async () => {
   } else {
     refreshPromise = axios
       .post(
-        `${backend_url}/auth/refresh`,
+        `${backend_url}/api/auth/refresh`,
         {},
         {
           withCredentials: true,

@@ -14,7 +14,7 @@ import { IconX } from "@tabler/icons-react";
 const backend_url = serverData.backendUrl;
 
 const api = axios.create({
-  baseURL: backend_url,
+  baseURL: `${backend_url}/api`,
   withCredentials: true,
 });
 
