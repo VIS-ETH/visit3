@@ -26,13 +26,15 @@ services:
     container_name: "visit-frontend"
     build:
       context: frontend
-      additional_contexts:
-        common: ./
+      dockerfile: Dockerfile.dev
     env_file:
       - frontend/.env.docker
     profiles: [frontend]
     ports:
-      - 3000:80
+      - 3000:3000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
 
   postgres:
     image: postgres:17
@@ -66,13 +68,14 @@ services:
       - ./data/s3:/data
       - ./util/rclone.conf:/config/rclone/rclone.conf
     command: serve s3 local:/data --addr 0.0.0.0:9000 --allow-origin '*'
+    depends_on:
+      rclone-create-bucket:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "rclone", "ls", "serves3:/"]
       interval: 1s
       timeout: 1s
       retries: 60
-      rclone-create-bucket:
-        condition: service_completed_successfully
 
   notifications-api:
     container_name: "visit-notifications-api"
