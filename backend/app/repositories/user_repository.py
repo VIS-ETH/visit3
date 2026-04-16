@@ -2,10 +2,9 @@ from datetime import datetime, timezone
 from typing import List
 import uuid
 from sqlalchemy.orm import selectinload
-from sqlmodel import DateTime, update, select
-from app.core.exceptions import TokenInvalid
+from sqlmodel import update, select
 from app.core.utils import normalize_email
-from app.models.user import ConfirmEmailToken, ForgetPasswordToken, RefreshToken, User
+from app.models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.base import BaseRepository
@@ -46,8 +45,7 @@ class UserRepository(BaseRepository[User]):
     async def get_users(self):
         statement = select(User)
         result = await self.session.execute(statement)
-        user = result.scalars().all()
-        return user
+        return result.scalars().all()
 
     async def get_by_id(self, user_id: uuid.UUID):
         return await self._get_by_field(User.id, user_id)
@@ -65,15 +63,13 @@ class UserRepository(BaseRepository[User]):
             .options(selectinload(User.company))
         )
         result = await self.session.execute(statement)
-        users = result.scalars().all()
-        return users
+        return result.scalars().all()
 
     async def confirm_user(self, user: User):
         try:
             user.user_confirmed = True
             self.session.add(user)
             await self.session.commit()
-
             await self.session.refresh(user)
             return user
         except Exception as e:
@@ -112,7 +108,6 @@ class UserRepository(BaseRepository[User]):
         try:
             self.session.add(user)
             await self.session.commit()
-
             await self.session.refresh(user)
             return user
         except Exception as e:
@@ -123,12 +118,12 @@ class UserRepository(BaseRepository[User]):
         try:
             db_user = await self.get_by_email(user.email)
             if db_user is None:
-                user = await self.create_user(user)
-                return user
+                return await self.create_user(user)
             else:
-                update_data = user.dict(exclude={"id"})
+                update_data = user.model_dump(exclude={"id", "roles", "company"})
                 for key, value in update_data.items():
                     setattr(db_user, key, value)
+                db_user.roles = user.roles
                 self.session.add(db_user)
                 await self.session.commit()
                 await self.session.refresh(db_user)
@@ -137,116 +132,14 @@ class UserRepository(BaseRepository[User]):
             await self.session.rollback()
             raise e
 
-    async def create_refresh_token_by_user(
-        self, user: User, token: str, expires_at: DateTime
-    ):
+    async def update_password(self, user_id: uuid.UUID, new_password_hash: str):
         try:
-            token = RefreshToken(
-                user_id=user.id, token=token, expires_at=expires_at)
-
-            self.session.add(token)
-            await self.session.commit()
-
-            await self.session.refresh(token)
-            return token
-        except Exception as e:
-            await self.session.rollback()
-            raise e
-
-    async def get_refresh_token(self, hashed_token: str):
-        statement = select(RefreshToken).where(
-            RefreshToken.token == hashed_token)
-        result = await self.session.execute(statement)
-        token = result.scalar_one_or_none()
-        return token
-
-    async def revoke_refresh_tokens(self, user: User):
-        try:
-            statement = (
-                update(RefreshToken)
-                .where(RefreshToken.user_id == user.id)
-                .values(is_revoked=True)
-            )
-
-            await self.session.execute(statement)
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
-
-    async def revoke_refresh_token(self, user: User, hashed_token: str):
-        try:
-            statement = (
-                update(RefreshToken)
-                .where(
-                    RefreshToken.token == hashed_token, RefreshToken.user_id == user.id
-                )
-                .values(is_revoked=True)
-            )
-            await self.session.execute(statement)
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
-
-    async def save_forget_password_token(
-        self, hashed_token: str, user: User, expires_at: DateTime
-    ):
-        try:
-            token = ForgetPasswordToken(
-                user_id=user.id, token=hashed_token, expires_at=expires_at
-            )
-
-            self.session.add(token)
-            await self.session.commit()
-
-            await self.session.refresh(token)
-            return token
-        except Exception as e:
-            await self.session.rollback()
-            raise e
-
-    async def check_forget_password_token(self, hashed_token: str):
-        statement = select(ForgetPasswordToken).where(
-            ForgetPasswordToken.token == hashed_token,
-            ForgetPasswordToken.expires_at > datetime.now(timezone.utc),
-            ForgetPasswordToken.is_revoked == False,
-        )
-        result = await self.session.execute(statement)
-        return result.scalar_one_or_none() is not None
-
-    async def change_password(self, token_str: str, new_password_hash: str):
-        try:
-            statement = select(ForgetPasswordToken).where(
-                ForgetPasswordToken.token == token_str,
-                ForgetPasswordToken.expires_at > datetime.now(timezone.utc),
-                ForgetPasswordToken.is_revoked == False,
-            )
-
-            result = await self.session.execute(statement)
-            token = result.scalar_one_or_none()
-
-            if not token:
-                raise TokenInvalid(f"change_password:{token_str}")
-
-            user_update = (
+            await self.session.execute(
                 update(User)
-                .where(User.id == token.user_id)
+                .where(User.id == user_id)
                 .values(password=new_password_hash)
             )
-
-            refresh_token_update = (
-                update(RefreshToken)
-                .where(RefreshToken.user_id == token.user_id)
-                .values(is_revoked=True)
-            )
-
-            await self.session.execute(user_update)
-            await self.session.execute(refresh_token_update)
-
             await self.session.commit()
-            return True
-
         except Exception as e:
             await self.session.rollback()
             raise e
@@ -255,50 +148,7 @@ class UserRepository(BaseRepository[User]):
         try:
             user.email_confirmed = True
             self.session.add(user)
-            self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
-
-    async def revoke_confirm_email_tokens(self, user: User):
-        try:
-            statement = (
-                update(ConfirmEmailToken)
-                .where(ConfirmEmailToken.user_id == user.id)
-                .values(is_revoked=True)
-            )
-
-            await self.session.execute(statement)
             await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
-
-    async def validate_confirm_email_token(self, user: User, hashed_token: str):
-        try:
-            statement = select(ConfirmEmailToken).where(
-                ConfirmEmailToken.user_id == user.id,
-                ConfirmEmailToken.token == hashed_token,
-                ConfirmEmailToken.is_revoked == False,
-                ConfirmEmailToken.expires_at > datetime.now(timezone.utc),
-            )
-            result = await self.session.execute(statement)
-            return result.scalar_one_or_none() is not None
-        except Exception as e:
-            await self.session.rollback()
-            raise e
-
-    async def save_confirm_email_token(
-        self, hashed_token: str, user: User, expires_at: DateTime
-    ):
-        try:
-            token = ConfirmEmailToken(
-                token=hashed_token, user_id=user.id, expires_at=expires_at
-            )
-            self.session.add(token)
-            await self.session.commit()
-            await self.session.refresh(token)
-            return token
         except Exception as e:
             await self.session.rollback()
             raise e

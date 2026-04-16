@@ -15,6 +15,7 @@ from sqlalchemy.orm import sessionmaker, selectinload
 from sqlmodel import select
 from app.models.user import User
 from app.repositories.role_repository import RoleRepository
+from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.company_repository import CompanyRepository
 from app.repositories.kp_repository import KpRepository
@@ -109,6 +110,15 @@ async def get_user_repository(
 UserRepositoryDep = Annotated[UserRepository, Depends(get_user_repository)]
 
 
+async def get_token_repository(
+    session: DbSessionDep,
+):
+    return TokenRepository(session)
+
+
+TokenRepositoryDep = Annotated[TokenRepository, Depends(get_token_repository)]
+
+
 async def get_role_repository(
     session: DbSessionDep,
 ):
@@ -146,10 +156,11 @@ MailServiceDep = Annotated[MailService, Depends(get_mail_service)]
 
 async def get_user_service(
     user_repository: UserRepositoryDep,
+    token_repository: TokenRepositoryDep,
     mail_service: MailServiceDep,
     current_user: CurrentUserDep,
 ):
-    return UserService(user_repository, mail_service, current_user)
+    return UserService(user_repository, token_repository, mail_service, current_user)
 
 
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
@@ -157,12 +168,13 @@ UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 async def get_auth_service(
     user_repository: UserRepositoryDep,
+    token_repository: TokenRepositoryDep,
     role_repository: RoleRepositoryDep,
     mail_service: MailServiceDep,
     company_repository: CompanyRepositoryDep,
 ):
     return AuthService(
-        user_repository, role_repository, mail_service, company_repository
+        user_repository, token_repository, role_repository, mail_service, company_repository
     )
 
 

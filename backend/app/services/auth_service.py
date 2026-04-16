@@ -15,7 +15,6 @@ from app.core.exceptions import (
     KeycloakExchangeFailed,
     PasswordTooShort,
     PasswordWrong,
-    PasswordWrong,
     PhoneNumberInvalid,
     TokenInvalid,
     NotAllowed,
@@ -24,6 +23,7 @@ from app.core.exceptions import (
 from app.core.config import get_settings
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.token_repository import TokenRepository
 from app.repositories.company_repository import CompanyRepository
 from app.services.mail_service import MailService
 
@@ -39,11 +39,13 @@ class AuthService:
     def __init__(
         self,
         user_repository: UserRepository,
+        token_repository: TokenRepository,
         role_repository: RoleRepository,
         mail_service: MailService,
         company_repository: CompanyRepository,
     ):
         self.user_repository = user_repository
+        self.token_repository = token_repository
         self.role_repository = role_repository
         self.mail_service = mail_service
         self.company_repository = company_repository
@@ -60,16 +62,13 @@ class AuthService:
         to_encode = {"sub": user.email}
         expire = datetime.now(timezone.utc) + ACCESS_TOKEN_EXPIRE
         to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(
-            to_encode, get_settings().SECRET_KEY, algorithm="HS256"
-        )
-        return encoded_jwt
+        return jwt.encode(to_encode, get_settings().SECRET_KEY, algorithm="HS256")
 
     async def create_refresh_token(self, user: User):
         raw_token = secrets.token_urlsafe(64)
         hashed_token = hash_str(raw_token)
-        token = await self.user_repository.create_refresh_token_by_user(
-            user,
+        token = await self.token_repository.create_refresh_token(
+            user.id,
             hashed_token,
             datetime.now(timezone.utc) + REFRESH_TOKEN_EXPIRE,
         )
@@ -81,18 +80,11 @@ class AuthService:
 
     async def create_tokens(self, user: User):
         access_token = await self.create_access_token(user)
-
         refresh_token = await self.create_refresh_token(user)
-
         return (access_token, refresh_token)
 
     async def verify_refresh_token(self, raw_token: str):
-        hashed_token = hash_str(raw_token)
-        token = await self.user_repository.get_refresh_token(hashed_token)
-        if not token:
-            return None
-        else:
-            return token
+        return await self.token_repository.get_refresh_token(hash_str(raw_token))
 
     def verify_password(self, plain_password: str, hashed_password: str):
         return password_hash.verify(plain_password, hashed_password)
@@ -101,31 +93,26 @@ class AuthService:
         return password_hash.hash(password)
 
     async def create_forget_password_token(self, user: User):
-        token = secrets.token_urlsafe(32)
-
+        raw_token = secrets.token_urlsafe(32)
+        hashed_token = hash_str(raw_token)
         expire = datetime.now(timezone.utc) + FORGET_PASSWORD_TOKEN_EXPIRE
-
-        await self.user_repository.save_forget_password_token(token, user, expire)
-
-        return token
+        await self.token_repository.save_forget_password_token(hashed_token, user.id, expire)
+        return raw_token
 
     async def register_user(self, user: User, company_name: str | None = None):
-
         if await self.user_repository.get_by_email(user.email):
             raise EmailUsed(f"register_user:{user.email}")
 
         if len(user.password) < 10:
             raise PasswordTooShort("register:register_password_too_short")
 
-        # This does not cover all cases but it's better than nothing
         if user.phone_number:
             phone_number = phonenumbers.parse(user.phone_number, "CH")
             if not phonenumbers.is_valid_number(phone_number):
                 raise PhoneNumberInvalid("register:phone_number_invalid")
-            phone_number_e164 = phonenumbers.format_number(
+            user.phone_number = phonenumbers.format_number(
                 phone_number, phonenumbers.PhoneNumberFormat.E164
             )
-            user.phone_number = phone_number_e164
 
         normalized_company_name = company_name.strip() if company_name else None
 
@@ -134,19 +121,14 @@ class AuthService:
             if not company:
                 raise CompanyNotFound(f"register_user:{user.company_id}")
         elif normalized_company_name:
-            existing_company = await self.company_repository.get_by_name(
-                normalized_company_name
-            )
+            existing_company = await self.company_repository.get_by_name(normalized_company_name)
             if existing_company:
                 user.company_id = existing_company.id
             else:
-                company = await self.company_repository.create_company(
-                    normalized_company_name
-                )
+                company = await self.company_repository.create_company(normalized_company_name)
                 user.company_id = company.id
 
         user.password = self.hash_password(user.password)
-
         user.is_admin = False
         user.is_staff = False
         user.is_company = True
@@ -164,11 +146,9 @@ class AuthService:
 
     async def create_company(self, name: str) -> Company:
         normalized_name = name.strip()
-
         existing_company = await self.company_repository.get_by_name(normalized_name)
         if existing_company:
             return existing_company
-
         return await self.company_repository.create_company(normalized_name)
 
     async def login_user(self, username: str, password: str):
@@ -190,13 +170,14 @@ class AuthService:
             or token.is_revoked
             or datetime.now(timezone.utc) > token.expires_at.astimezone(timezone.utc)
         ):
-            raise TokenInvalid(
-                f"refresh:{token.user_id if token else 'unknown'}")
+            raise TokenInvalid(f"refresh:{token.user_id if token else 'unknown'}")
 
         user = await self.user_repository.get_by_id(token.user_id)
 
         if not user:
             raise TokenInvalid(f"refresh:{token.user_id}")
+
+        await self.token_repository.revoke_refresh_token(user.id, hash_str(refresh_token))
 
         return await self.create_tokens(user)
 
@@ -204,13 +185,11 @@ class AuthService:
         user = await self.user_repository.get_by_email(email)
 
         if not user:
-            logger.debug(
-                f"Forget password request for non-existent user: {email}")
+            logger.debug(f"Forget password request for non-existent user: {email}")
             return None
 
         if not user.password:
-            logger.warning(
-                f"Forget password requested for OAuth-only user: {email}")
+            logger.warning(f"Forget password requested for OAuth-only user: {email}")
             raise NotAllowed(f"forget_password:{user.id}")
 
         token = await self.create_forget_password_token(user)
@@ -218,28 +197,30 @@ class AuthService:
         await self.mail_service.send_forget_password_mail(email, token)
 
     async def reset_password(self, token: str, new_password: str):
-        if not await self.validate_reset_token(token):
-            logger.warning(
-                f"Password reset attempted with invalid/expired token: {token}"
-            )
-            raise TokenInvalid(f"reset_password:{token}")
+        hashed = hash_str(token)
+        forget_token = await self.token_repository.get_forget_password_token(hashed)
+
+        if not forget_token:
+            logger.warning("Password reset attempted with invalid/expired token")
+            raise TokenInvalid("reset_password")
+
         try:
-            result = await self.user_repository.change_password(
-                token, self.hash_password(new_password)
+            await self.user_repository.update_password(
+                forget_token.user_id, self.hash_password(new_password)
             )
-            logger.info(f"Password reset successful with token")
-            return result
+            await self.token_repository.revoke_all_refresh_tokens(forget_token.user_id)
+            await self.token_repository.revoke_forget_password_token(hashed)
+            logger.info("Password reset successful")
+            return True
         except Exception as e:
             logger.error(f"Password reset failed: {str(e)}")
             raise e
 
     async def validate_reset_token(self, token: str):
-        return await self.user_repository.check_forget_password_token(token)
+        return await self.token_repository.get_forget_password_token(hash_str(token)) is not None
 
     async def keycloak_callback(self, code: str):
         settings = get_settings()
-        token_url = settings.KEYCLOAK_TOKEN_URL
-
         payload = {
             "grant_type": "authorization_code",
             "code": code,
@@ -249,18 +230,16 @@ class AuthService:
         }
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(token_url, data=payload)
+            response = await client.post(settings.KEYCLOAK_TOKEN_URL, data=payload)
 
         if response.status_code != 200:
             raise KeycloakExchangeFailed(f"keycloak_callback:{code}")
 
         decoded_token = decode_token(response.json().get("access_token"))
-
         return await self.login_keycloak_user(decoded_token)
 
     async def login_keycloak_user(self, decoded_token: str):
         user = await self.map_keycloak_to_user(decoded_token)
-
         return await self.create_refresh_token(user)
 
     async def map_keycloak_to_user(self, decoded_token: str):
@@ -272,9 +251,7 @@ class AuthService:
         first_name = decoded_token["given_name"]
         last_name = decoded_token["family_name"]
 
-        admin, roles = await self.map_keycloak_roles(
-            keycloak_roles, ["vis-active", "admin"]
-        )
+        admin, roles = await self.map_keycloak_roles(keycloak_roles, ["vis-active", "admin"])
 
         return await self.user_repository.create_or_update_user(
             User(
@@ -297,8 +274,6 @@ class AuthService:
         for role in roles:
             if role in vis_groups:
                 result.append(await self.role_repository.get_or_create(role))
-
                 if role == get_settings().ADMIN_GROUP:
                     admin = True
-
         return (admin, result)
