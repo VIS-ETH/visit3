@@ -8,8 +8,11 @@ from app.core.exceptions import AppError
 from app.routes.router import router as api_router
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
+from app.core.scheduler import Scheduler
 from fastapi_csrf_protect import CsrfProtect
 from app.core.grpc import grpc_client
+from app.core.deps import SessionLocal
+from app.repositories.token_repository import TokenRepository
 
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -30,12 +33,23 @@ def get_csrf_config():
     return CsrfSettings()
 
 
+async def cleanup_expired_tokens():
+    async with SessionLocal() as session:
+        await TokenRepository(session).cleanup_expired()
+
+
+scheduler = Scheduler()
+scheduler.add(cleanup_expired_tokens, interval=3600)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await grpc_client.connect(get_settings().NOTIFICATION_API_URL)
+    await scheduler.start()
 
     yield
 
+    await scheduler.stop()
     await grpc_client.disconnect()
 
 
