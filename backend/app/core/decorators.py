@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 
 
 def require_confirmed_company(func):
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         self = args[0]
         if not self.current_user.is_company:
             logger.warning(
@@ -29,13 +29,13 @@ def require_confirmed_company(func):
         logger.debug(
             f"Authorization granted - confirmed company: {self.current_user.email}"
         )
-        return func(*args, **kwargs)
+        return await func(*args, **kwargs)
 
     return wrapper
 
 
 def require_staff(func):
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         self = args[0]
         if not self.current_user.is_staff:
             logger.warning(
@@ -45,13 +45,13 @@ def require_staff(func):
 
         logger.debug(
             f"Authorization granted - staff: {self.current_user.email}")
-        return func(*args, **kwargs)
+        return await func(*args, **kwargs)
 
     return wrapper
 
 
 def require_admin(func):
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         self = args[0]
         if not self.current_user.is_admin:
             logger.warning(
@@ -61,14 +61,14 @@ def require_admin(func):
 
         logger.debug(
             f"Authorization granted - admin: {self.current_user.email}")
-        return func(*args, **kwargs)
+        return await func(*args, **kwargs)
 
     return wrapper
 
 
 def require_role(role: str):
     def decorator(func):
-        def wrapper(*args, **kwargs):
+        async def wrapper(*args, **kwargs):
             self = args[0]
 
             user_roles = {user_role.name for user_role in (
@@ -83,7 +83,7 @@ def require_role(role: str):
             logger.debug(
                 f"Authorization granted - role {role}: {self.current_user.email}"
             )
-            return func(*args, **kwargs)
+            return await func(*args, **kwargs)
 
         return wrapper
 
