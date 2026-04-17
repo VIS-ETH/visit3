@@ -244,9 +244,12 @@ class AuthService:
 
     async def map_keycloak_to_user(self, decoded_token: str):
         email = decoded_token["email"]
-        keycloak_roles = decoded_token["resource_access"][
-            get_settings().SIP_AUTH_OIDC_CLIENT_ID
-        ]["roles"]
+        keycloak_roles = (
+            decoded_token
+            .get("resource_access", {})
+            .get(get_settings().SIP_AUTH_OIDC_CLIENT_ID, {})
+            .get("roles", [])
+        )
         sub = decoded_token["sub"]
         first_name = decoded_token["given_name"]
         last_name = decoded_token["family_name"]
