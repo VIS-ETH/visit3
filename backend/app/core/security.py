@@ -13,7 +13,7 @@ def decode_token(token: str):
             token,
             signing_token,
             algorithms=[settings.KEYCLOAK_ALGORITHM],
-            audience="account",
+            audience=settings.SIP_AUTH_OIDC_CLIENT_ID,
             issuer={settings.SIP_AUTH_OIDC_ISSUER},
         )
         return payload
