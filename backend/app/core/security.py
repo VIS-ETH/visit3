@@ -13,8 +13,8 @@ def decode_token(token: str):
             token,
             signing_token,
             algorithms=[settings.KEYCLOAK_ALGORITHM],
-            audience=settings.SIP_AUTH_OIDC_CLIENT_ID,
-            issuer={settings.SIP_AUTH_OIDC_ISSUER},
+            issuer=settings.SIP_AUTH_OIDC_ISSUER,
+            options={"verify_aud": False},
         )
         return payload
     except jwt.ExpiredSignatureError:
