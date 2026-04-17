@@ -1,7 +1,7 @@
 import jwt
 from app.core.config import get_settings
 
-jwks_client = jwt.PyJWKClient(get_settings().KEYCLOAK_JWKS_URL)
+jwks_client = jwt.PyJWKClient(get_settings().SIP_AUTH_OIDC_JWKS_URL)
 
 
 def decode_token(token: str):
@@ -14,7 +14,7 @@ def decode_token(token: str):
             signing_token,
             algorithms=[settings.KEYCLOAK_ALGORITHM],
             audience="account",
-            issuer={settings.KEYCLOAK_URL},
+            issuer={settings.SIP_AUTH_OIDC_ISSUER},
         )
         return payload
     except jwt.ExpiredSignatureError:

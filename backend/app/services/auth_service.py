@@ -224,13 +224,13 @@ class AuthService:
         payload = {
             "grant_type": "authorization_code",
             "code": code,
-            "client_id": settings.KEYCLOAK_CLIENT_ID,
-            "client_secret": settings.KEYCLOAK_CLIENT_SECRET,
+            "client_id": settings.SIP_AUTH_OIDC_CLIENT_ID,
+            "client_secret": settings.SIP_AUTH_OIDC_CLIENT_SECRET,
             "redirect_uri": settings.KEYCLOAK_CALLBACK,
         }
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(settings.KEYCLOAK_TOKEN_URL, data=payload)
+            response = await client.post(settings.SIP_AUTH_OIDC_TOKEN_ENDPOINT, data=payload)
 
         if response.status_code != 200:
             raise KeycloakExchangeFailed(f"keycloak_callback:{code}")
@@ -245,7 +245,7 @@ class AuthService:
     async def map_keycloak_to_user(self, decoded_token: str):
         email = decoded_token["email"]
         keycloak_roles = decoded_token["resource_access"][
-            get_settings().KEYCLOAK_CLIENT_ID
+            get_settings().SIP_AUTH_OIDC_CLIENT_ID
         ]["roles"]
         sub = decoded_token["sub"]
         first_name = decoded_token["given_name"]

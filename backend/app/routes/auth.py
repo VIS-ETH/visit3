@@ -145,8 +145,8 @@ def keycloak_init(response: Response) -> str:
     )
 
     login_url = (
-        f"{get_settings().KEYCLOAK_AUTH_URL}"
-        f"?client_id={get_settings().KEYCLOAK_CLIENT_ID}"
+        f"{get_settings().SIP_AUTH_OIDC_AUTH_ENDPOINT}"
+        f"?client_id={get_settings().SIP_AUTH_OIDC_CLIENT_ID}"
         f"&response_type=code"
         f"&scope=openid"
         f"&redirect_uri={get_settings().KEYCLOAK_CALLBACK}"

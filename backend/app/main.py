@@ -70,7 +70,7 @@ async def app_error_handler(request: Request, exc: AppError):
     )
 
 
-origins = [get_settings().VISIT_FRONTEND_SERVER_URL, get_settings().KEYCLOAK_URL]
+origins = [get_settings().VISIT_FRONTEND_SERVER_URL, get_settings().SIP_AUTH_OIDC_ISSUER]
 
 app.add_middleware(
     CORSMiddleware,
