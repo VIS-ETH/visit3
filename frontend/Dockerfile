@@ -64,7 +64,7 @@ ENV NGINX_ENVSUBST_OUTPUT_DIR=/usr/share/nginx/html
 
 COPY <<EOF /etc/nginx/conf.d/default.conf
 server {
-  listen 80;
+  listen 3000;
   server_name localhost;
 
   location / {
@@ -74,4 +74,4 @@ server {
 }
 EOF
 
-EXPOSE 80
+EXPOSE 3000
