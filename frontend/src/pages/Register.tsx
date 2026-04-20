@@ -7,7 +7,6 @@ import { useDocumentTitle } from "@mantine/hooks";
 import { registerSchema } from "../schemas/registerSchema";
 import { useTranslation } from "react-i18next";
 import { useTranslatedForm } from "../utils/translator";
-import BackButton from "../components/BackButton";
 import SearchDropdown from "../components/SearchDropdown";
 import { useRegisterUser } from "../orval/generated/auth/auth";
 import {
@@ -100,6 +99,7 @@ const Register = () => {
       backTo="/login"
     >
       <form
+        className="login-form"
         onSubmit={form.onSubmit((values) => {
           const companyId = values.companyId?.trim() || undefined;
           const companyName = values.companyName?.trim() || undefined;
@@ -121,6 +121,7 @@ const Register = () => {
             label={t("register.first_name")}
             withAsterisk
             autoComplete="given-name"
+            size="md"
             placeholder={t("register.first_name_placeholder")}
             {...form.getInputProps("firstName")}
           />
@@ -128,12 +129,14 @@ const Register = () => {
             label={t("register.last_name")}
             withAsterisk
             autoComplete="family-name"
+            size="md"
             placeholder={t("register.last_name_placeholder")}
             {...form.getInputProps("lastName")}
           />
           <TextInput
             label={t("register.phone_number")}
             autoComplete="tel"
+            size="md"
             placeholder={t("register.phone_number_placeholder")}
             leftSection={<IconPhone size={16} />}
             {...form.getInputProps("phoneNumber")}
@@ -142,6 +145,7 @@ const Register = () => {
             label={t("email.title")}
             withAsterisk
             autoComplete="email"
+            size="md"
             placeholder={t("register.email.placeholder")}
             leftSection={<IconMailSearch size={16} />}
             {...form.getInputProps("email")}
@@ -150,6 +154,7 @@ const Register = () => {
             label={t("register.password.title")}
             withAsterisk
             autoComplete="new-password"
+            size="md"
             placeholder="************"
             leftSection={<IconLock size={16} />}
             {...form.getInputProps("password")}
@@ -158,6 +163,7 @@ const Register = () => {
             label={t("register.password.confirm")}
             withAsterisk
             autoComplete="new-password"
+            size="md"
             placeholder="************"
             leftSection={<IconLock size={16} />}
             {...form.getInputProps("confirmPassword")}
@@ -194,6 +200,8 @@ const Register = () => {
             loading={isPending}
             disabled={isPending}
             size="md"
+            fullWidth
+            className="login-primary-button login-uniform-control"
           >
             {t("register.button")}
           </Button>

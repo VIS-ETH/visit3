@@ -1,11 +1,5 @@
 import { useNavigate, useParams } from "react-router";
-import {
-  Button,
-  LoadingOverlay,
-  PasswordInput,
-  Stack,
-  Title,
-} from "@mantine/core";
+import { Button, LoadingOverlay, PasswordInput, Stack } from "@mantine/core";
 import { IconLock } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useTranslatedForm } from "../utils/translator";

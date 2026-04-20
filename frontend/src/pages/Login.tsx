@@ -50,8 +50,13 @@ const Login = () => {
   });
 
   return (
-    <AuthCardLayout title={t("company.login")} subtitle={t("welcome")}>
+    <AuthCardLayout
+      title={t("company.login")}
+      subtitle={t("welcome")}
+      maxWidth={620}
+    >
       <form
+        className="login-form"
         onSubmit={form.onSubmit((values) => {
           login({
             data: {
@@ -66,6 +71,7 @@ const Login = () => {
             label={t("email.title")}
             placeholder="your@email.com"
             autoComplete="email"
+            size="md"
             leftSection={<IconMailSearch size={16} />}
             {...form.getInputProps("username")}
           />
@@ -73,6 +79,7 @@ const Login = () => {
             label={t("register.password.title")}
             placeholder="***********"
             autoComplete="password"
+            size="md"
             leftSection={<IconLock size={16} />}
             {...form.getInputProps("password")}
           />
@@ -81,7 +88,8 @@ const Login = () => {
             loading={isPending}
             disabled={isPending}
             size="md"
-            className="login-primary-button"
+            fullWidth
+            className="login-primary-button login-uniform-control"
           >
             {t("login.title")}
           </Button>
@@ -93,8 +101,9 @@ const Login = () => {
           component={NavLink}
           to="/register"
           variant="light"
-          size="sm"
-          className="login-secondary-button"
+          size="md"
+          fullWidth
+          className="login-secondary-button login-uniform-control"
         >
           {t("login.register.title")}
         </Button>
@@ -102,8 +111,9 @@ const Login = () => {
           component={NavLink}
           to="/forget-password"
           variant="light"
-          size="sm"
-          className="login-secondary-button"
+          size="md"
+          fullWidth
+          className="login-secondary-button login-uniform-control"
         >
           {t("forget_password.login")}
         </Button>
@@ -116,7 +126,7 @@ const Login = () => {
         disabled={isFetching}
         size="md"
         fullWidth
-        className="login-primary-button"
+        className="login-primary-button login-uniform-control"
       >
         {isFetching ? t("keycloak.redirecting") : t("keycloak.login")}
       </Button>

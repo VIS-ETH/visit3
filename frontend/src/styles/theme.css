@@ -160,6 +160,21 @@ body {
   background: rgba(255, 212, 59, 0.24) !important;
   border: 1px solid rgba(255, 212, 59, 0.6) !important;
   color: #3f3200 !important;
+  min-height: 46px;
+  white-space: normal !important;
+  line-height: 1.25;
+}
+
+.login-form .mantine-Input-input,
+.login-form .mantine-PasswordInput-innerInput {
+  min-height: 46px;
+  font-size: 1rem;
+}
+
+.login-uniform-control {
+  min-height: 46px;
+  border-radius: 10px !important;
+  font-weight: 600;
 }
 
 .login-secondary-button:hover {
@@ -184,6 +199,9 @@ body {
   background: rgba(255, 224, 102, 0.2) !important;
   border: 1px solid rgba(255, 224, 102, 0.5) !important;
   color: #fff2bf !important;
+  min-height: 46px;
+  white-space: normal !important;
+  line-height: 1.25;
 }
 
 :root[data-mantine-color-scheme="dark"] .login-secondary-button:hover {

@@ -38,8 +38,14 @@ const ForgetPassword = () => {
   );
 
   return (
-    <AuthCardLayout title={t("forget_password.title")} backTo="/login">
+    <AuthCardLayout
+      title={t("forget_password.title")}
+      subtitle={t("welcome")}
+      maxWidth={620}
+      backTo="/login"
+    >
       <form
+        className="login-form"
         onSubmit={form.onSubmit((values) => {
           forgotPassword({
             data: { email: values.email },
@@ -51,6 +57,7 @@ const ForgetPassword = () => {
             label={t("email.title")}
             placeholder="your@email.com"
             autoComplete="email"
+            size="md"
             leftSection={<IconMailSearch size={16} />}
             {...form.getInputProps("email")}
           />
@@ -59,6 +66,8 @@ const ForgetPassword = () => {
             loading={isPending}
             disabled={isPending || emailSent}
             size="md"
+            fullWidth
+            className="login-primary-button login-uniform-control"
           >
             {t("forget_password.submit")}
           </Button>

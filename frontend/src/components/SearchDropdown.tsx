@@ -1,5 +1,13 @@
 import type { ReactNode } from "react";
-import { Box, Button, Loader, Paper, ScrollArea, Stack, TextInput } from "@mantine/core";
+import {
+  Box,
+  Button,
+  Loader,
+  Paper,
+  ScrollArea,
+  Stack,
+  TextInput,
+} from "@mantine/core";
 
 export type SearchDropdownItem = {
   id?: string;
@@ -42,6 +50,7 @@ const SearchDropdown = ({
       <TextInput
         label={label}
         placeholder={placeholder}
+        size="md"
         withAsterisk={withAsterisk}
         value={query}
         onChange={(event) => onQueryChange(event.currentTarget.value)}
