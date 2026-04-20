@@ -8,7 +8,6 @@ import phonenumbers
 from pwdlib import PasswordHash
 from app.core.security import decode_token
 from app.core.utils import hash_str
-from app.models.company import Company
 from app.models.user import User
 from app.core.exceptions import (
     EmailUsed,
@@ -18,13 +17,11 @@ from app.core.exceptions import (
     PhoneNumberInvalid,
     TokenInvalid,
     NotAllowed,
-    CompanyNotFound,
 )
 from app.core.config import get_settings
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.token_repository import TokenRepository
-from app.repositories.company_repository import CompanyRepository
 from app.services.mail_service import MailService
 
 logger = logging.getLogger(__name__)
@@ -42,13 +39,11 @@ class AuthService:
         token_repository: TokenRepository,
         role_repository: RoleRepository,
         mail_service: MailService,
-        company_repository: CompanyRepository,
     ):
         self.user_repository = user_repository
         self.token_repository = token_repository
         self.role_repository = role_repository
         self.mail_service = mail_service
-        self.company_repository = company_repository
 
     async def authenticate_user(self, email: str, password: str):
         user = await self.user_repository.get_by_email(email)
@@ -99,7 +94,7 @@ class AuthService:
         await self.token_repository.save_forget_password_token(hashed_token, user.id, expire)
         return raw_token
 
-    async def register_user(self, user: User, company_name: str | None = None):
+    async def register_user(self, user: User):
         if await self.user_repository.get_by_email(user.email):
             raise EmailUsed(f"register_user:{user.email}")
 
@@ -114,20 +109,6 @@ class AuthService:
                 phone_number, phonenumbers.PhoneNumberFormat.E164
             )
 
-        normalized_company_name = company_name.strip() if company_name else None
-
-        if user.company_id:
-            company = await self.company_repository.get_by_id(user.company_id)
-            if not company:
-                raise CompanyNotFound(f"register_user:{user.company_id}")
-        elif normalized_company_name:
-            existing_company = await self.company_repository.get_by_name(normalized_company_name)
-            if existing_company:
-                user.company_id = existing_company.id
-            else:
-                company = await self.company_repository.create_company(normalized_company_name)
-                user.company_id = company.id
-
         user.password = self.hash_password(user.password)
         user.is_admin = False
         user.is_staff = False
@@ -140,16 +121,6 @@ class AuthService:
         except Exception as e:
             logger.error(f"User registration failed: {user.email} - {str(e)}")
             raise e
-
-    async def get_companies(self) -> list[Company]:
-        return await self.company_repository.get_companies()
-
-    async def create_company(self, name: str) -> Company:
-        normalized_name = name.strip()
-        existing_company = await self.company_repository.get_by_name(normalized_name)
-        if existing_company:
-            return existing_company
-        return await self.company_repository.create_company(normalized_name)
 
     async def login_user(self, username: str, password: str):
         user = await self.authenticate_user(username, password)

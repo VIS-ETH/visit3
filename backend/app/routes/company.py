@@ -1,28 +1,57 @@
 from uuid import UUID
 from fastapi import APIRouter, status
-from app.core.deps import AuthServiceDep, CompanyServiceDep, CsrfDep, UserServiceDep
+from app.core.deps import CompanyServiceDep, CsrfDep, UserServiceDep
 from app.models.company import Company
 from app.models.user import User
 from app.schemas.company import (
     CompanyWithUsersResponse,
-    CreateCompanyRequest,
+    CreateInviteRequest,
+    InviteInfoResponse,
+    SetupCompanyRequest,
     UpdateCompanyRequest,
 )
 
 router = APIRouter(prefix="/company", tags=["company"], dependencies=[CsrfDep])
 
 
-@router.get("/list", operation_id="listCompanies")
-async def list_companies(auth_service: AuthServiceDep) -> list[Company]:
-    return await auth_service.get_companies()
-
-
-@router.post("/create", operation_id="createCompany")
-async def create_company(
-    auth_service: AuthServiceDep,
-    request: CreateCompanyRequest,
+@router.post("/setup", operation_id="setupCompany")
+async def setup_company(
+    company_service: CompanyServiceDep,
+    request: SetupCompanyRequest,
 ) -> Company:
-    return await auth_service.create_company(request.name)
+    return await company_service.setup_company(request.name)
+
+
+@router.get("/me/members", operation_id="getMyCompanyMembers")
+async def get_my_company_members(
+    company_service: CompanyServiceDep,
+) -> list[User]:
+    return await company_service.get_my_members()
+
+
+@router.post("/invite", operation_id="createCompanyInvite")
+async def create_company_invite(
+    company_service: CompanyServiceDep,
+    request: CreateInviteRequest,
+):
+    await company_service.create_invite(request.email)
+
+
+@router.get("/invite/{token}", operation_id="getCompanyInviteInfo")
+async def get_company_invite_info(
+    company_service: CompanyServiceDep,
+    token: str,
+) -> InviteInfoResponse:
+    return await company_service.get_invite_info(token)
+
+
+@router.post("/invite/{token}/accept", operation_id="acceptCompanyInvite")
+async def accept_company_invite(
+    company_service: CompanyServiceDep,
+    token: str,
+) -> User:
+    return await company_service.accept_invite(token)
+
 
 
 @router.get("/{company_id}/users", operation_id="getCompanyUsers")

@@ -71,16 +71,27 @@ export default function Navbar() {
           >
             {t("nav.home")}
           </Button>
-          {user?.email_confirmed && user.user_confirmed && user.is_company && (
-            <Button
-              component={NavLink}
-              to="/profile"
-              leftSection={<IconUser />}
-              variant="subtle"
-              justify="flex-start"
-            >
-              {t("nav.profile")}
-            </Button>
+          {user?.email_confirmed && user.user_confirmed && user.company_id && (
+            <>
+              <Button
+                component={NavLink}
+                to="/profile"
+                leftSection={<IconUser />}
+                variant="subtle"
+                justify="flex-start"
+              >
+                {t("nav.profile")}
+              </Button>
+              <Button
+                component={NavLink}
+                to="/company"
+                leftSection={<IconBuilding />}
+                variant="subtle"
+                justify="flex-start"
+              >
+                {t("nav.company")}
+              </Button>
+            </>
           )}
           {(user?.is_staff || user?.is_admin) && (
             <>

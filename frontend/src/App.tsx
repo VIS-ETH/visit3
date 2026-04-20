@@ -1,6 +1,5 @@
-import { createTheme, MantineProvider, Center, Loader } from "@mantine/core";
+import { MantineProvider, Center, Loader } from "@mantine/core";
 import { useEffect, useState } from "react";
-import { generateColors } from "@mantine/colors-generator";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import { Notifications } from "@mantine/notifications";
@@ -18,6 +17,9 @@ import UnconfirmedEmail from "./pages/UnconfirmedEmail";
 import ConfirmEmail from "./pages/ConfirmEmail";
 import UnconfirmedUser from "./pages/UnconfirmedUser";
 import CompanyManagement from "./pages/CompanyManagement";
+import CompanyProfile from "./pages/CompanyProfile";
+import CompanyJoin from "./pages/CompanyJoin";
+import SetupCompany from "./pages/SetupCompany";
 import Profile from "./pages/Profile";
 import NotAllowed from "./pages/NotAllowed";
 import NotFound from "./pages/NotFound";
@@ -28,33 +30,11 @@ import { UserProvider } from "./context/UserContext";
 import { useCurrentUser } from "./context/useCurrentUser";
 import { useGetCurrentUser } from "./orval/generated/user/user";
 import { getToken, refreshToken } from "./api/utils";
+import makeVisitTheme from "./theme/makeVisitTheme";
+import visitCssVariablesResolver from "./theme/cssVariablesResolver";
 
 const primaryColor = configOptions().primaryColor;
-const theme = createTheme({
-  primaryColor: "brand",
-  fontFamily: '"Plus Jakarta Sans", "Avenir Next", "Segoe UI", sans-serif',
-  headings: {
-    fontFamily: '"Space Grotesk", "Plus Jakarta Sans", sans-serif',
-    fontWeight: "600",
-  },
-  defaultRadius: "md",
-  colors: {
-    brand: generateColors(primaryColor),
-  },
-  autoContrast: true,
-  components: {
-    Paper: {
-      defaultProps: {
-        radius: "lg",
-      },
-    },
-    Button: {
-      defaultProps: {
-        radius: "md",
-      },
-    },
-  },
-});
+const theme = makeVisitTheme(primaryColor);
 
 function StaffRoute() {
   const { user } = useCurrentUser();
@@ -69,18 +49,15 @@ function StaffRoute() {
 function CompanyRoute() {
   const { user } = useCurrentUser();
   if (!user) return <Navigate to="/login" replace />;
-  return user?.is_company ? <Outlet /> : <Navigate to="/not-allowed" replace />;
+  return user?.company_id ? <Outlet /> : <Navigate to="/not-allowed" replace />;
 }
 
 function ConfirmedRoute() {
   const { user } = useCurrentUser();
   if (!user) return <Navigate to="/login" replace />;
-  if (!user.email_confirmed) {
-    return <Navigate to="/unconfirmed-email" replace />;
-  }
-  if (!user.user_confirmed) {
-    return <Navigate to="/unconfirmed-user" replace />;
-  }
+  if (!user.email_confirmed) return <Navigate to="/unconfirmed-email" replace />;
+  if (!user.user_confirmed) return <Navigate to="/unconfirmed-user" replace />;
+  if (!user.company_id) return <Navigate to="/setup-company" replace />;
   return <Outlet />;
 }
 
@@ -102,8 +79,11 @@ function AppRoutes() {
         </Route>
         <Route element={<CompanyRoute />}>
           <Route path="/profile" element={<Profile />} />
+          <Route path="/company" element={<CompanyProfile />} />
           <Route path="/kp/join" element={<KpJoin />} />
         </Route>
+        <Route path="/setup-company" element={<SetupCompany />} />
+        <Route path="/company/join/:token" element={<CompanyJoin />} />
         <Route path="/unconfirmed-email" element={<UnconfirmedEmail />} />
         <Route path="/confirm-email/:token" element={<ConfirmEmail />} />
         <Route path="/unconfirmed-user" element={<UnconfirmedUser />} />
@@ -180,7 +160,11 @@ function AppWithAuth() {
 
 function App() {
   return (
-    <MantineProvider theme={theme}>
+    <MantineProvider
+      theme={theme}
+      cssVariablesResolver={visitCssVariablesResolver}
+      defaultColorScheme="auto"
+    >
       <Notifications
         position="top-center"
         limit={1}

@@ -10,6 +10,19 @@ class UpdateCompanyRequest(BaseModel):
     name: str
 
 
+class SetupCompanyRequest(BaseModel):
+    name: str
+
+
+class CreateInviteRequest(BaseModel):
+    email: str
+
+
+class InviteInfoResponse(BaseModel):
+    company_name: str
+    invited_email: str
+
+
 class CompanyAssignedUserResponse(BaseModel):
     id: UUID
     email: str

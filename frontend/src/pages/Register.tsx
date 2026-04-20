@@ -1,25 +1,18 @@
-import { useState } from "react";
-import { Button, TextInput, PasswordInput, Stack } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
+import { TextInput, PasswordInput, Stack } from "@mantine/core";
 import { IconMailSearch, IconLock, IconPhone } from "@tabler/icons-react";
 import { useNavigate } from "react-router";
 import { useDocumentTitle } from "@mantine/hooks";
 import { registerSchema } from "../schemas/registerSchema";
 import { useTranslation } from "react-i18next";
 import { useTranslatedForm } from "../utils/translator";
-import SearchDropdown from "../components/SearchDropdown";
 import { useRegisterUser } from "../orval/generated/auth/auth";
-import {
-  useCreateCompany,
-  useListCompanies,
-} from "../orval/generated/company/company";
 import AuthCardLayout from "../components/AuthCardLayout";
+import AuthButton from "../components/AuthButton";
 
 const Register = () => {
   const { t } = useTranslation();
   useDocumentTitle(t("register.title"));
   const navigate = useNavigate();
-  const [companyQuery, setCompanyQuery] = useState("");
 
   const { mutate: register, isPending } = useRegisterUser({
     mutation: {
@@ -29,34 +22,6 @@ const Register = () => {
     },
   });
 
-  const {
-    data: companies = [],
-    isLoading: companiesLoading,
-    refetch: refetchCompanies,
-  } = useListCompanies();
-
-  const { mutate: createCompany, isPending: isCreatingCompany } =
-    useCreateCompany({
-      mutation: {
-        onSuccess: async (company) => {
-          if (!company.id) {
-            notifications.show({
-              color: "red",
-              title: t("register.fail"),
-              message: t("server.error"),
-              autoClose: 4000,
-            });
-            return;
-          }
-
-          form.setFieldValue("companyId", company.id);
-          form.setFieldValue("companyName", "");
-          setCompanyQuery(company.name);
-          await refetchCompanies();
-        },
-      },
-    });
-
   const form = useTranslatedForm<typeof registerSchema>(registerSchema, {
     initialValues: {
       email: "",
@@ -64,32 +29,9 @@ const Register = () => {
       confirmPassword: "",
       firstName: "",
       lastName: "",
-      companyId: "",
-      companyName: "",
       phoneNumber: "",
     },
   });
-
-  const normalizedCompanyQuery = companyQuery.trim().toLowerCase();
-  const filteredCompanies = companies.filter(
-    (company) =>
-      Boolean(company.id) &&
-      company.name.toLowerCase().includes(normalizedCompanyQuery)
-  );
-
-  const showCompanySuggestions =
-    normalizedCompanyQuery.length > 0 && !form.values.companyId;
-
-  const handleCreateCompany = () => {
-    const name = companyQuery.trim();
-    if (!name) {
-      return;
-    }
-
-    createCompany({
-      data: { name },
-    });
-  };
 
   return (
     <AuthCardLayout
@@ -99,18 +41,13 @@ const Register = () => {
       backTo="/login"
     >
       <form
-        className="login-form"
         onSubmit={form.onSubmit((values) => {
-          const companyId = values.companyId?.trim() || undefined;
-          const companyName = values.companyName?.trim() || undefined;
           register({
             data: {
               email: values.email,
               password: values.password,
               first_name: values.firstName?.trim(),
               last_name: values.lastName?.trim(),
-              company_id: companyId,
-              company_name: companyName,
               phone_number: values.phoneNumber?.trim() || undefined,
             },
           });
@@ -168,43 +105,9 @@ const Register = () => {
             leftSection={<IconLock size={16} />}
             {...form.getInputProps("confirmPassword")}
           />
-          <SearchDropdown
-            label={t("register.company.select")}
-            placeholder={t("register.company.select_placeholder")}
-            withAsterisk
-            error={form.errors.companyId ?? form.errors.companyName}
-            isLoading={companiesLoading}
-            visible={showCompanySuggestions}
-            items={filteredCompanies}
-            query={companyQuery}
-            createLabel={t("register.company.add")}
-            isCreating={isCreatingCompany}
-            onQueryChange={(value) => {
-              setCompanyQuery(value);
-              form.setFieldValue("companyId", "");
-              form.setFieldValue("companyName", value);
-            }}
-            onSelect={(item) => {
-              if (!item.id) {
-                return;
-              }
-
-              form.setFieldValue("companyId", item.id);
-              form.setFieldValue("companyName", "");
-              setCompanyQuery(item.name);
-            }}
-            onCreate={handleCreateCompany}
-          />
-          <Button
-            type="submit"
-            loading={isPending}
-            disabled={isPending}
-            size="md"
-            fullWidth
-            className="login-primary-button login-uniform-control"
-          >
+          <AuthButton type="submit" loading={isPending} disabled={isPending}>
             {t("register.button")}
-          </Button>
+          </AuthButton>
         </Stack>
       </form>
     </AuthCardLayout>

@@ -88,3 +88,15 @@ class MailService:
             plain_text=f"Go to this link to confirm your account: {get_settings().VISIT_FRONTEND_SERVER_URL}/confirm-email/{token}",
         )
         await self.send_mail(request)
+
+    async def send_company_invite_mail(self, email: str, company_name: str, token: str):
+        logger.info(f"Preparing company invite mail for: {email}")
+        request = self.construct_mail(
+            [email],
+            f"You've been invited to join {company_name} on VISIT",
+            plain_text=(
+                f"You've been invited to join {company_name} on VISIT.\n\n"
+                f"Click this link to accept: {get_settings().VISIT_FRONTEND_SERVER_URL}/company/join/{token}"
+            ),
+        )
+        await self.send_mail(request)

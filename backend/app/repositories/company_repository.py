@@ -1,8 +1,10 @@
+from datetime import datetime
 from typing import List, Optional
+from uuid import UUID
 from sqlmodel import select, delete, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.company import Company
+from app.models.company import Company, CompanyInvite
 from app.models.user import User
 from app.repositories.base import BaseRepository
 
@@ -74,6 +76,53 @@ class CompanyRepository(BaseRepository[Company]):
             await self.session.commit()
             await self.session.refresh(company)
             return company
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def assign_user(self, user: User, company_id: UUID) -> User:
+        try:
+            user.company_id = company_id
+            self.session.add(user)
+            await self.session.commit()
+            await self.session.refresh(user)
+            return user
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def create_invite(
+        self,
+        token: str,
+        company_id: UUID,
+        invited_email: str,
+        expires_at: datetime,
+    ) -> CompanyInvite:
+        try:
+            invite = CompanyInvite(
+                token=token,
+                company_id=company_id,
+                invited_email=invited_email,
+                expires_at=expires_at,
+            )
+            self.session.add(invite)
+            await self.session.commit()
+            await self.session.refresh(invite)
+            return invite
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def get_invite_by_token(self, token: str) -> Optional[CompanyInvite]:
+        statement = select(CompanyInvite).where(CompanyInvite.token == token)
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def mark_invite_used(self, invite: CompanyInvite):
+        try:
+            invite.is_used = True
+            self.session.add(invite)
+            await self.session.commit()
         except Exception as e:
             await self.session.rollback()
             raise e

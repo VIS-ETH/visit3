@@ -1,21 +1,29 @@
+import secrets
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 import logging
 from app.core.decorators import require_admin, require_confirmed_company, require_staff
-from app.core.exceptions import CompanyNotFound, NotAllowed
+from app.core.exceptions import CompanyNotFound, InviteExpired, InviteNotFound, NotAllowed
+from app.core.utils import normalize_email
 from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
-from app.schemas.company import CompanyAssignedUserResponse, CompanyWithUsersResponse
+from app.schemas.company import CompanyAssignedUserResponse, CompanyWithUsersResponse, InviteInfoResponse
+from app.services.mail_service import MailService
 
 logger = logging.getLogger(__name__)
+
+INVITE_EXPIRE = timedelta(days=7)
 
 
 class CompanyService:
     def __init__(
         self,
         company_repository: CompanyRepository,
+        mail_service: MailService,
         current_user: User,
     ):
         self.company_repository = company_repository
+        self.mail_service = mail_service
         self.current_user = current_user
 
     @require_staff
@@ -61,6 +69,76 @@ class CompanyService:
         if not company:
             raise CompanyNotFound(f"delete_company_keep_users:{company_id}")
         await self.company_repository.delete_company_keep_users(company)
+
+    async def setup_company(self, name: str):
+        if not (
+            self.current_user.email_confirmed
+            and self.current_user.user_confirmed
+            and self.current_user.is_company
+        ):
+            raise NotAllowed(f"setup_company:not_confirmed:{self.current_user.id}")
+        if self.current_user.company_id:
+            raise NotAllowed(f"setup_company:already_in_company:{self.current_user.id}")
+        normalized = name.strip()
+        existing = await self.company_repository.get_by_name(normalized)
+        if existing:
+            raise NotAllowed(f"setup_company:name_taken:{normalized}")
+        company = await self.company_repository.create_company(normalized)
+        await self.company_repository.assign_user(self.current_user, company.id)
+        logger.info(f"Company created and joined: {self.current_user.email} -> {company.name}")
+        return company
+
+    @require_confirmed_company
+    async def get_my_members(self) -> list[User]:
+        return await self.company_repository.get_users(
+            await self.company_repository.get_by_id(self.current_user.company_id)
+        )
+
+    @require_confirmed_company
+    async def create_invite(self, email: str):
+        normalized = normalize_email(email)
+        company = await self.company_repository.get_by_id(self.current_user.company_id)
+        if not company:
+            raise CompanyNotFound(f"create_invite:{self.current_user.company_id}")
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.now(timezone.utc) + INVITE_EXPIRE
+        invite = await self.company_repository.create_invite(
+            token=token,
+            company_id=company.id,
+            invited_email=normalized,
+            expires_at=expires_at,
+        )
+        await self.mail_service.send_company_invite_mail(normalized, company.name, token)
+        logger.info(f"Invite sent by {self.current_user.email} to {normalized} for {company.name}")
+        return invite
+
+    async def get_invite_info(self, token: str) -> InviteInfoResponse:
+        invite = await self.company_repository.get_invite_by_token(token)
+        if not invite or invite.is_used:
+            raise InviteNotFound(f"get_invite_info:{token}")
+        if invite.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+            raise InviteExpired(f"get_invite_info:{token}")
+        company = await self.company_repository.get_by_id(invite.company_id)
+        if not company:
+            raise CompanyNotFound(f"get_invite_info:{invite.company_id}")
+        return InviteInfoResponse(company_name=company.name, invited_email=invite.invited_email)
+
+    async def accept_invite(self, token: str) -> User:
+        if not (self.current_user.email_confirmed and self.current_user.user_confirmed):
+            raise NotAllowed(f"accept_invite:not_confirmed:{self.current_user.id}")
+        if self.current_user.company_id:
+            raise NotAllowed(f"accept_invite:already_in_company:{self.current_user.id}")
+        invite = await self.company_repository.get_invite_by_token(token)
+        if not invite or invite.is_used:
+            raise InviteNotFound(f"accept_invite:{token}")
+        if invite.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+            raise InviteExpired(f"accept_invite:{token}")
+        if normalize_email(invite.invited_email) != self.current_user.email:
+            raise NotAllowed(f"accept_invite:email_mismatch:{self.current_user.email}")
+        await self.company_repository.mark_invite_used(invite)
+        user = await self.company_repository.assign_user(self.current_user, invite.company_id)
+        logger.info(f"Invite accepted: {self.current_user.email} joined company {invite.company_id}")
+        return user
 
     @require_confirmed_company
     async def update_company_name(self, name: str):

@@ -20,7 +20,9 @@
     "email_used": "Email is already used",
     "password_too_short": "Password is too short",
     "reset_password_failed": "Password reset failed",
-    "kp_year_exists": "KP event for this year already exists"
+    "kp_year_exists": "KP event for this year already exists",
+    "invite_not_found": "This invite is invalid or has already been used.",
+    "invite_expired": "This invite has expired."
   },
   "company": {
     "login": "Company Login"
@@ -143,6 +145,7 @@
     "navigation": "Navigation",
     "home": "Home",
     "profile": "Profile",
+    "company": "Company",
     "user_management": "User Management",
     "company_management": "Company Management",
     "logout": "Logout"
@@ -274,6 +277,7 @@
     "email": "Email",
     "name": "Name",
     "phone": "Phone Number",
+    "actions": "Actions",
     "status": "Status",
     "company": "Company",
     "tabs": {
@@ -302,5 +306,39 @@
       "cancel": "Cancel",
       "confirm": "Delete permanently"
     }
+  },
+  "setup_company": {
+    "title": "Set Up Your Company",
+    "create_title": "Create a Company",
+    "create_description": "Start by creating your company profile. You'll be the first member.",
+    "name_label": "Company Name",
+    "name_placeholder": "Enter company name",
+    "create_button": "Create Company",
+    "or": "OR",
+    "invite_title": "Waiting for an Invite?",
+    "invite_description": "Ask a colleague who is already in a company to send you an invite. Once you receive the email, click the link to join their company."
+  },
+  "company_join": {
+    "title": "Join Company",
+    "joining": "You have been invited to join",
+    "button": "Join {{company}}",
+    "invalid": "Invalid Invite"
+  },
+  "company_profile": {
+    "title": "Company",
+    "settings_button": "Settings",
+    "settings_title": "Edit Company",
+    "name_label": "Company Name",
+    "name_placeholder": "Enter company name",
+    "save": "Save",
+    "cancel": "Cancel",
+    "settings_success": "Company updated",
+    "invite_title": "Invite a Member",
+    "invite_email": "Email Address",
+    "invite_email_placeholder": "colleague@example.com",
+    "invite_button": "Send Invite",
+    "invite_success": "Invitation sent",
+    "members_title": "Members",
+    "no_members": "No members found."
   }
 }

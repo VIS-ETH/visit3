@@ -20,7 +20,9 @@
     "email_used": "E-Mail wird bereits verwendet",
     "password_too_short": "Passwort ist zu kurz",
     "reset_password_failed": "Zurücksetzen des Passworts fehlgeschlagen",
-    "kp_year_exists": "KP-Event für dieses Jahr existiert bereits"
+    "kp_year_exists": "KP-Event für dieses Jahr existiert bereits",
+    "invite_not_found": "Diese Einladung ist ungültig oder wurde bereits verwendet.",
+    "invite_expired": "Diese Einladung ist abgelaufen."
   },
   "company": {
     "login": "Unternehmensanmeldung"
@@ -143,6 +145,7 @@
     "navigation": "Navigation",
     "home": "Startseite",
     "profile": "Profil",
+    "company": "Unternehmen",
     "user_management": "Benutzerverwaltung",
     "company_management": "Unternehmensverwaltung",
     "logout": "Abmelden"
@@ -274,6 +277,7 @@
     "email": "E-Mail",
     "name": "Name",
     "phone": "Telefonnummer",
+    "actions": "Aktionen",
     "status": "Status",
     "company": "Unternehmen",
     "tabs": {
@@ -302,5 +306,39 @@
       "cancel": "Abbrechen",
       "confirm": "Dauerhaft löschen"
     }
+  },
+  "setup_company": {
+    "title": "Ihr Unternehmen einrichten",
+    "create_title": "Unternehmen erstellen",
+    "create_description": "Erstellen Sie Ihr Unternehmensprofil. Sie werden das erste Mitglied sein.",
+    "name_label": "Unternehmensname",
+    "name_placeholder": "Unternehmensname eingeben",
+    "create_button": "Unternehmen erstellen",
+    "or": "ODER",
+    "invite_title": "Auf eine Einladung warten?",
+    "invite_description": "Bitten Sie einen Kollegen, der bereits einem Unternehmen angehört, Ihnen eine Einladung zu schicken."
+  },
+  "company_join": {
+    "title": "Unternehmen beitreten",
+    "joining": "Sie wurden eingeladen, beizutreten",
+    "button": "{{company}} beitreten",
+    "invalid": "Ungültige Einladung"
+  },
+  "company_profile": {
+    "title": "Unternehmen",
+    "settings_button": "Einstellungen",
+    "settings_title": "Unternehmen bearbeiten",
+    "name_label": "Unternehmensname",
+    "name_placeholder": "Unternehmensname eingeben",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "settings_success": "Unternehmen aktualisiert",
+    "invite_title": "Mitglied einladen",
+    "invite_email": "E-Mail-Adresse",
+    "invite_email_placeholder": "kollege@beispiel.com",
+    "invite_button": "Einladung senden",
+    "invite_success": "Einladung gesendet",
+    "members_title": "Mitglieder",
+    "no_members": "Keine Mitglieder gefunden."
   }
 }

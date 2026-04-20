@@ -115,3 +115,17 @@ class ResetPasswordError(AppError):
         super().__init__(
             "Password reset failed", "error.reset_password_failed", identifier, 400
         )
+
+
+class InviteNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Invite not found or already used", "error.invite_not_found", identifier, 404
+        )
+
+
+class InviteExpired(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Invite has expired", "error.invite_expired", identifier, 400
+        )

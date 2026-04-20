@@ -49,11 +49,10 @@ async def register_user(
         password=request.password,
         first_name=request.first_name,
         last_name=request.last_name,
-        company_id=request.company_id,
         phone_number=request.phone_number,
     )
 
-    return await auth_service.register_user(user, request.company_name)
+    return await auth_service.register_user(user)
 
 
 @router.post("/login", operation_id="loginUser")

@@ -193,11 +193,8 @@ async def get_auth_service(
     token_repository: TokenRepositoryDep,
     role_repository: RoleRepositoryDep,
     mail_service: MailServiceDep,
-    company_repository: CompanyRepositoryDep,
 ):
-    return AuthService(
-        user_repository, token_repository, role_repository, mail_service, company_repository
-    )
+    return AuthService(user_repository, token_repository, role_repository, mail_service)
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
@@ -205,9 +202,10 @@ AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 
 async def get_company_service(
     company_repository: CompanyRepositoryDep,
+    mail_service: MailServiceDep,
     current_user: CurrentUserDep,
 ):
-    return CompanyService(company_repository, current_user)
+    return CompanyService(company_repository, mail_service, current_user)
 
 
 CompanyServiceDep = Annotated[CompanyService, Depends(get_company_service)]
