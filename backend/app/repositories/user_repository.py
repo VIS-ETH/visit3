@@ -123,6 +123,8 @@ class UserRepository(BaseRepository[User]):
                 update_data = user.model_dump(exclude={"id", "roles", "company"})
                 for key, value in update_data.items():
                     setattr(db_user, key, value)
+
+                await self.load_user_roles(db_user)
                 db_user.roles = user.roles
                 self.session.add(db_user)
                 await self.session.commit()
