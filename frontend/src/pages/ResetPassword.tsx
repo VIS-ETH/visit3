@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "react-router";
-import { Button, LoadingOverlay, PasswordInput, Stack } from "@mantine/core";
+import { LoadingOverlay, PasswordInput, Stack } from "@mantine/core";
 import { IconLock } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useTranslatedForm } from "../utils/translator";
@@ -10,6 +10,7 @@ import {
   useValidResetPassword,
 } from "../orval/generated/auth/auth";
 import AuthCardLayout from "../components/AuthCardLayout";
+import AuthButton from "../components/AuthButton";
 
 export default function ResetPassword() {
   const { token } = useParams();
@@ -61,17 +62,22 @@ export default function ResetPassword() {
         title={
           passwordReset ? t("reset_password.done") : t("reset_password.invalid")
         }
+        maxWidth={620}
         backTo="/login"
       >
-        <Button component="a" href="/login" variant="light" fullWidth>
+        <AuthButton component="a" href="/login" intent="secondary">
           {t("email.confirm.back_to_login")}
-        </Button>
+        </AuthButton>
       </AuthCardLayout>
     );
   }
 
   return (
-    <AuthCardLayout title={t("reset_password.title")} backTo="/login">
+    <AuthCardLayout
+      title={t("reset_password.title")}
+      maxWidth={620}
+      backTo="/login"
+    >
       <form
         onSubmit={form.onSubmit((values) => {
           reset({
@@ -83,6 +89,7 @@ export default function ResetPassword() {
           <PasswordInput
             label={t("register.password.title")}
             autoComplete="new-password"
+            size="md"
             placeholder="************"
             leftSection={<IconLock size={16} />}
             {...form.getInputProps("password")}
@@ -90,18 +97,18 @@ export default function ResetPassword() {
           <PasswordInput
             label={t("register.password.confirm")}
             autoComplete="new-password"
+            size="md"
             placeholder="************"
             leftSection={<IconLock size={16} />}
             {...form.getInputProps("confirmPassword")}
           />
-          <Button
+          <AuthButton
             type="submit"
             loading={resetPending}
             disabled={resetPending}
-            size="md"
           >
             {t("reset_password.submit")}
-          </Button>
+          </AuthButton>
         </Stack>
       </form>
     </AuthCardLayout>

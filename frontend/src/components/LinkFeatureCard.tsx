@@ -28,7 +28,7 @@ export default function LinkFeatureCard({
       p="lg"
       style={{
         borderColor: "var(--visit-border)",
-        boxShadow: "0 22px 48px -34px rgba(18, 60, 67, 0.65)",
+        boxShadow: "var(--visit-feature-shadow)",
       }}
     >
       <Card.Section>

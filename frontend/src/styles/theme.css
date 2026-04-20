@@ -1,32 +1,90 @@
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
 
 :root {
-  --visit-bg-1: #f5f7ef;
-  --visit-bg-2: #e6f1f2;
-  --visit-surface: #ffffff;
-  --visit-accent: #ffd43b;
-  --visit-accent-soft: rgba(255, 212, 59, 0.22);
-  --visit-warm: #ffd43b;
-  --visit-text: #111c21;
-  --visit-border: rgba(22, 64, 74, 0.2);
-
-  /* Mantine variable overrides for stronger text contrast in light mode */
-  --mantine-color-text: #111c21;
-  --mantine-color-dimmed: #42545a;
-  --mantine-color-anchor: #8f7200;
+  --visit-font-body: "Plus Jakarta Sans", "Avenir Next", "Segoe UI", sans-serif;
+  --visit-font-heading: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
+  --visit-surface: var(--mantine-color-body);
+  --visit-text: var(--mantine-color-text);
+  --visit-border: color-mix(in srgb, var(--mantine-color-text) 20%, transparent);
+  --visit-body-bg: #f7f8f9;
+  --visit-header-bg: rgba(255, 255, 255, 0.97);
+  --visit-navbar-bg: rgba(255, 255, 255, 0.98);
+  --visit-card-shadow: 0 24px 48px -38px rgba(19, 58, 66, 0.35);
+  --visit-feature-shadow: 0 22px 48px -34px rgba(18, 60, 67, 0.65);
+  --visit-nav-subtle-hover-bg: color-mix(
+    in srgb,
+    var(--mantine-color-brand-5) 20%,
+    transparent
+  );
+  --visit-nav-subtle-active-bg: color-mix(
+    in srgb,
+    var(--mantine-color-brand-5) 28%,
+    transparent
+  );
+  --visit-nav-subtle-active-border: color-mix(
+    in srgb,
+    var(--mantine-color-brand-6) 45%,
+    transparent
+  );
+  --visit-nav-subtle-active-text: var(--mantine-color-dark-8);
+  --visit-auth-btn-primary-text: var(--mantine-color-black);
+  --visit-auth-btn-secondary-bg: color-mix(
+    in srgb,
+    var(--mantine-color-brand-5) 24%,
+    transparent
+  );
+  --visit-auth-btn-secondary-border: color-mix(
+    in srgb,
+    var(--mantine-color-brand-6) 50%,
+    transparent
+  );
+  --visit-auth-btn-secondary-hover: color-mix(
+    in srgb,
+    var(--mantine-color-brand-5) 34%,
+    transparent
+  );
+  --visit-auth-btn-secondary-text: #3f3200;
 }
 
 :root[data-mantine-color-scheme="dark"] {
-  --visit-surface: #171b20;
-  --visit-accent: #ffe066;
-  --visit-accent-soft: rgba(255, 224, 102, 0.2);
-  --visit-warm: #ffe066;
-  --visit-text: #edf1f4;
-  --visit-border: rgba(225, 230, 235, 0.2);
-
-  --mantine-color-text: #edf1f4;
-  --mantine-color-dimmed: #b8c3cd;
-  --mantine-color-anchor: #ffe066;
+  --visit-body-bg: #0f1318;
+  --visit-header-bg: rgba(23, 27, 32, 0.96);
+  --visit-navbar-bg: rgba(23, 27, 32, 0.98);
+  --visit-card-shadow: 0 24px 48px -38px rgba(0, 0, 0, 0.6);
+  --visit-feature-shadow: 0 22px 48px -34px rgba(0, 0, 0, 0.55);
+  --visit-nav-subtle-hover-bg: color-mix(
+    in srgb,
+    var(--mantine-color-brand-4) 18%,
+    transparent
+  );
+  --visit-nav-subtle-active-bg: color-mix(
+    in srgb,
+    var(--mantine-color-brand-4) 26%,
+    transparent
+  );
+  --visit-nav-subtle-active-border: color-mix(
+    in srgb,
+    var(--mantine-color-brand-3) 46%,
+    transparent
+  );
+  --visit-nav-subtle-active-text: var(--mantine-color-white);
+  --visit-auth-btn-primary-text: var(--mantine-color-black);
+  --visit-auth-btn-secondary-bg: color-mix(
+    in srgb,
+    var(--mantine-color-brand-4) 22%,
+    transparent
+  );
+  --visit-auth-btn-secondary-border: color-mix(
+    in srgb,
+    var(--mantine-color-brand-3) 48%,
+    transparent
+  );
+  --visit-auth-btn-secondary-hover: color-mix(
+    in srgb,
+    var(--mantine-color-brand-4) 30%,
+    transparent
+  );
+  --visit-auth-btn-secondary-text: #fff2bf;
 }
 
 html,
@@ -37,38 +95,26 @@ body,
 
 body {
   margin: 0;
-  font-family: "Plus Jakarta Sans", "Avenir Next", "Segoe UI", sans-serif;
+  font-family: var(--visit-font-body, "Plus Jakarta Sans", "Avenir Next", "Segoe UI", sans-serif);
   color: var(--visit-text);
-  background: #f7f8f9;
+  background: var(--visit-body-bg);
   line-height: 1.45;
-}
-
-:root[data-mantine-color-scheme="dark"] body {
-  background: #0f1318;
 }
 
 .mantine-AppShell-header.app-header {
   border-bottom: 1px solid var(--visit-border);
-  background: rgba(255, 255, 255, 0.97);
+  background: var(--visit-header-bg);
   backdrop-filter: none;
-}
-
-:root[data-mantine-color-scheme="dark"] .mantine-AppShell-header.app-header {
-  background: rgba(23, 27, 32, 0.96);
 }
 
 .mantine-AppShell-navbar.app-navbar {
   border-right: 1px solid var(--visit-border);
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--visit-navbar-bg);
   backdrop-filter: none;
 }
 
-:root[data-mantine-color-scheme="dark"] .mantine-AppShell-navbar.app-navbar {
-  background: rgba(23, 27, 32, 0.98);
-}
-
 .app-navbar .mantine-Button-root {
-  color: var(--visit-text) !important;
+  color: var(--visit-text);
 }
 
 .app-navbar .mantine-Button-root[data-variant="subtle"] {
@@ -76,27 +122,13 @@ body {
 }
 
 .app-navbar .mantine-Button-root[data-variant="subtle"]:hover {
-  background: rgba(255, 212, 59, 0.2);
+  background: var(--visit-nav-subtle-hover-bg);
 }
 
 .app-navbar .mantine-Button-root[data-variant="subtle"][aria-current="page"] {
-  background: rgba(255, 212, 59, 0.28);
-  border-color: rgba(255, 212, 59, 0.45);
-  color: #3f3200 !important;
-}
-
-:root[data-mantine-color-scheme="dark"]
-  .app-navbar
-  .mantine-Button-root[data-variant="subtle"]:hover {
-  background: rgba(255, 224, 102, 0.18);
-}
-
-:root[data-mantine-color-scheme="dark"]
-  .app-navbar
-  .mantine-Button-root[data-variant="subtle"][aria-current="page"] {
-  background: rgba(255, 224, 102, 0.26);
-  border-color: rgba(255, 224, 102, 0.46);
-  color: #fff0b6 !important;
+  background: var(--visit-nav-subtle-active-bg);
+  border-color: var(--visit-nav-subtle-active-border);
+  color: var(--visit-nav-subtle-active-text);
 }
 
 .app-main {
@@ -119,23 +151,18 @@ body {
 
 .auth-card {
   border: 1px solid var(--visit-border);
-  background: #ffffff;
+  background: var(--visit-surface);
   backdrop-filter: none;
-  box-shadow: 0 24px 48px -38px rgba(19, 58, 66, 0.35);
-}
-
-:root[data-mantine-color-scheme="dark"] .auth-card {
-  background: #171b20;
-  box-shadow: 0 24px 48px -38px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--visit-card-shadow);
 }
 
 .section-title {
-  font-family: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
+  font-family: var(--visit-font-heading, "Space Grotesk", "Plus Jakarta Sans", sans-serif);
   letter-spacing: -0.01em;
 }
 
 .brand-title {
-  font-family: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
+  font-family: var(--visit-font-heading, "Space Grotesk", "Plus Jakarta Sans", sans-serif);
   letter-spacing: 0.02em;
 }
 
@@ -143,69 +170,7 @@ body {
   border: 1px solid var(--visit-border);
   border-radius: 18px;
   padding: 20px;
-  background: #ffffff;
-}
-
-.login-primary-button {
-  background: #ffd43b !important;
-  border: 1px solid #e0b800 !important;
-  color: #1f1f1f !important;
-}
-
-.login-primary-button:hover {
-  background: #ffe066 !important;
-}
-
-.login-secondary-button {
-  background: rgba(255, 212, 59, 0.24) !important;
-  border: 1px solid rgba(255, 212, 59, 0.6) !important;
-  color: #3f3200 !important;
-  min-height: 46px;
-  white-space: normal !important;
-  line-height: 1.25;
-}
-
-.login-form .mantine-Input-input,
-.login-form .mantine-PasswordInput-innerInput {
-  min-height: 46px;
-  font-size: 1rem;
-}
-
-.login-uniform-control {
-  min-height: 46px;
-  border-radius: 10px !important;
-  font-weight: 600;
-}
-
-.login-secondary-button:hover {
-  background: rgba(255, 212, 59, 0.34) !important;
-}
-
-:root[data-mantine-color-scheme="dark"] .home-hero {
-  background: #171b20;
-}
-
-:root[data-mantine-color-scheme="dark"] .login-primary-button {
-  background: #ffe066 !important;
-  border: 1px solid #d8b647 !important;
-  color: #1b1b1b !important;
-}
-
-:root[data-mantine-color-scheme="dark"] .login-primary-button:hover {
-  background: #ffea99 !important;
-}
-
-:root[data-mantine-color-scheme="dark"] .login-secondary-button {
-  background: rgba(255, 224, 102, 0.2) !important;
-  border: 1px solid rgba(255, 224, 102, 0.5) !important;
-  color: #fff2bf !important;
-  min-height: 46px;
-  white-space: normal !important;
-  line-height: 1.25;
-}
-
-:root[data-mantine-color-scheme="dark"] .login-secondary-button:hover {
-  background: rgba(255, 224, 102, 0.28) !important;
+  background: var(--visit-surface);
 }
 
 a {

@@ -1,9 +1,5 @@
-import {
-  Table,
-  Paper
-} from "@mantine/core";
+import { Table, Paper } from "@mantine/core";
 import React from "react";
-
 
 interface Company {
   name?: string | null;
@@ -18,7 +14,6 @@ interface User {
   company?: Company | null;
 }
 
-
 interface UserTableProps {
   users: User[];
   t: (key: string) => string;
@@ -26,7 +21,12 @@ interface UserTableProps {
   showCompany?: boolean;
 }
 
-const UserTable: React.FC<UserTableProps> = ({ users, t, actionButton, showCompany = true }) => (
+const UserTable: React.FC<UserTableProps> = ({
+  users,
+  t,
+  actionButton,
+  showCompany = true,
+}) => (
   <Paper withBorder p="md">
     <Table striped highlightOnHover>
       <Table.Thead>
@@ -34,8 +34,14 @@ const UserTable: React.FC<UserTableProps> = ({ users, t, actionButton, showCompa
           <Table.Th>{t("user_management.email")}</Table.Th>
           <Table.Th>{t("user_management.name")}</Table.Th>
           <Table.Th>{t("user_management.phone")}</Table.Th>
-          {showCompany ? <Table.Th>{t("user_management.company")}</Table.Th> : null}
-          {actionButton ? <Table.Th style={{ width: 100 }}>Actions</Table.Th> : null}
+          {showCompany ? (
+            <Table.Th>{t("user_management.company")}</Table.Th>
+          ) : null}
+          {actionButton ? (
+            <Table.Th style={{ width: 100 }}>
+              {t("user_management.actions")}
+            </Table.Th>
+          ) : null}
         </Table.Tr>
       </Table.Thead>
       <Table.Tbody>
@@ -48,7 +54,9 @@ const UserTable: React.FC<UserTableProps> = ({ users, t, actionButton, showCompa
                 : `${user.first_name ? user.first_name + " " : ""}${user.last_name ? user.last_name : ""}`}
             </Table.Td>
             <Table.Td>{user.phone_number || "-"}</Table.Td>
-            {showCompany ? <Table.Td>{user.company?.name || "-"}</Table.Td> : null}
+            {showCompany ? (
+              <Table.Td>{user.company?.name || "-"}</Table.Td>
+            ) : null}
             {actionButton ? <Table.Td>{actionButton(user)}</Table.Td> : null}
           </Table.Tr>
         ))}

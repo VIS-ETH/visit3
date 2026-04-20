@@ -1,10 +1,4 @@
-import {
-  Button,
-  TextInput,
-  PasswordInput,
-  Stack,
-  Divider,
-} from "@mantine/core";
+import { TextInput, PasswordInput, Stack, Divider } from "@mantine/core";
 import { IconLock, IconMailSearch } from "@tabler/icons-react";
 import { NavLink, useNavigate } from "react-router";
 import { useDocumentTitle } from "@mantine/hooks";
@@ -15,6 +9,7 @@ import { setToken } from "../api/utils";
 import type { Token } from "../orval/generated/fastAPI.schemas";
 import { useKeycloakInit, useLoginUser } from "../orval/generated/auth/auth";
 import AuthCardLayout from "../components/AuthCardLayout";
+import AuthButton from "../components/AuthButton";
 
 const Login = () => {
   const { t } = useTranslation();
@@ -56,7 +51,6 @@ const Login = () => {
       maxWidth={620}
     >
       <form
-        className="login-form"
         onSubmit={form.onSubmit((values) => {
           login({
             data: {
@@ -69,7 +63,7 @@ const Login = () => {
         <Stack gap="md">
           <TextInput
             label={t("email.title")}
-            placeholder="your@email.com"
+            placeholder={t("register.email.placeholder")}
             autoComplete="email"
             size="md"
             leftSection={<IconMailSearch size={16} />}
@@ -83,53 +77,34 @@ const Login = () => {
             leftSection={<IconLock size={16} />}
             {...form.getInputProps("password")}
           />
-          <Button
-            type="submit"
-            loading={isPending}
-            disabled={isPending}
-            size="md"
-            fullWidth
-            className="login-primary-button login-uniform-control"
-          >
+          <AuthButton type="submit" loading={isPending} disabled={isPending}>
             {t("login.title")}
-          </Button>
+          </AuthButton>
         </Stack>
       </form>
 
       <Stack gap="sm" w="100%">
-        <Button
-          component={NavLink}
-          to="/register"
-          variant="light"
-          size="md"
-          fullWidth
-          className="login-secondary-button login-uniform-control"
-        >
+        <AuthButton component={NavLink} to="/register" intent="secondary">
           {t("login.register.title")}
-        </Button>
-        <Button
+        </AuthButton>
+        <AuthButton
           component={NavLink}
           to="/forget-password"
-          variant="light"
-          size="md"
-          fullWidth
-          className="login-secondary-button login-uniform-control"
+          intent="secondary"
         >
           {t("forget_password.login")}
-        </Button>
+        </AuthButton>
       </Stack>
 
-      <Divider w="100%" label={t("common.or")} labelPosition="center" />
+      <Divider
+        w="100%"
+        label={t("register.company.or")}
+        labelPosition="center"
+      />
 
-      <Button
-        onClick={handleLogin}
-        disabled={isFetching}
-        size="md"
-        fullWidth
-        className="login-primary-button login-uniform-control"
-      >
+      <AuthButton onClick={handleLogin} disabled={isFetching}>
         {isFetching ? t("keycloak.redirecting") : t("keycloak.login")}
-      </Button>
+      </AuthButton>
     </AuthCardLayout>
   );
 };

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, TextInput, Stack } from "@mantine/core";
+import { TextInput, Stack } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconMailSearch } from "@tabler/icons-react";
 import { useDocumentTitle } from "@mantine/hooks";
@@ -8,6 +8,7 @@ import { forgetPasswordSchema } from "../schemas/forgetPasswordSchema";
 import { useTranslation } from "react-i18next";
 import { useForgetPassword } from "../orval/generated/auth/auth";
 import AuthCardLayout from "../components/AuthCardLayout";
+import AuthButton from "../components/AuthButton";
 
 const ForgetPassword = () => {
   const { t } = useTranslation();
@@ -45,7 +46,6 @@ const ForgetPassword = () => {
       backTo="/login"
     >
       <form
-        className="login-form"
         onSubmit={form.onSubmit((values) => {
           forgotPassword({
             data: { email: values.email },
@@ -55,22 +55,19 @@ const ForgetPassword = () => {
         <Stack gap="md">
           <TextInput
             label={t("email.title")}
-            placeholder="your@email.com"
+            placeholder={t("register.email.placeholder")}
             autoComplete="email"
             size="md"
             leftSection={<IconMailSearch size={16} />}
             {...form.getInputProps("email")}
           />
-          <Button
+          <AuthButton
             type="submit"
             loading={isPending}
             disabled={isPending || emailSent}
-            size="md"
-            fullWidth
-            className="login-primary-button login-uniform-control"
           >
             {t("forget_password.submit")}
-          </Button>
+          </AuthButton>
         </Stack>
       </form>
     </AuthCardLayout>
