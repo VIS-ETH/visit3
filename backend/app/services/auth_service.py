@@ -245,14 +245,16 @@ class AuthService:
         return await self.create_refresh_token(user)
 
     async def map_keycloak_to_user(self, decoded_token: str):
-        logger.info(f"Keycloak token claims: {decoded_token}")
         email = decoded_token["email"]
-        keycloak_roles = (
-            decoded_token
-            .get("resource_access", {})
-            .get(get_settings().SIP_AUTH_OIDC_CLIENT_ID, {})
-            .get("roles", [])
-        )
+        if get_settings().DEBUG_KEYCLOAK_ADMIN:
+            keycloak_roles = [get_settings().ADMIN_GROUP]
+        else:
+            keycloak_roles = (
+                decoded_token
+                .get("resource_access", {})
+                .get(get_settings().SIP_AUTH_OIDC_CLIENT_ID, {})
+                .get("roles", [])
+            )
         sub = decoded_token["sub"]
         first_name = decoded_token.get("given_name", "")
         last_name = decoded_token.get("family_name", "")

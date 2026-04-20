@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     KEYCLOAK_ALGORITHM: str
     ADMIN_GROUP: str
     VISIT_KP_PRESIDENT_ROLE: str
+    DEBUG_KEYCLOAK_ADMIN: bool = False
 
 
 @lru_cache
