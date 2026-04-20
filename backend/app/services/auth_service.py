@@ -236,6 +236,8 @@ class AuthService:
             raise KeycloakExchangeFailed(f"keycloak_callback:{code}")
 
         decoded_token = decode_token(response.json().get("access_token"))
+        if not decoded_token:
+            raise KeycloakExchangeFailed(f"keycloak_callback:invalid_token:{code}")
         return await self.login_keycloak_user(decoded_token)
 
     async def login_keycloak_user(self, decoded_token: str):
@@ -251,8 +253,8 @@ class AuthService:
             .get("roles", [])
         )
         sub = decoded_token["sub"]
-        first_name = decoded_token["given_name"]
-        last_name = decoded_token["family_name"]
+        first_name = decoded_token.get("given_name", "")
+        last_name = decoded_token.get("family_name", "")
 
         admin, roles = await self.map_keycloak_roles(keycloak_roles, ["vis-active", "admin"])
 
