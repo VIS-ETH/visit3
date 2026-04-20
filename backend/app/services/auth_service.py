@@ -245,6 +245,7 @@ class AuthService:
         return await self.create_refresh_token(user)
 
     async def map_keycloak_to_user(self, decoded_token: str):
+        logger.info(f"Keycloak token claims: {decoded_token}")
         email = decoded_token["email"]
         keycloak_roles = (
             decoded_token
