@@ -11,7 +11,7 @@ export default function NotFound() {
       title={t("not_found.title")}
       description={t("not_found.description")}
       icon={<IconAlertCircle size={34} />}
-      iconColor="orange"
+      iconColor="yellow"
       homeLabel={t("nav.home")}
     />
   );

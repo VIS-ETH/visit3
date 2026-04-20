@@ -33,6 +33,9 @@
     }
   },
   "welcome": "Willkommen",
+  "common": {
+    "or": "oder"
+  },
   "system-theme-follow": "Systemthema folgen",
   "language-change": "Sprache ändern",
   "register": {
@@ -122,6 +125,16 @@
   "not_found": {
     "title": "Seite nicht gefunden",
     "description": "Die gesuchte Seite existiert nicht."
+  },
+  "home": {
+    "welcome_name": "Willkommen {{name}}",
+    "portal_badge": "VISIT Portal",
+    "subtitle": "Verwalten Sie Ihr Firmenprofil und entdecken Sie kommende Kontaktparty-Events.",
+    "kp": {
+      "title": "Kontaktparty",
+      "description": "Entdecken Sie den ETH-Jobmesse-Zeitplan, die neuesten Eventdetails und Optionen zur Firmenbeteiligung.",
+      "image_alt": "Kontaktparty Event Platzhalter"
+    }
   },
   "nav": {
     "company_portal_of": "Unternehmensportal von",

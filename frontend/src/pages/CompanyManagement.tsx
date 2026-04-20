@@ -157,7 +157,7 @@ export default function CompanyManagement() {
               {companyHasUsers ? (
                 <>
                   <Button
-                    color="orange"
+                    color="yellow"
                     onClick={handleDeleteKeepUsers}
                     loading={isDeletingKeepUsers}
                     disabled={!companyToDelete?.id || isDeleting}

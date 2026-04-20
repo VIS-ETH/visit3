@@ -33,6 +33,9 @@
     }
   },
   "welcome": "Welcome",
+  "common": {
+    "or": "or"
+  },
   "system-theme-follow": "Follow system theme",
   "language-change": "Change language",
   "register": {
@@ -122,6 +125,16 @@
   "not_found": {
     "title": "Page Not Found",
     "description": "The page you are looking for does not exist."
+  },
+  "home": {
+    "welcome_name": "Welcome {{name}}",
+    "portal_badge": "VISIT Portal",
+    "subtitle": "Manage your company profile and discover upcoming Kontaktparty events.",
+    "kp": {
+      "title": "Kontaktparty",
+      "description": "Explore the ETH job fair timeline, latest event details, and company participation options.",
+      "image_alt": "Kontaktparty event placeholder"
+    }
   },
   "nav": {
     "company_portal_of": "Company portal of",

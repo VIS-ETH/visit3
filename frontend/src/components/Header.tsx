@@ -14,7 +14,7 @@ export default function Header({
   toggleNavbar,
 }: HeaderProps) {
   return (
-    <AppShell.Header>
+    <AppShell.Header className="app-header">
       <Group h="100%" px="md" justify="space-between" wrap="nowrap" gap="xs">
         <Group h="100%" gap="xs" wrap="nowrap">
           {showNavbar && (
@@ -35,7 +35,7 @@ export default function Header({
             </>
           )}
           <NavLink to="/" style={{ textDecoration: "none", color: "inherit" }}>
-            <Title order={3} px="lg" visibleFrom="sm">
+            <Title order={3} px="lg" visibleFrom="sm" className="brand-title">
               VISIT
             </Title>
           </NavLink>

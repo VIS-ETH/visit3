@@ -1,9 +1,7 @@
 import { useNavigate, useParams } from "react-router";
 import {
   Button,
-  Center,
   LoadingOverlay,
-  Paper,
   PasswordInput,
   Stack,
   Title,
@@ -12,12 +10,12 @@ import { IconLock } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useTranslatedForm } from "../utils/translator";
 import { resetPasswordSchema } from "../schemas/resetPasswordSchema";
-import BackButton from "../components/BackButton";
 import { useState } from "react";
 import {
   useResetPassword,
   useValidResetPassword,
 } from "../orval/generated/auth/auth";
+import AuthCardLayout from "../components/AuthCardLayout";
 
 export default function ResetPassword() {
   const { token } = useParams();
@@ -36,10 +34,7 @@ export default function ResetPassword() {
     },
   });
 
-  const {
-    mutate: reset,
-    isPending: resetPending,
-  } = useResetPassword({
+  const { mutate: reset, isPending: resetPending } = useResetPassword({
     mutation: {
       onSuccess: () => {
         setPasswordReset(true);
@@ -54,7 +49,7 @@ export default function ResetPassword() {
         password: "",
         confirmPassword: "",
       },
-    },
+    }
   );
 
   if (token === undefined) {
@@ -68,69 +63,53 @@ export default function ResetPassword() {
 
   if (passwordReset || validError || !valid) {
     return (
-      <>
-        <BackButton to="/login" />
-        <Center py="xl">
-          <Stack align="center" gap="xl" maw={400} px="md">
-            <Title order={2} ta="center">
-              {passwordReset
-                ? t("reset_password.done")
-                : t("reset_password.invalid")}
-            </Title>
-            <Button component="a" href="/login" variant="light">
-              Back to Login
-            </Button>
-          </Stack>
-        </Center>
-      </>
+      <AuthCardLayout
+        title={
+          passwordReset ? t("reset_password.done") : t("reset_password.invalid")
+        }
+        backTo="/login"
+      >
+        <Button component="a" href="/login" variant="light" fullWidth>
+          {t("email.confirm.back_to_login")}
+        </Button>
+      </AuthCardLayout>
     );
   }
 
   return (
-    <>
-      <BackButton to="/login" />
-      <Center py="xl">
-        <Stack align="center" gap="xl" maw={400} px="md">
-          <Stack gap="xs" align="center">
-            <Title ta="center">{t("reset_password.title")}</Title>
-          </Stack>
-
-          <Paper w="100%" p="xl" radius="md" withBorder>
-            <form
-              onSubmit={form.onSubmit((values) => {
-                reset({
-                  data: { token: token, new_password: values.password },
-                });
-              })}
-            >
-              <Stack gap="md">
-                <PasswordInput
-                  label={t("register.password.title")}
-                  autoComplete="new-password"
-                  placeholder="************"
-                  leftSection={<IconLock size={16} />}
-                  {...form.getInputProps("password")}
-                />
-                <PasswordInput
-                  label={t("register.password.confirm")}
-                  autoComplete="new-password"
-                  placeholder="************"
-                  leftSection={<IconLock size={16} />}
-                  {...form.getInputProps("confirmPassword")}
-                />
-                <Button
-                  type="submit"
-                  loading={resetPending}
-                  disabled={resetPending}
-                  size="md"
-                >
-                  {t("reset_password.submit")}
-                </Button>
-              </Stack>
-            </form>
-          </Paper>
+    <AuthCardLayout title={t("reset_password.title")} backTo="/login">
+      <form
+        onSubmit={form.onSubmit((values) => {
+          reset({
+            data: { token: token, new_password: values.password },
+          });
+        })}
+      >
+        <Stack gap="md">
+          <PasswordInput
+            label={t("register.password.title")}
+            autoComplete="new-password"
+            placeholder="************"
+            leftSection={<IconLock size={16} />}
+            {...form.getInputProps("password")}
+          />
+          <PasswordInput
+            label={t("register.password.confirm")}
+            autoComplete="new-password"
+            placeholder="************"
+            leftSection={<IconLock size={16} />}
+            {...form.getInputProps("confirmPassword")}
+          />
+          <Button
+            type="submit"
+            loading={resetPending}
+            disabled={resetPending}
+            size="md"
+          >
+            {t("reset_password.submit")}
+          </Button>
         </Stack>
-      </Center>
-    </>
+      </form>
+    </AuthCardLayout>
   );
 }

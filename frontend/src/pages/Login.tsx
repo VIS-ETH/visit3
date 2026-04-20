@@ -3,10 +3,6 @@ import {
   TextInput,
   PasswordInput,
   Stack,
-  Center,
-  Title,
-  Paper,
-  Text,
   Divider,
 } from "@mantine/core";
 import { IconLock, IconMailSearch } from "@tabler/icons-react";
@@ -18,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { setToken } from "../api/utils";
 import type { Token } from "../orval/generated/fastAPI.schemas";
 import { useKeycloakInit, useLoginUser } from "../orval/generated/auth/auth";
+import AuthCardLayout from "../components/AuthCardLayout";
 
 const Login = () => {
   const { t } = useTranslation();
@@ -53,93 +50,77 @@ const Login = () => {
   });
 
   return (
-    <>
-      <Center py="xl">
-        <Stack align="center" gap="xl" maw={400} w="100%" px="md">
-          <div>
-            <Title ta="center" order={1}>
-              {t("company.login")}
-            </Title>
-            <Text ta="center" c="dimmed">
-              {t("welcome")}
-            </Text>
-          </div>
-
-          <Paper w="100%" p="xl" radius="md" withBorder>
-            <form
-              onSubmit={form.onSubmit((values) => {
-                login({
-                  data: {
-                    username: values.username,
-                    password: values.password,
-                  },
-                });
-              })}
-            >
-              <Stack gap="md">
-                <TextInput
-                  label={t("email.title")}
-                  placeholder="your@email.com"
-                  autoComplete="email"
-                  leftSection={<IconMailSearch size={16} />}
-                  {...form.getInputProps("username")}
-                />
-                <PasswordInput
-                  label={t("register.password.title")}
-                  placeholder="***********"
-                  autoComplete="password"
-                  leftSection={<IconLock size={16} />}
-                  {...form.getInputProps("password")}
-                />
-                <Button
-                  type="submit"
-                  loading={isPending}
-                  disabled={isPending}
-                  size="md"
-                >
-                  {t("login.title")}
-                </Button>
-              </Stack>
-            </form>
-          </Paper>
-
-          <Stack gap="sm" w="100%">
-            <Button
-              component={NavLink}
-              to="/register"
-              variant="light"
-              size="sm"
-            >
-              {t("login.register.title")}
-            </Button>
-            <Button
-                component={NavLink}
-                to="/forget-password"
-              variant="light"
-              size="sm"
-            >
-              {t("forget_password.login")}
-            </Button>
-          </Stack>
-
-          <Divider w="100%" label="or" labelPosition="center" />
-
-          <Stack w="100%">
-            <Text ta="center" size="sm" fw={500} mb="md">
-              {t("keycloak.login")}
-            </Text>
-            <Button
-              onClick={handleLogin}
-              disabled={isFetching}
-              size="md"
-              fullWidth
-            >
-              {isFetching ? t("keycloak.redirecting") : t("keycloak.login")}
-            </Button>
-          </Stack>
+    <AuthCardLayout title={t("company.login")} subtitle={t("welcome")}>
+      <form
+        onSubmit={form.onSubmit((values) => {
+          login({
+            data: {
+              username: values.username,
+              password: values.password,
+            },
+          });
+        })}
+      >
+        <Stack gap="md">
+          <TextInput
+            label={t("email.title")}
+            placeholder="your@email.com"
+            autoComplete="email"
+            leftSection={<IconMailSearch size={16} />}
+            {...form.getInputProps("username")}
+          />
+          <PasswordInput
+            label={t("register.password.title")}
+            placeholder="***********"
+            autoComplete="password"
+            leftSection={<IconLock size={16} />}
+            {...form.getInputProps("password")}
+          />
+          <Button
+            type="submit"
+            loading={isPending}
+            disabled={isPending}
+            size="md"
+            className="login-primary-button"
+          >
+            {t("login.title")}
+          </Button>
         </Stack>
-      </Center>
-    </>
+      </form>
+
+      <Stack gap="sm" w="100%">
+        <Button
+          component={NavLink}
+          to="/register"
+          variant="light"
+          size="sm"
+          className="login-secondary-button"
+        >
+          {t("login.register.title")}
+        </Button>
+        <Button
+          component={NavLink}
+          to="/forget-password"
+          variant="light"
+          size="sm"
+          className="login-secondary-button"
+        >
+          {t("forget_password.login")}
+        </Button>
+      </Stack>
+
+      <Divider w="100%" label={t("common.or")} labelPosition="center" />
+
+      <Button
+        onClick={handleLogin}
+        disabled={isFetching}
+        size="md"
+        fullWidth
+        className="login-primary-button"
+      >
+        {isFetching ? t("keycloak.redirecting") : t("keycloak.login")}
+      </Button>
+    </AuthCardLayout>
   );
 };
 

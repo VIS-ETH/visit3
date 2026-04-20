@@ -1,35 +1,35 @@
-import { Card, Image, Stack, Text, Title } from "@mantine/core";
-import { Link } from "react-router";
+import { Badge, Group, Stack, Text, Title } from "@mantine/core";
 import { useCurrentUser } from "../context/useCurrentUser";
+import LinkFeatureCard from "../components/LinkFeatureCard";
+import { useTranslation } from "react-i18next";
 
 export default function Home() {
   const { user } = useCurrentUser();
+  const { t } = useTranslation();
 
   return (
     <Stack gap="md">
-      <Title order={3}>Welcome {user?.first_name}</Title>
-      <Card
-        component={Link}
+      <Stack className="home-hero" gap={6}>
+        <Group justify="space-between" align="center" wrap="wrap">
+          <Title order={3} className="section-title">
+            {t("home.welcome_name", { name: user?.first_name ?? "" })}
+          </Title>
+          <Badge variant="light" color="brand" radius="sm">
+            {t("home.portal_badge")}
+          </Badge>
+        </Group>
+        <Text c="dimmed" size="sm">
+          {t("home.subtitle")}
+        </Text>
+      </Stack>
+
+      <LinkFeatureCard
         to="/kp"
-        withBorder
-        shadow="sm"
-        padding="lg"
-        radius="md"
-      >
-        <Card.Section>
-          <Image
-            src="https://placehold.co/1200x600?text=Kontaktparty"
-            alt="Kontaktparty event placeholder"
-            height={180}
-          />
-        </Card.Section>
-        <Stack gap={4} mt="md">
-          <Title order={4}>Kontaktparty</Title>
-          <Text size="sm" c="dimmed">
-            ETH job messe organized by VIS.
-          </Text>
-        </Stack>
-      </Card>
+        imageSrc="https://placehold.co/1200x600?text=Kontaktparty"
+        imageAlt={t("home.kp.image_alt")}
+        title={t("home.kp.title")}
+        description={t("home.kp.description")}
+      />
     </Stack>
   );
 }

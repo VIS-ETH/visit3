@@ -32,10 +32,28 @@ import { getToken, refreshToken } from "./api/utils";
 const primaryColor = configOptions().primaryColor;
 const theme = createTheme({
   primaryColor: "brand",
+  fontFamily: '"Plus Jakarta Sans", "Avenir Next", "Segoe UI", sans-serif',
+  headings: {
+    fontFamily: '"Space Grotesk", "Plus Jakarta Sans", sans-serif',
+    fontWeight: "600",
+  },
+  defaultRadius: "md",
   colors: {
     brand: generateColors(primaryColor),
   },
   autoContrast: true,
+  components: {
+    Paper: {
+      defaultProps: {
+        radius: "lg",
+      },
+    },
+    Button: {
+      defaultProps: {
+        radius: "md",
+      },
+    },
+  },
 });
 
 function StaffRoute() {

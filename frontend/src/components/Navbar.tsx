@@ -37,7 +37,7 @@ export default function Navbar() {
   });
 
   return (
-    <AppShell.Navbar p="md">
+    <AppShell.Navbar p="md" className="app-navbar">
       <Stack m="sm" align="stretch">
         <Group justify="center" align="center" gap="xs" mb="xs" wrap="nowrap">
           <Image
@@ -62,7 +62,13 @@ export default function Navbar() {
         </Group>
         <Divider my="xs" label={t("nav.navigation")} labelPosition="center" />
         <Stack gap="xs">
-          <Button component={NavLink} to="/" leftSection={<IconHome2 />}>
+          <Button
+            component={NavLink}
+            to="/"
+            leftSection={<IconHome2 />}
+            variant="subtle"
+            justify="flex-start"
+          >
             {t("nav.home")}
           </Button>
           {user?.email_confirmed && user.user_confirmed && user.is_company && (
@@ -70,6 +76,8 @@ export default function Navbar() {
               component={NavLink}
               to="/profile"
               leftSection={<IconUser />}
+              variant="subtle"
+              justify="flex-start"
             >
               {t("nav.profile")}
             </Button>
@@ -80,6 +88,8 @@ export default function Navbar() {
                 component={NavLink}
                 to="/user-management"
                 leftSection={<IconSettings />}
+                variant="subtle"
+                justify="flex-start"
               >
                 {t("nav.user_management")}
               </Button>
@@ -87,6 +97,8 @@ export default function Navbar() {
                 component={NavLink}
                 to="/company-management"
                 leftSection={<IconBuilding />}
+                variant="subtle"
+                justify="flex-start"
               >
                 {t("nav.company_management")}
               </Button>
@@ -97,6 +109,9 @@ export default function Navbar() {
               logout();
             }}
             leftSection={<IconLogout2 />}
+            color="red"
+            variant="light"
+            justify="flex-start"
           >
             {t("nav.logout")}
           </Button>

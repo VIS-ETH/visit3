@@ -21,7 +21,7 @@ export default function UnconfirmedUser() {
         <IconTitle
           icon={<IconClock size={50} />}
           title={t("user.unconfirmed")}
-          color="orange"
+          color="yellow"
         />
       </Stack>
     </Center>

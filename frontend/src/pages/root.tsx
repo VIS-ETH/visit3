@@ -58,6 +58,7 @@ export default function RootLayout({ navbarHidden }: RootLayoutProps) {
 
   return (
     <AppShell
+      className="app-shell"
       header={{ height: 60 }}
       padding="md"
       navbar={
@@ -79,19 +80,21 @@ export default function RootLayout({ navbarHidden }: RootLayoutProps) {
         toggleNavbar={toggleNavbar}
       />
       {!navbarHidden && <Navbar />}
-      <AppShell.Main>
+      <AppShell.Main className="app-main">
         {!navbarHidden && impersonating && (
           <Alert
-            color="orange"
+            color="yellow"
             mb="md"
             title={t("impersonation.banner_title", { name: displayName })}
           >
-            <Button size="xs" color="orange" onClick={handleStopImpersonating}>
+            <Button size="xs" color="yellow" onClick={handleStopImpersonating}>
               {t("impersonation.stop")}
             </Button>
           </Alert>
         )}
-        <Outlet />
+        <div className="page-wrap">
+          <Outlet />
+        </div>
       </AppShell.Main>
     </AppShell>
   );
