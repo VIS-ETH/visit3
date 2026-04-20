@@ -6,6 +6,7 @@ from app.services.auth_service import AuthService
 from app.core.grpc import grpc_client
 from typing import Annotated
 import logging
+from uuid import UUID
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi_csrf_protect import CsrfProtect
@@ -21,7 +22,7 @@ from app.repositories.company_repository import CompanyRepository
 from app.repositories.kp_repository import KpRepository
 from app.schemas.user import TokenData
 from app.core.config import get_settings
-from app.core.exceptions import Unauthenticated
+from app.core.exceptions import NotAllowed, Unauthenticated
 from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ async def get_db_session():
 
 
 async def get_current_user(
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_db_session)],
     token: Annotated[str, Depends(oauth2_scheme)],
 ):
@@ -73,6 +75,26 @@ async def get_current_user(
         raise Unauthenticated(
             f"jwt_decode:user_not_found:{token_data.username}")
     logger.debug(f"User authenticated: {user.email}")
+
+    impersonate_id = request.headers.get("X-Impersonate-User-Id")
+    if impersonate_id:
+        if not user.is_admin:
+            logger.warning(f"Impersonation rejected - not admin: {user.email}")
+            raise NotAllowed(f"impersonate:not_admin:{user.email}")
+        try:
+            target_uuid = UUID(impersonate_id)
+        except ValueError:
+            raise NotAllowed(f"impersonate:invalid_uuid:{impersonate_id}")
+        user_repo = UserRepository(session)
+        target = await user_repo.get_by_id(target_uuid)
+        if target is None:
+            raise NotAllowed(f"impersonate:user_not_found:{impersonate_id}")
+        await user_repo.load_user_roles(target)
+        logger.info(f"Admin {user.email} impersonating: {target.email}")
+        target.is_admin = True
+        target.is_staff = True
+        return target
+
     return user
 
 

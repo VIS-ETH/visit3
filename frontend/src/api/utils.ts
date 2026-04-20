@@ -94,3 +94,23 @@ export const isTokenExpired = () => {
     return true;
   }
 };
+
+export const getImpersonatingUserId = () =>
+  sessionStorage.getItem("impersonating_user_id");
+
+export const getImpersonatingDisplayName = () =>
+  sessionStorage.getItem("impersonating_display_name");
+
+export const isImpersonating = () => !!getImpersonatingUserId();
+
+export const setImpersonation = (userId: string, displayName: string) => {
+  sessionStorage.setItem("impersonating_user_id", userId);
+  sessionStorage.setItem("impersonating_display_name", displayName);
+  window.dispatchEvent(new Event("impersonation-changed"));
+};
+
+export const clearImpersonation = () => {
+  sessionStorage.removeItem("impersonating_user_id");
+  sessionStorage.removeItem("impersonating_display_name");
+  window.dispatchEvent(new Event("impersonation-changed"));
+};

@@ -10,12 +10,13 @@ import {
   Text,
   Group,
 } from "@mantine/core";
-import { IconAlertCircle, IconCheck, IconTrash } from "@tabler/icons-react";
+import { IconAlertCircle, IconCheck, IconTrash, IconUserSearch } from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetAllCompanyUsersQueryKey,
+  getGetCurrentUserQueryKey,
   getGetUnconfirmedUsersQueryKey,
   useConfirmUser,
   useDeleteUser,
@@ -24,6 +25,11 @@ import {
   useGetAllStaff,
   useGetUnconfirmedUsers,
 } from "../orval/generated/user/user";
+import {
+  isImpersonating,
+  setImpersonation,
+  getImpersonatingUserId,
+} from "../api/utils";
 
 import UserTable from "../components/UserTable";
 import type {
@@ -96,6 +102,15 @@ export default function UserManagement() {
   const handleConfirmUser = (userId: string | undefined) => {
     if (!userId) return;
     confirm({ userId });
+  };
+
+  const handleImpersonateUser = (
+    userId: string | undefined,
+    displayName: string
+  ) => {
+    if (!adminStatus || !userId) return;
+    setImpersonation(userId, displayName);
+    queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
   };
 
   const handleDeleteUser = (userId: string | undefined) => {
@@ -258,18 +273,42 @@ export default function UserManagement() {
                 t={t}
                 actionButton={
                   adminStatus
-                    ? (user) => (
-                        <Button
-                          leftSection={<IconTrash size={14} />}
-                          size="xs"
-                          color="red"
-                          variant="light"
-                          onClick={() => handleDeleteUser(user.id)}
-                          disabled={!user.id}
-                        >
-                          {t("user_management.delete")}
-                        </Button>
-                      )
+                    ? (user) => {
+                        const displayName =
+                          user.first_name || user.last_name
+                            ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim()
+                            : (user.email ?? "");
+                        const isCurrentlyImpersonating =
+                          isImpersonating() && getImpersonatingUserId() === user.id;
+                        return (
+                          <Group gap="xs" wrap="nowrap">
+                            <Button
+                              leftSection={<IconUserSearch size={14} />}
+                              size="xs"
+                              color="blue"
+                              variant="light"
+                              onClick={() =>
+                                handleImpersonateUser(user.id, displayName)
+                              }
+                              disabled={!user.id || isCurrentlyImpersonating}
+                            >
+                              {isCurrentlyImpersonating
+                                ? t("user_management.impersonating")
+                                : t("user_management.impersonate")}
+                            </Button>
+                            <Button
+                              leftSection={<IconTrash size={14} />}
+                              size="xs"
+                              color="red"
+                              variant="light"
+                              onClick={() => handleDeleteUser(user.id)}
+                              disabled={!user.id}
+                            >
+                              {t("user_management.delete")}
+                            </Button>
+                          </Group>
+                        );
+                      }
                     : undefined
                 }
               />

@@ -6,6 +6,7 @@ import { createElement } from "react";
 import {
   clearToken,
   getCsrfToken,
+  getImpersonatingUserId,
   getToken,
   isTokenExpired,
   refreshToken,
@@ -30,6 +31,11 @@ api.interceptors.request.use(
 
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    const impersonatingUserId = getImpersonatingUserId();
+    if (impersonatingUserId && config.headers) {
+      config.headers["X-Impersonate-User-Id"] = impersonatingUserId;
     }
 
     config.headers["X-CSRF-Token"] = await getCsrfToken();

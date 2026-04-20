@@ -229,6 +229,10 @@
       "error_message": "Unternehmen konnte nicht aktualisiert werden"
     }
   },
+  "impersonation": {
+    "banner_title": "Ansicht als {{name}}",
+    "stop": "Imitation beenden"
+  },
   "company_management": {
     "title": "Unternehmensverwaltung",
     "delete": "Unternehmen löschen",
@@ -274,6 +278,8 @@
     "error": "Fehler beim Laden unbestätigter Benutzer",
     "confirm": "Benutzer bestätigen",
     "confirm_error": "Fehler beim Bestätigen des Benutzers",
+    "impersonate": "Imitieren",
+    "impersonating": "Wird imitiert",
     "delete": "Benutzer löschen",
     "delete_error": "Fehler beim Löschen des Benutzers",
     "delete_modal": {

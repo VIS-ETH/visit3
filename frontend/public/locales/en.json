@@ -229,6 +229,10 @@
       "error_message": "Failed to update company"
     }
   },
+  "impersonation": {
+    "banner_title": "Viewing as {{name}}",
+    "stop": "Stop impersonating"
+  },
   "company_management": {
     "title": "Company Management",
     "delete": "Delete Company",
@@ -274,6 +278,8 @@
     "error": "Failed to load unconfirmed users",
     "confirm": "Confirm User",
     "confirm_error": "Failed to confirm user",
+    "impersonate": "Impersonate",
+    "impersonating": "Impersonating",
     "delete": "Delete User",
     "delete_error": "Failed to delete user",
     "delete_modal": {
