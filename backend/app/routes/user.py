@@ -6,7 +6,7 @@ from fastapi import APIRouter, Cookie, Response
 
 from app.core.deps import CsrfDep, UserServiceDep
 from app.models.user import User
-from app.schemas.user import CompanyUserResponse, UpdateUserProfileRequest
+from app.schemas.user import CompanyUserResponse, UpdateCompanyUserRequest, UpdateUserProfileRequest
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +78,22 @@ async def get_unconfirmed_users(
 @router.post("/confirm/{user_id}", operation_id="confirmUser")
 async def confirm_user(user_service: UserServiceDep, user_id: UUID) -> User:
     return await user_service.confirm_user(user_id)
+
+
+@router.patch("/{user_id}", operation_id="updateCompanyUser")
+async def update_company_user(
+    user_service: UserServiceDep,
+    user_id: UUID,
+    request: UpdateCompanyUserRequest,
+) -> CompanyUserResponse:
+    return await user_service.update_company_user(
+        user_id,
+        request.email,
+        request.first_name,
+        request.last_name,
+        request.phone_number,
+        request.company_id,
+    )
 
 
 @router.delete(

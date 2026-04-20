@@ -78,11 +78,11 @@ class UserService:
         last_name: str | None,
         phone_number: str | None,
     ) -> User:
-        updated_user = await self.user_repository.update_user_profile(
+        updated_user = await self.user_repository.update_company_user(
             self.current_user,
-            first_name,
-            last_name,
-            phone_number,
+            first_name=first_name,
+            last_name=last_name,
+            phone_number=phone_number,
         )
         logger.info(f"User profile updated: {self.current_user.email}")
         return updated_user
@@ -119,6 +119,28 @@ class UserService:
     @require_staff
     async def get_staff(self):
         return await self.user_repository.get_staff()
+
+    @require_admin
+    async def update_company_user(
+        self,
+        user_id: UUID,
+        email: str | None,
+        first_name: str | None,
+        last_name: str | None,
+        phone_number: str | None,
+        company_id: UUID | None,
+    ) -> User:
+        user = await self.user_repository.get_by_id(user_id)
+        if not user:
+            raise UserNotFound(f"update_company_user:{user_id}")
+        return await self.user_repository.update_company_user(
+            user,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            phone_number=phone_number,
+            company_id=company_id,
+        )
 
     @require_admin
     async def delete_user(self, user_id: UUID):

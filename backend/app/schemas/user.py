@@ -34,6 +34,22 @@ class UpdateUserProfileRequest(BaseModel):
     phone_number: str | None = None
 
 
+class UpdateCompanyUserRequest(BaseModel):
+    email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    phone_number: str | None = None
+    company_id: UUID | None = None
+
+
+class AdminUpdateCompanyUserRequest(BaseModel):
+    email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    phone_number: str | None = None
+    company_id: UUID | None = None
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str

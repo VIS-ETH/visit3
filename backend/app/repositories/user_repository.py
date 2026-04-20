@@ -84,17 +84,26 @@ class UserRepository(BaseRepository[User]):
             await self.session.rollback()
             raise e
 
-    async def update_user_profile(
+    async def update_company_user(
         self,
         user: User,
-        first_name: str | None,
-        last_name: str | None,
-        phone_number: str | None,
+        email: str | None = None,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        phone_number: str | None = None,
+        company_id: uuid.UUID | None = None,
     ) -> User:
         try:
-            user.first_name = first_name
-            user.last_name = last_name
-            user.phone_number = phone_number
+            if email is not None:
+                user.email = email
+            if first_name is not None:
+                user.first_name = first_name
+            if last_name is not None:
+                user.last_name = last_name
+            if phone_number is not None:
+                user.phone_number = phone_number
+            if company_id is not None:
+                user.company_id = company_id
 
             self.session.add(user)
             await self.session.commit()
