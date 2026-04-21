@@ -1,12 +1,14 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID, uuid4
-from pydantic import field_validator
-from sqlmodel import Column, DateTime, Relationship, SQLModel, Field, func
 
 from app.core.utils import normalize_email
 from app.models.company import Company
+from pydantic import field_validator
+from sqlmodel import Column, DateTime, Field, Relationship, SQLModel, func
 
+if TYPE_CHECKING:
+    from app.models.kp_event import KpEventBooking
 
 class UserRole(SQLModel, table=True):
     user_id: UUID = Field(foreign_key="user.id", primary_key=True)
@@ -44,6 +46,9 @@ class User(SQLModel, table=True):
 
     company_id: Optional[UUID] = Field(default=None, foreign_key="company.id")
     company: Optional["Company"] = Relationship(back_populates="users")
+    main_contact_bookings: list["KpEventBooking"] = Relationship(
+        back_populates="main_contact"
+    )
 
     @field_validator("email", mode="before")
     @classmethod

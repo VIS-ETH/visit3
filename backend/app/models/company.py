@@ -4,6 +4,7 @@ from sqlmodel import Column, DateTime, Relationship, SQLModel, Field, func
 from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
+    from app.models.kp_event import KpEventBooking
     from app.models.user import User
 
 
@@ -13,6 +14,7 @@ class Company(SQLModel, table=True):
 
     users: list["User"] = Relationship(back_populates="company")
     invites: list["CompanyInvite"] = Relationship(back_populates="company")
+    bookings: list["KpEventBooking"] = Relationship(back_populates="company")
 
 
 class CompanyInvite(SQLModel, table=True):
