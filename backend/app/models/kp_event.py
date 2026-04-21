@@ -91,6 +91,10 @@ class KpEventBooking(SQLModel, table=True):
 class KpEventBoothZoneServiceLink(SQLModel, table=True):
     booth_zone_id: UUID = Field(foreign_key="kpeventboothzone.id", primary_key=True)
     service_id: UUID = Field(foreign_key="kpeventservice.id", primary_key=True)
+    included_quantity: int = Field(default=1, ge=1)
+
+    booth_zone: "KpEventBoothZone" = Relationship(back_populates="included_services")
+    service: "KpEventService" = Relationship(back_populates="booth_zones")
 
 
 class KpEventBoothZone(SQLModel, table=True):
@@ -114,9 +118,8 @@ class KpEventBoothZone(SQLModel, table=True):
     deleted: bool = Field(default=False)
 
     event: KpEvent | None = Relationship(back_populates="booth_zones")
-    included_services: list["KpEventService"] = Relationship(
-        back_populates="booth_zones",
-        link_model=KpEventBoothZoneServiceLink,
+    included_services: list["KpEventBoothZoneServiceLink"] = Relationship(
+        back_populates="booth_zone"
     )
     bookings: list["KpEventBooking"] = Relationship(back_populates="booth_zone")
 
@@ -175,9 +178,8 @@ class KpEventService(SQLModel, table=True):
     deleted: bool = Field(default=False)
 
     event: KpEvent | None = Relationship(back_populates="services")
-    booth_zones: list["KpEventBoothZone"] = Relationship(
-        back_populates="included_services",
-        link_model=KpEventBoothZoneServiceLink,
+    booth_zones: list["KpEventBoothZoneServiceLink"] = Relationship(
+        back_populates="service"
     )
     booking_services: list["KpEventBookingService"] = Relationship(
         back_populates="service"
