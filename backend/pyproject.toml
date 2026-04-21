@@ -19,3 +19,9 @@ dependencies = [
     "cryptography>=46.0.5",
     "phonenumbers>=9.0.24",
 ]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
