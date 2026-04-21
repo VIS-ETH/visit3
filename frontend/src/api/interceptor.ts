@@ -50,9 +50,14 @@ interface ErrorResponse {
   identifier?: string;
   message?: string;
   statusCode?: number;
-  redirectTo?: string;
   detail?: unknown;
 }
+
+const ERROR_CODE_REDIRECTS: Record<string, string> = {
+  "error.email_not_confirmed": "/unconfirmed-email",
+  "error.not_confirmed": "/unconfirmed-user",
+  "csrf.validation_failed": "/login",
+};
 
 const getErrorMessage = (errorResponse: ErrorResponse | undefined): string => {
   const detail =
@@ -91,7 +96,9 @@ api.interceptors.response.use(
 
     const errorResponse = error?.response?.data as ErrorResponse;
     const status = errorResponse?.statusCode ?? error?.response?.status ?? 0;
-    const redirectTo = errorResponse?.redirectTo ?? undefined;
+    const redirectTo = errorResponse?.code
+      ? ERROR_CODE_REDIRECTS[errorResponse.code]
+      : undefined;
 
     if (status > 0 && status < 400) {
       return Promise.reject(error);

@@ -110,8 +110,8 @@ async def _csrf_dep(request: Request, csrf_protect: Annotated[CsrfProtect, Depen
             raise HTTPException(
                 status_code=403,
                 detail={
-                    "message": "csrf.validation_failed",
-                    "redirectTo": "/login",
+                    "code": "csrf.validation_failed",
+                    "message": "CSRF validation failed",
                 },
             )
 
