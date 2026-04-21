@@ -42,7 +42,7 @@ class User(SQLModel, table=True):
 
     roles: List["Role"] = Relationship(back_populates="users", link_model=UserRole)
 
-    company_id: Optional[UUID] = Field(default=None, foreign_key="company.id")
+    company_id: Optional[UUID] = Field(default=None, foreign_key="company.id", index=True)
     company: Optional["Company"] = Relationship(back_populates="users")
 
     @field_validator("email", mode="before")
@@ -67,7 +67,7 @@ class RefreshToken(SQLModel, table=True):
     )
 
     expires_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False, index=True)
     )
 
 
@@ -87,7 +87,7 @@ class ForgetPasswordToken(SQLModel, table=True):
     )
 
     expires_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False, index=True)
     )
 
 
@@ -107,5 +107,5 @@ class ConfirmEmailToken(SQLModel, table=True):
     )
 
     expires_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False)
+        sa_column=Column(DateTime(timezone=True), nullable=False, index=True)
     )

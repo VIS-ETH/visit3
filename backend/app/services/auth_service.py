@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import asyncio
 import secrets
 import logging
 from typing import List
@@ -49,7 +50,7 @@ class AuthService:
         user = await self.user_repository.get_by_email(email)
         if not user:
             return False
-        if not self.verify_password(password, user.password):
+        if not await self.verify_password(password, user.password):
             return False
         return user
 
@@ -81,11 +82,11 @@ class AuthService:
     async def verify_refresh_token(self, raw_token: str):
         return await self.token_repository.get_refresh_token(hash_str(raw_token))
 
-    def verify_password(self, plain_password: str, hashed_password: str):
-        return password_hash.verify(plain_password, hashed_password)
+    async def verify_password(self, plain_password: str, hashed_password: str):
+        return await asyncio.to_thread(password_hash.verify, plain_password, hashed_password)
 
-    def hash_password(self, password: str):
-        return password_hash.hash(password)
+    async def hash_password(self, password: str):
+        return await asyncio.to_thread(password_hash.hash, password)
 
     async def create_forget_password_token(self, user: User):
         raw_token = secrets.token_urlsafe(32)
@@ -109,7 +110,7 @@ class AuthService:
                 phone_number, phonenumbers.PhoneNumberFormat.E164
             )
 
-        user.password = self.hash_password(user.password)
+        user.password = await self.hash_password(user.password)
         user.is_admin = False
         user.is_staff = False
         user.is_company = True
@@ -177,7 +178,7 @@ class AuthService:
 
         try:
             await self.user_repository.update_password(
-                forget_token.user_id, self.hash_password(new_password)
+                forget_token.user_id, await self.hash_password(new_password)
             )
             await self.token_repository.revoke_all_refresh_tokens(forget_token.user_id)
             await self.token_repository.revoke_forget_password_token(hashed)
