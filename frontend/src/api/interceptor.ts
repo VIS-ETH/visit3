@@ -42,7 +42,7 @@ api.interceptors.request.use(
 
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 interface ErrorResponse {
@@ -65,11 +65,11 @@ const getErrorMessage = (errorResponse: ErrorResponse | undefined): string => {
       ? errorResponse.detail
       : undefined;
   const translationKeyCandidates = [errorResponse?.code, detail].filter(
-    (value): value is string => Boolean(value)
+    (value): value is string => Boolean(value),
   );
 
   const translatedKey = translationKeyCandidates.find((key) =>
-    i18n.exists(key)
+    i18n.exists(key),
   );
 
   if (translatedKey) {
@@ -121,7 +121,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

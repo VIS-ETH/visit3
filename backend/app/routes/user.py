@@ -6,7 +6,11 @@ from fastapi import APIRouter, Cookie, Response
 
 from app.core.deps import CsrfDep, UserServiceDep
 from app.models.user import User
-from app.schemas.user import CompanyUserResponse, UpdateCompanyUserRequest, UpdateUserProfileRequest
+from app.schemas.user import (
+    CompanyUserResponse,
+    UpdateCompanyUserRequest,
+    UpdateUserProfileRequest,
+)
 
 logger = logging.getLogger(__name__)
 

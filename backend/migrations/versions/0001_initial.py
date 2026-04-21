@@ -63,14 +63,28 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("token", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("is_revoked", sa.Boolean(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=True,
+        ),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["user.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_confirmemailtoken_id"), "confirmemailtoken", ["id"], unique=False)
-    op.create_index(op.f("ix_confirmemailtoken_token"), "confirmemailtoken", ["token"], unique=True)
-    op.create_index(op.f("ix_confirmemailtoken_user_id"), "confirmemailtoken", ["user_id"], unique=False)
+    op.create_index(
+        op.f("ix_confirmemailtoken_id"), "confirmemailtoken", ["id"], unique=False
+    )
+    op.create_index(
+        op.f("ix_confirmemailtoken_token"), "confirmemailtoken", ["token"], unique=True
+    )
+    op.create_index(
+        op.f("ix_confirmemailtoken_user_id"),
+        "confirmemailtoken",
+        ["user_id"],
+        unique=False,
+    )
 
     op.create_table(
         "forgetpasswordtoken",
@@ -78,14 +92,31 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("token", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("is_revoked", sa.Boolean(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=True,
+        ),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["user.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_forgetpasswordtoken_id"), "forgetpasswordtoken", ["id"], unique=False)
-    op.create_index(op.f("ix_forgetpasswordtoken_token"), "forgetpasswordtoken", ["token"], unique=True)
-    op.create_index(op.f("ix_forgetpasswordtoken_user_id"), "forgetpasswordtoken", ["user_id"], unique=False)
+    op.create_index(
+        op.f("ix_forgetpasswordtoken_id"), "forgetpasswordtoken", ["id"], unique=False
+    )
+    op.create_index(
+        op.f("ix_forgetpasswordtoken_token"),
+        "forgetpasswordtoken",
+        ["token"],
+        unique=True,
+    )
+    op.create_index(
+        op.f("ix_forgetpasswordtoken_user_id"),
+        "forgetpasswordtoken",
+        ["user_id"],
+        unique=False,
+    )
 
     op.create_table(
         "refreshtoken",
@@ -93,14 +124,23 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("token", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("is_revoked", sa.Boolean(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=True,
+        ),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["user.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_refreshtoken_id"), "refreshtoken", ["id"], unique=False)
-    op.create_index(op.f("ix_refreshtoken_token"), "refreshtoken", ["token"], unique=True)
-    op.create_index(op.f("ix_refreshtoken_user_id"), "refreshtoken", ["user_id"], unique=False)
+    op.create_index(
+        op.f("ix_refreshtoken_token"), "refreshtoken", ["token"], unique=True
+    )
+    op.create_index(
+        op.f("ix_refreshtoken_user_id"), "refreshtoken", ["user_id"], unique=False
+    )
 
     op.create_table(
         "userrole",
@@ -142,8 +182,12 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_refreshtoken_token"), table_name="refreshtoken")
     op.drop_index(op.f("ix_refreshtoken_id"), table_name="refreshtoken")
     op.drop_table("refreshtoken")
-    op.drop_index(op.f("ix_forgetpasswordtoken_user_id"), table_name="forgetpasswordtoken")
-    op.drop_index(op.f("ix_forgetpasswordtoken_token"), table_name="forgetpasswordtoken")
+    op.drop_index(
+        op.f("ix_forgetpasswordtoken_user_id"), table_name="forgetpasswordtoken"
+    )
+    op.drop_index(
+        op.f("ix_forgetpasswordtoken_token"), table_name="forgetpasswordtoken"
+    )
     op.drop_index(op.f("ix_forgetpasswordtoken_id"), table_name="forgetpasswordtoken")
     op.drop_table("forgetpasswordtoken")
     op.drop_index(op.f("ix_confirmemailtoken_user_id"), table_name="confirmemailtoken")

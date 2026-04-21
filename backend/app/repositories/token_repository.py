@@ -15,7 +15,9 @@ class TokenRepository:
         self, user_id: UUID, hashed_token: str, expires_at: DateTime
     ) -> RefreshToken:
         try:
-            token = RefreshToken(user_id=user_id, token=hashed_token, expires_at=expires_at)
+            token = RefreshToken(
+                user_id=user_id, token=hashed_token, expires_at=expires_at
+            )
             self.session.add(token)
             await self.session.commit()
             await self.session.refresh(token)
@@ -33,7 +35,9 @@ class TokenRepository:
         try:
             await self.session.execute(
                 update(RefreshToken)
-                .where(RefreshToken.token == hashed_token, RefreshToken.user_id == user_id)
+                .where(
+                    RefreshToken.token == hashed_token, RefreshToken.user_id == user_id
+                )
                 .values(is_revoked=True)
             )
             await self.session.commit()
@@ -57,7 +61,9 @@ class TokenRepository:
         self, hashed_token: str, user_id: UUID, expires_at: DateTime
     ) -> ForgetPasswordToken:
         try:
-            token = ForgetPasswordToken(user_id=user_id, token=hashed_token, expires_at=expires_at)
+            token = ForgetPasswordToken(
+                user_id=user_id, token=hashed_token, expires_at=expires_at
+            )
             self.session.add(token)
             await self.session.commit()
             await self.session.refresh(token)
@@ -66,7 +72,9 @@ class TokenRepository:
             await self.session.rollback()
             raise e
 
-    async def get_forget_password_token(self, hashed_token: str) -> ForgetPasswordToken | None:
+    async def get_forget_password_token(
+        self, hashed_token: str
+    ) -> ForgetPasswordToken | None:
         statement = select(ForgetPasswordToken).where(
             ForgetPasswordToken.token == hashed_token,
             ForgetPasswordToken.expires_at > datetime.now(timezone.utc),
@@ -91,7 +99,9 @@ class TokenRepository:
         self, hashed_token: str, user_id: UUID, expires_at: DateTime
     ) -> ConfirmEmailToken:
         try:
-            token = ConfirmEmailToken(token=hashed_token, user_id=user_id, expires_at=expires_at)
+            token = ConfirmEmailToken(
+                token=hashed_token, user_id=user_id, expires_at=expires_at
+            )
             self.session.add(token)
             await self.session.commit()
             await self.session.refresh(token)
@@ -100,7 +110,9 @@ class TokenRepository:
             await self.session.rollback()
             raise e
 
-    async def validate_confirm_email_token(self, user_id: UUID, hashed_token: str) -> bool:
+    async def validate_confirm_email_token(
+        self, user_id: UUID, hashed_token: str
+    ) -> bool:
         statement = select(ConfirmEmailToken).where(
             ConfirmEmailToken.user_id == user_id,
             ConfirmEmailToken.token == hashed_token,

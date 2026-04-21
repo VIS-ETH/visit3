@@ -69,7 +69,10 @@ async def app_error_handler(request: Request, exc: AppError):
     )
 
 
-origins = [get_settings().VISIT_FRONTEND_SERVER_URL, get_settings().SIP_AUTH_OIDC_ISSUER]
+origins = [
+    get_settings().VISIT_FRONTEND_SERVER_URL,
+    get_settings().SIP_AUTH_OIDC_ISSUER,
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -78,6 +81,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.get("/health")
 async def health():

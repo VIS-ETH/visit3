@@ -40,7 +40,6 @@ class UpdateCompanyUserRequest(BaseModel):
     company_id: UUID | None = None
 
 
-
 class Token(BaseModel):
     access_token: str
     token_type: str

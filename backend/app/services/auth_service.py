@@ -83,7 +83,9 @@ class AuthService:
         return await self.token_repository.get_refresh_token(hash_str(raw_token))
 
     async def verify_password(self, plain_password: str, hashed_password: str):
-        return await asyncio.to_thread(password_hash.verify, plain_password, hashed_password)
+        return await asyncio.to_thread(
+            password_hash.verify, plain_password, hashed_password
+        )
 
     async def hash_password(self, password: str):
         return await asyncio.to_thread(password_hash.hash, password)
@@ -92,7 +94,9 @@ class AuthService:
         raw_token = secrets.token_urlsafe(32)
         hashed_token = hash_str(raw_token)
         expire = datetime.now(timezone.utc) + FORGET_PASSWORD_TOKEN_EXPIRE
-        await self.token_repository.save_forget_password_token(hashed_token, user.id, expire)
+        await self.token_repository.save_forget_password_token(
+            hashed_token, user.id, expire
+        )
         return raw_token
 
     async def register_user(self, user: User):
@@ -149,7 +153,9 @@ class AuthService:
         if not user:
             raise TokenInvalid(f"refresh:{token.user_id}")
 
-        await self.token_repository.revoke_refresh_token(user.id, hash_str(refresh_token))
+        await self.token_repository.revoke_refresh_token(
+            user.id, hash_str(refresh_token)
+        )
 
         return await self.create_tokens(user)
 
@@ -189,7 +195,10 @@ class AuthService:
             raise e
 
     async def validate_reset_token(self, token: str):
-        return await self.token_repository.get_forget_password_token(hash_str(token)) is not None
+        return (
+            await self.token_repository.get_forget_password_token(hash_str(token))
+            is not None
+        )
 
     async def keycloak_callback(self, code: str):
         settings = get_settings()
@@ -202,7 +211,9 @@ class AuthService:
         }
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(settings.SIP_AUTH_OIDC_TOKEN_ENDPOINT, data=payload)
+            response = await client.post(
+                settings.SIP_AUTH_OIDC_TOKEN_ENDPOINT, data=payload
+            )
 
         if response.status_code != 200:
             raise KeycloakExchangeFailed(f"keycloak_callback:{code}")
@@ -222,8 +233,7 @@ class AuthService:
             keycloak_roles = [get_settings().ADMIN_GROUP]
         else:
             keycloak_roles = (
-                decoded_token
-                .get("resource_access", {})
+                decoded_token.get("resource_access", {})
                 .get(get_settings().SIP_AUTH_OIDC_CLIENT_ID, {})
                 .get("roles", [])
             )
@@ -231,7 +241,9 @@ class AuthService:
         first_name = decoded_token.get("given_name", "")
         last_name = decoded_token.get("family_name", "")
 
-        admin, roles = await self.map_keycloak_roles(keycloak_roles, ["vis-active", "admin"])
+        admin, roles = await self.map_keycloak_roles(
+            keycloak_roles, ["vis-active", "admin"]
+        )
 
         return await self.user_repository.create_or_update_user(
             User(

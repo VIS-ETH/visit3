@@ -89,7 +89,7 @@ export default function CompanyManagement() {
   const handleOpenDeleteModal = (
     companyId: string,
     companyName: string,
-    usersCount: number
+    usersCount: number,
   ) => {
     if (!adminStatus) return;
     setCompanyToDelete({
@@ -225,7 +225,7 @@ export default function CompanyManagement() {
                         handleOpenDeleteModal(
                           company.id,
                           company.name,
-                          company.users.length
+                          company.users.length,
                         )
                       }
                     >

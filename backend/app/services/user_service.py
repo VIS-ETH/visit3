@@ -16,7 +16,6 @@ CONFIRM_EMAIL_TOKEN_EXPIRE = timedelta(days=3)
 
 
 class UserService:
-
     def __init__(
         self,
         user_repository: UserRepository,
@@ -36,7 +35,9 @@ class UserService:
         await self.token_repository.revoke_confirm_email_tokens(self.current_user.id)
         raw_token = await self.create_confirm_email_token()
 
-        await self.mail_service.send_confirm_email_mail(self.current_user.email, raw_token)
+        await self.mail_service.send_confirm_email_mail(
+            self.current_user.email, raw_token
+        )
 
     async def create_confirm_email_token(self):
         raw_token = secrets.token_urlsafe(32)
@@ -53,7 +54,9 @@ class UserService:
         )
 
         if not token_is_valid:
-            logger.warning(f"Email confirmation failed for user: {self.current_user.email}")
+            logger.warning(
+                f"Email confirmation failed for user: {self.current_user.email}"
+            )
             raise TokenInvalid(f"confirm_email:{self.current_user.id}")
 
         await self.user_repository.confirm_email(self.current_user)

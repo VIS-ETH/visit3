@@ -117,14 +117,12 @@ async def keycloak_callback(
     oauth_state: str = Cookie(None),
 ):
     if not oauth_state or state != oauth_state:
-        raise HTTPException(
-            status_code=400, detail="State mismatch. CSRF suspected.")
+        raise HTTPException(status_code=400, detail="State mismatch. CSRF suspected.")
 
     try:
         refresh_token = await auth_service.keycloak_callback(code)
     except KeycloakExchangeFailed as e:
-        raise HTTPException(
-            status_code=400, detail=f"Exchange failed: {e.identifier}")
+        raise HTTPException(status_code=400, detail=f"Exchange failed: {e.identifier}")
 
     response = RedirectResponse(url=get_settings().VISIT_FRONTEND_SERVER_URL)
 

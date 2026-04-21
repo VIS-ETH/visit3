@@ -50,7 +50,7 @@ class KpRepository(BaseRepository[KpEvent]):
         except Exception as e:
             await self.session.rollback()
             raise e
-        
+
     async def register_company_for_kp(self, company_id: UUID, event_id: UUID):
         try:
             link = KpEventCompanyLink(event_id=event_id, company_id=company_id)
@@ -59,7 +59,7 @@ class KpRepository(BaseRepository[KpEvent]):
         except Exception as e:
             await self.session.rollback()
             raise e
-        
+
     async def deregister_company_from_kp(self, company_id: UUID, event_id: UUID):
         try:
             statement = select(KpEventCompanyLink).where(
@@ -75,11 +75,10 @@ class KpRepository(BaseRepository[KpEvent]):
         except Exception as e:
             await self.session.rollback()
             raise e
-        
+
     async def list_companies_for_kp(self, event_id: UUID) -> list[UUID]:
         statement = select(KpEventCompanyLink).where(
-            KpEventCompanyLink.event_id == event_id,
-            KpEventCompanyLink.deleted == False
+            KpEventCompanyLink.event_id == event_id, KpEventCompanyLink.deleted == False
         )
         result = await self.session.execute(statement)
         return [link.company_id for link in result.scalars().all()]

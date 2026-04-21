@@ -53,7 +53,6 @@ async def accept_company_invite(
     return await company_service.accept_invite(token)
 
 
-
 @router.get("/{company_id}/users", operation_id="getCompanyUsers")
 async def get_company_users(
     company_service: CompanyServiceDep,

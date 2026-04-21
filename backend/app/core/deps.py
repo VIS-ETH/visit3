@@ -59,8 +59,7 @@ async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
 ):
     try:
-        payload = jwt.decode(
-            token, get_settings().SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(token, get_settings().SECRET_KEY, algorithms=["HS256"])
         username = payload.get("sub")
         if username is None:
             logger.warning("JWT decode failed - no sub claim")
@@ -80,8 +79,7 @@ async def get_current_user(
         logger.warning(
             f"JWT user lookup failed - user not found: {token_data.username}"
         )
-        raise Unauthenticated(
-            f"jwt_decode:user_not_found:{token_data.username}")
+        raise Unauthenticated(f"jwt_decode:user_not_found:{token_data.username}")
     logger.debug(f"User authenticated: {user.email}")
 
     impersonate_id = request.headers.get("X-Impersonate-User-Id")
@@ -164,8 +162,7 @@ async def get_company_repository(
     return CompanyRepository(session)
 
 
-CompanyRepositoryDep = Annotated[CompanyRepository, Depends(
-    get_company_repository)]
+CompanyRepositoryDep = Annotated[CompanyRepository, Depends(get_company_repository)]
 
 
 async def get_kp_repository(

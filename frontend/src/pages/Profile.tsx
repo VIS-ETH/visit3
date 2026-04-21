@@ -54,7 +54,7 @@ function toNormalizedProfile(values: {
 
 function hasMeaningfulChanges(
   next: NormalizedProfile,
-  current: NormalizedProfile
+  current: NormalizedProfile,
 ) {
   return (
     next.firstName !== current.firstName ||
@@ -237,7 +237,6 @@ export default function Profile() {
             </Text>
           </Stack>
         </Paper>
-
       </Stack>
     </Center>
   );

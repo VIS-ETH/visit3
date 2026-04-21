@@ -21,8 +21,12 @@ def upgrade() -> None:
     op.create_index("ix_user_company_id", "user", ["company_id"])
 
     op.create_index("ix_refreshtoken_expires_at", "refreshtoken", ["expires_at"])
-    op.create_index("ix_forgetpasswordtoken_expires_at", "forgetpasswordtoken", ["expires_at"])
-    op.create_index("ix_confirmemailtoken_expires_at", "confirmemailtoken", ["expires_at"])
+    op.create_index(
+        "ix_forgetpasswordtoken_expires_at", "forgetpasswordtoken", ["expires_at"]
+    )
+    op.create_index(
+        "ix_confirmemailtoken_expires_at", "confirmemailtoken", ["expires_at"]
+    )
 
 
 def downgrade() -> None:

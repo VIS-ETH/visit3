@@ -57,8 +57,7 @@ class KpService:
         if kp is None:
             raise ValueError(f"KpEvent with id {event_id} not found")
         if not kp.is_registration_open():
-            raise ValueError(
-                f"Registration for KpEvent with id {event_id} is not open")
+            raise ValueError(f"Registration for KpEvent with id {event_id} is not open")
         await self.kp_repository.register_company_for_kp(
             company_id=self.current_user.company_id, event_id=event_id
         )

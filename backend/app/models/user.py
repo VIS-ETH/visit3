@@ -42,7 +42,9 @@ class User(SQLModel, table=True):
 
     roles: List["Role"] = Relationship(back_populates="users", link_model=UserRole)
 
-    company_id: Optional[UUID] = Field(default=None, foreign_key="company.id", index=True)
+    company_id: Optional[UUID] = Field(
+        default=None, foreign_key="company.id", index=True
+    )
     company: Optional["Company"] = Relationship(back_populates="users")
 
     @field_validator("email", mode="before")
