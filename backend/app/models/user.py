@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID, uuid4
+
 from pydantic import field_validator
-from sqlmodel import Column, DateTime, Relationship, SQLModel, Field, func
+from sqlmodel import Column, DateTime, Field, Relationship, SQLModel, func
 
 from app.core.utils import normalize_email
 from app.models.company import Company

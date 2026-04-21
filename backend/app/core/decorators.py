@@ -1,4 +1,5 @@
 import logging
+
 from app.core.exceptions import EmailNotConfirmed, NotAllowed, UserNotConfirmed
 
 logger = logging.getLogger(__name__)

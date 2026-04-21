@@ -3,7 +3,7 @@ from typing import Optional
 from uuid import UUID
 
 from app.core.config import get_settings
-from app.core.decorators import require_admin, require_confirmed_company, require_role
+from app.core.decorators import require_confirmed_company, require_role
 from app.core.exceptions import KpYearExists
 from app.models.company import Company
 from app.models.kp_event import KpEvent

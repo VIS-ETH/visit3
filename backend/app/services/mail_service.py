@@ -1,10 +1,11 @@
-from typing import List, Optional
 import logging
-import grpc
-from app.generated.sip.notifications import mail_pb2 as mail_pb
-from app.core.config import get_settings
-from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
+from typing import List, Optional
 
+import grpc
+
+from app.core.config import get_settings
+from app.generated.sip.notifications import mail_pb2 as mail_pb
+from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
-from sqlmodel import Column, DateTime, Relationship, SQLModel, Field, func
 from uuid import UUID, uuid4
+
+from sqlmodel import Column, DateTime, Field, Relationship, SQLModel, func
 
 if TYPE_CHECKING:
     from app.models.user import User

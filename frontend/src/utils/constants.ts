@@ -6,5 +6,5 @@ export interface ConfigOptions {
 }
 
 export function configOptions() {
-  return (window as any).configOptions as ConfigOptions;
+  return (window as unknown as { configOptions: ConfigOptions }).configOptions;
 }

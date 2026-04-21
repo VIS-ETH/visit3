@@ -1,5 +1,7 @@
 from uuid import UUID
-from fastapi import APIRouter, status
+
+from fastapi import APIRouter
+
 from app.core.deps import CompanyServiceDep, CsrfDep, UserServiceDep
 from app.models.company import Company
 from app.models.user import User

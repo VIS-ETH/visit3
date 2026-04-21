@@ -1,7 +1,8 @@
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
-import logging
+
 from app.core.decorators import require_admin, require_confirmed_company, require_staff
 from app.core.exceptions import (
     CompanyNotFound,

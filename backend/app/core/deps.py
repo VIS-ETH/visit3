@@ -1,29 +1,31 @@
-from app.services.kp_service import KpService
-from app.services.company_service import CompanyService
-from app.services.user_service import UserService
-from app.services.mail_service import MailService
-from app.services.auth_service import AuthService
-from app.core.grpc import grpc_client
-from typing import Annotated
 import logging
+from typing import Annotated
 from uuid import UUID
+
+import jwt
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi_csrf_protect import CsrfProtect
-import jwt
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
+
+from app.core.config import get_settings
+from app.core.exceptions import NotAllowed, Unauthenticated
+from app.core.grpc import grpc_client
+from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 from app.models.user import User
+from app.repositories.company_repository import CompanyRepository
+from app.repositories.kp_repository import KpRepository
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
-from app.repositories.company_repository import CompanyRepository
-from app.repositories.kp_repository import KpRepository
 from app.schemas.user import TokenData
-from app.core.config import get_settings
-from app.core.exceptions import NotAllowed, Unauthenticated
-from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
+from app.services.auth_service import AuthService
+from app.services.company_service import CompanyService
+from app.services.kp_service import KpService
+from app.services.mail_service import MailService
+from app.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,8 @@
-from typing import TypeVar, Generic
+from typing import Generic, TypeVar
+
 from sqlalchemy import ColumnElement
-from sqlmodel import SQLModel, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import SQLModel, select
 
 T = TypeVar("T", bound=SQLModel)
 

@@ -1,5 +1,5 @@
-from typing import Annotated, List
 import logging
+from typing import Annotated, List
 from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Response

@@ -1,8 +1,9 @@
 import asyncio
 import logging
-import grpc
-from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 
+import grpc
+
+from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 
 logger = logging.getLogger(__name__)
 

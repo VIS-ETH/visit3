@@ -8,10 +8,9 @@ Create Date: 2026-04-20
 
 from typing import Sequence, Union
 
+import sqlalchemy as sa
 import sqlmodel
 from alembic import op
-import sqlalchemy as sa
-
 
 revision: str = "0002"
 down_revision: Union[str, Sequence[str], None] = "0001"

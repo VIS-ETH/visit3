@@ -1,26 +1,26 @@
-import secrets
 import logging
+import secrets
 from typing import Annotated
+
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
+
+from app.core.config import get_settings
+from app.core.deps import AuthServiceDep, CsrfDep
+from app.core.exceptions import (
+    KeycloakExchangeFailed,
+    ResetPasswordError,
+    TokenInvalid,
+    Unauthenticated,
+)
+from app.models.user import User
 from app.schemas.user import (
     ForgetPasswordRequest,
     RegisterUserRequest,
     ResetPasswordRequest,
     Token,
 )
-from app.models.user import User
-from app.core.config import get_settings
-from app.core.exceptions import (
-    KeycloakExchangeFailed,
-    PasswordWrong,
-    ResetPasswordError,
-    TokenInvalid,
-    Unauthenticated,
-    UserNotFound,
-)
-from app.core.deps import CsrfDep, AuthServiceDep
 from app.services.auth_service import REFRESH_TOKEN_EXPIRE
 
 logger = logging.getLogger(__name__)
@@ -88,7 +88,7 @@ async def refresh_user(
 async def forget_password(auth_service: AuthServiceDep, request: ForgetPasswordRequest):
     try:
         return await auth_service.forget_password(request.email)
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="gRPC call failed")
 
 

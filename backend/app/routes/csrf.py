@@ -1,4 +1,5 @@
 from typing import Annotated
+
 from fastapi import APIRouter, Depends, Response
 from fastapi_csrf_protect import CsrfProtect
 

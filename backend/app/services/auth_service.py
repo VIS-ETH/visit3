@@ -1,28 +1,30 @@
-from datetime import datetime, timedelta, timezone
 import asyncio
-import secrets
 import logging
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import List
+
 import httpx
 import jwt
 import phonenumbers
 from pwdlib import PasswordHash
-from app.core.security import decode_token
-from app.core.utils import hash_str
-from app.models.user import User
+
+from app.core.config import get_settings
 from app.core.exceptions import (
     EmailUsed,
     KeycloakExchangeFailed,
+    NotAllowed,
     PasswordTooShort,
     PasswordWrong,
     PhoneNumberInvalid,
     TokenInvalid,
-    NotAllowed,
 )
-from app.core.config import get_settings
+from app.core.security import decode_token
+from app.core.utils import hash_str
+from app.models.user import User
 from app.repositories.role_repository import RoleRepository
-from app.repositories.user_repository import UserRepository
 from app.repositories.token_repository import TokenRepository
+from app.repositories.user_repository import UserRepository
 from app.services.mail_service import MailService
 
 logger = logging.getLogger(__name__)

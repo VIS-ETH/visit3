@@ -1,12 +1,12 @@
-from datetime import datetime, timezone
-from typing import List
 import uuid
+from typing import List
+
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlmodel import update, select
+from sqlmodel import select, update
+
 from app.core.utils import normalize_email
 from app.models.user import User
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.repositories.base import BaseRepository
 
 

@@ -1,6 +1,7 @@
-from app.models.user import Role, User
-from app.repositories.base import BaseRepository
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.user import Role
+from app.repositories.base import BaseRepository
 
 
 class RoleRepository(BaseRepository[Role]):
