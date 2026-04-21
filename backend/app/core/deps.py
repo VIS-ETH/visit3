@@ -11,8 +11,8 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi_csrf_protect import CsrfProtect
 import jwt
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, selectinload
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from app.models.user import User
 from app.repositories.role_repository import RoleRepository
@@ -31,11 +31,19 @@ oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/users/login", refreshUrl="/users/refresh"
 )
 
-engine = create_async_engine(get_settings().DATABASE_URL, echo=True)
+_settings = get_settings()
 
-SessionLocal = sessionmaker(
+engine = create_async_engine(
+    _settings.DATABASE_URL,
+    echo=_settings.DEBUG,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,
+    pool_timeout=30,
+)
+
+SessionLocal = async_sessionmaker(
     engine,
-    class_=AsyncSession,
     expire_on_commit=False,
 )
 

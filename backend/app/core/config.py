@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     ADMIN_GROUP: str
     VISIT_KP_PRESIDENT_ROLE: str
     DEBUG_KEYCLOAK_ADMIN: bool = False
+    DEBUG: bool = False
 
 
 @lru_cache
