@@ -86,6 +86,18 @@ class KpEventBooking(SQLModel, table=True):
     booth_zone: "KpEventBoothZone" = Relationship(back_populates="bookings")
     main_contact: User | None = Relationship(back_populates="main_contact_bookings")
     services: list["KpEventBookingService"] = Relationship(back_populates="booking")
+    name_tags: list["NameTag"] = Relationship(back_populates="booking")
+
+
+class NameTag(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    booking_id: UUID = Field(foreign_key="kpeventbooking.id")
+
+    first_name: str = Field(min_length=1)
+    last_name: str = Field(min_length=1)
+    position: str = Field(min_length=1)
+
+    booking: KpEventBooking = Relationship(back_populates="name_tags")
 
 
 class KpEventBoothZoneServiceLink(SQLModel, table=True):
