@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date
 from enum import Enum
 import re
@@ -5,7 +7,8 @@ from typing import Self
 from uuid import UUID, uuid4
 
 from pydantic import field_validator, model_validator
-from sqlalchemy import CheckConstraint
+from sqlalchemy import CheckConstraint, Column, Enum as SAEnum
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 from app.models.company import Company
@@ -87,6 +90,10 @@ class KpEventBooking(SQLModel, table=True):
     main_contact: User | None = Relationship(back_populates="main_contact_bookings")
     services: list["KpEventBookingService"] = Relationship(back_populates="booking")
     name_tags: list["NameTag"] = Relationship(back_populates="booking")
+    company_details: KpBookingCompanyDetails | None = Relationship(
+        back_populates="booking",
+        sa_relationship_kwargs={"uselist": False},
+    )
 
 
 class NameTag(SQLModel, table=True):
@@ -221,3 +228,70 @@ class KpEventBookingService(SQLModel, table=True):
         The charged quantity of the service. Subtracts the quantity that is already included in the booking (e.g. through the selected booth zone).
         """
         return max(self.quantity - self.included_quantity, 0)
+
+
+class KpCompanyLanguage(str, Enum):
+    ENGLISH = "ENGLISH"
+    GERMAN = "GERMAN"
+    FRENCH = "FRENCH"
+    ITALIAN = "ITALIAN"
+
+
+_kp_company_language_pg_enum = SAEnum(
+    KpCompanyLanguage,
+    name="kpcompanylanguage",
+    native_enum=True,
+)
+
+
+class KpIndustry(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    name: str = Field(min_length=1, index=True, unique=True)
+
+    company_details_links: list[KpBookingCompanyDetailsIndustryLink] = Relationship(
+        back_populates="industry",
+    )
+
+
+class KpBookingCompanyDetails(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    booking_id: UUID = Field(foreign_key="kpeventbooking.id", unique=True)
+
+    profile: str = Field(default="")  # markdown
+    brand_name: str = Field(default="")
+    address: str = Field(default="")
+    contact_person: str = Field(default="")
+    places_of_work: str = Field(default="")
+
+    employees_count: int | None = Field(default=None, ge=0)
+    employees_count_switzerland: int | None = Field(default=None, ge=0)
+
+    offer_internship: bool = Field(default=False)
+    offer_part_time: bool = Field(default=False)
+    offer_thesis: bool = Field(default=False)
+
+    languages: list[KpCompanyLanguage] = Field(
+        default_factory=list,
+        sa_column=Column(
+            ARRAY(_kp_company_language_pg_enum),
+            nullable=False,
+        ),
+    )
+
+    booking: KpEventBooking | None = Relationship(back_populates="company_details")
+    industry_links: list[KpBookingCompanyDetailsIndustryLink] = Relationship(
+        back_populates="booking_company_details",
+    )
+
+
+class KpBookingCompanyDetailsIndustryLink(SQLModel, table=True):
+    booking_company_details_id: UUID = Field(
+        foreign_key="kpbookingcompanydetails.id",
+        primary_key=True,
+    )
+    industry_id: UUID = Field(foreign_key="kpindustry.id", primary_key=True)
+
+    booking_company_details: KpBookingCompanyDetails = Relationship(
+        back_populates="industry_links",
+    )
+    industry: KpIndustry = Relationship(back_populates="company_details_links")
