@@ -15,7 +15,7 @@ from app.core.exceptions import (
     KeycloakExchangeFailed,
     NotAllowed,
     PasswordTooShort,
-    PasswordWrong,
+    InvalidCredentials,
     PhoneNumberInvalid,
     TokenInvalid,
 )
@@ -82,8 +82,8 @@ class AuthService:
         refresh_token = await self.create_refresh_token(user)
         return (access_token, refresh_token)
 
-    async def verify_refresh_token(self, raw_token: str):
-        return await self.token_repository.get_refresh_token(hash_str(raw_token))
+    async def get_active_refresh_token(self, raw_token: str):
+        return await self.token_repository.get_active_refresh_token(hash_str(raw_token))
 
     async def verify_and_update_password(self, user: User, plain_password: str) -> bool:
         valid, updated_hash = password_hash.verify_and_update(plain_password, user.password)
@@ -140,7 +140,7 @@ class AuthService:
         user = await self.authenticate_user(username, password)
         if not user:
             logger.warning(f"Login failed: invalid credentials for {username}")
-            raise PasswordWrong(f"login:{username}")
+            raise InvalidCredentials(f"login:{username}")
         logger.info(f"User login successful: {username}")
         return await self.create_tokens(user)
 
@@ -148,13 +148,9 @@ class AuthService:
         if not refresh_token:
             raise TokenInvalid("refresh:no_token")
 
-        token = await self.verify_refresh_token(refresh_token)
+        token = await self.get_active_refresh_token(refresh_token)
 
-        if (
-            not token
-            or token.is_revoked
-            or datetime.now(timezone.utc) > token.expires_at.astimezone(timezone.utc)
-        ):
+        if not token:
             raise TokenInvalid(f"refresh:{token.user_id if token else 'unknown'}")
 
         user = await self.user_repository.get_by_id(token.user_id)

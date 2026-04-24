@@ -26,8 +26,12 @@ class TokenRepository:
             await self.session.rollback()
             raise e
 
-    async def get_refresh_token(self, hashed_token: str) -> RefreshToken | None:
-        statement = select(RefreshToken).where(RefreshToken.token == hashed_token)
+    async def get_active_refresh_token(self, hashed_token: str) -> RefreshToken | None:
+        statement = select(RefreshToken).where(
+            RefreshToken.token == hashed_token,
+            RefreshToken.expires_at > datetime.now(timezone.utc),
+            RefreshToken.is_revoked == False,
+        )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 

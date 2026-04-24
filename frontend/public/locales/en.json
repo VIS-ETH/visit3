@@ -16,7 +16,7 @@
     "email_not_confirmed": "User email is not confirmed",
     "not_confirmed": "User is not confirmed by an admin",
     "phone_number_invalid": "Phone number is invalid",
-    "password_wrong": "Password is wrong",
+    "invalid_credentials": "Invalid credentials, please check your email and password",
     "email_used": "Email is already used",
     "password_too_short": "Password is too short",
     "reset_password_failed": "Password reset failed",

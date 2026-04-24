@@ -91,9 +91,9 @@ class PhoneNumberInvalid(AppError):
         )
 
 
-class PasswordWrong(AppError):
+class InvalidCredentials(AppError):
     def __init__(self, identifier: str):
-        super().__init__("Password is wrong", "error.password_wrong", identifier, 400)
+        super().__init__("Invalid credentials", "error.invalid_credentials", identifier, 400)
 
 
 class EmailUsed(AppError):

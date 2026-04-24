@@ -16,7 +16,7 @@
     "email_not_confirmed": "Die E-Mail des Benutzers ist nicht bestätigt",
     "not_confirmed": "Benutzer ist nicht durch einen Administrator bestätigt",
     "phone_number_invalid": "Telefonnummer ist ungültig",
-    "password_wrong": "Passwort ist falsch",
+    "invalid_credentials": "Ungültige Anmeldeinformationen, bitte überprüfen Sie Ihre E-Mail und Ihr Passwort",
     "email_used": "E-Mail wird bereits verwendet",
     "password_too_short": "Passwort ist zu kurz",
     "reset_password_failed": "Zurücksetzen des Passworts fehlgeschlagen",
