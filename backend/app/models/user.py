@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import EmailStr, field_validator
 from sqlmodel import Field, Relationship
 
-from app.core.utils import normalize_email
+from app.core.utils import normalize_email, strip_text
 from app.models.base import BaseEntity, BaseLink, BaseToken
 from app.models.company import Company
 
@@ -51,6 +51,11 @@ class User(BaseEntity, table=True):
     @classmethod
     def transform_email(cls, v: str) -> str:
         return normalize_email(v)
+
+    @field_validator("first_name", "last_name", mode="before")
+    @classmethod
+    def strip_names(cls, v: str | None) -> str | None:
+        return strip_text(v)
 
 
 class RefreshToken(BaseToken, table=True):

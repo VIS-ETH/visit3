@@ -11,6 +11,7 @@ from sqlalchemy import CheckConstraint, Column, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field, Relationship, UniqueConstraint
 
+from app.core.utils import strip_text
 from app.models.base import BaseEntity, BaseLink
 from app.models.company import Company
 from app.models.user import User
@@ -105,6 +106,11 @@ class NameTag(BaseEntity, table=True):
     position: str = Field(min_length=1)
 
     booking: KpEventBooking = Relationship(back_populates="name_tags")
+
+    @field_validator("first_name", "last_name", mode="before")
+    @classmethod
+    def strip_names(cls, value: str) -> str:
+        return strip_text(value)
 
 
 class KpEventBoothZoneServiceLink(BaseLink, table=True):
