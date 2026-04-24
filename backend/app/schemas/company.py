@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
 class CreateCompanyRequest(BaseModel):
@@ -16,7 +16,7 @@ class SetupCompanyRequest(BaseModel):
 
 
 class CreateInviteRequest(BaseModel):
-    email: str
+    email: EmailStr
 
 
 class InviteInfoResponse(BaseModel):

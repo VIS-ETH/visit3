@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
-from pydantic import field_validator
+from pydantic import EmailStr, field_validator
 from sqlmodel import Field, Relationship
 
 from app.core.utils import normalize_email
@@ -24,7 +24,7 @@ class Role(BaseEntity, table=True):
 
 
 class User(BaseEntity, table=True):
-    email: str = Field(unique=True, index=True)
+    email: EmailStr = Field(unique=True, index=True)
     sub: str | None = Field(default=None, index=True)
     password: str | None = None
 
@@ -47,7 +47,7 @@ class User(BaseEntity, table=True):
         back_populates="main_contact"
     )
 
-    @field_validator("email", mode="before")
+    @field_validator("email", mode="after")
     @classmethod
     def transform_email(cls, v: str) -> str:
         return normalize_email(v)

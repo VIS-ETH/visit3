@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
+from pydantic import EmailStr
 from sqlalchemy import Column, DateTime
 from sqlmodel import Field, Relationship
 
@@ -23,7 +24,7 @@ class Company(BaseEntity, table=True):
 class CompanyInvite(BaseEntity, table=True):
     token: str = Field(index=True, unique=True)
     company_id: UUID = Field(foreign_key="company.id")
-    invited_email: str
+    invited_email: EmailStr
     is_used: bool = Field(default=False)
     expires_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False)

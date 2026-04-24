@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
 class CompanyResponse(BaseModel):
@@ -20,7 +20,7 @@ class CompanyUserResponse(BaseModel):
 
 
 class RegisterUserRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
     first_name: str
     last_name: str
@@ -34,7 +34,7 @@ class UpdateUserProfileRequest(BaseModel):
 
 
 class UpdateCompanyUserRequest(BaseModel):
-    email: str | None = None
+    email: EmailStr | None = None
     first_name: str | None = None
     last_name: str | None = None
     phone_number: str | None = None
@@ -51,7 +51,7 @@ class TokenData(BaseModel):
 
 
 class ForgetPasswordRequest(BaseModel):
-    email: str
+    email: EmailStr
 
 
 class ResetPasswordRequest(BaseModel):
