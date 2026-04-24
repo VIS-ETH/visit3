@@ -58,7 +58,10 @@ class AuthService:
         return user
 
     async def create_access_token(self, user: User):
-        to_encode = {"sub": user.email}
+        to_encode = {
+            "sub": str(user.id), # we use the internal user id as the subject to have a uniform way to identify users, regardless of the login method (keycloak or password)
+            "email": user.email,
+        }
         expire = datetime.now(timezone.utc) + ACCESS_TOKEN_EXPIRE
         to_encode.update({"exp": expire})
         return jwt.encode(to_encode, get_settings().SECRET_KEY, algorithm="HS256")
@@ -233,7 +236,6 @@ class AuthService:
         return await self.create_refresh_token(user)
 
     async def map_keycloak_to_user(self, decoded_token: str):
-        email = decoded_token["email"]
         if get_settings().DEBUG_KEYCLOAK_ADMIN:
             keycloak_roles = [get_settings().ADMIN_GROUP]
         else:
@@ -242,14 +244,21 @@ class AuthService:
                 .get(get_settings().SIP_AUTH_OIDC_CLIENT_ID, {})
                 .get("roles", [])
             )
+
+        admin, roles = await self.map_keycloak_roles(keycloak_roles, ["vis-active", "admin"])
+
+        email = decoded_token["email"]
         sub = decoded_token["sub"]
         first_name = decoded_token.get("given_name", "")
         last_name = decoded_token.get("family_name", "")
 
+<<<<<<< HEAD
         admin, roles = await self.map_keycloak_roles(
             keycloak_roles, ["vis-active", "admin"]
         )
 
+=======
+>>>>>>> ddf6539 (Refactor user authentication flow to use user ID in JWT)
         return await self.user_repository.create_or_update_user(
             User(
                 email=email,

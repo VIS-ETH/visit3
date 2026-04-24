@@ -55,6 +55,16 @@ class UserRepository(BaseRepository[User]):
     async def get_by_sub(self, sub: str):
         return await self._get_by_field(User.sub, sub)
 
+    async def get_by_sub_or_email(self, sub: str | None, email: str | None) -> User | None:
+        """Get a user by sub first, then fallback to email if needed."""
+        if sub is not None:
+            user = await self.get_by_sub(sub)
+            if user is not None:
+                return user
+        if email is not None:
+            return await self.get_by_email(email)
+        return None
+
     async def get_unconfirmed_users(self) -> List[User]:
         statement = (
             select(User)
@@ -124,7 +134,7 @@ class UserRepository(BaseRepository[User]):
 
     async def create_or_update_user(self, user: User):
         try:
-            db_user = await self.get_by_email(user.email)
+            db_user = await self.get_by_sub_or_email(user.sub, user.email) 
             if db_user is None:
                 return await self.create_user(user)
             else:
