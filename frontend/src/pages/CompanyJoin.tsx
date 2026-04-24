@@ -1,4 +1,12 @@
-import { Alert, Button, Center, Loader, Stack, Text, Title } from "@mantine/core";
+import {
+  Alert,
+  Button,
+  Center,
+  Loader,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
 import { IconAlertCircle, IconBuilding } from "@tabler/icons-react";
 import { useNavigate, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
@@ -15,14 +23,20 @@ export default function CompanyJoin() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: invite, isLoading, isError } = useGetCompanyInviteInfo(token!, {
+  const {
+    data: invite,
+    isLoading,
+    isError,
+  } = useGetCompanyInviteInfo(token!, {
     query: { enabled: !!token },
   });
 
   const { mutate: accept, isPending } = useAcceptCompanyInvite({
     mutation: {
       onSuccess: async () => {
-        await queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+        await queryClient.invalidateQueries({
+          queryKey: getGetCurrentUserQueryKey(),
+        });
         navigate("/company", { replace: true });
       },
     },
@@ -39,7 +53,11 @@ export default function CompanyJoin() {
   if (isError || !invite) {
     return (
       <Center py="xl">
-        <Alert icon={<IconAlertCircle />} color="red" title={t("company_join.invalid")}>
+        <Alert
+          icon={<IconAlertCircle />}
+          color="red"
+          title={t("company_join.invalid")}
+        >
           {t("error.invite_not_found")}
         </Alert>
       </Center>
@@ -50,7 +68,9 @@ export default function CompanyJoin() {
     <Center py="xl">
       <Stack align="center" gap="lg" maw={480} w="90%" px="md">
         <IconBuilding size={48} />
-        <Title order={2} ta="center">{t("company_join.title")}</Title>
+        <Title order={2} ta="center">
+          {t("company_join.title")}
+        </Title>
         <Text ta="center" c="dimmed">
           {t("company_join.joining")} <strong>{invite.company_name}</strong>
         </Text>

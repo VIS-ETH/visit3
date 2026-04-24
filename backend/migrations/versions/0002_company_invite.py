@@ -8,10 +8,9 @@ Create Date: 2026-04-20
 
 from typing import Sequence, Union
 
+import sqlalchemy as sa
 import sqlmodel
 from alembic import op
-import sqlalchemy as sa
-
 
 revision: str = "0002"
 down_revision: Union[str, Sequence[str], None] = "0001"
@@ -27,12 +26,19 @@ def upgrade() -> None:
         sa.Column("company_id", sa.Uuid(), nullable=False),
         sa.Column("invited_email", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("is_used", sa.Boolean(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=True,
+        ),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["company_id"], ["company.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_companyinvite_token"), "companyinvite", ["token"], unique=True)
+    op.create_index(
+        op.f("ix_companyinvite_token"), "companyinvite", ["token"], unique=True
+    )
 
 
 def downgrade() -> None:

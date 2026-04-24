@@ -29,15 +29,20 @@ export default function SetupCompany() {
     if (user?.company_id) navigate("/company", { replace: true });
   }, [user?.company_id, navigate]);
 
-  const form = useTranslatedForm<typeof setupCompanySchema>(setupCompanySchema, {
-    initialValues: { name: "" },
-    validateInputOnChange: true,
-  });
+  const form = useTranslatedForm<typeof setupCompanySchema>(
+    setupCompanySchema,
+    {
+      initialValues: { name: "" },
+      validateInputOnChange: true,
+    },
+  );
 
   const { mutate: setup, isPending } = useSetupCompany({
     mutation: {
       onSuccess: async () => {
-        await queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+        await queryClient.invalidateQueries({
+          queryKey: getGetCurrentUserQueryKey(),
+        });
         navigate("/company", { replace: true });
       },
     },
@@ -52,19 +57,30 @@ export default function SetupCompany() {
           <Stack gap="md">
             <Stack gap={4}>
               <Title order={4}>
-                <IconBuilding size={18} style={{ marginRight: 6, verticalAlign: "middle" }} />
+                <IconBuilding
+                  size={18}
+                  style={{ marginRight: 6, verticalAlign: "middle" }}
+                />
                 {t("setup_company.create_title")}
               </Title>
-              <Text size="sm" c="dimmed">{t("setup_company.create_description")}</Text>
+              <Text size="sm" c="dimmed">
+                {t("setup_company.create_description")}
+              </Text>
             </Stack>
-            <form onSubmit={form.onSubmit((v) => setup({ data: { name: v.name } }))}>
+            <form
+              onSubmit={form.onSubmit((v) => setup({ data: { name: v.name } }))}
+            >
               <Stack gap="md">
                 <TextInput
                   label={t("setup_company.name_label")}
                   placeholder={t("setup_company.name_placeholder")}
                   {...form.getInputProps("name")}
                 />
-                <Button type="submit" loading={isPending} disabled={isPending || !form.isValid()}>
+                <Button
+                  type="submit"
+                  loading={isPending}
+                  disabled={isPending || !form.isValid()}
+                >
                   {t("setup_company.create_button")}
                 </Button>
               </Stack>
@@ -77,10 +93,15 @@ export default function SetupCompany() {
         <Paper withBorder p="xl" radius="md">
           <Stack gap={4}>
             <Title order={4}>
-              <IconMail size={18} style={{ marginRight: 6, verticalAlign: "middle" }} />
+              <IconMail
+                size={18}
+                style={{ marginRight: 6, verticalAlign: "middle" }}
+              />
               {t("setup_company.invite_title")}
             </Title>
-            <Text size="sm" c="dimmed">{t("setup_company.invite_description")}</Text>
+            <Text size="sm" c="dimmed">
+              {t("setup_company.invite_description")}
+            </Text>
           </Stack>
         </Paper>
       </Stack>

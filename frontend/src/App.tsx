@@ -57,7 +57,8 @@ function ConfirmedRoute() {
   if (!user.email_confirmed)
     return <Navigate to="/unconfirmed-email" replace />;
   if (!user.user_confirmed) return <Navigate to="/unconfirmed-user" replace />;
-  if (user.is_company && !user.company_id) return <Navigate to="/setup-company" replace />;
+  if (user.is_company && !user.company_id)
+    return <Navigate to="/setup-company" replace />;
   return <Outlet />;
 }
 

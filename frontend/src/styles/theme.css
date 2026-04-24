@@ -5,7 +5,11 @@
   --visit-font-heading: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
   --visit-surface: var(--mantine-color-body);
   --visit-text: var(--mantine-color-text);
-  --visit-border: color-mix(in srgb, var(--mantine-color-text) 20%, transparent);
+  --visit-border: color-mix(
+    in srgb,
+    var(--mantine-color-text) 20%,
+    transparent
+  );
   --visit-body-bg: #f7f8f9;
   --visit-header-bg: rgba(255, 255, 255, 0.97);
   --visit-navbar-bg: rgba(255, 255, 255, 0.98);
@@ -95,7 +99,13 @@ body,
 
 body {
   margin: 0;
-  font-family: var(--visit-font-body, "Plus Jakarta Sans", "Avenir Next", "Segoe UI", sans-serif);
+  font-family: var(
+    --visit-font-body,
+    "Plus Jakarta Sans",
+    "Avenir Next",
+    "Segoe UI",
+    sans-serif
+  );
   color: var(--visit-text);
   background: var(--visit-body-bg);
   line-height: 1.45;
@@ -157,12 +167,22 @@ body {
 }
 
 .section-title {
-  font-family: var(--visit-font-heading, "Space Grotesk", "Plus Jakarta Sans", sans-serif);
+  font-family: var(
+    --visit-font-heading,
+    "Space Grotesk",
+    "Plus Jakarta Sans",
+    sans-serif
+  );
   letter-spacing: -0.01em;
 }
 
 .brand-title {
-  font-family: var(--visit-font-heading, "Space Grotesk", "Plus Jakarta Sans", sans-serif);
+  font-family: var(
+    --visit-font-heading,
+    "Space Grotesk",
+    "Plus Jakarta Sans",
+    sans-serif
+  );
   letter-spacing: 0.02em;
 }
 

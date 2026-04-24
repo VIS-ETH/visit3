@@ -35,7 +35,7 @@ const ForgetPassword = () => {
       initialValues: {
         email: "",
       },
-    }
+    },
   );
 
   return (

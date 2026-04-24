@@ -19,3 +19,15 @@ dependencies = [
     "cryptography>=46.0.5",
     "phonenumbers>=9.0.24",
 ]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501", "E402", "E712", "F403"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.11",
+]

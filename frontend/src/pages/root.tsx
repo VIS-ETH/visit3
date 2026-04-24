@@ -29,7 +29,7 @@ export default function RootLayout({ navbarHidden }: RootLayoutProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [navbarOpened, setNavbarOpened] = useState<boolean>(() =>
-    readSessionBool(NAVBAR_OPEN_KEY, defaultNavbarOpen())
+    readSessionBool(NAVBAR_OPEN_KEY, defaultNavbarOpen()),
   );
   const [impersonating, setImpersonating] = useState(isImpersonating);
   const [displayName, setDisplayName] = useState(getImpersonatingDisplayName);

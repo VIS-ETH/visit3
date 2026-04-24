@@ -2,8 +2,8 @@
 // Posted by Leo Aso
 // Retrieved 2026-02-19, License - CC BY-SA 4.0
 
-import parsePhoneNumberFromString from 'libphonenumber-js';
-import { z } from 'zod';
+import parsePhoneNumberFromString from "libphonenumber-js";
+import { z } from "zod";
 
 export const zPhone = z.string().transform((arg, ctx) => {
   if (!arg) {
@@ -11,8 +11,8 @@ export const zPhone = z.string().transform((arg, ctx) => {
   }
   const phone = parsePhoneNumberFromString(arg, {
     // set this to use a default country when the phone number omits country code
-    defaultCountry: 'CH',
-    
+    defaultCountry: "CH",
+
     // set to false to require that the whole string is exactly a phone number,
     // otherwise, it will search for a phone number anywhere within the string
     extract: false,
@@ -26,7 +26,7 @@ export const zPhone = z.string().transform((arg, ctx) => {
   // when it's not
   ctx.addIssue({
     code: "custom",
-    message: 'phoneNumber.invalid',
+    message: "phoneNumber.invalid",
   });
   return z.NEVER;
 });

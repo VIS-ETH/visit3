@@ -1,7 +1,8 @@
-from typing import TypeVar, Generic
+from typing import Generic, TypeVar
+
 from sqlalchemy import ColumnElement
-from sqlmodel import SQLModel, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import SQLModel, select
 
 T = TypeVar("T", bound=SQLModel)
 
@@ -15,7 +16,7 @@ class BaseRepository(Generic[T]):
         statement = select(self.model).where(field == value)
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
-    
+
     async def get_by_ids(self, ids: list) -> list[T]:
         statement = select(self.model).where(self.model.id.in_(ids))
         result = await self.session.execute(statement)

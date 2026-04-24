@@ -48,7 +48,7 @@ export const refreshToken = async () => {
           headers: {
             "X-CSRF-Token": await getCsrfToken(),
           },
-        }
+        },
       )
       .then((res) => {
         setToken(res.data.access_token);

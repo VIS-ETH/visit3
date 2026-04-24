@@ -40,8 +40,11 @@ export default function CompanyProfile() {
   const [settingsOpened, setSettingsOpened] = useState(false);
 
   const { data: userProfile } = useGetUserProfile();
-  const { data: members = [], isLoading: membersLoading, isError: membersError } =
-    useGetMyCompanyMembers();
+  const {
+    data: members = [],
+    isLoading: membersLoading,
+    isError: membersError,
+  } = useGetMyCompanyMembers();
 
   const companyForm = useTranslatedForm<typeof companySchema>(companySchema, {
     initialValues: { name: "" },
@@ -56,9 +59,15 @@ export default function CompanyProfile() {
   const { mutate: updateCompany, isPending: isUpdating } = useUpdateMyCompany({
     mutation: {
       onSuccess: async () => {
-        await queryClient.invalidateQueries({ queryKey: getGetUserProfileQueryKey() });
+        await queryClient.invalidateQueries({
+          queryKey: getGetUserProfileQueryKey(),
+        });
         setSettingsOpened(false);
-        notifications.show({ color: "green", title: t("company_profile.settings_success"), message: "" });
+        notifications.show({
+          color: "green",
+          title: t("company_profile.settings_success"),
+          message: "",
+        });
       },
     },
   });
@@ -68,7 +77,11 @@ export default function CompanyProfile() {
       onSuccess: () => {
         const email = inviteForm.values.email;
         inviteForm.reset();
-        notifications.show({ color: "green", title: t("company_profile.invite_success"), message: email });
+        notifications.show({
+          color: "green",
+          title: t("company_profile.invite_success"),
+          message: email,
+        });
       },
     },
   });
@@ -88,21 +101,31 @@ export default function CompanyProfile() {
           <Title order={2}>
             {userProfile?.company?.name ?? t("company_profile.title")}
           </Title>
-          <Button variant="light" leftSection={<IconSettings size={16} />} onClick={openSettings}>
+          <Button
+            variant="light"
+            leftSection={<IconSettings size={16} />}
+            onClick={openSettings}
+          >
             {t("company_profile.settings_button")}
           </Button>
         </Group>
 
         <Modal
           opened={settingsOpened}
-          onClose={() => { if (!isUpdating) setSettingsOpened(false); }}
+          onClose={() => {
+            if (!isUpdating) setSettingsOpened(false);
+          }}
           title={t("company_profile.settings_title")}
           centered
           closeOnEscape={!isUpdating}
           closeOnClickOutside={!isUpdating}
           withCloseButton={!isUpdating}
         >
-          <form onSubmit={companyForm.onSubmit((v) => updateCompany({ data: { name: v.name } }))}>
+          <form
+            onSubmit={companyForm.onSubmit((v) =>
+              updateCompany({ data: { name: v.name } }),
+            )}
+          >
             <Stack gap="md">
               <TextInput
                 label={t("company_profile.name_label")}
@@ -111,7 +134,11 @@ export default function CompanyProfile() {
                 disabled={isUpdating}
               />
               <Group justify="flex-end">
-                <Button variant="default" onClick={() => setSettingsOpened(false)} disabled={isUpdating}>
+                <Button
+                  variant="default"
+                  onClick={() => setSettingsOpened(false)}
+                  disabled={isUpdating}
+                >
                   {t("company_profile.cancel")}
                 </Button>
                 <Button
@@ -129,10 +156,17 @@ export default function CompanyProfile() {
         <Paper withBorder p="xl" radius="md">
           <Stack gap="md">
             <Title order={4}>
-              <IconMail size={18} style={{ marginRight: 6, verticalAlign: "middle" }} />
+              <IconMail
+                size={18}
+                style={{ marginRight: 6, verticalAlign: "middle" }}
+              />
               {t("company_profile.invite_title")}
             </Title>
-            <form onSubmit={inviteForm.onSubmit((v) => sendInvite({ data: { email: v.email } }))}>
+            <form
+              onSubmit={inviteForm.onSubmit((v) =>
+                sendInvite({ data: { email: v.email } }),
+              )}
+            >
               <Group align="flex-end" gap="sm">
                 <TextInput
                   style={{ flex: 1 }}
@@ -155,9 +189,13 @@ export default function CompanyProfile() {
         <Title order={3}>{t("company_profile.members_title")}</Title>
 
         {membersLoading ? (
-          <Center><Loader /></Center>
+          <Center>
+            <Loader />
+          </Center>
         ) : membersError ? (
-          <Alert icon={<IconAlertCircle />} color="red">{t("server.error")}</Alert>
+          <Alert icon={<IconAlertCircle />} color="red">
+            {t("server.error")}
+          </Alert>
         ) : members.length === 0 ? (
           <Text c="dimmed">{t("company_profile.no_members")}</Text>
         ) : (
@@ -173,7 +211,10 @@ export default function CompanyProfile() {
               <Table.Tbody>
                 {members.map((m) => (
                   <Table.Tr key={m.id}>
-                    <Table.Td>{[m.first_name, m.last_name].filter(Boolean).join(" ") || "-"}</Table.Td>
+                    <Table.Td>
+                      {[m.first_name, m.last_name].filter(Boolean).join(" ") ||
+                        "-"}
+                    </Table.Td>
                     <Table.Td>{m.email}</Table.Td>
                     <Table.Td>{m.phone_number ?? "-"}</Table.Td>
                   </Table.Tr>

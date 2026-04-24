@@ -42,7 +42,7 @@ api.interceptors.request.use(
 
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 interface ErrorResponse {
@@ -50,9 +50,14 @@ interface ErrorResponse {
   identifier?: string;
   message?: string;
   statusCode?: number;
-  redirectTo?: string;
   detail?: unknown;
 }
+
+const ERROR_CODE_REDIRECTS: Record<string, string> = {
+  "error.email_not_confirmed": "/unconfirmed-email",
+  "error.not_confirmed": "/unconfirmed-user",
+  "csrf.validation_failed": "/login",
+};
 
 const getErrorMessage = (errorResponse: ErrorResponse | undefined): string => {
   const detail =
@@ -60,11 +65,11 @@ const getErrorMessage = (errorResponse: ErrorResponse | undefined): string => {
       ? errorResponse.detail
       : undefined;
   const translationKeyCandidates = [errorResponse?.code, detail].filter(
-    (value): value is string => Boolean(value)
+    (value): value is string => Boolean(value),
   );
 
   const translatedKey = translationKeyCandidates.find((key) =>
-    i18n.exists(key)
+    i18n.exists(key),
   );
 
   if (translatedKey) {
@@ -91,7 +96,9 @@ api.interceptors.response.use(
 
     const errorResponse = error?.response?.data as ErrorResponse;
     const status = errorResponse?.statusCode ?? error?.response?.status ?? 0;
-    const redirectTo = errorResponse?.redirectTo ?? undefined;
+    const redirectTo = errorResponse?.code
+      ? ERROR_CODE_REDIRECTS[errorResponse.code]
+      : undefined;
 
     if (status > 0 && status < 400) {
       return Promise.reject(error);
@@ -114,7 +121,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

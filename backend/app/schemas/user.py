@@ -1,5 +1,6 @@
-from pydantic import BaseModel
 from uuid import UUID
+
+from pydantic import BaseModel
 
 
 class CompanyResponse(BaseModel):
@@ -38,7 +39,6 @@ class UpdateCompanyUserRequest(BaseModel):
     last_name: str | None = None
     phone_number: str | None = None
     company_id: UUID | None = None
-
 
 
 class Token(BaseModel):

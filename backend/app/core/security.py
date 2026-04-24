@@ -1,4 +1,5 @@
 import jwt
+
 from app.core.config import get_settings
 
 jwks_client = jwt.PyJWKClient(get_settings().SIP_AUTH_OIDC_JWKS_URL)

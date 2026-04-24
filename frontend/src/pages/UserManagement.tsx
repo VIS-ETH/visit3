@@ -10,7 +10,12 @@ import {
   Text,
   Group,
 } from "@mantine/core";
-import { IconAlertCircle, IconCheck, IconTrash, IconUserSearch } from "@tabler/icons-react";
+import {
+  IconAlertCircle,
+  IconCheck,
+  IconTrash,
+  IconUserSearch,
+} from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
@@ -106,7 +111,7 @@ export default function UserManagement() {
 
   const handleImpersonateUser = (
     userId: string | undefined,
-    displayName: string
+    displayName: string,
   ) => {
     if (!adminStatus || !userId) return;
     setImpersonation(userId, displayName);
@@ -279,7 +284,8 @@ export default function UserManagement() {
                             ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim()
                             : (user.email ?? "");
                         const isCurrentlyImpersonating =
-                          isImpersonating() && getImpersonatingUserId() === user.id;
+                          isImpersonating() &&
+                          getImpersonatingUserId() === user.id;
                         return (
                           <Group gap="xs" wrap="nowrap">
                             <Button

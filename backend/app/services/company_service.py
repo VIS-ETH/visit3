@@ -1,13 +1,23 @@
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
-import logging
+
 from app.core.decorators import require_admin, require_confirmed_company, require_staff
-from app.core.exceptions import CompanyNotFound, InviteExpired, InviteNotFound, NotAllowed
+from app.core.exceptions import (
+    CompanyNotFound,
+    InviteExpired,
+    InviteNotFound,
+    NotAllowed,
+)
 from app.core.utils import normalize_email
 from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
-from app.schemas.company import CompanyAssignedUserResponse, CompanyWithUsersResponse, InviteInfoResponse
+from app.schemas.company import (
+    CompanyAssignedUserResponse,
+    CompanyWithUsersResponse,
+    InviteInfoResponse,
+)
 from app.services.mail_service import MailService
 
 logger = logging.getLogger(__name__)
@@ -85,7 +95,9 @@ class CompanyService:
             raise NotAllowed(f"setup_company:name_taken:{normalized}")
         company = await self.company_repository.create_company(normalized)
         await self.company_repository.assign_user(self.current_user, company.id)
-        logger.info(f"Company created and joined: {self.current_user.email} -> {company.name}")
+        logger.info(
+            f"Company created and joined: {self.current_user.email} -> {company.name}"
+        )
         return company
 
     @require_confirmed_company
@@ -108,8 +120,12 @@ class CompanyService:
             invited_email=normalized,
             expires_at=expires_at,
         )
-        await self.mail_service.send_company_invite_mail(normalized, company.name, token)
-        logger.info(f"Invite sent by {self.current_user.email} to {normalized} for {company.name}")
+        await self.mail_service.send_company_invite_mail(
+            normalized, company.name, token
+        )
+        logger.info(
+            f"Invite sent by {self.current_user.email} to {normalized} for {company.name}"
+        )
         return invite
 
     async def get_invite_info(self, token: str) -> InviteInfoResponse:
@@ -121,7 +137,9 @@ class CompanyService:
         company = await self.company_repository.get_by_id(invite.company_id)
         if not company:
             raise CompanyNotFound(f"get_invite_info:{invite.company_id}")
-        return InviteInfoResponse(company_name=company.name, invited_email=invite.invited_email)
+        return InviteInfoResponse(
+            company_name=company.name, invited_email=invite.invited_email
+        )
 
     async def accept_invite(self, token: str) -> User:
         if not (self.current_user.email_confirmed and self.current_user.user_confirmed):
@@ -136,8 +154,12 @@ class CompanyService:
         if normalize_email(invite.invited_email) != self.current_user.email:
             raise NotAllowed(f"accept_invite:email_mismatch:{self.current_user.email}")
         await self.company_repository.mark_invite_used(invite)
-        user = await self.company_repository.assign_user(self.current_user, invite.company_id)
-        logger.info(f"Invite accepted: {self.current_user.email} joined company {invite.company_id}")
+        user = await self.company_repository.assign_user(
+            self.current_user, invite.company_id
+        )
+        logger.info(
+            f"Invite accepted: {self.current_user.email} joined company {invite.company_id}"
+        )
         return user
 
     @require_confirmed_company

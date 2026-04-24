@@ -1,5 +1,6 @@
-from pydantic_settings import BaseSettings
 from functools import lru_cache
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -12,8 +13,8 @@ class Settings(BaseSettings):
     @property
     def DATABASE_URL(self) -> str:
         return (
-            f'postgresql+asyncpg://{self.SIP_POSTGRES_DB_USER}:{self.SIP_POSTGRES_DB_PW}'
-            f'@{self.SIP_POSTGRES_DB_SERVER}:{self.SIP_POSTGRES_DB_PORT}/{self.SIP_POSTGRES_DB_NAME}'
+            f"postgresql+asyncpg://{self.SIP_POSTGRES_DB_USER}:{self.SIP_POSTGRES_DB_PW}"
+            f"@{self.SIP_POSTGRES_DB_SERVER}:{self.SIP_POSTGRES_DB_PORT}/{self.SIP_POSTGRES_DB_NAME}"
         )
 
     SECRET_KEY: str
@@ -30,6 +31,7 @@ class Settings(BaseSettings):
     ADMIN_GROUP: str
     VISIT_KP_PRESIDENT_ROLE: str
     DEBUG_KEYCLOAK_ADMIN: bool = False
+    DEBUG: bool = False
 
 
 @lru_cache

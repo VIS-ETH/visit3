@@ -46,7 +46,7 @@ export default defineConfig({
 
           // Go through all env vars, replace the format. These will then be set at nginx startup
           return ENV_VARS_FOR_ENVSUBST.reduce((previous, current) => {
-            return previous.replaceAll(`%VITE_${current}%`, `\$\{${current}\}`);
+            return previous.replaceAll(`%VITE_${current}%`, `\${${current}}`);
           }, html);
         },
       },

@@ -1,29 +1,31 @@
-from app.services.kp_service import KpService
-from app.services.company_service import CompanyService
-from app.services.user_service import UserService
-from app.services.mail_service import MailService
-from app.services.auth_service import AuthService
-from app.core.grpc import grpc_client
-from typing import Annotated
 import logging
+from typing import Annotated
 from uuid import UUID
+
+import jwt
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi_csrf_protect import CsrfProtect
-import jwt
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, selectinload
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
+
+from app.core.config import get_settings
+from app.core.exceptions import NotAllowed, Unauthenticated
+from app.core.grpc import grpc_client
+from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 from app.models.user import User
+from app.repositories.company_repository import CompanyRepository
+from app.repositories.kp_repository import KpRepository
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
-from app.repositories.company_repository import CompanyRepository
-from app.repositories.kp_repository import KpRepository
 from app.schemas.user import TokenData
-from app.core.config import get_settings
-from app.core.exceptions import NotAllowed, Unauthenticated
-from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
+from app.services.auth_service import AuthService
+from app.services.company_service import CompanyService
+from app.services.kp_service import KpService
+from app.services.mail_service import MailService
+from app.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +33,19 @@ oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/users/login", refreshUrl="/users/refresh"
 )
 
-engine = create_async_engine(get_settings().DATABASE_URL, echo=True)
+_settings = get_settings()
 
-SessionLocal = sessionmaker(
+engine = create_async_engine(
+    _settings.DATABASE_URL,
+    echo=_settings.DEBUG,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,
+    pool_timeout=30,
+)
+
+SessionLocal = async_sessionmaker(
     engine,
-    class_=AsyncSession,
     expire_on_commit=False,
 )
 
@@ -51,8 +61,7 @@ async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
 ):
     try:
-        payload = jwt.decode(
-            token, get_settings().SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(token, get_settings().SECRET_KEY, algorithms=["HS256"])
         username = payload.get("sub")
         if username is None:
             logger.warning("JWT decode failed - no sub claim")
@@ -72,8 +81,7 @@ async def get_current_user(
         logger.warning(
             f"JWT user lookup failed - user not found: {token_data.username}"
         )
-        raise Unauthenticated(
-            f"jwt_decode:user_not_found:{token_data.username}")
+        raise Unauthenticated(f"jwt_decode:user_not_found:{token_data.username}")
     logger.debug(f"User authenticated: {user.email}")
 
     impersonate_id = request.headers.get("X-Impersonate-User-Id")
@@ -110,8 +118,8 @@ async def _csrf_dep(request: Request, csrf_protect: Annotated[CsrfProtect, Depen
             raise HTTPException(
                 status_code=403,
                 detail={
-                    "message": "csrf.validation_failed",
-                    "redirectTo": "/login",
+                    "code": "csrf.validation_failed",
+                    "message": "CSRF validation failed",
                 },
             )
 
@@ -156,8 +164,7 @@ async def get_company_repository(
     return CompanyRepository(session)
 
 
-CompanyRepositoryDep = Annotated[CompanyRepository, Depends(
-    get_company_repository)]
+CompanyRepositoryDep = Annotated[CompanyRepository, Depends(get_company_repository)]
 
 
 async def get_kp_repository(

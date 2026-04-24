@@ -18,7 +18,11 @@ export const registerSchema = z
     message: "email.valid",
     path: ["email"],
   })
-  .refine((data) => !data.phoneNumber?.trim() || zPhone.safeParse(data.phoneNumber).success, {
-    message: "register.phoneNumber.invalid",
-    path: ["phoneNumber"],
-  });
+  .refine(
+    (data) =>
+      !data.phoneNumber?.trim() || zPhone.safeParse(data.phoneNumber).success,
+    {
+      message: "register.phoneNumber.invalid",
+      path: ["phoneNumber"],
+    },
+  );

@@ -66,7 +66,7 @@ export default function KpDashboard() {
         value: event.id ?? "",
         label: `${event.year} (${formatDate(event.event_date)})`,
       })),
-    [events]
+    [events],
   );
 
   const { mutate: createEvent, isPending: isCreating } = useCreateKp({

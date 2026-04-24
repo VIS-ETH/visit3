@@ -1,9 +1,11 @@
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
-from sqlmodel import select, delete, update
-from sqlalchemy.orm import selectinload
+
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from sqlmodel import delete, select, update
+
 from app.models.company import Company, CompanyInvite
 from app.models.user import User
 from app.repositories.base import BaseRepository

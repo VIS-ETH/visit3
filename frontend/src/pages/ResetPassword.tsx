@@ -44,7 +44,7 @@ export default function ResetPassword() {
         password: "",
         confirmPassword: "",
       },
-    }
+    },
   );
 
   if (token === undefined) {

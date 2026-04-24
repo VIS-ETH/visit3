@@ -75,7 +75,6 @@ class EmailNotConfirmed(AppError):
         super().__init__(
             "User email is not confirmed", "error.email_not_confirmed", identifier, 403
         )
-        self.redirect_to = "/unconfirmed-email"
 
 
 class UserNotConfirmed(AppError):
@@ -83,7 +82,6 @@ class UserNotConfirmed(AppError):
         super().__init__(
             "User is not confirmed by an admin", "error.not_confirmed", identifier, 403
         )
-        self.redirect_to = "/unconfirmed-user"
 
 
 class PhoneNumberInvalid(AppError):
@@ -120,12 +118,13 @@ class ResetPasswordError(AppError):
 class InviteNotFound(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "Invite not found or already used", "error.invite_not_found", identifier, 404
+            "Invite not found or already used",
+            "error.invite_not_found",
+            identifier,
+            404,
         )
 
 
 class InviteExpired(AppError):
     def __init__(self, identifier: str):
-        super().__init__(
-            "Invite has expired", "error.invite_expired", identifier, 400
-        )
+        super().__init__("Invite has expired", "error.invite_expired", identifier, 400)

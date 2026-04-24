@@ -1,19 +1,20 @@
-from contextlib import asynccontextmanager
 import logging
 import os
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from app.core.exceptions import AppError
-from app.routes.router import router as api_router
-from fastapi.middleware.cors import CORSMiddleware
-from app.core.config import get_settings
-from app.core.scheduler import Scheduler
-from fastapi_csrf_protect import CsrfProtect
-from app.core.grpc import grpc_client
-from app.core.deps import SessionLocal
-from app.repositories.token_repository import TokenRepository
+from contextlib import asynccontextmanager
 
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi_csrf_protect import CsrfProtect
+from pydantic import BaseModel
+
+from app.core.config import get_settings
+from app.core.deps import SessionLocal
+from app.core.exceptions import AppError
+from app.core.grpc import grpc_client
+from app.core.scheduler import Scheduler
+from app.repositories.token_repository import TokenRepository
+from app.routes.router import router as api_router
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
@@ -65,12 +66,14 @@ async def app_error_handler(request: Request, exc: AppError):
             "code": exc.code,
             "identifier": exc.identifier,
             "message": exc.message,
-            **({"redirectTo": exc.redirect_to} if hasattr(exc, "redirect_to") else {}),
         },
     )
 
 
-origins = [get_settings().VISIT_FRONTEND_SERVER_URL, get_settings().SIP_AUTH_OIDC_ISSUER]
+origins = [
+    get_settings().VISIT_FRONTEND_SERVER_URL,
+    get_settings().SIP_AUTH_OIDC_ISSUER,
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -79,6 +82,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.get("/health")
 async def health():

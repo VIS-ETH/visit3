@@ -46,5 +46,7 @@ async def deregister_company_from_kp(kp_service: KpServiceDep, event_id: UUID):
 
 
 @router.get("/{event_id}/companies", operation_id="getCompaniesForKp")
-async def get_companies_for_kp(kp_service: KpServiceDep, event_id: UUID) -> list[Company]:
+async def get_companies_for_kp(
+    kp_service: KpServiceDep, event_id: UUID
+) -> list[Company]:
     return await kp_service.get_companies_for_kp(event_id)
