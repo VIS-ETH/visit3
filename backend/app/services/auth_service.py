@@ -52,7 +52,8 @@ class AuthService:
         user = await self.user_repository.get_by_email(email)
         if not user:
             return False
-        if not await self.verify_password(password, user.password):
+        valid_password = await self.verify_and_update_password(user, password)
+        if not valid_password:
             return False
         return user
 
@@ -84,10 +85,16 @@ class AuthService:
     async def verify_refresh_token(self, raw_token: str):
         return await self.token_repository.get_refresh_token(hash_str(raw_token))
 
-    async def verify_password(self, plain_password: str, hashed_password: str):
-        return await asyncio.to_thread(
-            password_hash.verify, plain_password, hashed_password
-        )
+    async def verify_and_update_password(self, user: User, plain_password: str) -> bool:
+        valid, updated_hash = password_hash.verify_and_update(plain_password, user.password)
+        if not valid:
+            return False
+        if updated_hash is not None:
+            try:
+                await self.user_repository.update_password(user.id, updated_hash)
+            except Exception:
+                logger.exception(f"Failed to rehash password for user: {user.email}")
+        return True
 
     async def hash_password(self, password: str):
         return await asyncio.to_thread(password_hash.hash, password)
