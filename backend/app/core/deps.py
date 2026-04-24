@@ -25,6 +25,7 @@ from app.services.auth_service import AuthService
 from app.services.company_service import CompanyService
 from app.services.kp_service import KpService
 from app.services.mail_service import MailService
+from app.services.pdf_service import PdfService
 from app.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
@@ -227,3 +228,10 @@ async def get_kp_service(
 
 
 KpServiceDep = Annotated[KpService, Depends(get_kp_service)]
+
+
+def get_pdf_service():
+    return PdfService()
+
+
+PdfServiceDep = Annotated[PdfService, Depends(get_pdf_service)]
