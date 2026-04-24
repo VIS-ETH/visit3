@@ -25,12 +25,12 @@ class Role(BaseEntity, table=True):
 
 class User(BaseEntity, table=True):
     email: str = Field(unique=True, index=True)
-    sub: Optional[str] = Field(default=None, index=True)
-    password: Optional[str]
+    sub: str | None = Field(default=None, index=True)
+    password: str | None = None
 
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    phone_number: Optional[str] = None
+    first_name: str | None = Field(default=None, min_length=1)
+    last_name: str | None = Field(default=None, min_length=1)
+    phone_number: str | None = None
 
     is_staff: bool = False
     is_admin: bool = False
@@ -41,9 +41,7 @@ class User(BaseEntity, table=True):
 
     roles: List["Role"] = Relationship(back_populates="users", link_model=UserRole)
 
-    company_id: Optional[UUID] = Field(
-        default=None, foreign_key="company.id", index=True
-    )
+    company_id: UUID | None = Field(default=None, foreign_key="company.id", index=True)
     company: Optional["Company"] = Relationship(back_populates="users")
     main_contact_bookings: list["KpEventBooking"] = Relationship(
         back_populates="main_contact"
