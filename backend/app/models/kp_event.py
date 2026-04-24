@@ -69,7 +69,10 @@ class KpEvent(SQLModel, table=True):
 
 class KpEventBooking(SQLModel, table=True):
 
-    __table_args__ = (UniqueConstraint("event_id", "company_id", "booth_zone_id"),)
+    __table_args__ = (
+        UniqueConstraint("event_id", "company_id", "booth_zone_id"),
+        UniqueConstraint("event_id", "booth_zone_id", "booth_nr"), # each booking within a zone must have a unique booth number
+    )
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     event_id: UUID = Field(foreign_key="kpevent.id")
@@ -80,7 +83,7 @@ class KpEventBooking(SQLModel, table=True):
 
     finalized: bool = Field(default=False)
 
-    # TODO: Add booth_id reference
+    booth_nr: int = Field(ge=1)  # booth number within the booth zone
 
     deleted: bool = Field(default=False)
 
@@ -130,6 +133,7 @@ class KpEventBoothZone(SQLModel, table=True):
     description: str
     color: str = Field(default="#000000")
     order: int = Field(default=100, ge=0)
+    capacity: int = Field(default=0, ge=0)
 
     booth_size: float = Field(default=0, ge=0)  # square meters
     base_price: int = Field(default=0, ge=0)  # cents
