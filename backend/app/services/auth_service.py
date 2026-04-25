@@ -59,7 +59,9 @@ class AuthService:
 
     async def create_access_token(self, user: User):
         to_encode = {
-            "sub": str(user.id), # we use the internal user id as the subject to have a uniform way to identify users, regardless of the login method (keycloak or password)
+            "sub": str(
+                user.id
+            ),  # we use the internal user id as the subject to have a uniform way to identify users, regardless of the login method (keycloak or password)
             "email": user.email,
         }
         expire = datetime.now(timezone.utc) + ACCESS_TOKEN_EXPIRE
@@ -89,7 +91,9 @@ class AuthService:
         return await self.token_repository.get_active_refresh_token(hash_str(raw_token))
 
     async def verify_and_update_password(self, user: User, plain_password: str) -> bool:
-        valid, updated_hash = password_hash.verify_and_update(plain_password, user.password)
+        valid, updated_hash = password_hash.verify_and_update(
+            plain_password, user.password
+        )
         if not valid:
             return False
         if updated_hash is not None:
@@ -245,20 +249,15 @@ class AuthService:
                 .get("roles", [])
             )
 
-        admin, roles = await self.map_keycloak_roles(keycloak_roles, ["vis-active", "admin"])
+        admin, roles = await self.map_keycloak_roles(
+            keycloak_roles, ["vis-active", "admin"]
+        )
 
         email = decoded_token["email"]
         sub = decoded_token["sub"]
         first_name = decoded_token.get("given_name", "")
         last_name = decoded_token.get("family_name", "")
 
-<<<<<<< HEAD
-        admin, roles = await self.map_keycloak_roles(
-            keycloak_roles, ["vis-active", "admin"]
-        )
-
-=======
->>>>>>> ddf6539 (Refactor user authentication flow to use user ID in JWT)
         return await self.user_repository.create_or_update_user(
             User(
                 email=email,
