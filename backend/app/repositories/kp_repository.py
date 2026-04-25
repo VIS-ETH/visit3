@@ -34,7 +34,6 @@ class KpRepository(BaseRepository[KpEvent]):
                 "event",
                 "company",
                 "booth_zone",
-                "main_contact",
                 "services",
                 "name_tags",
                 "company_details",
@@ -46,7 +45,6 @@ class KpRepository(BaseRepository[KpEvent]):
             selectinload(KpEventBooking.event),
             selectinload(KpEventBooking.company),
             selectinload(KpEventBooking.booth_zone),
-            selectinload(KpEventBooking.main_contact),
             selectinload(KpEventBooking.services).selectinload(
                 KpEventBookingService.service
             ),
@@ -125,7 +123,6 @@ class KpRepository(BaseRepository[KpEvent]):
         event_id: UUID,
         company_id: UUID,
         booth_zone_id: UUID,
-        main_contact_id: UUID,
         booth_nr: int,
         finalized: bool = False,
     ) -> KpEventBooking:
@@ -134,7 +131,6 @@ class KpRepository(BaseRepository[KpEvent]):
                 event_id=event_id,
                 company_id=company_id,
                 booth_zone_id=booth_zone_id,
-                main_contact_id=main_contact_id,
                 booth_nr=booth_nr,
                 finalized=finalized,
             )
@@ -150,15 +146,12 @@ class KpRepository(BaseRepository[KpEvent]):
         self,
         booking: KpEventBooking,
         booth_zone_id: UUID | None = None,
-        main_contact_id: UUID | None = None,
         booth_nr: int | None = None,
         finalized: bool | None = None,
     ) -> KpEventBooking:
         try:
             if booth_zone_id is not None:
                 booking.booth_zone_id = booth_zone_id
-            if main_contact_id is not None:
-                booking.main_contact_id = main_contact_id
             if booth_nr is not None:
                 booking.booth_nr = booth_nr
             if finalized is not None:

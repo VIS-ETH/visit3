@@ -9,7 +9,9 @@ from app.schemas.company import (
     CompanyWithUsersResponse,
     CreateInviteRequest,
     InviteInfoResponse,
+    KpCompanyProfileResponse,
     SetupCompanyRequest,
+    UpdateKpCompanyProfileRequest,
     UpdateCompanyRequest,
 )
 
@@ -29,6 +31,26 @@ async def get_my_company_members(
     company_service: CompanyServiceDep,
 ) -> list[User]:
     return await company_service.get_my_members()
+
+
+@router.get("/me/kp-profile", operation_id="getMyKpCompanyProfile")
+async def get_my_kp_company_profile(
+    company_service: CompanyServiceDep,
+) -> KpCompanyProfileResponse | None:
+    return await company_service.get_my_kp_profile()
+
+
+@router.put("/me/kp-profile", operation_id="updateMyKpCompanyProfile")
+async def update_my_kp_company_profile(
+    company_service: CompanyServiceDep,
+    request: UpdateKpCompanyProfileRequest,
+) -> KpCompanyProfileResponse:
+    return await company_service.update_my_kp_profile(
+        invoice_address=request.invoice_address,
+        shipping_address=request.shipping_address,
+        contact_email=request.contact_email,
+        kp_contact_user_id=request.kp_contact_user_id,
+    )
 
 
 @router.post("/invite", operation_id="createCompanyInvite")

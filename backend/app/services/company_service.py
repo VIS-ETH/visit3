@@ -15,6 +15,7 @@ from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
 from app.schemas.company import (
     CompanyAssignedUserResponse,
+    KpCompanyProfileResponse,
     CompanyWithUsersResponse,
     InviteInfoResponse,
 )
@@ -184,3 +185,57 @@ class CompanyService:
             f"Company name updated by {self.current_user.email}: {company.name} -> {name}"
         )
         return updated_company
+
+    @require_confirmed_company
+    async def get_my_kp_profile(self) -> KpCompanyProfileResponse | None:
+        profile = await self.company_repository.get_kp_profile(
+            self.current_user.company_id
+        )
+        if profile is None:
+            return None
+        return KpCompanyProfileResponse(
+            id=profile.id,
+            company_id=profile.company_id,
+            invoice_address=profile.invoice_address,
+            shipping_address=profile.shipping_address,
+            contact_email=profile.contact_email,
+            kp_contact_user_id=profile.kp_contact_user_id,
+        )
+
+    @require_confirmed_company
+    async def update_my_kp_profile(
+        self,
+        invoice_address: str,
+        shipping_address: str,
+        contact_email: str | None,
+        kp_contact_user_id: UUID | None,
+    ) -> KpCompanyProfileResponse:
+        if kp_contact_user_id is not None:
+            user = next(
+                (
+                    member
+                    for member in await self.get_my_members()
+                    if member.id == kp_contact_user_id
+                ),
+                None,
+            )
+            if user is None:
+                raise NotAllowed(
+                    f"update_my_kp_profile:user_not_in_company:{kp_contact_user_id}"
+                )
+
+        profile = await self.company_repository.upsert_kp_profile(
+            company_id=self.current_user.company_id,
+            invoice_address=invoice_address.strip(),
+            shipping_address=shipping_address.strip(),
+            contact_email=contact_email,
+            kp_contact_user_id=kp_contact_user_id,
+        )
+        return KpCompanyProfileResponse(
+            id=profile.id,
+            company_id=profile.company_id,
+            invoice_address=profile.invoice_address,
+            shipping_address=profile.shipping_address,
+            contact_email=profile.contact_email,
+            kp_contact_user_id=profile.kp_contact_user_id,
+        )

@@ -86,8 +86,6 @@ class KpEventBooking(BaseEntity, table=True):
     company_id: UUID = Field(foreign_key="company.id")
     booth_zone_id: UUID = Field(foreign_key="kpeventboothzone.id")
 
-    main_contact_id: UUID = Field(foreign_key="user.id")
-
     finalized: bool = Field(default=False)
 
     booth_nr: int = Field(ge=1)  # booth number within the booth zone
@@ -95,7 +93,6 @@ class KpEventBooking(BaseEntity, table=True):
     event: "KpEvent" = Relationship(back_populates="bookings")
     company: Company = Relationship(back_populates="bookings")
     booth_zone: "KpEventBoothZone" = Relationship(back_populates="bookings")
-    main_contact: User = Relationship(back_populates="main_contact_bookings")
     services: list["KpEventBookingService"] = Relationship(back_populates="booking")
     name_tags: list["NameTag"] = Relationship(back_populates="booking")
     upgrade_waitlist_entries: list["KpEventBookingUpgradeWaitlist"] = Relationship(

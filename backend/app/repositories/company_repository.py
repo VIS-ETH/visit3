@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlmodel import delete, select, update
 
-from app.models.company import Company, CompanyInvite
+from app.models.company import Company, CompanyInvite, KpCompanyProfile
 from app.models.user import User
 from app.repositories.base import BaseRepository
 
@@ -43,6 +43,48 @@ class CompanyRepository(BaseRepository[Company]):
         statement = select(Company).options(selectinload(Company.users))
         result = await self.session.execute(statement)
         return result.scalars().all()
+
+    async def get_kp_profile(self, company_id: UUID) -> Optional[KpCompanyProfile]:
+        statement = (
+            select(KpCompanyProfile)
+            .where(KpCompanyProfile.company_id == company_id)
+            .options(selectinload(KpCompanyProfile.kp_contact_user))
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def upsert_kp_profile(
+        self,
+        company_id: UUID,
+        invoice_address: str | None = None,
+        shipping_address: str | None = None,
+        contact_email: str | None = None,
+        kp_contact_user_id: UUID | None = None,
+    ) -> KpCompanyProfile:
+        try:
+            profile = await self.get_kp_profile(company_id)
+            if profile is None:
+                profile = KpCompanyProfile(company_id=company_id)
+
+            if invoice_address is not None:
+                profile.invoice_address = invoice_address
+            if shipping_address is not None:
+                profile.shipping_address = shipping_address
+            if contact_email is not None:
+                profile.contact_email = contact_email
+            profile.kp_contact_user_id = kp_contact_user_id
+
+            self._validate_model(
+                profile,
+                exclude={"company", "kp_contact_user"},
+            )
+            self.session.add(profile)
+            await self.session.commit()
+            await self.session.refresh(profile)
+            return await self.get_kp_profile(company_id) or profile
+        except Exception as e:
+            await self.session.rollback()
+            raise e
 
     async def delete_company_with_users(self, company: Company):
         try:

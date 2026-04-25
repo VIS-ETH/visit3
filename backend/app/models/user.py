@@ -10,6 +10,7 @@ from app.models.company import Company
 
 if TYPE_CHECKING:
     from app.models.kp_event import KpEventBooking
+    from app.models.company import KpCompanyProfile
 
 
 class UserRole(BaseLink, table=True):
@@ -43,8 +44,8 @@ class User(BaseEntity, table=True):
 
     company_id: UUID | None = Field(default=None, foreign_key="company.id", index=True)
     company: Company = Relationship(back_populates="users")
-    main_contact_bookings: list["KpEventBooking"] = Relationship(
-        back_populates="main_contact"
+    kp_company_profiles: list["KpCompanyProfile"] = Relationship(
+        back_populates="kp_contact_user"
     )
 
     @field_validator("email", mode="after")

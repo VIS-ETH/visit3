@@ -17,7 +17,7 @@ class UserRepository(BaseRepository[User]):
     def _validate_user(self, user: User) -> None:
         self._validate_model(
             user,
-            exclude={"roles", "company", "main_contact_bookings"},
+            exclude={"roles", "company"},
         )
 
     async def get_admins(self) -> list[User]:

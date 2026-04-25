@@ -19,9 +19,25 @@ class Company(BaseEntity, table=True):
     users: list["User"] = Relationship(back_populates="company")
     invites: list["CompanyInvite"] = Relationship(back_populates="company")
     bookings: list["KpEventBooking"] = Relationship(back_populates="company")
+    kp_profile: "KpCompanyProfile" = Relationship(
+        back_populates="company",
+        sa_relationship_kwargs={"uselist": False},
+    )
     registration_exceptions: list["KpEventRegistrationException"] = Relationship(
         back_populates="company"
     )
+
+
+class KpCompanyProfile(BaseEntity, table=True):
+    company_id: UUID = Field(foreign_key="company.id", unique=True)
+
+    invoice_address: str = Field(default="")
+    shipping_address: str = Field(default="")
+    contact_email: EmailStr | None = Field(default=None)
+    kp_contact_user_id: UUID | None = Field(default=None, foreign_key="user.id")
+
+    company: Company = Relationship(back_populates="kp_profile")
+    kp_contact_user: "User" = Relationship(back_populates="kp_company_profiles")
 
 
 class CompanyInvite(BaseEntity, table=True):
