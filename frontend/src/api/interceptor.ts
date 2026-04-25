@@ -51,6 +51,11 @@ interface ErrorResponse {
   message?: string;
   statusCode?: number;
   detail?: unknown;
+  fieldErrors?: Array<{
+    field?: string;
+    code?: string;
+    message?: string;
+  }>;
 }
 
 const ERROR_CODE_REDIRECTS: Record<string, string> = {
@@ -60,13 +65,16 @@ const ERROR_CODE_REDIRECTS: Record<string, string> = {
 };
 
 const getErrorMessage = (errorResponse: ErrorResponse | undefined): string => {
+  const firstFieldErrorCode = errorResponse?.fieldErrors?.[0]?.code;
   const detail =
     typeof errorResponse?.detail === "string"
       ? errorResponse.detail
       : undefined;
-  const translationKeyCandidates = [errorResponse?.code, detail].filter(
-    (value): value is string => Boolean(value),
-  );
+  const translationKeyCandidates = [
+    firstFieldErrorCode,
+    errorResponse?.code,
+    detail,
+  ].filter((value): value is string => Boolean(value));
 
   const translatedKey = translationKeyCandidates.find((key) =>
     i18n.exists(key),
@@ -82,6 +90,10 @@ const getErrorMessage = (errorResponse: ErrorResponse | undefined): string => {
 
   if (detail) {
     return detail;
+  }
+
+  if (errorResponse?.fieldErrors?.[0]?.message) {
+    return errorResponse.fieldErrors[0].message;
   }
 
   return i18n.t("server.error");

@@ -4,7 +4,14 @@ from uuid import UUID
 
 from app.core.config import get_settings
 from app.core.decorators import require_confirmed_company, require_role
-from app.core.exceptions import KpNameExists, NotAllowed
+from app.core.exceptions import (
+    KpBookingNotFound,
+    KpBookingNotOwned,
+    KpBoothZoneEventMismatch,
+    KpBoothZoneNotFound,
+    KpNameExists,
+    KpWaitlistSameZone,
+)
 from app.models.kp_event import KpEvent, KpEventBookingUpgradeWaitlist
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
@@ -31,12 +38,12 @@ class KpService:
     async def _get_owned_booking(self, booking_id: UUID):
         booking = await self.kp_repository.get_booking_by_id(booking_id)
         if booking is None:
-            raise NotAllowed(f"booking_upgrade_waitlist:not_found:{booking_id}")
+            raise KpBookingNotFound(f"booking_upgrade_waitlist:not_found:{booking_id}")
         if (
             self.current_user.company_id is None
             or booking.company_id != self.current_user.company_id
         ):
-            raise NotAllowed(f"booking_upgrade_waitlist:not_owned:{booking_id}")
+            raise KpBookingNotOwned(f"booking_upgrade_waitlist:not_owned:{booking_id}")
         return booking
 
     @require_confirmed_company
@@ -60,15 +67,15 @@ class KpService:
                 target_booth_zone_id
             )
             if target_zone is None:
-                raise NotAllowed(
+                raise KpBoothZoneNotFound(
                     f"booking_upgrade_waitlist:zone_not_found:{target_booth_zone_id}"
                 )
             if target_zone.event_id != booking.event_id:
-                raise NotAllowed(
+                raise KpBoothZoneEventMismatch(
                     f"booking_upgrade_waitlist:zone_event_mismatch:{target_booth_zone_id}"
                 )
             if target_zone.id == booking.booth_zone_id:
-                raise NotAllowed(
+                raise KpWaitlistSameZone(
                     f"booking_upgrade_waitlist:same_zone:{booking_id}:{target_zone.id}"
                 )
 

@@ -10,6 +10,7 @@
     "unauthenticated": "Benutzer ist nicht authentifiziert",
     "user_not_found": "Benutzer wurde in der Datenbank nicht gefunden",
     "company_not_found": "Unternehmen wurde in der Datenbank nicht gefunden",
+    "company_user_not_found": "Der ausgewaehlte Kontaktbenutzer muss zu Ihrem Unternehmen gehoeren.",
     "keycloak_exchange_failed": "Keycloak-Austausch fehlgeschlagen",
     "token_invalid": "Token ist ungültig",
     "not_allowed": "Benutzer darf diese Anfrage nicht ausführen",
@@ -21,8 +22,27 @@
     "password_too_short": "Passwort ist zu kurz",
     "reset_password_failed": "Zurücksetzen des Passworts fehlgeschlagen",
     "kp_year_exists": "KP-Event für dieses Jahr existiert bereits",
+    "kp_booking_not_found": "Die ausgewaehlte KP-Buchung wurde nicht gefunden.",
+    "kp_booking_not_owned": "Diese KP-Buchung gehoert nicht zu Ihrem Unternehmen.",
+    "kp_booth_zone_not_found": "Die ausgewaehlte Standzone wurde nicht gefunden.",
+    "kp_booth_zone_event_mismatch": "Die ausgewaehlte Standzone gehoert zu einem anderen KP-Event.",
+    "kp_waitlist_same_zone": "Die aktuelle Standzone kann nicht auf die Warteliste gesetzt werden.",
+    "validation_failed": "Einige Felder sind ungueltig.",
     "invite_not_found": "Diese Einladung ist ungültig oder wurde bereits verwendet.",
     "invite_expired": "Diese Einladung ist abgelaufen."
+  },
+  "validation": {
+    "required": "Dieses Feld ist erforderlich.",
+    "invalid": "Ungueltige Eingabe.",
+    "invalid_email": "Bitte geben Sie eine gueltige E-Mail-Adresse ein.",
+    "invalid_uuid": "Ungueltige Auswahl.",
+    "invalid_integer": "Bitte geben Sie eine gueltige ganze Zahl ein.",
+    "invalid_number": "Bitte geben Sie eine gueltige Zahl ein.",
+    "invalid_boolean": "Bitte waehlen Sie einen gueltigen Wert aus.",
+    "invalid_date": "Bitte geben Sie ein gueltiges Datum ein.",
+    "invalid_string": "Bitte geben Sie einen gueltigen Textwert ein.",
+    "too_short": "Der Wert ist zu kurz.",
+    "too_long": "Der Wert ist zu lang."
   },
   "company": {
     "login": "Unternehmensanmeldung"

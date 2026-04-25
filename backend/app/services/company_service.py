@@ -6,6 +6,7 @@ from uuid import UUID
 from app.core.decorators import require_admin, require_confirmed_company, require_staff
 from app.core.exceptions import (
     CompanyNotFound,
+    CompanyUserNotFound,
     InviteExpired,
     InviteNotFound,
     NotAllowed,
@@ -220,7 +221,7 @@ class CompanyService:
                 None,
             )
             if user is None:
-                raise NotAllowed(
+                raise CompanyUserNotFound(
                     f"update_my_kp_profile:user_not_in_company:{kp_contact_user_id}"
                 )
 

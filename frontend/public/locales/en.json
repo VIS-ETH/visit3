@@ -10,6 +10,7 @@
     "unauthenticated": "User is not authenticated",
     "user_not_found": "User not found in the database",
     "company_not_found": "Company not found in the database",
+    "company_user_not_found": "The selected contact user must belong to your company.",
     "keycloak_exchange_failed": "Keycloak exchange failed",
     "token_invalid": "Token is invalid",
     "not_allowed": "User is not allowed to make this request",
@@ -21,8 +22,27 @@
     "password_too_short": "Password is too short",
     "reset_password_failed": "Password reset failed",
     "kp_year_exists": "KP event for this year already exists",
+    "kp_booking_not_found": "The selected KP booking could not be found.",
+    "kp_booking_not_owned": "This KP booking does not belong to your company.",
+    "kp_booth_zone_not_found": "The selected booth zone could not be found.",
+    "kp_booth_zone_event_mismatch": "The selected booth zone belongs to a different KP event.",
+    "kp_waitlist_same_zone": "You cannot add your current booth zone to the waitlist.",
+    "validation_failed": "Some fields are invalid.",
     "invite_not_found": "This invite is invalid or has already been used.",
     "invite_expired": "This invite has expired."
+  },
+  "validation": {
+    "required": "This field is required.",
+    "invalid": "Invalid input.",
+    "invalid_email": "Please enter a valid email address.",
+    "invalid_uuid": "Invalid selection.",
+    "invalid_integer": "Please enter a valid whole number.",
+    "invalid_number": "Please enter a valid number.",
+    "invalid_boolean": "Please choose a valid value.",
+    "invalid_date": "Please enter a valid date.",
+    "invalid_string": "Please enter a valid text value.",
+    "too_short": "The value is too short.",
+    "too_long": "The value is too long."
   },
   "company": {
     "login": "Company Login"

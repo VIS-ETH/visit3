@@ -74,6 +74,13 @@ class KpEvent(BaseEntity, table=True):
         return self
 
 
+class KpBookingStatus(str, Enum):
+    DRAFT = "draft"
+    CONFIRMED = "confirmed"
+    FINALIZED = "finalized"
+    CANCELLED = "cancelled"
+
+
 class KpEventBooking(BaseEntity, table=True):
     __table_args__ = (
         UniqueConstraint("event_id", "company_id", "booth_zone_id"),
@@ -86,7 +93,7 @@ class KpEventBooking(BaseEntity, table=True):
     company_id: UUID = Field(foreign_key="company.id")
     booth_zone_id: UUID = Field(foreign_key="kpeventboothzone.id")
 
-    finalized: bool = Field(default=False)
+    status: KpBookingStatus = Field(default=KpBookingStatus.CONFIRMED)
 
     booth_nr: int = Field(ge=1)  # booth number within the booth zone
 
@@ -102,6 +109,10 @@ class KpEventBooking(BaseEntity, table=True):
         back_populates="booking",
         sa_relationship_kwargs={"uselist": False},
     )
+
+    @property
+    def is_finalized(self) -> bool:
+        return self.status == KpBookingStatus.FINALIZED
 
 
 class KpEventBookingUpgradeWaitlist(BaseEntity, table=True):

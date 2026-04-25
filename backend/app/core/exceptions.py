@@ -35,11 +35,71 @@ class CompanyNotFound(AppError):
         )
 
 
+class CompanyUserNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Selected user does not belong to the company",
+            "error.company_user_not_found",
+            identifier,
+            400,
+        )
+
+
 class KpNameExists(AppError):
     def __init__(self, identifier: str):
         super().__init__(
             "KP event with this name already exists",
             "error.kp_name_exists",
+            identifier,
+            400,
+        )
+
+
+class KpBookingNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP booking not found",
+            "error.kp_booking_not_found",
+            identifier,
+            404,
+        )
+
+
+class KpBookingNotOwned(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP booking does not belong to the current company",
+            "error.kp_booking_not_owned",
+            identifier,
+            403,
+        )
+
+
+class KpBoothZoneNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP booth zone not found",
+            "error.kp_booth_zone_not_found",
+            identifier,
+            404,
+        )
+
+
+class KpBoothZoneEventMismatch(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP booth zone belongs to a different event",
+            "error.kp_booth_zone_event_mismatch",
+            identifier,
+            400,
+        )
+
+
+class KpWaitlistSameZone(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Cannot add the current booth zone to the waitlist",
+            "error.kp_waitlist_same_zone",
             identifier,
             400,
         )

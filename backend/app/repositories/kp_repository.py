@@ -10,6 +10,7 @@ from app.models.kp_event import (
     KpBookingCompanyDetails,
     KpBookingCompanyDetailsIndustryLink,
     KpCompanyLanguage,
+    KpBookingStatus,
     KpEvent,
     KpEventBooking,
     KpEventBookingUpgradeWaitlist,
@@ -124,7 +125,7 @@ class KpRepository(BaseRepository[KpEvent]):
         company_id: UUID,
         booth_zone_id: UUID,
         booth_nr: int,
-        finalized: bool = False,
+        status: KpBookingStatus = KpBookingStatus.CONFIRMED,
     ) -> KpEventBooking:
         try:
             booking = KpEventBooking(
@@ -132,7 +133,7 @@ class KpRepository(BaseRepository[KpEvent]):
                 company_id=company_id,
                 booth_zone_id=booth_zone_id,
                 booth_nr=booth_nr,
-                finalized=finalized,
+                status=status,
             )
             self._validate_booking(booking)
             self.session.add(booking)
@@ -147,15 +148,15 @@ class KpRepository(BaseRepository[KpEvent]):
         booking: KpEventBooking,
         booth_zone_id: UUID | None = None,
         booth_nr: int | None = None,
-        finalized: bool | None = None,
+        status: KpBookingStatus | None = None,
     ) -> KpEventBooking:
         try:
             if booth_zone_id is not None:
                 booking.booth_zone_id = booth_zone_id
             if booth_nr is not None:
                 booking.booth_nr = booth_nr
-            if finalized is not None:
-                booking.finalized = finalized
+            if status is not None:
+                booking.status = status
 
             self._validate_booking(booking)
             self.session.add(booking)
