@@ -29,9 +29,13 @@
     "kp_booking_not_owned": "Diese KP-Buchung gehoert nicht zu Ihrem Unternehmen.",
     "kp_booking_status_transition_invalid": "Der angeforderte Buchungsstatuswechsel ist nicht erlaubt.",
     "kp_booking_confirmation_requires_finalized": "Nur finalisierte Buchungen koennen bestaetigt werden.",
+    "kp_service_requirement_not_found": "Die ausgewaehlte Serviceanforderung wurde nicht gefunden.",
+    "kp_requirement_booking_service_mismatch": "Die ausgewaehlte Anforderung gehoert nicht zu einem gebuchten Service.",
     "kp_booth_zone_not_found": "Die ausgewaehlte Standzone wurde nicht gefunden.",
     "kp_booth_zone_event_mismatch": "Die ausgewaehlte Standzone gehoert zu einem anderen KP-Event.",
     "kp_waitlist_same_zone": "Die aktuelle Standzone kann nicht auf die Warteliste gesetzt werden.",
+    "storage_upload_failed": "Der Datei-Upload ist fehlgeschlagen.",
+    "storage_delete_failed": "Das Loeschen der Datei ist fehlgeschlagen.",
     "validation_failed": "Einige Felder sind ungueltig.",
     "invite_not_found": "Diese Einladung ist ungültig oder wurde bereits verwendet.",
     "invite_expired": "Diese Einladung ist abgelaufen."

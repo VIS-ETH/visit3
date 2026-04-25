@@ -29,9 +29,13 @@
     "kp_booking_not_owned": "This KP booking does not belong to your company.",
     "kp_booking_status_transition_invalid": "The requested booking status change is not allowed.",
     "kp_booking_confirmation_requires_finalized": "Only finalized bookings can be confirmed.",
+    "kp_service_requirement_not_found": "The selected service requirement could not be found.",
+    "kp_requirement_booking_service_mismatch": "The selected requirement does not belong to a booked service.",
     "kp_booth_zone_not_found": "The selected booth zone could not be found.",
     "kp_booth_zone_event_mismatch": "The selected booth zone belongs to a different KP event.",
     "kp_waitlist_same_zone": "You cannot add your current booth zone to the waitlist.",
+    "storage_upload_failed": "The file upload failed.",
+    "storage_delete_failed": "The file deletion failed.",
     "validation_failed": "Some fields are invalid.",
     "invite_not_found": "This invite is invalid or has already been used.",
     "invite_expired": "This invite has expired."

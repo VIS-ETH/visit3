@@ -125,6 +125,46 @@ class KpBookingConfirmationRequiresFinalized(AppError):
         )
 
 
+class KpServiceRequirementNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP service requirement not found",
+            "error.kp_service_requirement_not_found",
+            identifier,
+            404,
+        )
+
+
+class KpRequirementBookingServiceMismatch(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP service requirement does not belong to a booked service",
+            "error.kp_requirement_booking_service_mismatch",
+            identifier,
+            400,
+        )
+
+
+class StorageUploadFailed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "File upload failed",
+            "error.storage_upload_failed",
+            identifier,
+            500,
+        )
+
+
+class StorageDeleteFailed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "File deletion failed",
+            "error.storage_delete_failed",
+            identifier,
+            500,
+        )
+
+
 class KeycloakExchangeFailed(AppError):
     def __init__(self, identifier: str):
         super().__init__(

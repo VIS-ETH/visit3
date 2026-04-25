@@ -12,6 +12,7 @@ from sqlmodel import Field, Relationship, UniqueConstraint
 from app.core.utils import strip_text
 from app.models.base import BaseEntity, BaseLink
 from app.models.company import Company
+from app.models.storage import StoredFile
 from app.models.user import User
 
 
@@ -253,6 +254,9 @@ class KpEventBookingService(BaseEntity, table=True):
 
     booking: "KpEventBooking" = Relationship(back_populates="services")
     service: "KpEventService" = Relationship(back_populates="booking_services")
+    requirement_file_links: list["KpEventBookingServiceFileLink"] = Relationship(
+        back_populates="booking_service"
+    )
 
     @property
     def charged_quantity(self) -> int:
@@ -260,6 +264,20 @@ class KpEventBookingService(BaseEntity, table=True):
         The charged quantity of the service. Subtracts the quantity that is already included in the booking (e.g. through the selected booth zone).
         """
         return max(self.quantity - self.included_quantity, 0)
+
+
+class KpEventBookingServiceFileLink(BaseEntity, table=True):
+    __table_args__ = (UniqueConstraint("booking_service_id", "requirement_id"),)
+
+    booking_service_id: UUID = Field(foreign_key="kpeventbookingservice.id")
+    requirement_id: UUID = Field(foreign_key="kpeventservicerequirement.id")
+    stored_file_id: UUID = Field(foreign_key="storedfile.id", unique=True)
+
+    booking_service: "KpEventBookingService" = Relationship(
+        back_populates="requirement_file_links"
+    )
+    requirement: "KpEventServiceRequirement" = Relationship()
+    stored_file: StoredFile = Relationship()
 
 
 class KpCompanyLanguage(str, Enum):

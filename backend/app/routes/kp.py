@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, File, UploadFile
 
 from app.core.decorators import (
     require_admin,
@@ -13,6 +13,8 @@ from app.schemas.kp import (
     BookingUpgradeWaitlistEntryResponse,
     CreateKpRequest,
     KpResponse,
+    RequirementFileDownloadResponse,
+    RequirementFileResponse,
     ReplaceBookingUpgradeWaitlistRequest,
     UpdateBookingBoothNumberRequest,
     UpdateBookingStatusRequest,
@@ -103,6 +105,77 @@ async def confirm_booking(
     return BookingResponse.from_model(booking)
 
 
+@require_confirmed_company
+@router.get(
+    "/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
+    operation_id="getBookingRequirementFile",
+)
+async def get_booking_requirement_file(
+    kp_service: KpServiceDep,
+    booking_service_id: UUID,
+    requirement_id: UUID,
+) -> RequirementFileResponse | None:
+    requirement_file = await kp_service.get_booking_requirement_file(
+        booking_service_id, requirement_id
+    )
+    return (
+        RequirementFileResponse.from_model(requirement_file)
+        if requirement_file is not None
+        else None
+    )
+
+
+@require_confirmed_company
+@router.post(
+    "/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
+    operation_id="uploadBookingRequirementFile",
+)
+async def upload_booking_requirement_file(
+    kp_service: KpServiceDep,
+    booking_service_id: UUID,
+    requirement_id: UUID,
+    file: UploadFile = File(...),
+) -> RequirementFileResponse:
+    requirement_file = await kp_service.upload_booking_requirement_file(
+        booking_service_id=booking_service_id,
+        requirement_id=requirement_id,
+        filename=file.filename or "upload.bin",
+        content=await file.read(),
+        content_type=file.content_type,
+    )
+    return RequirementFileResponse.from_model(requirement_file)
+
+
+@require_confirmed_company
+@router.delete(
+    "/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
+    operation_id="deleteBookingRequirementFile",
+)
+async def delete_booking_requirement_file(
+    kp_service: KpServiceDep,
+    booking_service_id: UUID,
+    requirement_id: UUID,
+) -> None:
+    await kp_service.delete_booking_requirement_file(booking_service_id, requirement_id)
+
+
+@require_confirmed_company
+@router.get(
+    "/booking-services/{booking_service_id}/requirements/{requirement_id}/file/download",
+    operation_id="getBookingRequirementFileDownloadUrl",
+)
+async def get_booking_requirement_file_download_url(
+    kp_service: KpServiceDep,
+    booking_service_id: UUID,
+    requirement_id: UUID,
+) -> RequirementFileDownloadResponse:
+    url = await kp_service.get_booking_requirement_file_download_url(
+        booking_service_id, requirement_id
+    )
+    return RequirementFileDownloadResponse(url=url)
+
+
+@require_admin
 @router.post("/create", operation_id="createKp")
 @require_admin
 async def create_kp(kp_service: KpServiceDep, request: CreateKpRequest) -> KpResponse:

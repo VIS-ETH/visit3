@@ -1,0 +1,89 @@
+import asyncio
+import mimetypes
+from dataclasses import dataclass
+
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
+
+from app.core.config import Settings
+from app.core.exceptions import StorageDeleteFailed, StorageUploadFailed
+
+
+@dataclass
+class StoredObject:
+    key: str
+    etag: str | None
+    mime_type: str
+    size_bytes: int
+
+
+class StorageService:
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        self.client = boto3.client(
+            "s3",
+            endpoint_url=settings.S3_ENDPOINT_URL,
+            region_name=settings.S3_REGION,
+            aws_access_key_id=settings.S3_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
+        )
+
+    def _normalize_mime_type(
+        self, filename: str, content_type: str | None = None
+    ) -> str:
+        if content_type:
+            return content_type
+        guessed_type, _ = mimetypes.guess_type(filename)
+        return guessed_type or "application/octet-stream"
+
+    async def upload_bytes(
+        self,
+        key: str,
+        content: bytes,
+        filename: str,
+        content_type: str | None = None,
+    ) -> StoredObject:
+        mime_type = self._normalize_mime_type(filename, content_type)
+
+        def _upload() -> dict:
+            return self.client.put_object(
+                Bucket=self.settings.S3_BUCKET,
+                Key=key,
+                Body=content,
+                ContentType=mime_type,
+            )
+
+        try:
+            response = await asyncio.to_thread(_upload)
+        except (BotoCoreError, ClientError) as error:
+            raise StorageUploadFailed(f"upload_bytes:{key}:{error.__class__.__name__}")
+
+        return StoredObject(
+            key=key,
+            etag=response.get("ETag", "").strip('"') or None,
+            mime_type=mime_type,
+            size_bytes=len(content),
+        )
+
+    async def delete_object(self, key: str) -> None:
+        def _delete() -> None:
+            self.client.delete_object(Bucket=self.settings.S3_BUCKET, Key=key)
+
+        try:
+            await asyncio.to_thread(_delete)
+        except (BotoCoreError, ClientError) as error:
+            raise StorageDeleteFailed(f"delete_object:{key}:{error.__class__.__name__}")
+
+    async def generate_download_url(self, key: str, filename: str) -> str:
+        def _presign() -> str:
+            return self.client.generate_presigned_url(
+                "get_object",
+                Params={
+                    "Bucket": self.settings.S3_BUCKET,
+                    "Key": key,
+                    "ResponseContentDisposition": f'attachment; filename="{filename}"',
+                },
+                ExpiresIn=self.settings.S3_PRESIGN_EXPIRY_SECONDS,
+            )
+
+        return await asyncio.to_thread(_presign)
