@@ -24,8 +24,8 @@ class StorageService:
             "s3",
             endpoint_url=settings.S3_ENDPOINT_URL,
             region_name=settings.S3_REGION,
-            aws_access_key_id=settings.S3_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
+            aws_access_key_id=settings.SIP_S3_FILES_ACCESS_KEY,
+            aws_secret_access_key=settings.SIP_S3_FILES_SECRET_KEY,
         )
 
     def _normalize_mime_type(
@@ -47,7 +47,7 @@ class StorageService:
 
         def _upload() -> dict:
             return self.client.put_object(
-                Bucket=self.settings.S3_BUCKET,
+                Bucket=self.settings.SIP_S3_FILES_BUCKET,
                 Key=key,
                 Body=content,
                 ContentType=mime_type,
@@ -67,7 +67,7 @@ class StorageService:
 
     async def delete_object(self, key: str) -> None:
         def _delete() -> None:
-            self.client.delete_object(Bucket=self.settings.S3_BUCKET, Key=key)
+            self.client.delete_object(Bucket=self.settings.SIP_S3_FILES_BUCKET, Key=key)
 
         try:
             await asyncio.to_thread(_delete)
@@ -79,7 +79,7 @@ class StorageService:
             return self.client.generate_presigned_url(
                 "get_object",
                 Params={
-                    "Bucket": self.settings.S3_BUCKET,
+                    "Bucket": self.settings.SIP_S3_FILES_BUCKET,
                     "Key": key,
                     "ResponseContentDisposition": f'attachment; filename="{filename}"',
                 },

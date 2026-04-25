@@ -30,14 +30,21 @@ class Settings(BaseSettings):
     KEYCLOAK_ALGORITHM: str
     ADMIN_GROUP: str
     VISIT_KP_PRESIDENT_ROLE: str
-    S3_ENDPOINT_URL: str
-    S3_REGION: str
-    S3_ACCESS_KEY_ID: str
-    S3_SECRET_ACCESS_KEY: str
-    S3_BUCKET: str
+    SIP_S3_FILES_HOST: str
+    SIP_S3_FILES_PORT: str
+    SIP_S3_FILES_USE_SSL: bool = True
+    SIP_S3_FILES_ACCESS_KEY: str
+    SIP_S3_FILES_SECRET_KEY: str
+    SIP_S3_FILES_BUCKET: str
+    S3_REGION: str = "us-east-1"
     S3_PRESIGN_EXPIRY_SECONDS: int = 3600
     DEBUG_KEYCLOAK_ADMIN: bool = False
     DEBUG: bool = False
+
+    @property
+    def S3_ENDPOINT_URL(self) -> str:
+        scheme = "https" if self.SIP_S3_FILES_USE_SSL else "http"
+        return f"{scheme}://{self.SIP_S3_FILES_HOST}:{self.SIP_S3_FILES_PORT}"
 
 
 @lru_cache
