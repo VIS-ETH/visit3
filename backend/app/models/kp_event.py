@@ -39,6 +39,7 @@ class KpEvent(BaseEntity, table=True):
     registration_open: date
     registration_end: date
     finalization_deadline: date  # deadline for finalizing the booking. after this date, no changes to the booking are allowed.
+    nametags_deadline: date  # deadline for submitting nametags. after this date, no nametags can be changed.
     event_date: date
 
     booth_zones: list["KpEventBoothZone"] = Relationship(back_populates="event")
@@ -59,6 +60,10 @@ class KpEvent(BaseEntity, table=True):
             raise ValueError("registration_end must be after registration_open")
         if self.registration_end >= self.event_date:
             raise ValueError("event_date must be after registration_end")
+        if self.nametags_deadline < self.registration_end:
+            raise ValueError("nametags_deadline must be after registration_end")
+        if self.nametags_deadline >= self.event_date:
+            raise ValueError("nametags_deadline must be before event_date")
         if self.finalization_deadline < self.registration_end:
             raise ValueError("finalization_deadline must be after registration_end")
         if self.finalization_deadline >= self.event_date:

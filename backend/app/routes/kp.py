@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.core.deps import CsrfDep, KpServiceDep
 from app.models.kp_event import KpEvent
 from app.schemas.kp import CreateKpRequest, KpResponse
+from app.core.decorators import require_admin
 
 router = APIRouter(prefix="/kp", tags=["kp"], dependencies=[CsrfDep])
 
@@ -35,6 +36,7 @@ async def get_kp_by_name(kp_service: KpServiceDep, name: str) -> KpResponse | No
     return _serialize_kp(event) if event is not None else None
 
 
+@require_admin
 @router.post("/create", operation_id="createKp")
 async def create_kp(kp_service: KpServiceDep, request: CreateKpRequest) -> KpResponse:
     event = await kp_service.create_kp(
