@@ -1,6 +1,7 @@
 from uuid import UUID
 
-from pydantic import BaseModel
+from app.core.utils import strip_text
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class CompanyResponse(BaseModel):
@@ -20,25 +21,40 @@ class CompanyUserResponse(BaseModel):
 
 
 class RegisterUserRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
-    first_name: str
-    last_name: str
+    first_name: str = Field(min_length=1)
+    last_name: str = Field(min_length=1)
     phone_number: str | None = None
+
+    @field_validator("first_name", "last_name", mode="before")
+    @classmethod
+    def strip_names(cls, v: str) -> str:
+        return strip_text(v)
 
 
 class UpdateUserProfileRequest(BaseModel):
-    first_name: str | None = None
-    last_name: str | None = None
+    first_name: str | None = Field(default=None, min_length=1)
+    last_name: str | None = Field(default=None, min_length=1)
     phone_number: str | None = None
+
+    @field_validator("first_name", "last_name", mode="before")
+    @classmethod
+    def strip_names(cls, v: str | None) -> str | None:
+        return strip_text(v)
 
 
 class UpdateCompanyUserRequest(BaseModel):
-    email: str | None = None
-    first_name: str | None = None
-    last_name: str | None = None
+    email: EmailStr | None = None
+    first_name: str | None = Field(default=None, min_length=1)
+    last_name: str | None = Field(default=None, min_length=1)
     phone_number: str | None = None
     company_id: UUID | None = None
+
+    @field_validator("first_name", "last_name", mode="before")
+    @classmethod
+    def strip_names(cls, v: str | None) -> str | None:
+        return strip_text(v)
 
 
 class Token(BaseModel):
@@ -51,7 +67,7 @@ class TokenData(BaseModel):
 
 
 class ForgetPasswordRequest(BaseModel):
-    email: str
+    email: EmailStr
 
 
 class ResetPasswordRequest(BaseModel):

@@ -7,7 +7,6 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi_csrf_protect import CsrfProtect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from app.core.config import get_settings
@@ -15,18 +14,17 @@ from app.core.exceptions import NotAllowed, Unauthenticated
 from app.core.grpc import grpc_client
 from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 from app.models.user import User
-from app.repositories.company_repository import CompanyRepository
 from app.repositories.kp_repository import KpRepository
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import TokenData
 from app.services.auth_service import AuthService
-from app.services.company_service import CompanyService
 from app.services.kp_service import KpService
 from app.services.mail_service import MailService
 from app.services.pdf_service import PdfService
 from app.services.user_service import UserService
+from app.repositories.company_repository import CompanyRepository
+from app.services.company_service import CompanyService
 
 logger = logging.getLogger(__name__)
 
@@ -63,26 +61,25 @@ async def get_current_user(
 ):
     try:
         payload = jwt.decode(token, get_settings().SECRET_KEY, algorithms=["HS256"])
-        username = payload.get("sub")
-        if username is None:
+        subject = payload.get("sub")
+        if subject is None:
             logger.warning("JWT decode failed - no sub claim")
             raise Unauthenticated("jwt_decode:no_sub")
-        token_data = TokenData(username=username)
     except jwt.InvalidTokenError:
         logger.warning("JWT decode failed - invalid token")
         raise Unauthenticated("jwt_decode:invalid_token")
-    statement = (
-        select(User)
-        .where(User.email == token_data.username)
-        .options(selectinload(User.roles))
-    )
-    result = await session.execute(statement)
-    user = result.scalar_one_or_none()
+
+    user_repo = UserRepository(session)
+    try:
+        user = await user_repo.get_by_id(UUID(subject))
+    except ValueError:
+        logger.warning(f"JWT decode failed - invalid subject: {subject}")
+        raise Unauthenticated(f"jwt_decode:invalid_sub:{subject}")
+
     if user is None:
-        logger.warning(
-            f"JWT user lookup failed - user not found: {token_data.username}"
-        )
-        raise Unauthenticated(f"jwt_decode:user_not_found:{token_data.username}")
+        logger.warning(f"JWT user lookup failed - user not found: {subject}")
+        raise Unauthenticated(f"jwt_decode:user_not_found:{subject}")
+
     logger.debug(f"User authenticated: {user.email}")
 
     impersonate_id = request.headers.get("X-Impersonate-User-Id")
@@ -94,14 +91,11 @@ async def get_current_user(
             target_uuid = UUID(impersonate_id)
         except ValueError:
             raise NotAllowed(f"impersonate:invalid_uuid:{impersonate_id}")
-        user_repo = UserRepository(session)
         target = await user_repo.get_by_id(target_uuid)
         if target is None:
             raise NotAllowed(f"impersonate:user_not_found:{impersonate_id}")
         await user_repo.load_user_roles(target)
         logger.info(f"Admin {user.email} impersonating: {target.email}")
-        target.is_admin = True
-        target.is_staff = True
         return target
 
     return user
@@ -221,10 +215,8 @@ CompanyServiceDep = Annotated[CompanyService, Depends(get_company_service)]
 
 async def get_kp_service(
     kp_repository: KpRepositoryDep,
-    company_repository: CompanyRepositoryDep,
-    current_user: CurrentUserDep,
 ):
-    return KpService(kp_repository, company_repository, current_user)
+    return KpService(kp_repository)
 
 
 KpServiceDep = Annotated[KpService, Depends(get_kp_service)]

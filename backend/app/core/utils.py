@@ -1,12 +1,26 @@
 import hashlib
 import json
-from typing import Any, TypeVar
+from typing import Any, TypeVar, overload
 
 T = TypeVar("T")
 
 
 def normalize_email(email: str) -> str:
     return email.strip().lower()
+
+
+@overload
+def strip_text(value: str) -> str: ...
+
+
+@overload
+def strip_text(value: None) -> None: ...
+
+
+def strip_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return value.strip()
 
 
 def hash_str(str) -> str:

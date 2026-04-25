@@ -15,7 +15,7 @@ from app.core.exceptions import (
     KeycloakExchangeFailed,
     NotAllowed,
     PasswordTooShort,
-    PasswordWrong,
+    InvalidCredentials,
     PhoneNumberInvalid,
     TokenInvalid,
 )
@@ -52,12 +52,18 @@ class AuthService:
         user = await self.user_repository.get_by_email(email)
         if not user:
             return False
-        if not await self.verify_password(password, user.password):
+        valid_password = await self.verify_and_update_password(user, password)
+        if not valid_password:
             return False
         return user
 
     async def create_access_token(self, user: User):
-        to_encode = {"sub": user.email}
+        to_encode = {
+            "sub": str(
+                user.id
+            ),  # we use the internal user id as the subject to have a uniform way to identify users, regardless of the login method (keycloak or password)
+            "email": user.email,
+        }
         expire = datetime.now(timezone.utc) + ACCESS_TOKEN_EXPIRE
         to_encode.update({"exp": expire})
         return jwt.encode(to_encode, get_settings().SECRET_KEY, algorithm="HS256")
@@ -81,13 +87,21 @@ class AuthService:
         refresh_token = await self.create_refresh_token(user)
         return (access_token, refresh_token)
 
-    async def verify_refresh_token(self, raw_token: str):
-        return await self.token_repository.get_refresh_token(hash_str(raw_token))
+    async def get_active_refresh_token(self, raw_token: str):
+        return await self.token_repository.get_active_refresh_token(hash_str(raw_token))
 
-    async def verify_password(self, plain_password: str, hashed_password: str):
-        return await asyncio.to_thread(
-            password_hash.verify, plain_password, hashed_password
+    async def verify_and_update_password(self, user: User, plain_password: str) -> bool:
+        valid, updated_hash = password_hash.verify_and_update(
+            plain_password, user.password
         )
+        if not valid:
+            return False
+        if updated_hash is not None:
+            try:
+                await self.user_repository.update_password(user.id, updated_hash)
+            except Exception:
+                logger.exception(f"Failed to rehash password for user: {user.email}")
+        return True
 
     async def hash_password(self, password: str):
         return await asyncio.to_thread(password_hash.hash, password)
@@ -133,7 +147,7 @@ class AuthService:
         user = await self.authenticate_user(username, password)
         if not user:
             logger.warning(f"Login failed: invalid credentials for {username}")
-            raise PasswordWrong(f"login:{username}")
+            raise InvalidCredentials(f"login:{username}")
         logger.info(f"User login successful: {username}")
         return await self.create_tokens(user)
 
@@ -141,13 +155,9 @@ class AuthService:
         if not refresh_token:
             raise TokenInvalid("refresh:no_token")
 
-        token = await self.verify_refresh_token(refresh_token)
+        token = await self.get_active_refresh_token(refresh_token)
 
-        if (
-            not token
-            or token.is_revoked
-            or datetime.now(timezone.utc) > token.expires_at.astimezone(timezone.utc)
-        ):
+        if not token:
             raise TokenInvalid(f"refresh:{token.user_id if token else 'unknown'}")
 
         user = await self.user_repository.get_by_id(token.user_id)
@@ -230,7 +240,6 @@ class AuthService:
         return await self.create_refresh_token(user)
 
     async def map_keycloak_to_user(self, decoded_token: str):
-        email = decoded_token["email"]
         if get_settings().DEBUG_KEYCLOAK_ADMIN:
             keycloak_roles = [get_settings().ADMIN_GROUP]
         else:
@@ -239,13 +248,15 @@ class AuthService:
                 .get(get_settings().SIP_AUTH_OIDC_CLIENT_ID, {})
                 .get("roles", [])
             )
-        sub = decoded_token["sub"]
-        first_name = decoded_token.get("given_name", "")
-        last_name = decoded_token.get("family_name", "")
 
         admin, roles = await self.map_keycloak_roles(
             keycloak_roles, ["vis-active", "admin"]
         )
+
+        email = decoded_token["email"]
+        sub = decoded_token["sub"]
+        first_name = decoded_token.get("given_name", "")
+        last_name = decoded_token.get("family_name", "")
 
         return await self.user_repository.create_or_update_user(
             User(

@@ -11,6 +11,7 @@ from sqlalchemy import CheckConstraint, Column, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field, Relationship, UniqueConstraint
 
+from app.core.utils import strip_text
 from app.models.base import BaseEntity, BaseLink
 from app.models.company import Company
 from app.models.user import User
@@ -85,13 +86,13 @@ class KpEventBooking(BaseEntity, table=True):
 
     booth_nr: int = Field(ge=1)  # booth number within the booth zone
 
-    event: KpEvent | None = Relationship(back_populates="bookings")
-    company: Company | None = Relationship(back_populates="bookings")
+    event: KpEvent = Relationship(back_populates="bookings")
+    company: Company = Relationship(back_populates="bookings")
     booth_zone: KpEventBoothZone = Relationship(back_populates="bookings")
-    main_contact: User | None = Relationship(back_populates="main_contact_bookings")
+    main_contact: User = Relationship(back_populates="main_contact_bookings")
     services: list[KpEventBookingService] = Relationship(back_populates="booking")
     name_tags: list[NameTag] = Relationship(back_populates="booking")
-    company_details: KpBookingCompanyDetails | None = Relationship(
+    company_details: KpBookingCompanyDetails = Relationship(
         back_populates="booking",
         sa_relationship_kwargs={"uselist": False},
     )
@@ -105,6 +106,11 @@ class NameTag(BaseEntity, table=True):
     position: str = Field(min_length=1)
 
     booking: KpEventBooking = Relationship(back_populates="name_tags")
+
+    @field_validator("first_name", "last_name", mode="before")
+    @classmethod
+    def strip_names(cls, value: str) -> str:
+        return strip_text(value)
 
 
 class KpEventBoothZoneServiceLink(BaseLink, table=True):
@@ -133,7 +139,7 @@ class KpEventBoothZone(BaseEntity, table=True):
     booth_size: float = Field(default=0, ge=0)  # square meters
     base_price: int = Field(default=0, ge=0)  # cents
 
-    event: KpEvent | None = Relationship(back_populates="booth_zones")
+    event: KpEvent = Relationship(back_populates="booth_zones")
     included_services: list[KpEventBoothZoneServiceLink] = Relationship(
         back_populates="booth_zone"
     )
@@ -188,7 +194,7 @@ class KpEventService(BaseEntity, table=True):
     # if false, service is no longer available for booking. already booked services are not affected.
     is_active: bool = Field(default=True)
 
-    event: KpEvent | None = Relationship(back_populates="services")
+    event: KpEvent = Relationship(back_populates="services")
     booth_zones: list[KpEventBoothZoneServiceLink] = Relationship(
         back_populates="service"
     )
@@ -267,7 +273,7 @@ class KpBookingCompanyDetails(BaseEntity, table=True):
         ),
     )
 
-    booking: KpEventBooking | None = Relationship(back_populates="company_details")
+    booking: KpEventBooking = Relationship(back_populates="company_details")
     industry_links: list[KpBookingCompanyDetailsIndustryLink] = Relationship(
         back_populates="booking_company_details",
     )

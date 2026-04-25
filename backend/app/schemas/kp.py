@@ -4,7 +4,8 @@ from pydantic import BaseModel
 
 
 class CreateKpRequest(BaseModel):
-    year: int
+    name: str
     registration_open: date
     registration_end: date
+    finalization_deadline: date
     event_date: date
