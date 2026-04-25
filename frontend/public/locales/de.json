@@ -159,57 +159,49 @@
     "error": "KP-Daten konnten nicht geladen werden",
     "latest": {
       "title": "Letztes Event",
-      "year": "Jahr",
       "registration_open": "Anmeldung offen ab",
       "registration_end": "Anmeldung endet",
       "event_date": "Eventdatum",
-      "none": "Kein KP-Event gefunden."
+      "none": "Kein KP-Event gefunden.",
+      "name": "Jahr",
+      "finalization_deadline": "Finalisierungsfrist"
     },
     "history": {
       "title": "Eventverlauf",
-      "year": "Jahr",
       "registration": "Anmeldefenster",
       "event_date": "Eventdatum",
-      "none": "Noch keine KP-Events verfuegbar."
+      "none": "Noch keine KP-Events verfuegbar.",
+      "name": "Jahr",
+      "finalization_deadline": "Finalisierungsfrist"
     },
     "join": {
       "title": "KP beitreten",
-      "description": "Die Firmenanmeldung fuer die Kontaktparty wird unten verwaltet.",
-      "error": "Anmeldedaten konnten nicht geladen werden",
+      "description": "Die aktuellen Kontaktparty-Eventdetails werden unten angezeigt.",
+      "error": "KP-Eventdaten konnten nicht geladen werden",
       "current_event": "Aktuelles Event",
-      "year": "Jahr",
       "registration_window": "Anmeldefenster",
       "event_date": "Eventdatum",
-      "register_button": "Firma anmelden",
-      "deregister_button": "Anmeldung stornieren",
-      "register_success_title": "Anmeldung erfolgreich",
-      "register_success_message": "Ihre Firma ist jetzt fuer dieses Event angemeldet.",
-      "deregister_success_title": "Anmeldung storniert",
-      "deregister_success_message": "Ihre Firma wurde von diesem Event abgemeldet.",
-      "no_event": "Kein aktives KP-Event verfuegbar."
+      "no_event": "Kein aktives KP-Event verfuegbar.",
+      "name": "Jahr",
+      "finalization_deadline": "Finalisierungsfrist"
     },
     "dashboard": {
       "title": "KP Dashboard",
-      "description": "Events erstellen und teilnehmende Firmen einsehen.",
+      "description": "Kontaktparty-Events erstellen und einsehen.",
       "error": "KP-Dashboard-Daten konnten nicht geladen werden",
       "create_title": "Neues Event erstellen",
       "create_button": "KP-Event erstellen",
       "create_success_title": "KP-Event erstellt",
       "create_success_message": "Das Event wurde erfolgreich gespeichert.",
-      "invalid_year": "Bitte ein gueltiges Jahr eingeben.",
       "list_title": "Alle KP-Events",
-      "year": "Jahr",
       "registration_open": "Anmeldung offen ab",
       "registration_end": "Anmeldung endet",
       "registration_window": "Anmeldefenster",
       "event_date": "Eventdatum",
       "no_events": "Keine KP-Events gefunden.",
-      "companies_title": "Angemeldete Firmen pro Event",
-      "choose_event": "Event auswaehlen",
-      "choose_event_placeholder": "KP-Event auswaehlen",
-      "companies_error": "Firmen fuer das ausgewaehlte Event konnten nicht geladen werden",
-      "company_name": "Firma",
-      "no_companies": "Keine Firmen fuer dieses Event angemeldet."
+      "invalid_name": "Bitte einen gueltigen Eventnamen eingeben.",
+      "name": "Jahr",
+      "finalization_deadline": "Finalisierungsfrist"
     }
   },
   "profile": {

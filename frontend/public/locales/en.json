@@ -159,57 +159,49 @@
     "error": "Failed to load KP data",
     "latest": {
       "title": "Latest event",
-      "year": "Year",
       "registration_open": "Registration opens",
       "registration_end": "Registration ends",
       "event_date": "Event date",
-      "none": "No KP event found."
+      "none": "No KP event found.",
+      "name": "Year",
+      "finalization_deadline": "Finalization deadline"
     },
     "history": {
       "title": "Event history",
-      "year": "Year",
       "registration": "Registration window",
       "event_date": "Event date",
-      "none": "No KP events available yet."
+      "none": "No KP events available yet.",
+      "name": "Year",
+      "finalization_deadline": "Finalization deadline"
     },
     "join": {
       "title": "Join KP",
-      "description": "Company registration for Kontaktparty is managed below.",
-      "error": "Failed to load registration data",
+      "description": "Current Kontaktparty event details are shown below.",
+      "error": "Failed to load KP event data",
       "current_event": "Current event",
-      "year": "Year",
       "registration_window": "Registration window",
       "event_date": "Event date",
-      "register_button": "Register company",
-      "deregister_button": "Cancel registration",
-      "register_success_title": "Registration successful",
-      "register_success_message": "Your company is now registered for this event.",
-      "deregister_success_title": "Registration cancelled",
-      "deregister_success_message": "Your company has been removed from this event.",
-      "no_event": "No active KP event available."
+      "no_event": "No active KP event available.",
+      "name": "Year",
+      "finalization_deadline": "Finalization deadline"
     },
     "dashboard": {
       "title": "KP Dashboard",
-      "description": "Create events and inspect participating companies.",
+      "description": "Create and inspect Kontaktparty events.",
       "error": "Failed to load KP dashboard data",
       "create_title": "Create new event",
       "create_button": "Create KP event",
       "create_success_title": "KP event created",
       "create_success_message": "The event has been saved successfully.",
-      "invalid_year": "Please enter a valid year.",
       "list_title": "All KP events",
-      "year": "Year",
       "registration_open": "Registration opens",
       "registration_end": "Registration ends",
       "registration_window": "Registration window",
       "event_date": "Event date",
       "no_events": "No KP events found.",
-      "companies_title": "Registered companies by event",
-      "choose_event": "Choose event",
-      "choose_event_placeholder": "Select a KP event",
-      "companies_error": "Failed to load companies for selected event",
-      "company_name": "Company",
-      "no_companies": "No companies registered for this event."
+      "invalid_name": "Please enter a valid event name.",
+      "name": "Year",
+      "finalization_deadline": "Finalization deadline"
     }
   },
   "profile": {

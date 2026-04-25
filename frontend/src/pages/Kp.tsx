@@ -79,9 +79,9 @@ export default function Kp() {
               <>
                 <Text>
                   <Text span fw={600}>
-                    {t("kp.latest.year")}:
+                    {t("kp.latest.name")}:
                   </Text>
-                  {latestKp.year}
+                  {latestKp.name}
                 </Text>
                 <Text>
                   <Text span fw={600}>
@@ -94,6 +94,12 @@ export default function Kp() {
                     {t("kp.latest.registration_end")}:
                   </Text>
                   {formatDate(latestKp.registration_end)}
+                </Text>
+                <Text>
+                  <Text span fw={600}>
+                    {t("kp.latest.finalization_deadline")}:
+                  </Text>
+                  {formatDate(latestKp.finalization_deadline)}
                 </Text>
                 <Text>
                   <Text span fw={600}>
@@ -117,20 +123,24 @@ export default function Kp() {
               <Table striped highlightOnHover withTableBorder>
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th>{t("kp.history.year")}</Table.Th>
+                    <Table.Th>{t("kp.history.name")}</Table.Th>
                     <Table.Th>{t("kp.history.registration")}</Table.Th>
+                    <Table.Th>{t("kp.history.finalization_deadline")}</Table.Th>
                     <Table.Th>{t("kp.history.event_date")}</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
                   {kpEvents.map((event) => (
                     <Table.Tr
-                      key={event.id ?? `${event.year}-${event.event_date}`}
+                      key={event.id ?? `${event.name}-${event.event_date}`}
                     >
-                      <Table.Td>{event.year}</Table.Td>
+                      <Table.Td>{event.name}</Table.Td>
                       <Table.Td>
                         {formatDate(event.registration_open)} -{" "}
                         {formatDate(event.registration_end)}
+                      </Table.Td>
+                      <Table.Td>
+                        {formatDate(event.finalization_deadline)}
                       </Table.Td>
                       <Table.Td>{formatDate(event.event_date)}</Table.Td>
                     </Table.Tr>
