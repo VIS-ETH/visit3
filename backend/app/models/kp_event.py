@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from datetime import date
 from enum import Enum
 import re
@@ -43,9 +41,9 @@ class KpEvent(BaseEntity, table=True):
     finalization_deadline: date  # deadline for finalizing the booking. after this date, no changes to the booking are allowed.
     event_date: date
 
-    booth_zones: list[KpEventBoothZone] = Relationship(back_populates="event")
-    bookings: list[KpEventBooking] = Relationship(back_populates="event")
-    services: list[KpEventService] = Relationship(back_populates="event")
+    booth_zones: list["KpEventBoothZone"] = Relationship(back_populates="event")
+    bookings: list["KpEventBooking"] = Relationship(back_populates="event")
+    services: list["KpEventService"] = Relationship(back_populates="event")
 
     def is_registration_open(self) -> bool:
         today = date.today()
@@ -86,13 +84,13 @@ class KpEventBooking(BaseEntity, table=True):
 
     booth_nr: int = Field(ge=1)  # booth number within the booth zone
 
-    event: KpEvent = Relationship(back_populates="bookings")
+    event: "KpEvent" = Relationship(back_populates="bookings")
     company: Company = Relationship(back_populates="bookings")
-    booth_zone: KpEventBoothZone = Relationship(back_populates="bookings")
+    booth_zone: "KpEventBoothZone" = Relationship(back_populates="bookings")
     main_contact: User = Relationship(back_populates="main_contact_bookings")
-    services: list[KpEventBookingService] = Relationship(back_populates="booking")
-    name_tags: list[NameTag] = Relationship(back_populates="booking")
-    company_details: KpBookingCompanyDetails = Relationship(
+    services: list["KpEventBookingService"] = Relationship(back_populates="booking")
+    name_tags: list["NameTag"] = Relationship(back_populates="booking")
+    company_details: "KpBookingCompanyDetails" = Relationship(
         back_populates="booking",
         sa_relationship_kwargs={"uselist": False},
     )
@@ -105,7 +103,7 @@ class NameTag(BaseEntity, table=True):
     last_name: str = Field(min_length=1)
     position: str = Field(min_length=1)
 
-    booking: KpEventBooking = Relationship(back_populates="name_tags")
+    booking: "KpEventBooking" = Relationship(back_populates="name_tags")
 
     @field_validator("first_name", "last_name", mode="before")
     @classmethod
@@ -118,8 +116,8 @@ class KpEventBoothZoneServiceLink(BaseLink, table=True):
     service_id: UUID = Field(foreign_key="kpeventservice.id", primary_key=True)
     included_quantity: int = Field(default=1, ge=1)
 
-    booth_zone: KpEventBoothZone = Relationship(back_populates="included_services")
-    service: KpEventService = Relationship(back_populates="booth_zones")
+    booth_zone: "KpEventBoothZone" = Relationship(back_populates="included_services")
+    service: "KpEventService" = Relationship(back_populates="booth_zones")
 
 
 class KpEventBoothZone(BaseEntity, table=True):
@@ -139,11 +137,11 @@ class KpEventBoothZone(BaseEntity, table=True):
     booth_size: float = Field(default=0, ge=0)  # square meters
     base_price: int = Field(default=0, ge=0)  # cents
 
-    event: KpEvent = Relationship(back_populates="booth_zones")
-    included_services: list[KpEventBoothZoneServiceLink] = Relationship(
+    event: "KpEvent" = Relationship(back_populates="booth_zones")
+    included_services: list["KpEventBoothZoneServiceLink"] = Relationship(
         back_populates="booth_zone"
     )
-    bookings: list[KpEventBooking] = Relationship(back_populates="booth_zone")
+    bookings: list["KpEventBooking"] = Relationship(back_populates="booth_zone")
 
     @field_validator("color")
     @classmethod
@@ -169,7 +167,7 @@ class KpEventServiceRequirement(BaseEntity, table=True):
     description: str = Field(min_length=20)
     order: int = Field(default=100, ge=0)
 
-    service: KpEventService = Relationship(back_populates="requirements")
+    service: "KpEventService" = Relationship(back_populates="requirements")
 
 
 class KpEventService(BaseEntity, table=True):
@@ -194,14 +192,14 @@ class KpEventService(BaseEntity, table=True):
     # if false, service is no longer available for booking. already booked services are not affected.
     is_active: bool = Field(default=True)
 
-    event: KpEvent = Relationship(back_populates="services")
-    booth_zones: list[KpEventBoothZoneServiceLink] = Relationship(
+    event: "KpEvent" = Relationship(back_populates="services")
+    booth_zones: list["KpEventBoothZoneServiceLink"] = Relationship(
         back_populates="service"
     )
-    booking_services: list[KpEventBookingService] = Relationship(
+    booking_services: list["KpEventBookingService"] = Relationship(
         back_populates="service"
     )
-    requirements: list[KpEventServiceRequirement] = Relationship(
+    requirements: list["KpEventServiceRequirement"] = Relationship(
         back_populates="service",
     )
 
@@ -216,8 +214,8 @@ class KpEventBookingService(BaseEntity, table=True):
         default=0, ge=0
     )  # quantity of the service that is already included in the booking.
 
-    booking: KpEventBooking = Relationship(back_populates="services")
-    service: KpEventService = Relationship(back_populates="booking_services")
+    booking: "KpEventBooking" = Relationship(back_populates="services")
+    service: "KpEventService" = Relationship(back_populates="booking_services")
 
     @property
     def charged_quantity(self) -> int:
@@ -244,7 +242,7 @@ _kp_company_language_pg_enum = SAEnum(
 class KpIndustry(BaseEntity, table=True):
     name: str = Field(min_length=1, index=True, unique=True)
 
-    company_details_links: list[KpBookingCompanyDetailsIndustryLink] = Relationship(
+    company_details_links: list["KpBookingCompanyDetailsIndustryLink"] = Relationship(
         back_populates="industry",
     )
 
@@ -273,8 +271,8 @@ class KpBookingCompanyDetails(BaseEntity, table=True):
         ),
     )
 
-    booking: KpEventBooking = Relationship(back_populates="company_details")
-    industry_links: list[KpBookingCompanyDetailsIndustryLink] = Relationship(
+    booking: "KpEventBooking" = Relationship(back_populates="company_details")
+    industry_links: list["KpBookingCompanyDetailsIndustryLink"] = Relationship(
         back_populates="booking_company_details",
     )
 
@@ -286,7 +284,7 @@ class KpBookingCompanyDetailsIndustryLink(BaseLink, table=True):
     )
     industry_id: UUID = Field(foreign_key="kpindustry.id", primary_key=True)
 
-    booking_company_details: KpBookingCompanyDetails = Relationship(
+    booking_company_details: "KpBookingCompanyDetails" = Relationship(
         back_populates="industry_links",
     )
-    industry: KpIndustry = Relationship(back_populates="company_details_links")
+    industry: "KpIndustry" = Relationship(back_populates="company_details_links")
