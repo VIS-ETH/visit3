@@ -14,17 +14,17 @@ from app.core.exceptions import NotAllowed, Unauthenticated
 from app.core.grpc import grpc_client
 from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 from app.models.user import User
-from app.repositories.company_repository import CompanyRepository
 from app.repositories.kp_repository import KpRepository
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
-from app.services.company_service import CompanyService
 from app.services.kp_service import KpService
 from app.services.mail_service import MailService
 from app.services.pdf_service import PdfService
 from app.services.user_service import UserService
+from app.repositories.company_repository import CompanyRepository
+from app.services.company_service import CompanyService
 
 logger = logging.getLogger(__name__)
 
@@ -215,10 +215,8 @@ CompanyServiceDep = Annotated[CompanyService, Depends(get_company_service)]
 
 async def get_kp_service(
     kp_repository: KpRepositoryDep,
-    company_repository: CompanyRepositoryDep,
-    current_user: CurrentUserDep,
 ):
-    return KpService(kp_repository, company_repository, current_user)
+    return KpService(kp_repository)
 
 
 KpServiceDep = Annotated[KpService, Depends(get_kp_service)]

@@ -35,11 +35,11 @@ class CompanyNotFound(AppError):
         )
 
 
-class KpYearExists(AppError):
+class KpNameExists(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "KP event for this year already exists",
-            "error.kp_year_exists",
+            "KP event with this name already exists",
+            "error.kp_name_exists",
             identifier,
             400,
         )
@@ -93,7 +93,9 @@ class PhoneNumberInvalid(AppError):
 
 class InvalidCredentials(AppError):
     def __init__(self, identifier: str):
-        super().__init__("Invalid credentials", "error.invalid_credentials", identifier, 400)
+        super().__init__(
+            "Invalid credentials", "error.invalid_credentials", identifier, 400
+        )
 
 
 class EmailUsed(AppError):
