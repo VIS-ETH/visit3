@@ -4,18 +4,19 @@ from datetime import date
 from enum import Enum
 import re
 from typing import Self
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from pydantic import field_validator, model_validator
 from sqlalchemy import CheckConstraint, Column, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
+from sqlmodel import Field, Relationship, UniqueConstraint
 
+from app.models.base import BaseEntity, BaseLink
 from app.models.company import Company
 from app.models.user import User
 
 
-class KpEvent(SQLModel, table=True):
+class KpEvent(BaseEntity, table=True):
     __table_args__ = (
         CheckConstraint(
             "registration_open < registration_end",
@@ -35,16 +36,15 @@ class KpEvent(SQLModel, table=True):
         ),
     )
 
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
     name: str = Field(index=True, unique=True)
     registration_open: date
     registration_end: date
     finalization_deadline: date  # deadline for finalizing the booking. after this date, no changes to the booking are allowed.
     event_date: date
 
-    booth_zones: list["KpEventBoothZone"] = Relationship(back_populates="event")
-    bookings: list["KpEventBooking"] = Relationship(back_populates="event")
-    services: list["KpEventService"] = Relationship(back_populates="event")
+    booth_zones: list[KpEventBoothZone] = Relationship(back_populates="event")
+    bookings: list[KpEventBooking] = Relationship(back_populates="event")
+    services: list[KpEventService] = Relationship(back_populates="event")
 
     def is_registration_open(self) -> bool:
         today = date.today()
@@ -67,14 +67,14 @@ class KpEvent(SQLModel, table=True):
         return self
 
 
-class KpEventBooking(SQLModel, table=True):
-
+class KpEventBooking(BaseEntity, table=True):
     __table_args__ = (
         UniqueConstraint("event_id", "company_id", "booth_zone_id"),
-        UniqueConstraint("event_id", "booth_zone_id", "booth_nr"), # each booking within a zone must have a unique booth number
+        UniqueConstraint(
+            "event_id", "booth_zone_id", "booth_nr"
+        ),  # each booking within a zone must have a unique booth number
     )
 
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
     event_id: UUID = Field(foreign_key="kpevent.id")
     company_id: UUID = Field(foreign_key="company.id")
     booth_zone_id: UUID = Field(foreign_key="kpeventboothzone.id")
@@ -85,22 +85,19 @@ class KpEventBooking(SQLModel, table=True):
 
     booth_nr: int = Field(ge=1)  # booth number within the booth zone
 
-    deleted: bool = Field(default=False)
-
     event: KpEvent | None = Relationship(back_populates="bookings")
     company: Company | None = Relationship(back_populates="bookings")
-    booth_zone: "KpEventBoothZone" = Relationship(back_populates="bookings")
+    booth_zone: KpEventBoothZone = Relationship(back_populates="bookings")
     main_contact: User | None = Relationship(back_populates="main_contact_bookings")
-    services: list["KpEventBookingService"] = Relationship(back_populates="booking")
-    name_tags: list["NameTag"] = Relationship(back_populates="booking")
+    services: list[KpEventBookingService] = Relationship(back_populates="booking")
+    name_tags: list[NameTag] = Relationship(back_populates="booking")
     company_details: KpBookingCompanyDetails | None = Relationship(
         back_populates="booking",
         sa_relationship_kwargs={"uselist": False},
     )
 
 
-class NameTag(SQLModel, table=True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
+class NameTag(BaseEntity, table=True):
     booking_id: UUID = Field(foreign_key="kpeventbooking.id")
 
     first_name: str = Field(min_length=1)
@@ -110,23 +107,21 @@ class NameTag(SQLModel, table=True):
     booking: KpEventBooking = Relationship(back_populates="name_tags")
 
 
-class KpEventBoothZoneServiceLink(SQLModel, table=True):
+class KpEventBoothZoneServiceLink(BaseLink, table=True):
     booth_zone_id: UUID = Field(foreign_key="kpeventboothzone.id", primary_key=True)
     service_id: UUID = Field(foreign_key="kpeventservice.id", primary_key=True)
     included_quantity: int = Field(default=1, ge=1)
 
-    booth_zone: "KpEventBoothZone" = Relationship(back_populates="included_services")
-    service: "KpEventService" = Relationship(back_populates="booth_zones")
+    booth_zone: KpEventBoothZone = Relationship(back_populates="included_services")
+    service: KpEventService = Relationship(back_populates="booth_zones")
 
 
-class KpEventBoothZone(SQLModel, table=True):
-
+class KpEventBoothZone(BaseEntity, table=True):
     __table_args__ = (
         UniqueConstraint("event_id", "name"),
         UniqueConstraint("event_id", "color"),
     )
 
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
     event_id: UUID = Field(foreign_key="kpevent.id")
 
     name: str = Field(min_length=1)
@@ -138,13 +133,11 @@ class KpEventBoothZone(SQLModel, table=True):
     booth_size: float = Field(default=0, ge=0)  # square meters
     base_price: int = Field(default=0, ge=0)  # cents
 
-    deleted: bool = Field(default=False)
-
     event: KpEvent | None = Relationship(back_populates="booth_zones")
-    included_services: list["KpEventBoothZoneServiceLink"] = Relationship(
+    included_services: list[KpEventBoothZoneServiceLink] = Relationship(
         back_populates="booth_zone"
     )
-    bookings: list["KpEventBooking"] = Relationship(back_populates="booth_zone")
+    bookings: list[KpEventBooking] = Relationship(back_populates="booth_zone")
 
     @field_validator("color")
     @classmethod
@@ -163,22 +156,19 @@ class KpEventServiceRequirementType(Enum):
     VIDEO = "video"
 
 
-class KpEventServiceRequirement(SQLModel, table=True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
+class KpEventServiceRequirement(BaseEntity, table=True):
     service_id: UUID = Field(foreign_key="kpeventservice.id")
     type: KpEventServiceRequirementType
     name: str = Field(min_length=2, max_length=100)
     description: str = Field(min_length=20)
     order: int = Field(default=100, ge=0)
 
-    service: "KpEventService" = Relationship(back_populates="requirements")
+    service: KpEventService = Relationship(back_populates="requirements")
 
 
-class KpEventService(SQLModel, table=True):
-
+class KpEventService(BaseEntity, table=True):
     __table_args__ = (UniqueConstraint("event_id", "name"),)
 
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
     event_id: UUID = Field(foreign_key="kpevent.id")
 
     name: str = Field(min_length=1)
@@ -198,13 +188,11 @@ class KpEventService(SQLModel, table=True):
     # if false, service is no longer available for booking. already booked services are not affected.
     is_active: bool = Field(default=True)
 
-    deleted: bool = Field(default=False)
-
     event: KpEvent | None = Relationship(back_populates="services")
-    booth_zones: list["KpEventBoothZoneServiceLink"] = Relationship(
+    booth_zones: list[KpEventBoothZoneServiceLink] = Relationship(
         back_populates="service"
     )
-    booking_services: list["KpEventBookingService"] = Relationship(
+    booking_services: list[KpEventBookingService] = Relationship(
         back_populates="service"
     )
     requirements: list[KpEventServiceRequirement] = Relationship(
@@ -212,8 +200,7 @@ class KpEventService(SQLModel, table=True):
     )
 
 
-class KpEventBookingService(SQLModel, table=True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
+class KpEventBookingService(BaseEntity, table=True):
     booking_id: UUID = Field(foreign_key="kpeventbooking.id")
     service_id: UUID = Field(foreign_key="kpeventservice.id")
 
@@ -223,8 +210,8 @@ class KpEventBookingService(SQLModel, table=True):
         default=0, ge=0
     )  # quantity of the service that is already included in the booking.
 
-    booking: "KpEventBooking" = Relationship(back_populates="services")
-    service: "KpEventService" = Relationship(back_populates="booking_services")
+    booking: KpEventBooking = Relationship(back_populates="services")
+    service: KpEventService = Relationship(back_populates="booking_services")
 
     @property
     def charged_quantity(self) -> int:
@@ -248,8 +235,7 @@ _kp_company_language_pg_enum = SAEnum(
 )
 
 
-class KpIndustry(SQLModel, table=True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
+class KpIndustry(BaseEntity, table=True):
     name: str = Field(min_length=1, index=True, unique=True)
 
     company_details_links: list[KpBookingCompanyDetailsIndustryLink] = Relationship(
@@ -257,8 +243,7 @@ class KpIndustry(SQLModel, table=True):
     )
 
 
-class KpBookingCompanyDetails(SQLModel, table=True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
+class KpBookingCompanyDetails(BaseEntity, table=True):
     booking_id: UUID = Field(foreign_key="kpeventbooking.id", unique=True)
 
     profile: str = Field(default="")  # markdown
@@ -288,7 +273,7 @@ class KpBookingCompanyDetails(SQLModel, table=True):
     )
 
 
-class KpBookingCompanyDetailsIndustryLink(SQLModel, table=True):
+class KpBookingCompanyDetailsIndustryLink(BaseLink, table=True):
     booking_company_details_id: UUID = Field(
         foreign_key="kpbookingcompanydetails.id",
         primary_key=True,
