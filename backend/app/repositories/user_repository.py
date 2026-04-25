@@ -14,6 +14,12 @@ class UserRepository(BaseRepository[User]):
     def __init__(self, session: AsyncSession):
         super().__init__(User, session)
 
+    def _validate_user(self, user: User) -> None:
+        self._validate_model(
+            user,
+            exclude={"roles", "company", "main_contact_bookings"},
+        )
+
     async def get_admins(self) -> list[User]:
         statement = select(User).where(User.is_admin == True)
         result = await self.session.execute(statement)
@@ -113,6 +119,7 @@ class UserRepository(BaseRepository[User]):
             if company_id is not None:
                 user.company_id = company_id
 
+            self._validate_user(user)
             self.session.add(user)
             await self.session.commit()
             await self.session.refresh(user, attribute_names=["company"])
@@ -123,6 +130,7 @@ class UserRepository(BaseRepository[User]):
 
     async def create_user(self, user: User):
         try:
+            self._validate_user(user)
             self.session.add(user)
             await self.session.commit()
             await self.session.refresh(user)
@@ -133,6 +141,7 @@ class UserRepository(BaseRepository[User]):
 
     async def create_or_update_user(self, user: User):
         try:
+            self._validate_user(user)
             db_user = await self.get_by_sub_or_email(user.sub, user.email)
             if db_user is None:
                 return await self.create_user(user)
@@ -143,6 +152,7 @@ class UserRepository(BaseRepository[User]):
 
                 await self.load_user_roles(db_user)
                 db_user.roles = user.roles
+                self._validate_user(db_user)
                 self.session.add(db_user)
                 await self.session.commit()
                 await self.session.refresh(db_user)

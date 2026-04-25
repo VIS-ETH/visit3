@@ -69,7 +69,7 @@ class KpRepository(BaseRepository[KpEvent]):
                 finalization_deadline=finalization_deadline,
                 event_date=event_date,
             )
-            event.validate_dates()
+            self._validate_model(event, exclude={"booth_zones", "bookings", "services"})
             self.session.add(event)
             await self.session.commit()
             await self.session.refresh(event)
@@ -243,6 +243,7 @@ class KpRepository(BaseRepository[KpEvent]):
                 last_name=last_name,
                 position=position,
             )
+            self._validate_model(name_tag, exclude={"booking"})
             self.session.add(name_tag)
             await self.session.commit()
             await self.session.refresh(name_tag)

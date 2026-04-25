@@ -104,6 +104,7 @@ class CompanyRepository(BaseRepository[Company]):
                 invited_email=invited_email,
                 expires_at=expires_at,
             )
+            self._validate_model(invite, exclude={"company"})
             self.session.add(invite)
             await self.session.commit()
             await self.session.refresh(invite)
