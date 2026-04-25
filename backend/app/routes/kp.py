@@ -3,57 +3,39 @@ from uuid import UUID
 from fastapi import APIRouter
 
 from app.core.deps import CsrfDep, KpServiceDep
-from app.models.kp_event import KpEvent, KpEventBookingUpgradeWaitlist
 from app.schemas.kp import (
     BookingUpgradeWaitlistEntryResponse,
+    BookingResponse,
     CreateKpRequest,
     KpResponse,
     ReplaceBookingUpgradeWaitlistRequest,
+    UpdateBookingBoothNumberRequest,
+    UpdateBookingStatusRequest,
 )
-from app.core.decorators import require_admin, require_confirmed_company
+from app.core.decorators import (
+    require_admin,
+    require_confirmed_company,
+    require_staff,
+)
 
 router = APIRouter(prefix="/kp", tags=["kp"], dependencies=[CsrfDep])
 
 
-def _serialize_kp(event: KpEvent) -> KpResponse:
-    return KpResponse(
-        id=event.id,
-        name=event.name,
-        registration_open=event.registration_open,
-        registration_end=event.registration_end,
-        finalization_deadline=event.finalization_deadline,
-        nametags_deadline=event.nametags_deadline,
-        event_date=event.event_date,
-    )
-
-
-def _serialize_booking_upgrade_waitlist_entry(
-    entry: KpEventBookingUpgradeWaitlist,
-) -> BookingUpgradeWaitlistEntryResponse:
-    return BookingUpgradeWaitlistEntryResponse(
-        id=entry.id,
-        booking_id=entry.booking_id,
-        target_booth_zone_id=entry.target_booth_zone_id,
-        target_booth_zone_name=entry.target_booth_zone.name,
-        priority_rank=entry.priority_rank,
-    )
-
-
 @router.get("/list", operation_id="listKps")
 async def list_kps(kp_service: KpServiceDep) -> list[KpResponse]:
-    return [_serialize_kp(event) for event in await kp_service.list_kps()]
+    return [KpResponse.from_model(event) for event in await kp_service.list_kps()]
 
 
 @router.get("/latest", operation_id="getLatestKp")
 async def get_latest_kp(kp_service: KpServiceDep) -> KpResponse | None:
     event = await kp_service.get_latest_kp()
-    return _serialize_kp(event) if event is not None else None
+    return KpResponse.from_model(event) if event is not None else None
 
 
 @router.get("/name/{name}", operation_id="getKpByName")
 async def get_kp_by_name(kp_service: KpServiceDep, name: str) -> KpResponse | None:
     event = await kp_service.get_event_by_name(name)
-    return _serialize_kp(event) if event is not None else None
+    return KpResponse.from_model(event) if event is not None else None
 
 
 @require_confirmed_company
@@ -66,7 +48,7 @@ async def list_booking_upgrade_waitlist(
     booking_id: UUID,
 ) -> list[BookingUpgradeWaitlistEntryResponse]:
     entries = await kp_service.list_booking_upgrade_waitlist(booking_id)
-    return [_serialize_booking_upgrade_waitlist_entry(entry) for entry in entries]
+    return [BookingUpgradeWaitlistEntryResponse.from_model(entry) for entry in entries]
 
 
 @require_confirmed_company
@@ -83,7 +65,32 @@ async def replace_booking_upgrade_waitlist(
         booking_id=booking_id,
         target_booth_zone_ids=request.target_booth_zone_ids,
     )
-    return [_serialize_booking_upgrade_waitlist_entry(entry) for entry in entries]
+    return [BookingUpgradeWaitlistEntryResponse.from_model(entry) for entry in entries]
+
+
+@require_confirmed_company
+@router.patch("/bookings/{booking_id}/status", operation_id="updateMyBookingStatus")
+async def update_my_booking_status(
+    kp_service: KpServiceDep,
+    booking_id: UUID,
+    request: UpdateBookingStatusRequest,
+) -> BookingResponse:
+    booking = await kp_service.update_my_booking_status(booking_id, request.status)
+    return BookingResponse.from_model(booking)
+
+
+@require_staff
+@router.patch(
+    "/bookings/{booking_id}/booth-number",
+    operation_id="updateBookingBoothNumber",
+)
+async def update_booking_booth_number(
+    kp_service: KpServiceDep,
+    booking_id: UUID,
+    request: UpdateBookingBoothNumberRequest,
+) -> BookingResponse:
+    booking = await kp_service.update_booking_booth_number(booking_id, request.booth_nr)
+    return BookingResponse.from_model(booking)
 
 
 @require_admin
@@ -97,4 +104,4 @@ async def create_kp(kp_service: KpServiceDep, request: CreateKpRequest) -> KpRes
         nametags_deadline=request.nametags_deadline,
         event_date=request.event_date,
     )
-    return _serialize_kp(event)
+    return KpResponse.from_model(event)

@@ -3,7 +3,11 @@ from typing import Optional
 from uuid import UUID
 
 from app.core.config import get_settings
-from app.core.decorators import require_confirmed_company, require_role
+from app.core.decorators import (
+    require_confirmed_company,
+    require_role,
+    require_staff,
+)
 from app.core.exceptions import (
     KpBookingNotFound,
     KpBookingNotOwned,
@@ -12,7 +16,12 @@ from app.core.exceptions import (
     KpNameExists,
     KpWaitlistSameZone,
 )
-from app.models.kp_event import KpEvent, KpEventBookingUpgradeWaitlist
+from app.models.kp_event import (
+    KpBookingStatus,
+    KpEvent,
+    KpEventBooking,
+    KpEventBookingUpgradeWaitlist,
+)
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
 
@@ -44,6 +53,12 @@ class KpService:
             or booking.company_id != self.current_user.company_id
         ):
             raise KpBookingNotOwned(f"booking_upgrade_waitlist:not_owned:{booking_id}")
+        return booking
+
+    async def _get_booking(self, booking_id: UUID) -> KpEventBooking:
+        booking = await self.kp_repository.get_booking_by_id(booking_id)
+        if booking is None:
+            raise KpBookingNotFound(f"booking:not_found:{booking_id}")
         return booking
 
     @require_confirmed_company
@@ -82,6 +97,22 @@ class KpService:
         return await self.kp_repository.replace_booking_upgrade_waitlist_entries(
             booking=booking,
             target_booth_zone_ids=unique_target_ids,
+        )
+
+    @require_confirmed_company
+    async def update_my_booking_status(
+        self, booking_id: UUID, status: KpBookingStatus
+    ) -> KpEventBooking:
+        booking = await self._get_owned_booking(booking_id)
+        return await self.kp_repository.update_booking(booking=booking, status=status)
+
+    @require_staff
+    async def update_booking_booth_number(
+        self, booking_id: UUID, booth_nr: int
+    ) -> KpEventBooking:
+        booking = await self._get_booking(booking_id)
+        return await self.kp_repository.update_booking(
+            booking=booking, booth_nr=booth_nr
         )
 
     @require_role(get_settings().VISIT_KP_PRESIDENT_ROLE)
