@@ -5,6 +5,7 @@ from app.core.config import get_settings
 from app.core.decorators import require_role
 from app.core.exceptions import KpNameExists
 from app.models.kp_event import KpEvent
+from app.models.user import User
 from app.repositories.kp_repository import KpRepository
 
 
@@ -12,8 +13,10 @@ class KpService:
     def __init__(
         self,
         kp_repository: KpRepository,
+        current_user: User,
     ):
         self.kp_repository = kp_repository
+        self.current_user = current_user
 
     async def list_kps(self) -> list[KpEvent]:
         return await self.kp_repository.list_kps()

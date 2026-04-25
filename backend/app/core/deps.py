@@ -215,8 +215,9 @@ CompanyServiceDep = Annotated[CompanyService, Depends(get_company_service)]
 
 async def get_kp_service(
     kp_repository: KpRepositoryDep,
+    current_user: CurrentUserDep,
 ):
-    return KpService(kp_repository)
+    return KpService(kp_repository, current_user)
 
 
 KpServiceDep = Annotated[KpService, Depends(get_kp_service)]
