@@ -12,6 +12,7 @@ from app.models.kp_event import (
     KpCompanyLanguage,
     KpEvent,
     KpEventBooking,
+    KpEventBookingUpgradeWaitlist,
     KpEventBookingService,
     KpEventBoothZone,
     KpEventRegistrationException,
@@ -50,6 +51,9 @@ class KpRepository(BaseRepository[KpEvent]):
                 KpEventBookingService.service
             ),
             selectinload(KpEventBooking.name_tags),
+            selectinload(KpEventBooking.upgrade_waitlist_entries).selectinload(
+                KpEventBookingUpgradeWaitlist.target_booth_zone
+            ),
             selectinload(KpEventBooking.company_details)
             .selectinload(KpBookingCompanyDetails.industry_links)
             .selectinload(KpBookingCompanyDetailsIndustryLink.industry),
@@ -164,6 +168,59 @@ class KpRepository(BaseRepository[KpEvent]):
             self.session.add(booking)
             await self.session.commit()
             return await self.get_booking_by_id(booking.id) or booking
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def list_booking_upgrade_waitlist_entries(
+        self, booking_id: UUID
+    ) -> list[KpEventBookingUpgradeWaitlist]:
+        statement = (
+            select(KpEventBookingUpgradeWaitlist)
+            .where(KpEventBookingUpgradeWaitlist.booking_id == booking_id)
+            .order_by(
+                KpEventBookingUpgradeWaitlist.priority_rank.asc().nulls_last(),
+                KpEventBookingUpgradeWaitlist.created_at.asc(),
+            )
+            .options(
+                selectinload(KpEventBookingUpgradeWaitlist.target_booth_zone),
+                selectinload(KpEventBookingUpgradeWaitlist.booking),
+            )
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().all()
+
+    async def replace_booking_upgrade_waitlist_entries(
+        self,
+        booking: KpEventBooking,
+        target_booth_zone_ids: list[UUID],
+    ) -> list[KpEventBookingUpgradeWaitlist]:
+        try:
+            statement = select(KpEventBookingUpgradeWaitlist).where(
+                KpEventBookingUpgradeWaitlist.booking_id == booking.id
+            )
+            result = await self.session.execute(statement)
+            existing_entries = result.scalars().all()
+
+            for entry in existing_entries:
+                await self.session.delete(entry)
+
+            for priority_rank, target_booth_zone_id in enumerate(
+                target_booth_zone_ids, start=1
+            ):
+                entry = KpEventBookingUpgradeWaitlist(
+                    booking_id=booking.id,
+                    target_booth_zone_id=target_booth_zone_id,
+                    priority_rank=priority_rank,
+                )
+                self._validate_model(
+                    entry,
+                    exclude={"booking", "target_booth_zone"},
+                )
+                self.session.add(entry)
+
+            await self.session.commit()
+            return await self.list_booking_upgrade_waitlist_entries(booking.id)
         except Exception as e:
             await self.session.rollback()
             raise e

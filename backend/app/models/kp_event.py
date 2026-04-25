@@ -98,9 +98,26 @@ class KpEventBooking(BaseEntity, table=True):
     main_contact: User = Relationship(back_populates="main_contact_bookings")
     services: list["KpEventBookingService"] = Relationship(back_populates="booking")
     name_tags: list["NameTag"] = Relationship(back_populates="booking")
+    upgrade_waitlist_entries: list["KpEventBookingUpgradeWaitlist"] = Relationship(
+        back_populates="booking"
+    )
     company_details: "KpBookingCompanyDetails" = Relationship(
         back_populates="booking",
         sa_relationship_kwargs={"uselist": False},
+    )
+
+
+class KpEventBookingUpgradeWaitlist(BaseEntity, table=True):
+    __table_args__ = (UniqueConstraint("booking_id", "target_booth_zone_id"),)
+
+    booking_id: UUID = Field(foreign_key="kpeventbooking.id")
+    target_booth_zone_id: UUID = Field(foreign_key="kpeventboothzone.id")
+
+    priority_rank: int | None = Field(default=None, ge=1)
+
+    booking: "KpEventBooking" = Relationship(back_populates="upgrade_waitlist_entries")
+    target_booth_zone: "KpEventBoothZone" = Relationship(
+        back_populates="upgrade_waitlist_entries"
     )
 
 
@@ -150,6 +167,9 @@ class KpEventBoothZone(BaseEntity, table=True):
         back_populates="booth_zone"
     )
     bookings: list["KpEventBooking"] = Relationship(back_populates="booth_zone")
+    upgrade_waitlist_entries: list["KpEventBookingUpgradeWaitlist"] = Relationship(
+        back_populates="target_booth_zone"
+    )
 
     @field_validator("color")
     @classmethod

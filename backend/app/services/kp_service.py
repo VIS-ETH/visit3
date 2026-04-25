@@ -1,10 +1,11 @@
 from datetime import date
 from typing import Optional
+from uuid import UUID
 
 from app.core.config import get_settings
-from app.core.decorators import require_role
-from app.core.exceptions import KpNameExists
-from app.models.kp_event import KpEvent
+from app.core.decorators import require_confirmed_company, require_role
+from app.core.exceptions import KpNameExists, NotAllowed
+from app.models.kp_event import KpEvent, KpEventBookingUpgradeWaitlist
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
 
@@ -26,6 +27,55 @@ class KpService:
 
     async def get_event_by_name(self, name: str) -> Optional[KpEvent]:
         return await self.kp_repository.get_by_name(name)
+
+    async def _get_owned_booking(self, booking_id: UUID):
+        booking = await self.kp_repository.get_booking_by_id(booking_id)
+        if booking is None:
+            raise NotAllowed(f"booking_upgrade_waitlist:not_found:{booking_id}")
+        if (
+            self.current_user.company_id is None
+            or booking.company_id != self.current_user.company_id
+        ):
+            raise NotAllowed(f"booking_upgrade_waitlist:not_owned:{booking_id}")
+        return booking
+
+    @require_confirmed_company
+    async def list_booking_upgrade_waitlist(
+        self, booking_id: UUID
+    ) -> list[KpEventBookingUpgradeWaitlist]:
+        booking = await self._get_owned_booking(booking_id)
+        return await self.kp_repository.list_booking_upgrade_waitlist_entries(
+            booking.id
+        )
+
+    @require_confirmed_company
+    async def replace_booking_upgrade_waitlist(
+        self, booking_id: UUID, target_booth_zone_ids: list[UUID]
+    ) -> list[KpEventBookingUpgradeWaitlist]:
+        booking = await self._get_owned_booking(booking_id)
+
+        unique_target_ids = list(dict.fromkeys(target_booth_zone_ids))
+        for target_booth_zone_id in unique_target_ids:
+            target_zone = await self.kp_repository.get_booth_zone_by_id(
+                target_booth_zone_id
+            )
+            if target_zone is None:
+                raise NotAllowed(
+                    f"booking_upgrade_waitlist:zone_not_found:{target_booth_zone_id}"
+                )
+            if target_zone.event_id != booking.event_id:
+                raise NotAllowed(
+                    f"booking_upgrade_waitlist:zone_event_mismatch:{target_booth_zone_id}"
+                )
+            if target_zone.id == booking.booth_zone_id:
+                raise NotAllowed(
+                    f"booking_upgrade_waitlist:same_zone:{booking_id}:{target_zone.id}"
+                )
+
+        return await self.kp_repository.replace_booking_upgrade_waitlist_entries(
+            booking=booking,
+            target_booth_zone_ids=unique_target_ids,
+        )
 
     @require_role(get_settings().VISIT_KP_PRESIDENT_ROLE)
     async def create_kp(
