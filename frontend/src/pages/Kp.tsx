@@ -17,11 +17,10 @@ import { useTranslation } from "react-i18next";
 import { useCurrentUser } from "../context/useCurrentUser";
 import BackButton from "../components/BackButton";
 import { useGetLatestKp, useListKps } from "../orval/generated/kp/kp";
+import { formatKpDisplayDate } from "../schemas/kpSchema";
 
 function formatDate(dateString?: string) {
-  if (!dateString) return "-";
-  const date = new Date(dateString);
-  return date.toLocaleDateString();
+  return formatKpDisplayDate(dateString);
 }
 
 export default function Kp() {

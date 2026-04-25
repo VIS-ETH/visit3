@@ -14,9 +14,17 @@ import {
 import { notifications } from "@mantine/notifications";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import type { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import BackButton from "../components/BackButton";
+import {
+  formatKpDateInput,
+  formatKpDisplayDate,
+  kpSchema,
+  toKpIsoDate,
+  type KpFormValues,
+} from "../schemas/kpSchema";
+import { useTranslatedForm } from "../utils/translator";
 import {
   getGetLatestKpQueryKey,
   getListKpsQueryKey,
@@ -25,25 +33,48 @@ import {
 } from "../orval/generated/kp/kp";
 
 function formatDate(dateString?: string) {
-  if (!dateString) return "-";
-  return new Date(dateString).toLocaleDateString();
+  return formatKpDisplayDate(dateString);
 }
 
 function todayAsDateInput() {
-  return new Date().toISOString().slice(0, 10);
+  return formatKpDateInput(new Date());
 }
+
+const dateFieldNames = [
+  "registrationOpen",
+  "registrationEnd",
+  "finalizationDeadline",
+  "eventDate",
+] as const;
 
 export default function KpDashboard() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [name, setName] = useState<string>("");
-  const [registrationOpen, setRegistrationOpen] =
-    useState<string>(todayAsDateInput());
-  const [registrationEnd, setRegistrationEnd] =
-    useState<string>(todayAsDateInput());
-  const [finalizationDeadline, setFinalizationDeadline] =
-    useState<string>(todayAsDateInput());
-  const [eventDate, setEventDate] = useState<string>(todayAsDateInput());
+  const initialValues: KpFormValues = {
+    name: "",
+    registrationOpen: todayAsDateInput(),
+    registrationEnd: todayAsDateInput(),
+    finalizationDeadline: todayAsDateInput(),
+    eventDate: todayAsDateInput(),
+  };
+  const form = useTranslatedForm<typeof kpSchema>(kpSchema, {
+    initialValues,
+    validateInputOnChange: true,
+  });
+
+  const getDateInputProps = (field: (typeof dateFieldNames)[number]) => {
+    const inputProps = form.getInputProps(field);
+
+    return {
+      ...inputProps,
+      onChange: (event: ChangeEvent<HTMLInputElement>) => {
+        inputProps.onChange(event);
+        for (const fieldName of dateFieldNames) {
+          form.validateField(fieldName);
+        }
+      },
+    };
+  };
 
   const { data: events, isLoading, isError } = useListKps();
 
@@ -54,7 +85,7 @@ export default function KpDashboard() {
         await queryClient.invalidateQueries({
           queryKey: getGetLatestKpQueryKey(),
         });
-        setName("");
+        form.reset();
 
         notifications.show({
           color: "green",
@@ -65,23 +96,14 @@ export default function KpDashboard() {
     },
   });
 
-  const handleCreate = () => {
-    if (!name.trim()) {
-      notifications.show({
-        color: "red",
-        title: t("server.error"),
-        message: t("kp.dashboard.invalid_name"),
-      });
-      return;
-    }
-
+  const handleCreate = (values: KpFormValues) => {
     createEvent({
       data: {
-        name: name.trim(),
-        registration_open: registrationOpen,
-        registration_end: registrationEnd,
-        finalization_deadline: finalizationDeadline,
-        event_date: eventDate,
+        name: values.name.trim(),
+        registration_open: toKpIsoDate(values.registrationOpen),
+        registration_end: toKpIsoDate(values.registrationEnd),
+        finalization_deadline: toKpIsoDate(values.finalizationDeadline),
+        event_date: toKpIsoDate(values.eventDate),
       },
     });
   };
@@ -93,56 +115,60 @@ export default function KpDashboard() {
       <Text>{t("kp.dashboard.description")}</Text>
 
       <Card withBorder radius="md" p="md">
-        <Stack gap="sm">
-          <Title order={4}>{t("kp.dashboard.create_title")}</Title>
-          <Group grow>
-            <TextInput
-              label={t("kp.dashboard.name")}
-              value={name}
-              onChange={(event) => setName(event.currentTarget.value)}
-              placeholder="Kontaktparty 2026"
-            />
-            <TextInput
-              type="date"
-              label={t("kp.dashboard.registration_open")}
-              value={registrationOpen}
-              onChange={(event) =>
-                setRegistrationOpen(event.currentTarget.value)
-              }
-            />
-          </Group>
-          <Group grow>
-            <TextInput
-              type="date"
-              label={t("kp.dashboard.registration_end")}
-              value={registrationEnd}
-              onChange={(event) =>
-                setRegistrationEnd(event.currentTarget.value)
-              }
-            />
-            <TextInput
-              type="date"
-              label={t("kp.dashboard.finalization_deadline")}
-              value={finalizationDeadline}
-              onChange={(event) =>
-                setFinalizationDeadline(event.currentTarget.value)
-              }
-            />
-          </Group>
-          <Group grow>
-            <TextInput
-              type="date"
-              label={t("kp.dashboard.event_date")}
-              value={eventDate}
-              onChange={(event) => setEventDate(event.currentTarget.value)}
-            />
-          </Group>
-          <Group justify="flex-end">
-            <Button onClick={handleCreate} loading={isCreating}>
-              {t("kp.dashboard.create_button")}
-            </Button>
-          </Group>
-        </Stack>
+        <form onSubmit={form.onSubmit(handleCreate)}>
+          <Stack gap="sm">
+            <Title order={4}>{t("kp.dashboard.create_title")}</Title>
+            <Group grow>
+              <TextInput
+                label={t("kp.dashboard.name")}
+                placeholder="Kontaktparty 2026"
+                disabled={isCreating}
+                {...form.getInputProps("name")}
+              />
+              <TextInput
+                label={t("kp.dashboard.registration_open")}
+                placeholder={t("kp.dashboard.date_input_placeholder")}
+                description={t("kp.dashboard.date_input_hint")}
+                disabled={isCreating}
+                {...getDateInputProps("registrationOpen")}
+              />
+            </Group>
+            <Group grow>
+              <TextInput
+                label={t("kp.dashboard.registration_end")}
+                placeholder={t("kp.dashboard.date_input_placeholder")}
+                description={t("kp.dashboard.date_input_hint")}
+                disabled={isCreating}
+                {...getDateInputProps("registrationEnd")}
+              />
+              <TextInput
+                label={t("kp.dashboard.finalization_deadline")}
+                placeholder={t("kp.dashboard.date_input_placeholder")}
+                description={t("kp.dashboard.date_input_hint")}
+                disabled={isCreating}
+                {...getDateInputProps("finalizationDeadline")}
+              />
+            </Group>
+            <Group grow>
+              <TextInput
+                label={t("kp.dashboard.event_date")}
+                placeholder={t("kp.dashboard.date_input_placeholder")}
+                description={t("kp.dashboard.date_input_hint")}
+                disabled={isCreating}
+                {...getDateInputProps("eventDate")}
+              />
+            </Group>
+            <Group justify="flex-end">
+              <Button
+                type="submit"
+                loading={isCreating}
+                disabled={isCreating || !form.isValid()}
+              >
+                {t("kp.dashboard.create_button")}
+              </Button>
+            </Group>
+          </Stack>
+        </form>
       </Card>
 
       {isLoading ? (

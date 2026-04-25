@@ -163,7 +163,7 @@
       "registration_end": "Registration ends",
       "event_date": "Event date",
       "none": "No KP event found.",
-      "name": "Year",
+      "name": "Name",
       "finalization_deadline": "Finalization deadline"
     },
     "history": {
@@ -171,7 +171,7 @@
       "registration": "Registration window",
       "event_date": "Event date",
       "none": "No KP events available yet.",
-      "name": "Year",
+      "name": "Name",
       "finalization_deadline": "Finalization deadline"
     },
     "join": {
@@ -182,7 +182,7 @@
       "registration_window": "Registration window",
       "event_date": "Event date",
       "no_event": "No active KP event available.",
-      "name": "Year",
+      "name": "Name",
       "finalization_deadline": "Finalization deadline"
     },
     "dashboard": {
@@ -200,7 +200,14 @@
       "event_date": "Event date",
       "no_events": "No KP events found.",
       "invalid_name": "Please enter a valid event name.",
-      "name": "Year",
+      "invalid_date": "Please enter a valid date in DD.MM.YYYY format.",
+      "registration_end_after_open": "Registration end must be after registration start.",
+      "finalization_deadline_after_registration_end": "Finalization deadline must be on or after registration end.",
+      "event_date_after_registration_end": "Event date must be after registration end.",
+      "finalization_deadline_before_event": "Finalization deadline must be before the event date.",
+      "date_input_placeholder": "DD.MM.YYYY",
+      "date_input_hint": "Format: DD.MM.YYYY",
+      "name": "Name",
       "finalization_deadline": "Finalization deadline"
     }
   },

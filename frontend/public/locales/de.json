@@ -163,7 +163,7 @@
       "registration_end": "Anmeldung endet",
       "event_date": "Eventdatum",
       "none": "Kein KP-Event gefunden.",
-      "name": "Jahr",
+      "name": "Name",
       "finalization_deadline": "Finalisierungsfrist"
     },
     "history": {
@@ -171,7 +171,7 @@
       "registration": "Anmeldefenster",
       "event_date": "Eventdatum",
       "none": "Noch keine KP-Events verfuegbar.",
-      "name": "Jahr",
+      "name": "Name",
       "finalization_deadline": "Finalisierungsfrist"
     },
     "join": {
@@ -182,7 +182,7 @@
       "registration_window": "Anmeldefenster",
       "event_date": "Eventdatum",
       "no_event": "Kein aktives KP-Event verfuegbar.",
-      "name": "Jahr",
+      "name": "Name",
       "finalization_deadline": "Finalisierungsfrist"
     },
     "dashboard": {
@@ -200,7 +200,14 @@
       "event_date": "Eventdatum",
       "no_events": "Keine KP-Events gefunden.",
       "invalid_name": "Bitte einen gueltigen Eventnamen eingeben.",
-      "name": "Jahr",
+      "invalid_date": "Bitte ein gueltiges Datum im Format TT.MM.JJJJ eingeben.",
+      "registration_end_after_open": "Das Ende der Anmeldung muss nach dem Beginn liegen.",
+      "finalization_deadline_after_registration_end": "Die Finalisierungsfrist muss am oder nach dem Anmeldungsende liegen.",
+      "event_date_after_registration_end": "Das Eventdatum muss nach dem Anmeldungsende liegen.",
+      "finalization_deadline_before_event": "Die Finalisierungsfrist muss vor dem Eventdatum liegen.",
+      "date_input_placeholder": "TT.MM.JJJJ",
+      "date_input_hint": "Format: TT.MM.JJJJ",
+      "name": "Name",
       "finalization_deadline": "Finalisierungsfrist"
     }
   },
