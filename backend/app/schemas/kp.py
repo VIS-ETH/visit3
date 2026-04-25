@@ -9,6 +9,7 @@ class CreateKpRequest(BaseModel):
     registration_open: date
     registration_end: date
     finalization_deadline: date
+    nametags_deadline: date
     event_date: date
 
 
@@ -18,4 +19,5 @@ class KpResponse(BaseModel):
     registration_open: date
     registration_end: date
     finalization_deadline: date
+    nametags_deadline: date
     event_date: date

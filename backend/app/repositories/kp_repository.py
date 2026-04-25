@@ -74,6 +74,7 @@ class KpRepository(BaseRepository[KpEvent]):
         registration_open: date,
         registration_end: date,
         finalization_deadline: date,
+        nametags_deadline: date,
         event_date: date,
     ) -> KpEvent:
         try:
@@ -82,6 +83,7 @@ class KpRepository(BaseRepository[KpEvent]):
                 registration_open=registration_open,
                 registration_end=registration_end,
                 finalization_deadline=finalization_deadline,
+                nametags_deadline=nametags_deadline,
                 event_date=event_date,
             )
             self._validate_model(event, exclude={"booth_zones", "bookings", "services"})

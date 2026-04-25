@@ -164,7 +164,8 @@
       "event_date": "Eventdatum",
       "none": "Kein KP-Event gefunden.",
       "name": "Name",
-      "finalization_deadline": "Finalisierungsfrist"
+      "finalization_deadline": "Finalisierungsfrist",
+      "nametags_deadline": "Namensschildfrist"
     },
     "history": {
       "title": "Eventverlauf",
@@ -172,7 +173,8 @@
       "event_date": "Eventdatum",
       "none": "Noch keine KP-Events verfuegbar.",
       "name": "Name",
-      "finalization_deadline": "Finalisierungsfrist"
+      "finalization_deadline": "Finalisierungsfrist",
+      "nametags_deadline": "Namensschildfrist"
     },
     "join": {
       "title": "KP beitreten",
@@ -183,7 +185,8 @@
       "event_date": "Eventdatum",
       "no_event": "Kein aktives KP-Event verfuegbar.",
       "name": "Name",
-      "finalization_deadline": "Finalisierungsfrist"
+      "finalization_deadline": "Finalisierungsfrist",
+      "nametags_deadline": "Namensschildfrist"
     },
     "dashboard": {
       "title": "KP Dashboard",
@@ -203,12 +206,15 @@
       "invalid_date": "Bitte ein gueltiges Datum im Format TT.MM.JJJJ eingeben.",
       "registration_end_after_open": "Das Ende der Anmeldung muss nach dem Beginn liegen.",
       "finalization_deadline_after_registration_end": "Die Finalisierungsfrist muss am oder nach dem Anmeldungsende liegen.",
+      "nametags_deadline_after_registration_end": "Die Namensschildfrist muss am oder nach dem Anmeldungsende liegen.",
       "event_date_after_registration_end": "Das Eventdatum muss nach dem Anmeldungsende liegen.",
       "finalization_deadline_before_event": "Die Finalisierungsfrist muss vor dem Eventdatum liegen.",
+      "nametags_deadline_before_event": "Die Namensschildfrist muss vor dem Eventdatum liegen.",
       "date_input_placeholder": "TT.MM.JJJJ",
       "date_input_hint": "Format: TT.MM.JJJJ",
       "name": "Name",
-      "finalization_deadline": "Finalisierungsfrist"
+      "finalization_deadline": "Finalisierungsfrist",
+      "nametags_deadline": "Namensschildfrist"
     }
   },
   "profile": {

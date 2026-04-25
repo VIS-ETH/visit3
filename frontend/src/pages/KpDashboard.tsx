@@ -44,6 +44,7 @@ const dateFieldNames = [
   "registrationOpen",
   "registrationEnd",
   "finalizationDeadline",
+  "nametagsDeadline",
   "eventDate",
 ] as const;
 
@@ -55,6 +56,7 @@ export default function KpDashboard() {
     registrationOpen: todayAsDateInput(),
     registrationEnd: todayAsDateInput(),
     finalizationDeadline: todayAsDateInput(),
+    nametagsDeadline: todayAsDateInput(),
     eventDate: todayAsDateInput(),
   };
   const form = useTranslatedForm<typeof kpSchema>(kpSchema, {
@@ -103,6 +105,7 @@ export default function KpDashboard() {
         registration_open: toKpIsoDate(values.registrationOpen),
         registration_end: toKpIsoDate(values.registrationEnd),
         finalization_deadline: toKpIsoDate(values.finalizationDeadline),
+        nametags_deadline: toKpIsoDate(values.nametagsDeadline),
         event_date: toKpIsoDate(values.eventDate),
       },
     });
@@ -151,6 +154,13 @@ export default function KpDashboard() {
             </Group>
             <Group grow>
               <TextInput
+                label={t("kp.dashboard.nametags_deadline")}
+                placeholder={t("kp.dashboard.date_input_placeholder")}
+                description={t("kp.dashboard.date_input_hint")}
+                disabled={isCreating}
+                {...getDateInputProps("nametagsDeadline")}
+              />
+              <TextInput
                 label={t("kp.dashboard.event_date")}
                 placeholder={t("kp.dashboard.date_input_placeholder")}
                 description={t("kp.dashboard.date_input_hint")}
@@ -196,6 +206,7 @@ export default function KpDashboard() {
                     <Table.Th>
                       {t("kp.dashboard.finalization_deadline")}
                     </Table.Th>
+                    <Table.Th>{t("kp.dashboard.nametags_deadline")}</Table.Th>
                     <Table.Th>{t("kp.dashboard.event_date")}</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
@@ -212,6 +223,7 @@ export default function KpDashboard() {
                       <Table.Td>
                         {formatDate(event.finalization_deadline)}
                       </Table.Td>
+                      <Table.Td>{formatDate(event.nametags_deadline)}</Table.Td>
                       <Table.Td>{formatDate(event.event_date)}</Table.Td>
                     </Table.Tr>
                   ))}

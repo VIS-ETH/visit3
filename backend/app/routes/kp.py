@@ -15,6 +15,7 @@ def _serialize_kp(event: KpEvent) -> KpResponse:
         registration_open=event.registration_open,
         registration_end=event.registration_end,
         finalization_deadline=event.finalization_deadline,
+        nametags_deadline=event.nametags_deadline,
         event_date=event.event_date,
     )
 
@@ -44,6 +45,7 @@ async def create_kp(kp_service: KpServiceDep, request: CreateKpRequest) -> KpRes
         registration_open=request.registration_open,
         registration_end=request.registration_end,
         finalization_deadline=request.finalization_deadline,
+        nametags_deadline=request.nametags_deadline,
         event_date=request.event_date,
     )
     return _serialize_kp(event)

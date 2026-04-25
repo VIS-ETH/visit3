@@ -102,6 +102,12 @@ export default function Kp() {
                 </Text>
                 <Text>
                   <Text span fw={600}>
+                    {t("kp.latest.nametags_deadline")}:
+                  </Text>
+                  {formatDate(latestKp.nametags_deadline)}
+                </Text>
+                <Text>
+                  <Text span fw={600}>
                     {t("kp.latest.event_date")}:
                   </Text>
                   {formatDate(latestKp.event_date)}
@@ -125,6 +131,7 @@ export default function Kp() {
                     <Table.Th>{t("kp.history.name")}</Table.Th>
                     <Table.Th>{t("kp.history.registration")}</Table.Th>
                     <Table.Th>{t("kp.history.finalization_deadline")}</Table.Th>
+                    <Table.Th>{t("kp.history.nametags_deadline")}</Table.Th>
                     <Table.Th>{t("kp.history.event_date")}</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
@@ -141,6 +148,7 @@ export default function Kp() {
                       <Table.Td>
                         {formatDate(event.finalization_deadline)}
                       </Table.Td>
+                      <Table.Td>{formatDate(event.nametags_deadline)}</Table.Td>
                       <Table.Td>{formatDate(event.event_date)}</Table.Td>
                     </Table.Tr>
                   ))}

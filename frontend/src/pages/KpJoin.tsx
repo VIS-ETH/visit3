@@ -59,6 +59,12 @@ export default function KpJoin() {
                 </Text>
                 <Text>
                   <Text span fw={600}>
+                    {t("kp.join.nametags_deadline")}:
+                  </Text>
+                  {formatDate(latestKp.nametags_deadline)}
+                </Text>
+                <Text>
+                  <Text span fw={600}>
                     {t("kp.join.event_date")}:
                   </Text>
                   {formatDate(latestKp.event_date)}

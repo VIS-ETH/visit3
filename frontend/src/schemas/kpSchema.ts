@@ -85,6 +85,14 @@ export const kpSchema = z
         (value) => parseKpDateInput(value) !== null,
         "kp.dashboard.invalid_date",
       ),
+    nametagsDeadline: z
+      .string()
+      .trim()
+      .min(1, "register.required")
+      .refine(
+        (value) => parseKpDateInput(value) !== null,
+        "kp.dashboard.invalid_date",
+      ),
     eventDate: z
       .string()
       .trim()
@@ -98,12 +106,14 @@ export const kpSchema = z
     const registrationOpen = parseKpDateInput(values.registrationOpen);
     const registrationEnd = parseKpDateInput(values.registrationEnd);
     const finalizationDeadline = parseKpDateInput(values.finalizationDeadline);
+    const nametagsDeadline = parseKpDateInput(values.nametagsDeadline);
     const eventDate = parseKpDateInput(values.eventDate);
 
     if (
       !registrationOpen ||
       !registrationEnd ||
       !finalizationDeadline ||
+      !nametagsDeadline ||
       !eventDate
     ) {
       return;
@@ -133,11 +143,27 @@ export const kpSchema = z
       });
     }
 
+    if (nametagsDeadline < registrationEnd) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["nametagsDeadline"],
+        message: "kp.dashboard.nametags_deadline_after_registration_end",
+      });
+    }
+
     if (finalizationDeadline >= eventDate) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["finalizationDeadline"],
         message: "kp.dashboard.finalization_deadline_before_event",
+      });
+    }
+
+    if (nametagsDeadline >= eventDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["nametagsDeadline"],
+        message: "kp.dashboard.nametags_deadline_before_event",
       });
     }
   });

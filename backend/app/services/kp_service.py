@@ -34,6 +34,7 @@ class KpService:
         registration_open: date,
         registration_end: date,
         finalization_deadline: date,
+        nametags_deadline: date,
         event_date: date,
     ) -> KpEvent:
         existing = await self.kp_repository.get_by_name(name)
@@ -45,5 +46,6 @@ class KpService:
             registration_open=registration_open,
             registration_end=registration_end,
             finalization_deadline=finalization_deadline,
+            nametags_deadline=nametags_deadline,
             event_date=event_date,
         )
