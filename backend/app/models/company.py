@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import EmailStr
@@ -30,4 +30,4 @@ class CompanyInvite(BaseEntity, table=True):
         sa_column=Column(DateTime(timezone=True), nullable=False)
     )
 
-    company: Optional["Company"] = Relationship(back_populates="invites")
+    company: Company = Relationship(back_populates="invites")

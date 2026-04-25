@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List
 from uuid import UUID
 
 from pydantic import EmailStr, field_validator
@@ -42,7 +42,7 @@ class User(BaseEntity, table=True):
     roles: List["Role"] = Relationship(back_populates="users", link_model=UserRole)
 
     company_id: UUID | None = Field(default=None, foreign_key="company.id", index=True)
-    company: Optional["Company"] = Relationship(back_populates="users")
+    company: Company = Relationship(back_populates="users")
     main_contact_bookings: list["KpEventBooking"] = Relationship(
         back_populates="main_contact"
     )
