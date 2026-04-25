@@ -1,30 +1,48 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from sqlalchemy import Column, DateTime, func
+from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import TIMESTAMP
 from sqlmodel import Field, SQLModel
 
 
 class AppBase(SQLModel):
     created_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+        default_factory=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        sa_type=TIMESTAMP(timezone=True),
+        sa_column_kwargs={"server_default": func.now()},
     )
     deleted_at: datetime | None = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=True), default=None
+        default=None,
+        nullable=True,
+        sa_type=TIMESTAMP(timezone=True),
     )
 
 
 class BaseEntity(AppBase):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     updated_at: datetime = Field(
-        sa_column=Column(
-            DateTime(timezone=True),
-            server_default=func.now(),
-            onupdate=func.now(),
-            nullable=False,
-        )
+        default_factory=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        sa_type=TIMESTAMP(timezone=True),
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
     )
 
 
 class BaseLink(AppBase):
     pass
+
+
+class BaseToken(BaseEntity):
+    user_id: UUID = Field(
+        foreign_key="user.id", ondelete="CASCADE", nullable=False, index=True
+    )
+    token: str = Field(index=True, unique=True)
+    is_revoked: bool = Field(default=False)
+    expires_at: datetime = Field(
+        ...,
+        nullable=False,
+        sa_type=TIMESTAMP(timezone=True),
+        index=True,
+    )
