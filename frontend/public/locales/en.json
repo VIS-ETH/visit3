@@ -36,6 +36,9 @@
     "kp_waitlist_same_zone": "You cannot add your current booth zone to the waitlist.",
     "storage_upload_failed": "The file upload failed.",
     "storage_delete_failed": "The file deletion failed.",
+    "storage_file_too_large": "The uploaded file is too large.",
+    "storage_file_invalid_mime_type": "The uploaded file type is not allowed.",
+    "kp_requirement_file_upload_not_allowed": "This requirement does not accept file uploads.",
     "validation_failed": "Some fields are invalid.",
     "invite_not_found": "This invite is invalid or has already been used.",
     "invite_expired": "This invite has expired."

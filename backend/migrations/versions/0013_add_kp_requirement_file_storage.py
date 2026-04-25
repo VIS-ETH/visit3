@@ -8,9 +8,9 @@ Create Date: 2026-04-25 20:45:00.000000
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 import sqlmodel
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
@@ -44,6 +44,7 @@ def upgrade() -> None:
         ),
         sa.Column("mime_type", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("size_bytes", sa.Integer(), nullable=False),
+        sa.Column("sha256", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("etag", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("storage_key"),
@@ -53,6 +54,12 @@ def upgrade() -> None:
         "storedfile",
         ["storage_key"],
         unique=True,
+    )
+    op.create_index(
+        op.f("ix_storedfile_sha256"),
+        "storedfile",
+        ["sha256"],
+        unique=False,
     )
     op.create_table(
         "kpeventbookingservicefilelink",
@@ -84,6 +91,10 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
+    op.drop_index(
+        op.f("ix_storedfile_sha256"),
+        table_name="storedfile",
+    )
     op.drop_index(
         op.f("ix_storedfile_storage_key"),
         table_name="storedfile",

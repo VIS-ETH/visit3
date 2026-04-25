@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import mimetypes
 from dataclasses import dataclass
 
@@ -15,6 +16,7 @@ class StoredObject:
     etag: str | None
     mime_type: str
     size_bytes: int
+    sha256: str
 
 
 class StorageService:
@@ -35,6 +37,9 @@ class StorageService:
             return content_type
         guessed_type, _ = mimetypes.guess_type(filename)
         return guessed_type or "application/octet-stream"
+
+    def compute_sha256(self, content: bytes) -> str:
+        return hashlib.sha256(content).hexdigest()
 
     async def upload_bytes(
         self,
@@ -63,6 +68,7 @@ class StorageService:
             etag=response.get("ETag", "").strip('"') or None,
             mime_type=mime_type,
             size_bytes=len(content),
+            sha256=self.compute_sha256(content),
         )
 
     async def delete_object(self, key: str) -> None:

@@ -1,7 +1,8 @@
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
+from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -13,13 +14,13 @@ from app.models.kp_event import (
     KpCompanyLanguage,
     KpEvent,
     KpEventBooking,
-    KpEventBookingUpgradeWaitlist,
     KpEventBookingService,
     KpEventBookingServiceFileLink,
+    KpEventBookingUpgradeWaitlist,
     KpEventBoothZone,
     KpEventRegistrationException,
-    KpEventServiceRequirement,
     KpEventService,
+    KpEventServiceRequirement,
     KpIndustry,
     NameTag,
 )
@@ -333,6 +334,7 @@ class KpRepository(BaseRepository[KpEvent]):
         original_filename: str,
         mime_type: str,
         size_bytes: int,
+        sha256: str,
         etag: str | None,
         stored_file: StoredFile | None = None,
     ) -> StoredFile:
@@ -343,6 +345,7 @@ class KpRepository(BaseRepository[KpEvent]):
                     original_filename=original_filename,
                     mime_type=mime_type,
                     size_bytes=size_bytes,
+                    sha256=sha256,
                     etag=etag,
                 )
             else:
@@ -350,6 +353,7 @@ class KpRepository(BaseRepository[KpEvent]):
                 stored_file.original_filename = original_filename
                 stored_file.mime_type = mime_type
                 stored_file.size_bytes = size_bytes
+                stored_file.sha256 = sha256
                 stored_file.etag = etag
 
             self._validate_model(stored_file)
@@ -412,6 +416,24 @@ class KpRepository(BaseRepository[KpEvent]):
         except Exception as e:
             await self.session.rollback()
             raise e
+
+    async def list_orphaned_stored_files(self, max_age_hours: int) -> list[StoredFile]:
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+        statement = (
+            select(StoredFile)
+            .outerjoin(
+                KpEventBookingServiceFileLink,
+                KpEventBookingServiceFileLink.stored_file_id == StoredFile.id,
+            )
+            .where(
+                and_(
+                    KpEventBookingServiceFileLink.id.is_(None),
+                    StoredFile.updated_at < cutoff,
+                )
+            )
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().all()
 
     async def list_industries(self) -> list[KpIndustry]:
         statement = select(KpIndustry).order_by(KpIndustry.name.asc())

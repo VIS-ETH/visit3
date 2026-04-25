@@ -18,16 +18,21 @@ from app.core.exceptions import (
     KpBoothZoneNotFound,
     KpNameExists,
     KpRequirementBookingServiceMismatch,
+    KpRequirementFileUploadNotAllowed,
     KpServiceRequirementNotFound,
     KpWaitlistSameZone,
+    StorageFileInvalidMimeType,
+    StorageFileTooLarge,
 )
 from app.models.kp_event import (
     KpBookingStatus,
     KpEvent,
     KpEventBooking,
-    KpEventBookingUpgradeWaitlist,
     KpEventBookingService,
     KpEventBookingServiceFileLink,
+    KpEventBookingUpgradeWaitlist,
+    KpEventServiceRequirement,
+    KpEventServiceRequirementType,
 )
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
@@ -44,6 +49,7 @@ class KpService:
         self.kp_repository = kp_repository
         self.storage_service = storage_service
         self.current_user = current_user
+        self.settings = get_settings()
 
     async def list_kps(self) -> list[KpEvent]:
         return await self.kp_repository.list_kps()
@@ -177,7 +183,7 @@ class KpService:
 
     async def _get_requirement_for_booking_service(
         self, booking_service: KpEventBookingService, requirement_id: UUID
-    ):
+    ) -> KpEventServiceRequirement:
         requirement = await self.kp_repository.get_service_requirement_by_id(
             requirement_id
         )
@@ -192,6 +198,60 @@ class KpService:
             )
         return requirement
 
+    def _validate_requirement_upload(
+        self,
+        requirement: KpEventServiceRequirement,
+        filename: str,
+        content: bytes,
+        content_type: str | None,
+    ) -> None:
+        mime_type = self.storage_service._normalize_mime_type(filename, content_type)
+        size_bytes = len(content)
+
+        if requirement.type == KpEventServiceRequirementType.TEXT:
+            raise KpRequirementFileUploadNotAllowed(
+                f"booking_requirement:not_file_upload:{requirement.id}"
+            )
+
+        if requirement.type == KpEventServiceRequirementType.IMAGE:
+            if not mime_type.startswith("image/"):
+                raise StorageFileInvalidMimeType(
+                    f"booking_requirement:image_mime:{requirement.id}:{mime_type}"
+                )
+            if size_bytes > self.settings.STORAGE_IMAGE_MAX_SIZE_BYTES:
+                raise StorageFileTooLarge(
+                    f"booking_requirement:image_size:{requirement.id}:{size_bytes}"
+                )
+            return
+
+        if requirement.type == KpEventServiceRequirementType.PDF:
+            allowed_pdf_mimes = {"application/pdf"}
+            if mime_type not in allowed_pdf_mimes:
+                raise StorageFileInvalidMimeType(
+                    f"booking_requirement:pdf_mime:{requirement.id}:{mime_type}"
+                )
+            if size_bytes > self.settings.STORAGE_PDF_MAX_SIZE_BYTES:
+                raise StorageFileTooLarge(
+                    f"booking_requirement:pdf_size:{requirement.id}:{size_bytes}"
+                )
+            return
+
+        if requirement.type == KpEventServiceRequirementType.VIDEO:
+            if not mime_type.startswith("video/"):
+                raise StorageFileInvalidMimeType(
+                    f"booking_requirement:video_mime:{requirement.id}:{mime_type}"
+                )
+            if size_bytes > self.settings.STORAGE_VIDEO_MAX_SIZE_BYTES:
+                raise StorageFileTooLarge(
+                    f"booking_requirement:video_size:{requirement.id}:{size_bytes}"
+                )
+            return
+
+        if size_bytes > self.settings.STORAGE_FILE_MAX_SIZE_BYTES:
+            raise StorageFileTooLarge(
+                f"booking_requirement:file_size:{requirement.id}:{size_bytes}"
+            )
+
     @require_confirmed_company
     async def upload_booking_requirement_file(
         self,
@@ -205,6 +265,7 @@ class KpService:
         requirement = await self._get_requirement_for_booking_service(
             booking_service, requirement_id
         )
+        self._validate_requirement_upload(requirement, filename, content, content_type)
         suffix = Path(filename).suffix
         storage_key = f"kp/booking-services/{booking_service.id}/requirements/{requirement.id}/{uuid4()}{suffix}"
         existing_file = await self.kp_repository.get_requirement_file(
@@ -219,21 +280,26 @@ class KpService:
             filename=filename,
             content_type=content_type,
         )
-        stored_file = await self.kp_repository.upsert_stored_file(
-            storage_key=stored_object.key,
-            original_filename=filename,
-            mime_type=stored_object.mime_type,
-            size_bytes=stored_object.size_bytes,
-            etag=stored_object.etag,
-            stored_file=existing_file.stored_file
-            if existing_file is not None
-            else None,
-        )
-        requirement_file = await self.kp_repository.upsert_requirement_file_link(
-            booking_service_id=booking_service.id,
-            requirement_id=requirement.id,
-            stored_file_id=stored_file.id,
-        )
+        try:
+            stored_file = await self.kp_repository.upsert_stored_file(
+                storage_key=stored_object.key,
+                original_filename=filename,
+                mime_type=stored_object.mime_type,
+                size_bytes=stored_object.size_bytes,
+                sha256=stored_object.sha256,
+                etag=stored_object.etag,
+                stored_file=existing_file.stored_file
+                if existing_file is not None
+                else None,
+            )
+            requirement_file = await self.kp_repository.upsert_requirement_file_link(
+                booking_service_id=booking_service.id,
+                requirement_id=requirement.id,
+                stored_file_id=stored_file.id,
+            )
+        except Exception:
+            await self.storage_service.delete_object(stored_object.key)
+            raise
         if old_storage_key is not None and old_storage_key != stored_object.key:
             await self.storage_service.delete_object(old_storage_key)
         return requirement_file
@@ -280,6 +346,14 @@ class KpService:
             requirement_file.stored_file.storage_key,
             requirement_file.stored_file.original_filename,
         )
+
+    async def cleanup_orphaned_stored_files(self) -> None:
+        orphaned_files = await self.kp_repository.list_orphaned_stored_files(
+            self.settings.STORAGE_ORPHAN_CLEANUP_MAX_AGE_HOURS
+        )
+        for stored_file in orphaned_files:
+            await self.storage_service.delete_object(stored_file.storage_key)
+            await self.kp_repository.delete_stored_file(stored_file)
 
     @require_role(get_settings().VISIT_KP_PRESIDENT_ROLE)
     async def create_kp(

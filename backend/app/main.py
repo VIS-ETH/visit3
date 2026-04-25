@@ -14,8 +14,10 @@ from app.core.deps import SessionLocal
 from app.core.exceptions import AppError
 from app.core.grpc import grpc_client
 from app.core.scheduler import Scheduler
+from app.repositories.kp_repository import KpRepository
 from app.repositories.token_repository import TokenRepository
 from app.routes.router import router as api_router
+from app.services.storage_service import StorageService
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
@@ -40,8 +42,22 @@ async def cleanup_expired_tokens():
         await TokenRepository(session).cleanup_expired()
 
 
+async def cleanup_orphaned_stored_files():
+    async with SessionLocal() as session:
+        settings = get_settings()
+        storage_service = StorageService(settings)
+        kp_repository = KpRepository(session)
+        orphaned_files = await kp_repository.list_orphaned_stored_files(
+            settings.STORAGE_ORPHAN_CLEANUP_MAX_AGE_HOURS
+        )
+        for stored_file in orphaned_files:
+            await storage_service.delete_object(stored_file.storage_key)
+            await kp_repository.delete_stored_file(stored_file)
+
+
 scheduler = Scheduler()
 scheduler.add(cleanup_expired_tokens, interval=3600)
+scheduler.add(cleanup_orphaned_stored_files, interval=3600)
 
 
 @asynccontextmanager

@@ -82,6 +82,7 @@ class RequirementFileResponse(BaseModel):
     original_filename: str
     mime_type: str
     size_bytes: int
+    sha256: str
     etag: str | None
     created_at: datetime
     updated_at: datetime
@@ -97,6 +98,7 @@ class RequirementFileResponse(BaseModel):
             original_filename=file.stored_file.original_filename,
             mime_type=file.stored_file.mime_type,
             size_bytes=file.stored_file.size_bytes,
+            sha256=file.stored_file.sha256,
             etag=file.stored_file.etag,
             created_at=file.stored_file.created_at,
             updated_at=file.stored_file.updated_at,

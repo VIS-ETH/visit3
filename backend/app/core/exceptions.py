@@ -165,6 +165,36 @@ class StorageDeleteFailed(AppError):
         )
 
 
+class StorageFileTooLarge(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The uploaded file is too large",
+            "error.storage_file_too_large",
+            identifier,
+            400,
+        )
+
+
+class StorageFileInvalidMimeType(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The uploaded file type is not allowed",
+            "error.storage_file_invalid_mime_type",
+            identifier,
+            400,
+        )
+
+
+class KpRequirementFileUploadNotAllowed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "This requirement does not accept file uploads",
+            "error.kp_requirement_file_upload_not_allowed",
+            identifier,
+            400,
+        )
+
+
 class KeycloakExchangeFailed(AppError):
     def __init__(self, identifier: str):
         super().__init__(

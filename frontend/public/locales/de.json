@@ -36,6 +36,9 @@
     "kp_waitlist_same_zone": "Die aktuelle Standzone kann nicht auf die Warteliste gesetzt werden.",
     "storage_upload_failed": "Der Datei-Upload ist fehlgeschlagen.",
     "storage_delete_failed": "Das Loeschen der Datei ist fehlgeschlagen.",
+    "storage_file_too_large": "Die hochgeladene Datei ist zu gross.",
+    "storage_file_invalid_mime_type": "Dieser Dateityp ist nicht erlaubt.",
+    "kp_requirement_file_upload_not_allowed": "Diese Anforderung erlaubt keinen Datei-Upload.",
     "validation_failed": "Einige Felder sind ungueltig.",
     "invite_not_found": "Diese Einladung ist ungültig oder wurde bereits verwendet.",
     "invite_expired": "Diese Einladung ist abgelaufen."
