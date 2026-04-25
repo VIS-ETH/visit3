@@ -46,16 +46,15 @@ class UserRepository(BaseRepository[User]):
         result = await self.session.execute(statement)
         return result.scalars().all()
 
-    async def get_by_id(self, user_id: uuid.UUID):
-        return await self._get_by_field(User.id, user_id)
-
     async def get_by_email(self, email: str):
         return await self._get_by_field(User.email, normalize_email(email))
 
     async def get_by_sub(self, sub: str):
         return await self._get_by_field(User.sub, sub)
 
-    async def get_by_sub_or_email(self, sub: str | None, email: str | None) -> User | None:
+    async def get_by_sub_or_email(
+        self, sub: str | None, email: str | None
+    ) -> User | None:
         """Get a user by sub first, then fallback to email if needed."""
         if sub is not None:
             user = await self.get_by_sub(sub)
@@ -134,7 +133,7 @@ class UserRepository(BaseRepository[User]):
 
     async def create_or_update_user(self, user: User):
         try:
-            db_user = await self.get_by_sub_or_email(user.sub, user.email) 
+            db_user = await self.get_by_sub_or_email(user.sub, user.email)
             if db_user is None:
                 return await self.create_user(user)
             else:

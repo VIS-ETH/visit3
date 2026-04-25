@@ -15,9 +15,6 @@ class CompanyRepository(BaseRepository[Company]):
     def __init__(self, session: AsyncSession):
         super().__init__(Company, session)
 
-    async def get_by_id(self, company_id) -> Optional[Company]:
-        return await self._get_by_field(Company.id, company_id)
-
     async def create_company(self, name: str) -> Company:
         try:
             company = Company(name=name)
