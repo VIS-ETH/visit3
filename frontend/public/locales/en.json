@@ -24,6 +24,8 @@
     "kp_year_exists": "KP event for this year already exists",
     "kp_booking_not_found": "The selected KP booking could not be found.",
     "kp_booking_not_owned": "This KP booking does not belong to your company.",
+    "kp_booking_status_transition_invalid": "The requested booking status change is not allowed.",
+    "kp_booking_confirmation_requires_finalized": "Only finalized bookings can be confirmed.",
     "kp_booth_zone_not_found": "The selected booth zone could not be found.",
     "kp_booth_zone_event_mismatch": "The selected booth zone belongs to a different KP event.",
     "kp_waitlist_same_zone": "You cannot add your current booth zone to the waitlist.",

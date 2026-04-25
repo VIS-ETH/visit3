@@ -76,8 +76,9 @@ class KpEvent(BaseEntity, table=True):
 
 class KpBookingStatus(str, Enum):
     DRAFT = "draft"
-    CONFIRMED = "confirmed"
+    REGISTERED = "registered"
     FINALIZED = "finalized"
+    CONFIRMED = "confirmed"
     CANCELLED = "cancelled"
 
 
@@ -93,7 +94,7 @@ class KpEventBooking(BaseEntity, table=True):
     company_id: UUID = Field(foreign_key="company.id")
     booth_zone_id: UUID = Field(foreign_key="kpeventboothzone.id")
 
-    status: KpBookingStatus = Field(default=KpBookingStatus.CONFIRMED)
+    status: KpBookingStatus = Field(default=KpBookingStatus.REGISTERED)
 
     booth_nr: int = Field(ge=1)  # booth number within the booth zone
 

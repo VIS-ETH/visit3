@@ -24,6 +24,8 @@
     "kp_year_exists": "KP-Event für dieses Jahr existiert bereits",
     "kp_booking_not_found": "Die ausgewaehlte KP-Buchung wurde nicht gefunden.",
     "kp_booking_not_owned": "Diese KP-Buchung gehoert nicht zu Ihrem Unternehmen.",
+    "kp_booking_status_transition_invalid": "Der angeforderte Buchungsstatuswechsel ist nicht erlaubt.",
+    "kp_booking_confirmation_requires_finalized": "Nur finalisierte Buchungen koennen bestaetigt werden.",
     "kp_booth_zone_not_found": "Die ausgewaehlte Standzone wurde nicht gefunden.",
     "kp_booth_zone_event_mismatch": "Die ausgewaehlte Standzone gehoert zu einem anderen KP-Event.",
     "kp_waitlist_same_zone": "Die aktuelle Standzone kann nicht auf die Warteliste gesetzt werden.",

@@ -9,8 +9,10 @@ from app.core.decorators import (
     require_staff,
 )
 from app.core.exceptions import (
+    KpBookingConfirmationRequiresFinalized,
     KpBookingNotFound,
     KpBookingNotOwned,
+    KpBookingStatusTransitionInvalid,
     KpBoothZoneEventMismatch,
     KpBoothZoneNotFound,
     KpNameExists,
@@ -61,6 +63,29 @@ class KpService:
             raise KpBookingNotFound(f"booking:not_found:{booking_id}")
         return booking
 
+    def _ensure_company_status_transition(
+        self, booking: KpEventBooking, next_status: KpBookingStatus
+    ) -> None:
+        if booking.status == next_status:
+            return
+        allowed_transitions = {
+            KpBookingStatus.DRAFT: {
+                KpBookingStatus.REGISTERED,
+                KpBookingStatus.CANCELLED,
+            },
+            KpBookingStatus.REGISTERED: {
+                KpBookingStatus.FINALIZED,
+                KpBookingStatus.CANCELLED,
+            },
+            KpBookingStatus.FINALIZED: {KpBookingStatus.CANCELLED},
+            KpBookingStatus.CONFIRMED: set(),
+            KpBookingStatus.CANCELLED: set(),
+        }
+        if next_status not in allowed_transitions.get(booking.status, set()):
+            raise KpBookingStatusTransitionInvalid(
+                f"booking_status_transition:{booking.id}:{booking.status}->{next_status}"
+            )
+
     @require_confirmed_company
     async def list_booking_upgrade_waitlist(
         self, booking_id: UUID
@@ -104,6 +129,7 @@ class KpService:
         self, booking_id: UUID, status: KpBookingStatus
     ) -> KpEventBooking:
         booking = await self._get_owned_booking(booking_id)
+        self._ensure_company_status_transition(booking, status)
         return await self.kp_repository.update_booking(booking=booking, status=status)
 
     @require_staff
@@ -113,6 +139,17 @@ class KpService:
         booking = await self._get_booking(booking_id)
         return await self.kp_repository.update_booking(
             booking=booking, booth_nr=booth_nr
+        )
+
+    @require_staff
+    async def confirm_booking(self, booking_id: UUID) -> KpEventBooking:
+        booking = await self._get_booking(booking_id)
+        if booking.status != KpBookingStatus.FINALIZED:
+            raise KpBookingConfirmationRequiresFinalized(
+                f"booking_confirm:not_finalized:{booking_id}:{booking.status}"
+            )
+        return await self.kp_repository.update_booking(
+            booking=booking, status=KpBookingStatus.CONFIRMED
         )
 
     @require_role(get_settings().VISIT_KP_PRESIDENT_ROLE)

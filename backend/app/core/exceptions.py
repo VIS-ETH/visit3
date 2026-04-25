@@ -105,6 +105,26 @@ class KpWaitlistSameZone(AppError):
         )
 
 
+class KpBookingStatusTransitionInvalid(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The requested KP booking status transition is invalid",
+            "error.kp_booking_status_transition_invalid",
+            identifier,
+            400,
+        )
+
+
+class KpBookingConfirmationRequiresFinalized(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Only finalized KP bookings can be confirmed",
+            "error.kp_booking_confirmation_requires_finalized",
+            identifier,
+            400,
+        )
+
+
 class KeycloakExchangeFailed(AppError):
     def __init__(self, identifier: str):
         super().__init__(

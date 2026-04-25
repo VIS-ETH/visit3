@@ -93,6 +93,16 @@ async def update_booking_booth_number(
     return BookingResponse.from_model(booking)
 
 
+@require_staff
+@router.patch("/bookings/{booking_id}/confirm", operation_id="confirmBooking")
+async def confirm_booking(
+    kp_service: KpServiceDep,
+    booking_id: UUID,
+) -> BookingResponse:
+    booking = await kp_service.confirm_booking(booking_id)
+    return BookingResponse.from_model(booking)
+
+
 @require_admin
 @router.post("/create", operation_id="createKp")
 async def create_kp(kp_service: KpServiceDep, request: CreateKpRequest) -> KpResponse:

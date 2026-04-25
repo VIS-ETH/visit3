@@ -125,7 +125,7 @@ class KpRepository(BaseRepository[KpEvent]):
         company_id: UUID,
         booth_zone_id: UUID,
         booth_nr: int,
-        status: KpBookingStatus = KpBookingStatus.CONFIRMED,
+        status: KpBookingStatus = KpBookingStatus.REGISTERED,
     ) -> KpEventBooking:
         try:
             booking = KpEventBooking(
