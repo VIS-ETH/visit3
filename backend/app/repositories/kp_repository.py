@@ -69,6 +69,7 @@ class KpRepository(BaseRepository[KpEvent]):
                 finalization_deadline=finalization_deadline,
                 event_date=event_date,
             )
+            event.validate_dates()
             self.session.add(event)
             await self.session.commit()
             await self.session.refresh(event)
