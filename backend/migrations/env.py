@@ -1,7 +1,9 @@
 import asyncio
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
+from alembic.script import ScriptDirectory
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
@@ -32,6 +34,42 @@ target_metadata = SQLModel.metadata
 # ... etc.
 
 
+def _next_numeric_revision_id() -> str:
+    script_directory = ScriptDirectory.from_config(config)
+    numeric_revisions = []
+
+    for script in script_directory.walk_revisions():
+        if script.revision.isdigit():
+            numeric_revisions.append(int(script.revision))
+
+    if numeric_revisions:
+        return f"{max(numeric_revisions) + 1:04d}"
+
+    versions_dir = Path(script_directory.versions)
+    for path in versions_dir.glob("*.py"):
+        prefix = path.stem.split("_", 1)[0]
+        if prefix.isdigit():
+            numeric_revisions.append(int(prefix))
+
+    next_revision = max(numeric_revisions, default=0) + 1
+    return f"{next_revision:04d}"
+
+
+def _apply_numeric_revision_id(
+    context,  # noqa: ARG001
+    revision,  # noqa: ARG001
+    directives,
+) -> None:
+    if not directives:
+        return
+
+    cmd_opts = getattr(config, "cmd_opts", None)
+    if cmd_opts and getattr(cmd_opts, "rev_id", None):
+        return
+
+    directives[0].rev_id = _next_numeric_revision_id()
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -50,6 +88,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        process_revision_directives=_apply_numeric_revision_id,
     )
 
     with context.begin_transaction():
@@ -57,7 +96,11 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        process_revision_directives=_apply_numeric_revision_id,
+    )
 
     with context.begin_transaction():
         context.run_migrations()
