@@ -80,6 +80,7 @@ async def get_current_user(
         logger.warning(f"JWT user lookup failed - user not found: {subject}")
         raise Unauthenticated(f"jwt_decode:user_not_found:{subject}")
 
+    await user_repo.load_user_roles(user)
     logger.debug(f"User authenticated: {user.email}")
 
     impersonate_id = request.headers.get("X-Impersonate-User-Id")

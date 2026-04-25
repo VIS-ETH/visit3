@@ -25,6 +25,20 @@ class KpRepository(BaseRepository[KpEvent]):
     def __init__(self, session: AsyncSession):
         super().__init__(KpEvent, session)
 
+    def _validate_booking(self, booking: KpEventBooking) -> KpEventBooking:
+        return self._validate_model(
+            booking,
+            exclude={
+                "event",
+                "company",
+                "booth_zone",
+                "main_contact",
+                "services",
+                "name_tags",
+                "company_details",
+            },
+        )
+
     def _booking_select(self):
         return select(KpEventBooking).options(
             selectinload(KpEventBooking.event),
@@ -117,6 +131,7 @@ class KpRepository(BaseRepository[KpEvent]):
                 booth_nr=booth_nr,
                 finalized=finalized,
             )
+            self._validate_booking(booking)
             self.session.add(booking)
             await self.session.commit()
             return await self.get_booking_by_id(booking.id) or booking
@@ -142,6 +157,7 @@ class KpRepository(BaseRepository[KpEvent]):
             if finalized is not None:
                 booking.finalized = finalized
 
+            self._validate_booking(booking)
             self.session.add(booking)
             await self.session.commit()
             return await self.get_booking_by_id(booking.id) or booking

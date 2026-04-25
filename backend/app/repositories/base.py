@@ -20,8 +20,13 @@ class BaseRepository(Generic[T]):
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
-    def _validate_model(self, instance: T, *, exclude: set[str] | None = None) -> None:
-        instance.__class__.model_validate(instance.model_dump(exclude=exclude or set()))
+    def _validate_model(self, instance: T, *, exclude: set[str] | None = None) -> T:
+        validated = instance.__class__.model_validate(
+            instance.model_dump(exclude=exclude or set())
+        )
+        for field_name, value in validated.model_dump().items():
+            setattr(instance, field_name, value)
+        return instance
 
     async def get_by_id(self, entity_id: UUID) -> T | None:
         if not issubclass(self.model, BaseEntity):
