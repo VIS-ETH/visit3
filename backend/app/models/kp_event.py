@@ -45,6 +45,9 @@ class KpEvent(BaseEntity, table=True):
     booth_zones: list["KpEventBoothZone"] = Relationship(back_populates="event")
     bookings: list["KpEventBooking"] = Relationship(back_populates="event")
     services: list["KpEventService"] = Relationship(back_populates="event")
+    registration_exceptions: list["KpEventRegistrationException"] = Relationship(
+        back_populates="event"
+    )
 
     def is_registration_open(self) -> bool:
         today = date.today()
@@ -293,3 +296,16 @@ class KpBookingCompanyDetailsIndustryLink(BaseLink, table=True):
         back_populates="industry_links",
     )
     industry: "KpIndustry" = Relationship(back_populates="company_details_links")
+
+
+class KpEventRegistrationException(BaseEntity, table=True):
+    """Allows specific companies to register after the event's registration deadline."""
+
+    __table_args__ = (UniqueConstraint("event_id", "company_id"),)
+
+    event_id: UUID = Field(foreign_key="kpevent.id")
+    company_id: UUID = Field(foreign_key="company.id")
+    allowed_until: date
+
+    event: "KpEvent" = Relationship(back_populates="registration_exceptions")
+    company: "Company" = Relationship(back_populates="registration_exceptions")

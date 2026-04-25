@@ -9,7 +9,7 @@ from sqlmodel import Field, Relationship
 from app.models.base import BaseEntity
 
 if TYPE_CHECKING:
-    from app.models.kp_event import KpEventBooking
+    from app.models.kp_event import KpEventBooking, KpEventRegistrationException
     from app.models.user import User
 
 
@@ -19,6 +19,9 @@ class Company(BaseEntity, table=True):
     users: list["User"] = Relationship(back_populates="company")
     invites: list["CompanyInvite"] = Relationship(back_populates="company")
     bookings: list["KpEventBooking"] = Relationship(back_populates="company")
+    registration_exceptions: list["KpEventRegistrationException"] = Relationship(
+        back_populates="company"
+    )
 
 
 class CompanyInvite(BaseEntity, table=True):

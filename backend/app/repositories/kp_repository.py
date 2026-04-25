@@ -14,6 +14,7 @@ from app.models.kp_event import (
     KpEventBooking,
     KpEventBookingService,
     KpEventBoothZone,
+    KpEventRegistrationException,
     KpEventService,
     KpIndustry,
     NameTag,
@@ -264,6 +265,56 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.commit()
             await self.session.refresh(name_tag)
             return name_tag
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def list_registration_exceptions(
+        self, event_id: UUID
+    ) -> list[KpEventRegistrationException]:
+        statement = select(KpEventRegistrationException).where(
+            KpEventRegistrationException.event_id == event_id
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().all()
+
+    async def get_registration_exception(
+        self, event_id: UUID, company_id: UUID
+    ) -> Optional[KpEventRegistrationException]:
+        statement = select(KpEventRegistrationException).where(
+            KpEventRegistrationException.event_id == event_id,
+            KpEventRegistrationException.company_id == company_id,
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def upsert_registration_exception(
+        self, event_id: UUID, company_id: UUID, allowed_until: date
+    ) -> KpEventRegistrationException:
+        try:
+            exception = await self.get_registration_exception(event_id, company_id)
+            if exception is None:
+                exception = KpEventRegistrationException(
+                    event_id=event_id,
+                    company_id=company_id,
+                    allowed_until=allowed_until,
+                )
+            else:
+                exception.allowed_until = allowed_until
+            self.session.add(exception)
+            await self.session.commit()
+            await self.session.refresh(exception)
+            return exception
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def delete_registration_exception(
+        self, exception: KpEventRegistrationException
+    ) -> None:
+        try:
+            await self.session.delete(exception)
+            await self.session.commit()
         except Exception as e:
             await self.session.rollback()
             raise e
