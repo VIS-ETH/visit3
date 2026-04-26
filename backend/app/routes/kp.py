@@ -2,11 +2,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, File, UploadFile
 
-from app.core.decorators import (
-    require_admin,
-    require_confirmed_company,
-    require_staff,
-)
 from app.core.deps import CsrfDep, KpServiceDep
 from app.schemas.kp import (
     BookingResponse,
@@ -44,7 +39,6 @@ async def get_kp_by_name(kp_service: KpServiceDep, name: str) -> KpResponse | No
     "/bookings/{booking_id}/upgrade-waitlist",
     operation_id="listBookingUpgradeWaitlist",
 )
-@require_confirmed_company
 async def list_booking_upgrade_waitlist(
     kp_service: KpServiceDep,
     booking_id: UUID,
@@ -57,7 +51,6 @@ async def list_booking_upgrade_waitlist(
     "/bookings/{booking_id}/upgrade-waitlist",
     operation_id="replaceBookingUpgradeWaitlist",
 )
-@require_confirmed_company
 async def replace_booking_upgrade_waitlist(
     kp_service: KpServiceDep,
     booking_id: UUID,
@@ -71,7 +64,6 @@ async def replace_booking_upgrade_waitlist(
 
 
 @router.patch("/bookings/{booking_id}/status", operation_id="updateMyBookingStatus")
-@require_confirmed_company
 async def update_my_booking_status(
     kp_service: KpServiceDep,
     booking_id: UUID,
@@ -85,7 +77,6 @@ async def update_my_booking_status(
     "/bookings/{booking_id}/booth-number",
     operation_id="updateBookingBoothNumber",
 )
-@require_staff
 async def update_booking_booth_number(
     kp_service: KpServiceDep,
     booking_id: UUID,
@@ -96,7 +87,6 @@ async def update_booking_booth_number(
 
 
 @router.patch("/bookings/{booking_id}/confirm", operation_id="confirmBooking")
-@require_staff
 async def confirm_booking(
     kp_service: KpServiceDep,
     booking_id: UUID,
@@ -109,7 +99,6 @@ async def confirm_booking(
     "/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
     operation_id="getBookingRequirementFile",
 )
-@require_confirmed_company
 async def get_booking_requirement_file(
     kp_service: KpServiceDep,
     booking_service_id: UUID,
@@ -129,7 +118,6 @@ async def get_booking_requirement_file(
     "/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
     operation_id="uploadBookingRequirementFile",
 )
-@require_confirmed_company
 async def upload_booking_requirement_file(
     kp_service: KpServiceDep,
     booking_service_id: UUID,
@@ -150,7 +138,6 @@ async def upload_booking_requirement_file(
     "/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
     operation_id="deleteBookingRequirementFile",
 )
-@require_confirmed_company
 async def delete_booking_requirement_file(
     kp_service: KpServiceDep,
     booking_service_id: UUID,
@@ -163,7 +150,6 @@ async def delete_booking_requirement_file(
     "/booking-services/{booking_service_id}/requirements/{requirement_id}/file/download",
     operation_id="getBookingRequirementFileDownloadUrl",
 )
-@require_confirmed_company
 async def get_booking_requirement_file_download_url(
     kp_service: KpServiceDep,
     booking_service_id: UUID,
@@ -176,7 +162,6 @@ async def get_booking_requirement_file_download_url(
 
 
 @router.post("/create", operation_id="createKp")
-@require_admin
 async def create_kp(kp_service: KpServiceDep, request: CreateKpRequest) -> KpResponse:
     event = await kp_service.create_kp(
         name=request.name,

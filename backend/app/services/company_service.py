@@ -141,6 +141,7 @@ class CompanyService:
             raise CompanyNotFound(f"get_invite_info:{invite.company_id}")
         return InviteInfoResponse(company_name=company.name)
 
+    @require_confirmed_company
     async def accept_invite(self, token: str) -> User:
         if not (self.current_user.email_confirmed and self.current_user.user_confirmed):
             raise NotAllowed(f"accept_invite:not_confirmed:{self.current_user.id}")

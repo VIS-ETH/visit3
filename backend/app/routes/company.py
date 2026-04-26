@@ -2,7 +2,6 @@ from uuid import UUID
 
 from fastapi import APIRouter
 
-from app.core.decorators import require_admin, require_confirmed_company, require_staff
 from app.core.deps import CompanyServiceDep, CsrfDep, UserServiceDep
 from app.models.company import Company
 from app.schemas.company import (
@@ -31,7 +30,6 @@ async def setup_company(
     "/me/members",
     operation_id="getMyCompanyMembers",
 )
-@require_confirmed_company
 async def get_my_company_members(
     company_service: CompanyServiceDep,
 ) -> list[UserResponse]:
@@ -42,7 +40,6 @@ async def get_my_company_members(
 
 
 @router.get("/me/kp-profile", operation_id="getMyKpCompanyProfile")
-@require_confirmed_company
 async def get_my_kp_company_profile(
     company_service: CompanyServiceDep,
 ) -> KpCompanyProfileResponse | None:
@@ -50,7 +47,6 @@ async def get_my_kp_company_profile(
 
 
 @router.put("/me/kp-profile", operation_id="updateMyKpCompanyProfile")
-@require_confirmed_company
 async def update_my_kp_company_profile(
     company_service: CompanyServiceDep,
     request: UpdateKpCompanyProfileRequest,
@@ -64,7 +60,6 @@ async def update_my_kp_company_profile(
 
 
 @router.post("/invite", operation_id="createCompanyInvite")
-@require_confirmed_company
 async def create_company_invite(
     company_service: CompanyServiceDep,
     request: CreateInviteRequest,
@@ -87,7 +82,6 @@ async def get_company_invite_info(
     "/invite/{token}/accept",
     operation_id="acceptCompanyInvite",
 )
-@require_confirmed_company
 async def accept_company_invite(
     company_service: CompanyServiceDep,
     token: str,
@@ -102,7 +96,6 @@ async def accept_company_invite(
     "/{company_id}/users",
     operation_id="getCompanyUsers",
 )
-@require_staff
 async def get_company_users(
     company_service: CompanyServiceDep,
     company_id: UUID,
@@ -114,7 +107,6 @@ async def get_company_users(
 
 
 @router.get("/management", operation_id="listCompaniesWithUsers")
-@require_staff
 async def list_companies_with_users(
     company_service: CompanyServiceDep,
 ) -> list[CompanyWithUsersResponse]:
@@ -125,7 +117,6 @@ async def list_companies_with_users(
     "/{company_id}/delete-with-users",
     operation_id="deleteCompanyWithUsers",
 )
-@require_admin
 async def delete_company_with_users(
     company_service: CompanyServiceDep,
     company_id: UUID,
@@ -137,7 +128,6 @@ async def delete_company_with_users(
     "/{company_id}/delete-keep-users",
     operation_id="deleteCompanyKeepUsers",
 )
-@require_admin
 async def delete_company_keep_users(
     company_service: CompanyServiceDep,
     company_id: UUID,
@@ -149,7 +139,6 @@ async def delete_company_keep_users(
     "/{company_id}/users/{user_id}",
     operation_id="removeCompanyUser",
 )
-@require_admin
 async def remove_company_user(
     user_service: UserServiceDep,
     company_id: UUID,
@@ -159,7 +148,6 @@ async def remove_company_user(
 
 
 @router.patch("/me", operation_id="updateMyCompany")
-@require_confirmed_company
 async def update_my_company(
     company_service: CompanyServiceDep,
     request: UpdateCompanyRequest,
