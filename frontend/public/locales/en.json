@@ -1,6 +1,9 @@
 {
   "user": {
-    "unconfirmed": "Your account is not confirmed, wait until an admin confirms your account."
+    "unconfirmed": "Your account is not confirmed, wait until an admin confirms your account.",
+    "unconfirmed_description": "A VIS admin still needs to approve your account before you can access the company portal. You can come back later and sign in again once confirmation is complete.",
+    "unconfirmed_login_required": "Log in to continue",
+    "unconfirmed_login_required_description": "You need to be signed in before we can show your account confirmation status."
   },
   "server": {
     "error": "Server error"
@@ -96,7 +99,15 @@
     "phoneNumber": {
       "invalid": "Phone number is invalid"
     },
-    "failed": "Registration failed, contact us if this persists."
+    "failed": "Registration failed, contact us if this persists.",
+    "success": {
+      "title": "Check your inbox",
+      "subtitle": "Your account has been created.",
+      "alert": "We created an account for {{email}}.",
+      "description": "Confirm your email address first. After that, you can sign in and continue with the company onboarding flow.",
+      "login": "Go to login",
+      "register_another": "Register another account"
+    }
   },
   "password": {
     "wrong": "Wrong password or email",
@@ -113,6 +124,7 @@
       "invalid": "Invalid or Expired Link",
       "link_expired": "This confirmation link has expired. Please request a new confirmation email.",
       "unconfirmed": "To use VISIT you have to confirm your email",
+      "unconfirmed_description": "We need to verify {{email}} before you can continue. Open the confirmation link in your inbox, or request a new email below.",
       "button": "Send confirmation email",
       "confirm_button": "Confirm email",
       "cancel": "Cancel",
@@ -121,7 +133,10 @@
       "back_to_login": "Back to Login",
       "go_to_login": "Go to Login",
       "error": "Error while sending the confirmation mail",
-      "sent": "Confirmation mail has been sent to your email"
+      "sent": "Confirmation mail has been sent to your email",
+      "sent_description": "We sent a fresh confirmation email to {{email}}.",
+      "login_required": "Log in to confirm your email",
+      "login_required_description": "This page can resend confirmation mail only for a signed-in account."
     }
   },
   "forget_password": {
@@ -336,6 +351,8 @@
   },
   "setup_company": {
     "title": "Set Up Your Company",
+    "login_required": "Log in to set up your company",
+    "login_required_description": "Company setup is part of the signed-in onboarding flow.",
     "create_title": "Create a Company",
     "create_description": "Start by creating your company profile. You'll be the first member.",
     "name_label": "Company Name",
@@ -343,13 +360,18 @@
     "create_button": "Create Company",
     "or": "OR",
     "invite_title": "Waiting for an Invite?",
-    "invite_description": "Ask a colleague who is already in a company to send you an invite. Once you receive the email, click the link to join their company."
+    "invite_description": "Ask a colleague who is already in a company to send you an invite. Once you receive the email, click the link to join their company.",
+    "invite_hint": "If an invite was sent to {{email}}, open that exact link after your account and email are confirmed."
   },
   "company_join": {
     "title": "Join Company",
     "joining": "You have been invited to join",
     "button": "Join {{company}}",
-    "invalid": "Invalid Invite"
+    "invalid": "Invalid Invite",
+    "login_required": "Log in or create the invited account before accepting this invite.",
+    "log_in": "Log in",
+    "create_account": "Create account",
+    "email_mismatch": "You are signed in as {{currentEmail}}, but this invite belongs to a different account."
   },
   "company_profile": {
     "title": "Company",

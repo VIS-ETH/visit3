@@ -2,20 +2,20 @@ from uuid import UUID
 
 from fastapi import APIRouter
 
+from app.core.decorators import (
+    require_admin,
+    require_confirmed_company,
+    require_staff,
+)
 from app.core.deps import CsrfDep, KpServiceDep
 from app.schemas.kp import (
-    BookingUpgradeWaitlistEntryResponse,
     BookingResponse,
+    BookingUpgradeWaitlistEntryResponse,
     CreateKpRequest,
     KpResponse,
     ReplaceBookingUpgradeWaitlistRequest,
     UpdateBookingBoothNumberRequest,
     UpdateBookingStatusRequest,
-)
-from app.core.decorators import (
-    require_admin,
-    require_confirmed_company,
-    require_staff,
 )
 
 router = APIRouter(prefix="/kp", tags=["kp"], dependencies=[CsrfDep])
@@ -38,11 +38,11 @@ async def get_kp_by_name(kp_service: KpServiceDep, name: str) -> KpResponse | No
     return KpResponse.from_model(event) if event is not None else None
 
 
-@require_confirmed_company
 @router.get(
     "/bookings/{booking_id}/upgrade-waitlist",
     operation_id="listBookingUpgradeWaitlist",
 )
+@require_confirmed_company
 async def list_booking_upgrade_waitlist(
     kp_service: KpServiceDep,
     booking_id: UUID,
@@ -51,11 +51,11 @@ async def list_booking_upgrade_waitlist(
     return [BookingUpgradeWaitlistEntryResponse.from_model(entry) for entry in entries]
 
 
-@require_confirmed_company
 @router.put(
     "/bookings/{booking_id}/upgrade-waitlist",
     operation_id="replaceBookingUpgradeWaitlist",
 )
+@require_confirmed_company
 async def replace_booking_upgrade_waitlist(
     kp_service: KpServiceDep,
     booking_id: UUID,
@@ -68,8 +68,8 @@ async def replace_booking_upgrade_waitlist(
     return [BookingUpgradeWaitlistEntryResponse.from_model(entry) for entry in entries]
 
 
-@require_confirmed_company
 @router.patch("/bookings/{booking_id}/status", operation_id="updateMyBookingStatus")
+@require_confirmed_company
 async def update_my_booking_status(
     kp_service: KpServiceDep,
     booking_id: UUID,
@@ -79,11 +79,11 @@ async def update_my_booking_status(
     return BookingResponse.from_model(booking)
 
 
-@require_staff
 @router.patch(
     "/bookings/{booking_id}/booth-number",
     operation_id="updateBookingBoothNumber",
 )
+@require_staff
 async def update_booking_booth_number(
     kp_service: KpServiceDep,
     booking_id: UUID,
@@ -93,8 +93,8 @@ async def update_booking_booth_number(
     return BookingResponse.from_model(booking)
 
 
-@require_staff
 @router.patch("/bookings/{booking_id}/confirm", operation_id="confirmBooking")
+@require_staff
 async def confirm_booking(
     kp_service: KpServiceDep,
     booking_id: UUID,
@@ -103,8 +103,8 @@ async def confirm_booking(
     return BookingResponse.from_model(booking)
 
 
-@require_admin
 @router.post("/create", operation_id="createKp")
+@require_admin
 async def create_kp(kp_service: KpServiceDep, request: CreateKpRequest) -> KpResponse:
     event = await kp_service.create_kp(
         name=request.name,

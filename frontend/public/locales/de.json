@@ -1,6 +1,9 @@
 {
   "user": {
-    "unconfirmed": "Ihr Konto ist nicht bestätigt, warten Sie, bis ein Admin Ihr Konto bestätigt."
+    "unconfirmed": "Ihr Konto ist nicht bestätigt, warten Sie, bis ein Admin Ihr Konto bestätigt.",
+    "unconfirmed_description": "Ein VIS-Admin muss Ihr Konto noch freigeben, bevor Sie auf das Firmenportal zugreifen koennen. Melden Sie sich spaeter erneut an, sobald die Freigabe erfolgt ist.",
+    "unconfirmed_login_required": "Bitte melden Sie sich an",
+    "unconfirmed_login_required_description": "Sie muessen angemeldet sein, damit wir Ihren Bestaetigungsstatus anzeigen koennen."
   },
   "server": {
     "error": "Serverfehler"
@@ -96,7 +99,15 @@
     "phoneNumber": {
       "invalid": "Telefonnummer ist ungültig"
     },
-    "failed": "Die Registrierung ist fehlgeschlagen. Kontaktieren Sie uns, wenn dies weiterhin der Fall ist."
+    "failed": "Die Registrierung ist fehlgeschlagen. Kontaktieren Sie uns, wenn dies weiterhin der Fall ist.",
+    "success": {
+      "title": "Posteingang pruefen",
+      "subtitle": "Ihr Konto wurde erstellt.",
+      "alert": "Wir haben ein Konto fuer {{email}} erstellt.",
+      "description": "Bestaetigen Sie zuerst Ihre E-Mail-Adresse. Danach koennen Sie sich anmelden und mit dem Firmen-Onboarding fortfahren.",
+      "login": "Zur Anmeldung",
+      "register_another": "Weiteres Konto registrieren"
+    }
   },
   "password": {
     "wrong": "Falsches Passwort oder E-Mail",
@@ -113,6 +124,7 @@
       "invalid": "Ungültiger oder abgelaufener Link",
       "link_expired": "Dieser Bestätigungslink ist abgelaufen. Bitte fordern Sie eine neue Bestätigungsmail an.",
       "unconfirmed": "Um VISIT zu nutzen, müssen Sie Ihre E-Mail bestätigen",
+      "unconfirmed_description": "Wir muessen {{email}} bestaetigen, bevor Sie fortfahren koennen. Oeffnen Sie den Bestaetigungslink in Ihrem Posteingang oder fordern Sie unten eine neue E-Mail an.",
       "button": "Bestätigungsmail senden",
       "confirm_button": "E-Mail bestätigen",
       "cancel": "Abbrechen",
@@ -121,7 +133,10 @@
       "back_to_login": "Zurück zur Anmeldung",
       "go_to_login": "Zur Anmeldung",
       "error": "Fehler beim Senden der Bestätigungsmail",
-      "sent": "Bestätigungsmail wurde an Ihre E-Mail gesendet"
+      "sent": "Bestätigungsmail wurde an Ihre E-Mail gesendet",
+      "sent_description": "Wir haben eine neue Bestaetigungsmail an {{email}} gesendet.",
+      "login_required": "Anmelden, um Ihre E-Mail zu bestaetigen",
+      "login_required_description": "Diese Seite kann eine Bestaetigungsmail nur fuer ein angemeldetes Konto erneut senden."
     }
   },
   "forget_password": {
@@ -336,6 +351,8 @@
   },
   "setup_company": {
     "title": "Ihr Unternehmen einrichten",
+    "login_required": "Bitte melden Sie sich an, um Ihr Unternehmen einzurichten",
+    "login_required_description": "Die Unternehmenseinrichtung ist Teil des Onboarding-Ablaufs nach der Anmeldung.",
     "create_title": "Unternehmen erstellen",
     "create_description": "Erstellen Sie Ihr Unternehmensprofil. Sie werden das erste Mitglied sein.",
     "name_label": "Unternehmensname",
@@ -343,13 +360,18 @@
     "create_button": "Unternehmen erstellen",
     "or": "ODER",
     "invite_title": "Auf eine Einladung warten?",
-    "invite_description": "Bitten Sie einen Kollegen, der bereits einem Unternehmen angehört, Ihnen eine Einladung zu schicken."
+    "invite_description": "Bitten Sie einen Kollegen, der bereits einem Unternehmen angehört, Ihnen eine Einladung zu schicken.",
+    "invite_hint": "Falls eine Einladung an {{email}} gesendet wurde, oeffnen Sie genau diesen Link, sobald Ihr Konto und Ihre E-Mail bestaetigt sind."
   },
   "company_join": {
     "title": "Unternehmen beitreten",
     "joining": "Sie wurden eingeladen, beizutreten",
     "button": "{{company}} beitreten",
-    "invalid": "Ungültige Einladung"
+    "invalid": "Ungültige Einladung",
+    "login_required": "Melden Sie sich an oder erstellen Sie das eingeladene Konto, bevor Sie diese Einladung annehmen.",
+    "log_in": "Anmelden",
+    "create_account": "Konto erstellen",
+    "email_mismatch": "Sie sind als {{currentEmail}} angemeldet, aber diese Einladung gehoert zu einem anderen Konto."
   },
   "company_profile": {
     "title": "Unternehmen",

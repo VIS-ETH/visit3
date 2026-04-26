@@ -2,13 +2,14 @@ import {
   Alert,
   Button,
   Center,
+  Group,
   Loader,
   Stack,
   Text,
   Title,
 } from "@mantine/core";
 import { IconAlertCircle, IconBuilding } from "@tabler/icons-react";
-import { useNavigate, useParams } from "react-router";
+import { NavLink, useLocation, useNavigate, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -16,12 +17,15 @@ import {
   useGetCompanyInviteInfo,
 } from "../orval/generated/company/company";
 import { getGetCurrentUserQueryKey } from "../orval/generated/user/user";
+import { useCurrentUser } from "../context/useCurrentUser";
 
 export default function CompanyJoin() {
   const { t } = useTranslation();
   const { token } = useParams<{ token: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useCurrentUser();
 
   const {
     data: invite,
@@ -41,6 +45,8 @@ export default function CompanyJoin() {
       },
     },
   });
+  const loginHref = `/login?next=${encodeURIComponent(location.pathname)}`;
+  const registerHref = `/register?next=${encodeURIComponent(location.pathname)}`;
 
   if (isLoading) {
     return (
@@ -74,14 +80,30 @@ export default function CompanyJoin() {
         <Text ta="center" c="dimmed">
           {t("company_join.joining")} <strong>{invite.company_name}</strong>
         </Text>
-        <Button
-          size="lg"
-          loading={isPending}
-          disabled={isPending}
-          onClick={() => accept({ token: token! })}
-        >
-          {t("company_join.button", { company: invite.company_name })}
-        </Button>
+        {!user ? (
+          <Stack w="100%" gap="sm">
+            <Alert icon={<IconAlertCircle />} color="blue" variant="light">
+              {t("company_join.login_required")}
+            </Alert>
+            <Group grow>
+              <Button component={NavLink} to={loginHref}>
+                {t("company_join.log_in")}
+              </Button>
+              <Button component={NavLink} to={registerHref} variant="light">
+                {t("company_join.create_account")}
+              </Button>
+            </Group>
+          </Stack>
+        ) : (
+          <Button
+            size="lg"
+            loading={isPending}
+            disabled={isPending}
+            onClick={() => accept({ token: token! })}
+          >
+            {t("company_join.button", { company: invite.company_name })}
+          </Button>
+        )}
       </Stack>
     </Center>
   );

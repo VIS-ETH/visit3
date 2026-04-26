@@ -1,7 +1,7 @@
-import { Button, Center, Stack, Title } from "@mantine/core";
+import { Button, Center, Stack, Text, Title } from "@mantine/core";
 import { IconMail } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useSendConfirmationMail } from "../orval/generated/user/user";
 import IconTitle from "../components/IconTitle";
@@ -29,6 +29,26 @@ export default function UnconfirmedEmail() {
     },
   });
 
+  if (!user) {
+    return (
+      <Center>
+        <Stack align="center" gap="lg" maw={520}>
+          <IconTitle
+            icon={<IconMail size={50} />}
+            title={t("email.confirm.login_required")}
+            color="blue"
+          />
+          <Text ta="center" c="dimmed">
+            {t("email.confirm.login_required_description")}
+          </Text>
+          <Button component={NavLink} to="/login">
+            {t("email.confirm.go_to_login")}
+          </Button>
+        </Stack>
+      </Center>
+    );
+  }
+
   return (
     <Center>
       {!emailSent ? (
@@ -38,6 +58,9 @@ export default function UnconfirmedEmail() {
             title={t("email.confirm.unconfirmed")}
             color="blue"
           />
+          <Text ta="center" c="dimmed" maw={520}>
+            {t("email.confirm.unconfirmed_description", { email: user.email })}
+          </Text>
           {isError && <Title c="red">{t("email.confirm.error")}</Title>}
           <Button
             size="lg"
@@ -56,6 +79,9 @@ export default function UnconfirmedEmail() {
             title={t("email.confirm.sent")}
             color="green"
           />
+          <Text ta="center" c="dimmed" maw={520}>
+            {t("email.confirm.sent_description", { email: user.email })}
+          </Text>
         </Stack>
       )}
     </Center>

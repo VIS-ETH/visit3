@@ -1,6 +1,6 @@
 import { TextInput, PasswordInput, Stack, Divider } from "@mantine/core";
 import { IconLock, IconMailSearch } from "@tabler/icons-react";
-import { NavLink, useNavigate } from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
 import { useDocumentTitle } from "@mantine/hooks";
 import { useTranslatedForm } from "../utils/translator";
 import { loginSchema } from "../schemas/loginSchema";
@@ -10,17 +10,20 @@ import type { Token } from "../orval/generated/fastAPI.schemas";
 import { useKeycloakInit, useLoginUser } from "../orval/generated/auth/auth";
 import AuthCardLayout from "../components/AuthCardLayout";
 import AuthButton from "../components/AuthButton";
+import { getSafeNextPath } from "../utils/navigation";
 
 const Login = () => {
   const { t } = useTranslation();
   useDocumentTitle(t("login.title"));
   const navigate = useNavigate();
+  const location = useLocation();
+  const nextPath = getSafeNextPath(location.search);
 
   const { mutate: login, isPending } = useLoginUser({
     mutation: {
       onSuccess: (data: Token) => {
         setToken(data.access_token);
-        navigate("/");
+        navigate(nextPath || "/");
       },
     },
   });
@@ -84,7 +87,15 @@ const Login = () => {
       </form>
 
       <Stack gap="sm" w="100%">
-        <AuthButton component={NavLink} to="/register" intent="secondary">
+        <AuthButton
+          component={NavLink}
+          to={
+            nextPath
+              ? `/register?next=${encodeURIComponent(nextPath)}`
+              : "/register"
+          }
+          intent="secondary"
+        >
           {t("login.register.title")}
         </AuthButton>
         <AuthButton

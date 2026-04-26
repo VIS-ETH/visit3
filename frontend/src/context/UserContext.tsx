@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { User } from "../orval/generated/fastAPI.schemas";
+import type { UserResponse } from "../orval/generated/fastAPI.schemas";
 import { UserContext } from "./useCurrentUser";
 
 export function UserProvider({
@@ -8,7 +8,7 @@ export function UserProvider({
   isLoading,
 }: {
   children: ReactNode;
-  user: User | undefined;
+  user: UserResponse | undefined;
   isLoading: boolean;
 }) {
   return (

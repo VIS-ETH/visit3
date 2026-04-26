@@ -20,6 +20,7 @@ from app.schemas.user import (
     RegisterUserRequest,
     ResetPasswordRequest,
     Token,
+    UserResponse,
 )
 from app.services.auth_service import REFRESH_TOKEN_EXPIRE
 
@@ -39,11 +40,14 @@ def set_refresh_cookie(response: Response, raw_refresh_token: str):
     )
 
 
-@router.post("/register", operation_id="registerUser")
+@router.post(
+    "/register",
+    operation_id="registerUser",
+)
 async def register_user(
     auth_service: AuthServiceDep,
     request: RegisterUserRequest,
-) -> User:
+) -> UserResponse:
     user = User(
         email=request.email,
         password=request.password,
@@ -52,7 +56,10 @@ async def register_user(
         phone_number=request.phone_number,
     )
 
-    return await auth_service.register_user(user)
+    return UserResponse.model_validate(
+        await auth_service.register_user(user),
+        from_attributes=True,
+    )
 
 
 @router.post("/login", operation_id="loginUser")
