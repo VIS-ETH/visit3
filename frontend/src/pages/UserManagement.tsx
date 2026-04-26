@@ -39,7 +39,7 @@ import {
 import UserTable from "../components/UserTable";
 import type {
   CompanyUserResponse,
-  User,
+  UserResponse,
 } from "../orval/generated/fastAPI.schemas";
 import { useCurrentUser } from "../context/useCurrentUser";
 
@@ -50,7 +50,7 @@ export default function UserManagement() {
   const adminStatus = user?.is_admin ?? false;
   const [activeTab, setActiveTab] = useState<string | null>("unconfirmed");
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UserResponse | null>(null);
 
   const {
     data: unconfirmedUsers,
@@ -123,7 +123,7 @@ export default function UserManagement() {
     if (!userId) return;
     const targetUser = companyUsers?.find((user) => user.id === userId);
     if (!targetUser) return;
-    setUserToDelete(targetUser as unknown as User);
+    setUserToDelete(targetUser as UserResponse);
     setDeleteModalOpened(true);
   };
 
@@ -274,7 +274,7 @@ export default function UserManagement() {
               </Alert>
             ) : companyUsers && companyUsers.length > 0 ? (
               <UserTable
-                users={companyUsers as unknown as User[]}
+                users={companyUsers as UserResponse[]}
                 t={t}
                 actionButton={
                   adminStatus
@@ -342,7 +342,7 @@ export default function UserManagement() {
               </Alert>
             ) : staffUsers && staffUsers.length > 0 ? (
               <UserTable
-                users={staffUsers as User[]}
+                users={staffUsers as UserResponse[]}
                 t={t}
                 showCompany={false}
               />
@@ -370,7 +370,7 @@ export default function UserManagement() {
               </Alert>
             ) : adminUsers && adminUsers.length > 0 ? (
               <UserTable
-                users={adminUsers as User[]}
+                users={adminUsers as UserResponse[]}
                 t={t}
                 showCompany={false}
               />

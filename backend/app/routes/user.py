@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Response
 
+from app.core.decorators import require_admin, require_staff
 from app.core.deps import CsrfDep, UserServiceDep
 from app.schemas.user import (
     CompanyUserResponse,
@@ -57,6 +58,7 @@ async def update_user_profile(
     "/companies",
     operation_id="getAllCompanyUsers",
 )
+@require_staff
 async def get_all_company_users(
     user_service: UserServiceDep,
 ) -> list[CompanyUserResponse]:
@@ -70,6 +72,7 @@ async def get_all_company_users(
     "/admins",
     operation_id="getAllAdmins",
 )
+@require_staff
 async def get_all_admins(user_service: UserServiceDep) -> list[UserResponse]:
     return [
         UserResponse.model_validate(user, from_attributes=True)
@@ -81,6 +84,7 @@ async def get_all_admins(user_service: UserServiceDep) -> list[UserResponse]:
     "/staff",
     operation_id="getAllStaff",
 )
+@require_staff
 async def get_all_staff(user_service: UserServiceDep) -> list[UserResponse]:
     return [
         UserResponse.model_validate(user, from_attributes=True)
@@ -109,6 +113,7 @@ async def validate_confirm_email_token(
     "/unconfirmed",
     operation_id="getUnconfirmedUsers",
 )
+@require_staff
 async def get_unconfirmed_users(
     user_service: UserServiceDep,
 ) -> List[CompanyUserResponse]:
@@ -122,6 +127,7 @@ async def get_unconfirmed_users(
     "/confirm/{user_id}",
     operation_id="confirmUser",
 )
+@require_staff
 async def confirm_user(user_service: UserServiceDep, user_id: UUID) -> UserResponse:
     return UserResponse.model_validate(
         await user_service.confirm_user(user_id),
@@ -133,6 +139,7 @@ async def confirm_user(user_service: UserServiceDep, user_id: UUID) -> UserRespo
     "/{user_id}",
     operation_id="updateCompanyUser",
 )
+@require_admin
 async def update_company_user(
     user_service: UserServiceDep,
     user_id: UUID,
@@ -155,6 +162,7 @@ async def update_company_user(
     "/{user_id}",
     operation_id="deleteUser",
 )
+@require_admin
 async def delete_user(user_service: UserServiceDep, user_id: UUID):
     await user_service.delete_user(user_id)
 

@@ -1,9 +1,9 @@
 import { useContext } from "react";
 import { createContext } from "react";
-import type { User } from "../orval/generated/fastAPI.schemas";
+import type { UserResponse } from "../orval/generated/fastAPI.schemas";
 
 interface UserContextType {
-  user: User | undefined;
+  user: UserResponse | undefined;
   isLoading: boolean;
 }
 
