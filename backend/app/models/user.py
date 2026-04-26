@@ -43,7 +43,9 @@ class User(BaseEntity, table=True):
     roles: List["Role"] = Relationship(back_populates="users", link_model=UserRole)
 
     company_id: UUID | None = Field(default=None, foreign_key="company.id", index=True)
-    company: Company = Relationship(back_populates="users")
+    company: Company = Relationship(
+        back_populates="users", sa_relationship_kwargs={"lazy": "noload"}
+    )
     kp_company_profiles: list["KpCompanyProfile"] = Relationship(
         back_populates="kp_contact_user"
     )
