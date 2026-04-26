@@ -1,4 +1,5 @@
 import logging
+from functools import wraps
 
 from app.core.exceptions import EmailNotConfirmed, NotAllowed, UserNotConfirmed
 
@@ -6,6 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 def require_confirmed_company(func):
+    @wraps(func)
     async def wrapper(*args, **kwargs):
         self = args[0]
         if not self.current_user.is_company:
@@ -33,6 +35,7 @@ def require_confirmed_company(func):
 
 
 def require_staff(func):
+    @wraps(func)
     async def wrapper(*args, **kwargs):
         self = args[0]
         if not self.current_user.is_staff:
@@ -48,6 +51,7 @@ def require_staff(func):
 
 
 def require_admin(func):
+    @wraps(func)
     async def wrapper(*args, **kwargs):
         self = args[0]
         if not self.current_user.is_admin:
@@ -64,6 +68,7 @@ def require_admin(func):
 
 def require_role(role: str):
     def decorator(func):
+        @wraps(func)
         async def wrapper(*args, **kwargs):
             self = args[0]
 
