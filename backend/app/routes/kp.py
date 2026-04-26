@@ -14,8 +14,8 @@ from app.schemas.kp import (
     CreateKpRequest,
     KpResponse,
     RequirementFileDownloadResponse,
-    RequirementFileResponse,
     ReplaceBookingUpgradeWaitlistRequest,
+    RequirementFileResponse,
     UpdateBookingBoothNumberRequest,
     UpdateBookingStatusRequest,
 )
@@ -105,11 +105,11 @@ async def confirm_booking(
     return BookingResponse.from_model(booking)
 
 
-@require_confirmed_company
 @router.get(
     "/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
     operation_id="getBookingRequirementFile",
 )
+@require_confirmed_company
 async def get_booking_requirement_file(
     kp_service: KpServiceDep,
     booking_service_id: UUID,
@@ -125,11 +125,11 @@ async def get_booking_requirement_file(
     )
 
 
-@require_confirmed_company
 @router.post(
     "/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
     operation_id="uploadBookingRequirementFile",
 )
+@require_confirmed_company
 async def upload_booking_requirement_file(
     kp_service: KpServiceDep,
     booking_service_id: UUID,
@@ -146,11 +146,11 @@ async def upload_booking_requirement_file(
     return RequirementFileResponse.from_model(requirement_file)
 
 
-@require_confirmed_company
 @router.delete(
     "/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
     operation_id="deleteBookingRequirementFile",
 )
+@require_confirmed_company
 async def delete_booking_requirement_file(
     kp_service: KpServiceDep,
     booking_service_id: UUID,
@@ -159,11 +159,11 @@ async def delete_booking_requirement_file(
     await kp_service.delete_booking_requirement_file(booking_service_id, requirement_id)
 
 
-@require_confirmed_company
 @router.get(
     "/booking-services/{booking_service_id}/requirements/{requirement_id}/file/download",
     operation_id="getBookingRequirementFileDownloadUrl",
 )
+@require_confirmed_company
 async def get_booking_requirement_file_download_url(
     kp_service: KpServiceDep,
     booking_service_id: UUID,
@@ -175,7 +175,6 @@ async def get_booking_requirement_file_download_url(
     return RequirementFileDownloadResponse(url=url)
 
 
-@require_admin
 @router.post("/create", operation_id="createKp")
 @require_admin
 async def create_kp(kp_service: KpServiceDep, request: CreateKpRequest) -> KpResponse:
