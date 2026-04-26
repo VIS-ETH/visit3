@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -7,6 +7,7 @@ from app.models.kp_event import (
     KpBookingStatus,
     KpEvent,
     KpEventBooking,
+    KpEventBookingServiceFileLink,
     KpEventBookingUpgradeWaitlist,
 )
 
@@ -72,6 +73,40 @@ class UpdateBookingStatusRequest(BaseModel):
 
 class UpdateBookingBoothNumberRequest(BaseModel):
     booth_nr: int = Field(ge=1)
+
+
+class RequirementFileResponse(BaseModel):
+    id: UUID
+    booking_service_id: UUID
+    requirement_id: UUID
+    original_filename: str
+    mime_type: str
+    size_bytes: int
+    sha256: str
+    etag: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls, file: KpEventBookingServiceFileLink
+    ) -> "RequirementFileResponse":
+        return cls(
+            id=file.stored_file.id,
+            booking_service_id=file.booking_service_id,
+            requirement_id=file.requirement_id,
+            original_filename=file.stored_file.original_filename,
+            mime_type=file.stored_file.mime_type,
+            size_bytes=file.stored_file.size_bytes,
+            sha256=file.stored_file.sha256,
+            etag=file.stored_file.etag,
+            created_at=file.stored_file.created_at,
+            updated_at=file.stored_file.updated_at,
+        )
+
+
+class RequirementFileDownloadResponse(BaseModel):
+    url: str
 
 
 class BookingUpgradeWaitlistEntryResponse(BaseModel):

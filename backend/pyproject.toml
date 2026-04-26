@@ -3,6 +3,7 @@ name = "backend"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "boto3>=1.40.72",
     "fastapi[standard]==0.125.0",
     "uvicorn[standard]",
     "pydantic[email]==2.12.5",

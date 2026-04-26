@@ -3,8 +3,6 @@ FROM python:3.12-slim AS code-generator
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-RUN apt-get update && apt-get install -y perl && rm -rf /var/lib/apt/lists/*
-
 ENV UV_PROJECT_ENVIRONMENT="/opt/venv"
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
@@ -15,8 +13,7 @@ COPY --from=common backend/pyproject.toml backend/uv.lock ./backend/
 RUN uv sync --frozen --no-dev --project ./backend
 
 COPY --from=common servis ./servis
-COPY --from=common scripts/fix_imports.sh ./scripts/fix_imports.sh
-RUN chmod +x ./scripts/fix_imports.sh
+COPY --from=common scripts/fix_imports.py ./scripts/fix_imports.py
 
 COPY --from=common backend/app ./backend/app
 RUN mkdir -p ./backend/app/generated
@@ -26,7 +23,7 @@ RUN /opt/venv/bin/python -m grpc_tools.protoc \
     --grpc_python_out=./backend/app/generated \
     $(find ./servis -name "*.proto" -not -path "./servis/google/*")
 RUN find ./backend/app/generated -type d -exec touch {}/__init__.py \;
-RUN ./scripts/fix_imports.sh ./backend/app/generated app.generated
+RUN /opt/venv/bin/python ./scripts/fix_imports.py ./backend/app/generated app.generated
 
 COPY --from=common scripts/extract_docs.py ./scripts/extract_docs.py
 COPY --from=common backend/.env ./backend/.env

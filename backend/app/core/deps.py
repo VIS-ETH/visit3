@@ -22,6 +22,7 @@ from app.services.auth_service import AuthService
 from app.services.kp_service import KpService
 from app.services.mail_service import MailService
 from app.services.pdf_service import PdfService
+from app.services.storage_service import StorageService
 from app.services.user_service import UserService
 from app.repositories.company_repository import CompanyRepository
 from app.services.company_service import CompanyService
@@ -214,11 +215,19 @@ async def get_company_service(
 CompanyServiceDep = Annotated[CompanyService, Depends(get_company_service)]
 
 
+def get_storage_service():
+    return StorageService(get_settings())
+
+
+StorageServiceDep = Annotated[StorageService, Depends(get_storage_service)]
+
+
 async def get_kp_service(
     kp_repository: KpRepositoryDep,
+    storage_service: StorageServiceDep,
     current_user: CurrentUserDep,
 ):
-    return KpService(kp_repository, current_user)
+    return KpService(kp_repository, storage_service, current_user)
 
 
 KpServiceDep = Annotated[KpService, Depends(get_kp_service)]

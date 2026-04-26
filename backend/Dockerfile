@@ -2,8 +2,6 @@ FROM python:3.12-slim AS grpc-generator
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.6 /uv /uvx /bin/
 
-RUN apt-get update && apt-get install -y perl && rm -rf /var/lib/apt/lists/*
-
 ENV UV_PROJECT_ENVIRONMENT="/opt/gen-venv"
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
@@ -14,8 +12,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 COPY --from=common servis ./servis
-COPY --from=common scripts/fix_imports.sh ./fix_imports.sh
-RUN chmod +x ./fix_imports.sh
+COPY --from=common scripts/fix_imports.py ./fix_imports.py
 
 RUN mkdir -p app/generated
 RUN /opt/gen-venv/bin/python -m grpc_tools.protoc \
@@ -24,7 +21,7 @@ RUN /opt/gen-venv/bin/python -m grpc_tools.protoc \
     --grpc_python_out=app/generated \
     $(find ./servis -name "*.proto" -not -path "./servis/google/*")
 RUN find app/generated -type d -exec touch {}/__init__.py \;
-RUN ./fix_imports.sh app/generated app.generated
+RUN /opt/gen-venv/bin/python ./fix_imports.py app/generated app.generated
 
 
 FROM python:3.12-slim AS compiler

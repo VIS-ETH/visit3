@@ -1,7 +1,8 @@
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
+from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -9,18 +10,21 @@ from sqlmodel import select
 from app.models.kp_event import (
     KpBookingCompanyDetails,
     KpBookingCompanyDetailsIndustryLink,
-    KpCompanyLanguage,
     KpBookingStatus,
+    KpCompanyLanguage,
     KpEvent,
     KpEventBooking,
-    KpEventBookingUpgradeWaitlist,
     KpEventBookingService,
+    KpEventBookingServiceFileLink,
+    KpEventBookingUpgradeWaitlist,
     KpEventBoothZone,
     KpEventRegistrationException,
     KpEventService,
+    KpEventServiceRequirement,
     KpIndustry,
     NameTag,
 )
+from app.models.storage import StoredFile
 from app.repositories.base import BaseRepository
 
 
@@ -280,6 +284,156 @@ class KpRepository(BaseRepository[KpEvent]):
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
+
+    async def get_service_requirement_by_id(
+        self, requirement_id: UUID
+    ) -> Optional[KpEventServiceRequirement]:
+        statement = (
+            select(KpEventServiceRequirement)
+            .where(KpEventServiceRequirement.id == requirement_id)
+            .options(selectinload(KpEventServiceRequirement.service))
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def get_requirement_file(
+        self, booking_service_id: UUID, requirement_id: UUID
+    ) -> Optional[KpEventBookingServiceFileLink]:
+        statement = (
+            select(KpEventBookingServiceFileLink)
+            .where(
+                KpEventBookingServiceFileLink.booking_service_id == booking_service_id,
+                KpEventBookingServiceFileLink.requirement_id == requirement_id,
+            )
+            .options(
+                selectinload(KpEventBookingServiceFileLink.requirement),
+                selectinload(KpEventBookingServiceFileLink.stored_file),
+                selectinload(KpEventBookingServiceFileLink.booking_service),
+            )
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def get_booking_service_by_id(
+        self, booking_service_id: UUID
+    ) -> Optional[KpEventBookingService]:
+        statement = (
+            select(KpEventBookingService)
+            .where(KpEventBookingService.id == booking_service_id)
+            .options(
+                selectinload(KpEventBookingService.booking),
+                selectinload(KpEventBookingService.service),
+            )
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def upsert_stored_file(
+        self,
+        storage_key: str,
+        original_filename: str,
+        mime_type: str,
+        size_bytes: int,
+        sha256: str,
+        etag: str | None,
+        stored_file: StoredFile | None = None,
+    ) -> StoredFile:
+        try:
+            if stored_file is None:
+                stored_file = StoredFile(
+                    storage_key=storage_key,
+                    original_filename=original_filename,
+                    mime_type=mime_type,
+                    size_bytes=size_bytes,
+                    sha256=sha256,
+                    etag=etag,
+                )
+            else:
+                stored_file.storage_key = storage_key
+                stored_file.original_filename = original_filename
+                stored_file.mime_type = mime_type
+                stored_file.size_bytes = size_bytes
+                stored_file.sha256 = sha256
+                stored_file.etag = etag
+
+            self._validate_model(stored_file)
+            self.session.add(stored_file)
+            await self.session.commit()
+            await self.session.refresh(stored_file)
+            return stored_file
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def upsert_requirement_file_link(
+        self,
+        booking_service_id: UUID,
+        requirement_id: UUID,
+        stored_file_id: UUID,
+    ) -> KpEventBookingServiceFileLink:
+        try:
+            requirement_file = await self.get_requirement_file(
+                booking_service_id, requirement_id
+            )
+            if requirement_file is None:
+                requirement_file = KpEventBookingServiceFileLink(
+                    booking_service_id=booking_service_id,
+                    requirement_id=requirement_id,
+                    stored_file_id=stored_file_id,
+                )
+            else:
+                requirement_file.stored_file_id = stored_file_id
+
+            self._validate_model(
+                requirement_file,
+                exclude={"booking_service", "requirement", "stored_file"},
+            )
+            self.session.add(requirement_file)
+            await self.session.commit()
+            await self.session.refresh(requirement_file)
+            return (
+                await self.get_requirement_file(booking_service_id, requirement_id)
+                or requirement_file
+            )
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def delete_requirement_file_link(
+        self, requirement_file: KpEventBookingServiceFileLink
+    ) -> None:
+        try:
+            await self.session.delete(requirement_file)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def delete_stored_file(self, stored_file: StoredFile) -> None:
+        try:
+            await self.session.delete(stored_file)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def list_orphaned_stored_files(self, max_age_hours: int) -> list[StoredFile]:
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+        statement = (
+            select(StoredFile)
+            .outerjoin(
+                KpEventBookingServiceFileLink,
+                KpEventBookingServiceFileLink.stored_file_id == StoredFile.id,
+            )
+            .where(
+                and_(
+                    KpEventBookingServiceFileLink.id.is_(None),
+                    StoredFile.updated_at < cutoff,
+                )
+            )
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().all()
 
     async def list_industries(self) -> list[KpIndustry]:
         statement = select(KpIndustry).order_by(KpIndustry.name.asc())
