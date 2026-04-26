@@ -37,7 +37,6 @@ class CreateInviteRequest(BaseModel):
 
 class InviteInfoResponse(BaseModel):
     company_name: str
-    invited_email: str
 
 
 class CompanyAssignedUserResponse(BaseModel):

@@ -12,10 +12,10 @@ from pwdlib import PasswordHash
 from app.core.config import get_settings
 from app.core.exceptions import (
     EmailUsed,
+    InvalidCredentials,
     KeycloakExchangeFailed,
     NotAllowed,
     PasswordTooShort,
-    InvalidCredentials,
     PhoneNumberInvalid,
     TokenInvalid,
 )
@@ -91,8 +91,10 @@ class AuthService:
         return await self.token_repository.get_active_refresh_token(hash_str(raw_token))
 
     async def verify_and_update_password(self, user: User, plain_password: str) -> bool:
-        valid, updated_hash = password_hash.verify_and_update(
-            plain_password, user.password
+        valid, updated_hash = await asyncio.to_thread(
+            password_hash.verify_and_update,
+            plain_password,
+            user.password,
         )
         if not valid:
             return False

@@ -4,16 +4,16 @@ from fastapi import APIRouter
 
 from app.core.deps import CompanyServiceDep, CsrfDep, UserServiceDep
 from app.models.company import Company
-from app.models.user import User
 from app.schemas.company import (
     CompanyWithUsersResponse,
     CreateInviteRequest,
     InviteInfoResponse,
     KpCompanyProfileResponse,
     SetupCompanyRequest,
-    UpdateKpCompanyProfileRequest,
     UpdateCompanyRequest,
+    UpdateKpCompanyProfileRequest,
 )
+from app.schemas.user import UserResponse
 
 router = APIRouter(prefix="/company", tags=["company"], dependencies=[CsrfDep])
 
@@ -26,11 +26,17 @@ async def setup_company(
     return await company_service.setup_company(request.name)
 
 
-@router.get("/me/members", operation_id="getMyCompanyMembers")
+@router.get(
+    "/me/members",
+    operation_id="getMyCompanyMembers",
+)
 async def get_my_company_members(
     company_service: CompanyServiceDep,
-) -> list[User]:
-    return await company_service.get_my_members()
+) -> list[UserResponse]:
+    return [
+        UserResponse.model_validate(user, from_attributes=True)
+        for user in await company_service.get_my_members()
+    ]
 
 
 @router.get("/me/kp-profile", operation_id="getMyKpCompanyProfile")
@@ -61,7 +67,10 @@ async def create_company_invite(
     await company_service.create_invite(request.email)
 
 
-@router.get("/invite/{token}", operation_id="getCompanyInviteInfo")
+@router.get(
+    "/invite/{token}",
+    operation_id="getCompanyInviteInfo",
+)
 async def get_company_invite_info(
     company_service: CompanyServiceDep,
     token: str,
@@ -69,20 +78,32 @@ async def get_company_invite_info(
     return await company_service.get_invite_info(token)
 
 
-@router.post("/invite/{token}/accept", operation_id="acceptCompanyInvite")
+@router.post(
+    "/invite/{token}/accept",
+    operation_id="acceptCompanyInvite",
+)
 async def accept_company_invite(
     company_service: CompanyServiceDep,
     token: str,
-) -> User:
-    return await company_service.accept_invite(token)
+) -> UserResponse:
+    return UserResponse.model_validate(
+        await company_service.accept_invite(token),
+        from_attributes=True,
+    )
 
 
-@router.get("/{company_id}/users", operation_id="getCompanyUsers")
+@router.get(
+    "/{company_id}/users",
+    operation_id="getCompanyUsers",
+)
 async def get_company_users(
     company_service: CompanyServiceDep,
     company_id: UUID,
-) -> list[User]:
-    return await company_service.get_company_users(company_id)
+) -> list[UserResponse]:
+    return [
+        UserResponse.model_validate(user, from_attributes=True)
+        for user in await company_service.get_company_users(company_id)
+    ]
 
 
 @router.get("/management", operation_id="listCompaniesWithUsers")

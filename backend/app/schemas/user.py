@@ -1,15 +1,20 @@
 from uuid import UUID
 
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
 from app.core.utils import strip_text
-from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class CompanyResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     name: str
 
 
 class CompanyUserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     email: str
     first_name: str | None = None
@@ -17,6 +22,23 @@ class CompanyUserResponse(BaseModel):
     phone_number: str | None = None
     user_confirmed: bool
     email_confirmed: bool
+    company: CompanyResponse | None = None
+
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    email: str
+    first_name: str | None = None
+    last_name: str | None = None
+    phone_number: str | None = None
+    is_staff: bool
+    is_admin: bool
+    is_company: bool
+    user_confirmed: bool
+    email_confirmed: bool
+    company_id: UUID | None = None
     company: CompanyResponse | None = None
 
 

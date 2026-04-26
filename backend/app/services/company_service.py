@@ -16,9 +16,9 @@ from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
 from app.schemas.company import (
     CompanyAssignedUserResponse,
-    KpCompanyProfileResponse,
     CompanyWithUsersResponse,
     InviteInfoResponse,
+    KpCompanyProfileResponse,
 )
 from app.services.mail_service import MailService
 
@@ -139,9 +139,7 @@ class CompanyService:
         company = await self.company_repository.get_by_id(invite.company_id)
         if not company:
             raise CompanyNotFound(f"get_invite_info:{invite.company_id}")
-        return InviteInfoResponse(
-            company_name=company.name, invited_email=invite.invited_email
-        )
+        return InviteInfoResponse(company_name=company.name)
 
     async def accept_invite(self, token: str) -> User:
         if not (self.current_user.email_confirmed and self.current_user.user_confirmed):
