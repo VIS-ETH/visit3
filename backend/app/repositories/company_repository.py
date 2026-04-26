@@ -30,7 +30,11 @@ class CompanyRepository(BaseRepository[Company]):
         return await self._get_by_field(Company.name, name)
 
     async def get_users(self, company: Company) -> List[User]:
-        statement = select(User).where(User.company_id == company.id)
+        statement = (
+            select(User)
+            .where(User.company_id == company.id)
+            .options(selectinload(User.company))
+        )
         result = await self.session.execute(statement)
         return result.scalars().all()
 
@@ -126,7 +130,7 @@ class CompanyRepository(BaseRepository[Company]):
             user.company_id = company_id
             self.session.add(user)
             await self.session.commit()
-            await self.session.refresh(user)
+            await self.session.refresh(user, attribute_names=["company"])
             return user
         except Exception as e:
             await self.session.rollback()

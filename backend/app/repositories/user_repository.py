@@ -21,12 +21,20 @@ class UserRepository(BaseRepository[User]):
         )
 
     async def get_admins(self) -> list[User]:
-        statement = select(User).where(User.is_admin == True)
+        statement = (
+            select(User)
+            .where(User.is_admin == True)
+            .options(selectinload(User.company))
+        )
         result = await self.session.execute(statement)
         return result.scalars().all()
 
     async def get_staff(self) -> list[User]:
-        statement = select(User).where(User.is_staff == True)
+        statement = (
+            select(User)
+            .where(User.is_staff == True)
+            .options(selectinload(User.company))
+        )
         result = await self.session.execute(statement)
         return result.scalars().all()
 
@@ -84,7 +92,7 @@ class UserRepository(BaseRepository[User]):
             user.user_confirmed = True
             self.session.add(user)
             await self.session.commit()
-            await self.session.refresh(user)
+            await self.session.refresh(user, attribute_names=["company"])
             return user
         except Exception as e:
             await self.session.rollback()
