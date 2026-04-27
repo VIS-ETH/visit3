@@ -270,7 +270,51 @@
       "date_input_hint": "Format: DD.MM.YYYY",
       "name": "Name",
       "finalization_deadline": "Finalization deadline",
-      "nametags_deadline": "Nametags deadline"
+      "nametags_deadline": "Nametags deadline",
+      "tabs": {
+        "events": "Events",
+        "exports": "Exports"
+      },
+      "exports": {
+        "title": "Exports",
+        "description": "Download operational KP data and generate event nametag PDFs.",
+        "event": "Event",
+        "no_event": "No event selected",
+        "no_events": "Create an event before using exports.",
+        "nametags_title": "Nametag PDF",
+        "nametags_description": "Upload the admin-provided background image, then generate nametags for the whole event, one company, or one person.",
+        "background": "Nametag background",
+        "background_placeholder": "PNG or JPEG",
+        "background_loading": "Checking background",
+        "background_configured": "Background configured",
+        "background_missing": "Background missing",
+        "upload_background": "Upload background",
+        "background_upload_success_title": "Background uploaded",
+        "background_upload_success_message": "The nametag background was saved successfully.",
+        "scope_event": "Whole event",
+        "scope_company": "Company",
+        "scope_person": "Person",
+        "download_event_nametags": "Download event nametags",
+        "company": "Company",
+        "company_placeholder": "Select company",
+        "download_company_nametags": "Download company nametags",
+        "person": "Person",
+        "person_placeholder": "Select person",
+        "download_person_nametag": "Download person nametag",
+        "data_title": "Data exports",
+        "downloads": {
+          "bookings": "Bookings all",
+          "bookings_by_zone": "Bookings by zone",
+          "waitlist": "Waitlist companies",
+          "booked_services": "Booked services",
+          "nametags_data": "Nametag data",
+          "company_details": "Company details",
+          "service_requirements": "Service requirements",
+          "booth_zone_capacity": "Booth zone capacity",
+          "contacts": "Contacts",
+          "registration_exceptions": "Registration exceptions"
+        }
+      }
     },
     "manage": {
       "title": "Manage",

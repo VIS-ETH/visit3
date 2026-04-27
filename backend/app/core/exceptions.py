@@ -55,6 +55,16 @@ class KpNameExists(AppError):
         )
 
 
+class KpEventNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP event not found",
+            "error.kp_event_not_found",
+            identifier,
+            404,
+        )
+
+
 class KpBookingNotFound(AppError):
     def __init__(self, identifier: str):
         super().__init__(
@@ -72,6 +82,36 @@ class KpBookingNotOwned(AppError):
             "error.kp_booking_not_owned",
             identifier,
             403,
+        )
+
+
+class KpNameTagNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP name tag not found",
+            "error.kp_name_tag_not_found",
+            identifier,
+            404,
+        )
+
+
+class KpExportBackgroundNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP export background not found",
+            "error.kp_export_background_not_found",
+            identifier,
+            404,
+        )
+
+
+class KpExportEmpty(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "No name tags are available for this export",
+            "error.kp_export_empty",
+            identifier,
+            400,
         )
 
 
@@ -200,6 +240,16 @@ class StorageDeleteFailed(AppError):
         super().__init__(
             "File deletion failed",
             "error.storage_delete_failed",
+            identifier,
+            500,
+        )
+
+
+class StorageDownloadFailed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "File download failed",
+            "error.storage_download_failed",
             identifier,
             500,
         )

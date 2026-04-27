@@ -5,11 +5,9 @@ from pydantic import BaseModel, Field
 
 from app.models.kp_event import (
     KpBookingStatus,
-    KpEvent,
-    KpEventBooking,
-    KpEventBookingServiceFileLink,
-    KpEventBookingUpgradeWaitlist,
     KpCompanyLanguage,
+    KpEventBookingServiceFileLink,
+    KpEventNametagBackground,
 )
 
 
@@ -197,7 +195,6 @@ class BookingResponse(BaseModel):
     status: KpBookingStatus
 
 
-
 class RequirementFileResponse(BaseModel):
     id: UUID
     booking_service_id: UUID
@@ -232,10 +229,60 @@ class RequirementFileDownloadResponse(BaseModel):
     url: str
 
 
+class ExportBackgroundResponse(BaseModel):
+    id: UUID
+    event_id: UUID
+    original_filename: str
+    mime_type: str
+    size_bytes: int
+    sha256: str
+    etag: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_model(
+        cls, background: KpEventNametagBackground
+    ) -> "ExportBackgroundResponse":
+        return cls(
+            id=background.id,
+            event_id=background.event_id,
+            original_filename=background.stored_file.original_filename,
+            mime_type=background.stored_file.mime_type,
+            size_bytes=background.stored_file.size_bytes,
+            sha256=background.stored_file.sha256,
+            etag=background.stored_file.etag,
+            created_at=background.created_at,
+            updated_at=background.updated_at,
+        )
+
+
+class NametagExportPersonResponse(BaseModel):
+    id: UUID
+    booking_id: UUID
+    company_name: str
+    first_name: str
+    last_name: str
+    position: str
+
+
+class NametagExportCompanyResponse(BaseModel):
+    booking_id: UUID
+    company_id: UUID
+    company_name: str
+    booth_zone_name: str
+    booth_nr: int
+    nametag_count: int
+
+
+class NametagExportTargetsResponse(BaseModel):
+    companies: list[NametagExportCompanyResponse]
+    people: list[NametagExportPersonResponse]
+
+
 class BookingUpgradeWaitlistEntryResponse(BaseModel):
     id: UUID
     booking_id: UUID
     target_booth_zone_id: UUID
     priority_rank: int | None
     target_booth_zone: BoothZoneResponse
-

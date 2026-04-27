@@ -270,7 +270,51 @@
       "date_input_hint": "Format: TT.MM.JJJJ",
       "name": "Name",
       "finalization_deadline": "Finalisierungsfrist",
-      "nametags_deadline": "Namensschildfrist"
+      "nametags_deadline": "Namensschildfrist",
+      "tabs": {
+        "events": "Events",
+        "exports": "Exporte"
+      },
+      "exports": {
+        "title": "Exporte",
+        "description": "Operative KP-Daten herunterladen und Namensschild-PDFs fuer das Event erzeugen.",
+        "event": "Event",
+        "no_event": "Kein Event ausgewaehlt",
+        "no_events": "Erstellen Sie ein Event, bevor Sie Exporte verwenden.",
+        "nametags_title": "Namensschild-PDF",
+        "nametags_description": "Laden Sie das Hintergrundbild der Admins hoch und erzeugen Sie danach Namensschilder fuer das ganze Event, ein Unternehmen oder eine Person.",
+        "background": "Namensschild-Hintergrund",
+        "background_placeholder": "PNG oder JPEG",
+        "background_loading": "Hintergrund wird geprueft",
+        "background_configured": "Hintergrund konfiguriert",
+        "background_missing": "Hintergrund fehlt",
+        "upload_background": "Hintergrund hochladen",
+        "background_upload_success_title": "Hintergrund hochgeladen",
+        "background_upload_success_message": "Der Namensschild-Hintergrund wurde erfolgreich gespeichert.",
+        "scope_event": "Ganzes Event",
+        "scope_company": "Unternehmen",
+        "scope_person": "Person",
+        "download_event_nametags": "Event-Namensschilder herunterladen",
+        "company": "Unternehmen",
+        "company_placeholder": "Unternehmen auswaehlen",
+        "download_company_nametags": "Unternehmens-Namensschilder herunterladen",
+        "person": "Person",
+        "person_placeholder": "Person auswaehlen",
+        "download_person_nametag": "Namensschild der Person herunterladen",
+        "data_title": "Datenexporte",
+        "downloads": {
+          "bookings": "Alle Buchungen",
+          "bookings_by_zone": "Buchungen nach Zone",
+          "waitlist": "Wartelisten-Unternehmen",
+          "booked_services": "Gebuchte Services",
+          "nametags_data": "Namensschild-Daten",
+          "company_details": "Unternehmensdetails",
+          "service_requirements": "Serviceanforderungen",
+          "booth_zone_capacity": "Standzonen-Kapazitaet",
+          "contacts": "Kontakte",
+          "registration_exceptions": "Registrierungsausnahmen"
+        }
+      }
     },
     "manage": {
       "title": "Verwalten",
