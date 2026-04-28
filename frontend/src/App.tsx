@@ -23,9 +23,9 @@ import SetupCompany from "./pages/SetupCompany";
 import Profile from "./pages/Profile";
 import NotAllowed from "./pages/NotAllowed";
 import NotFound from "./pages/NotFound";
-import Kp from "./pages/Kp";
 import KpJoin from "./pages/KpJoin";
 import KpDashboard from "./pages/KpDashboard";
+import KpManage from "./pages/KpManage";
 import { UserProvider } from "./context/UserContext";
 import { useCurrentUser } from "./context/useCurrentUser";
 import { useGetCurrentUser } from "./orval/generated/user/user";
@@ -76,7 +76,6 @@ function AppRoutes() {
       <Route element={<RootLayout navbarHidden={false} />}>
         <Route element={<ConfirmedRoute />}>
           <Route index path="/" element={<Home />} />
-          <Route path="/kp" element={<Kp />} />
         </Route>
         <Route element={<CompanyRoute />}>
           <Route path="/profile" element={<Profile />} />
@@ -91,7 +90,8 @@ function AppRoutes() {
         <Route element={<StaffRoute />}>
           <Route path="/user-management" element={<UserManagement />} />
           <Route path="/company-management" element={<CompanyManagement />} />
-          <Route path="/kp/dashboard" element={<KpDashboard />} />
+          <Route path="/kp" element={<KpDashboard />} />
+          <Route path="/kp/:id" element={<KpManage />} />
         </Route>
       </Route>
     </Routes>

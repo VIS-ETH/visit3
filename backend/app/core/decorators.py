@@ -1,6 +1,7 @@
 import logging
 from functools import wraps
 
+from app.core.config import get_settings
 from app.core.exceptions import EmailNotConfirmed, NotAllowed, UserNotConfirmed
 
 logger = logging.getLogger(__name__)
@@ -38,13 +39,16 @@ def require_staff(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
         self = args[0]
-        if not self.current_user.is_staff:
+        if not self.current_user.is_staff and not self.current_user.is_admin:
             logger.warning(
                 f"Authorization failed - not staff: {self.current_user.email}"
             )
             raise NotAllowed(f"require_staff:{self.current_user.id}")
 
-        logger.debug(f"Authorization granted - staff: {self.current_user.email}")
+        if self.current_user.is_admin:
+            logger.debug(f"Authorization granted - admin: {self.current_user.email}")
+        else:
+            logger.debug(f"Authorization granted - staff: {self.current_user.email}")
         return await func(*args, **kwargs)
 
     return wrapper
@@ -75,17 +79,25 @@ def require_role(role: str):
             user_roles = {
                 user_role.name for user_role in (self.current_user.roles or [])
             }
-            if role not in user_roles:
+            if role not in user_roles and not self.current_user.is_admin:
                 logger.warning(
                     f"Authorization failed - missing role {role}: {self.current_user.email}"
                 )
                 raise NotAllowed(f"require_role[{role}]:{self.current_user.id}")
 
-            logger.debug(
-                f"Authorization granted - role {role}: {self.current_user.email}"
-            )
+            if self.current_user.is_admin:
+                logger.debug(
+                    f"Authorization granted - admin: {self.current_user.email}"
+                )
+            else:
+                logger.debug(
+                    f"Authorization granted - role {role}: {self.current_user.email}"
+                )
             return await func(*args, **kwargs)
 
         return wrapper
 
     return decorator
+
+
+require_kp_president = require_role(get_settings().VISIT_KP_PRESIDENT_ROLE)

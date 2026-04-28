@@ -46,7 +46,13 @@ export function formatKpDisplayDate(dateString?: string) {
 
   if (!year || !month || !day) return "-";
 
-  return `${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
 }
 
 export function toKpIsoDate(value: string) {

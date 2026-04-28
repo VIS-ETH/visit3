@@ -26,6 +26,18 @@ from app.models.kp_event import (
 )
 from app.models.storage import StoredFile
 from app.repositories.base import BaseRepository
+from app.schemas.kp import (
+    CreateBookingInput,
+    CreateBoothZoneInput,
+    CreateIndustryInput,
+    CreateKpInput,
+    CreateServiceInput,
+    UpdateBookingInput,
+    UpdateBoothZoneInput,
+    UpdateKpInput,
+    UpdateServiceInput,
+    UpsertCompanyDetailsInput,
+)
 
 
 class KpRepository(BaseRepository[KpEvent]):
@@ -75,29 +87,122 @@ class KpRepository(BaseRepository[KpEvent]):
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
-    async def create_kp(
-        self,
-        name: str,
-        registration_open: date,
-        registration_end: date,
-        finalization_deadline: date,
-        nametags_deadline: date,
-        event_date: date,
-    ) -> KpEvent:
+    async def create_kp(self, create_kp_input: CreateKpInput) -> KpEvent:
         try:
-            event = KpEvent(
-                name=name,
-                registration_open=registration_open,
-                registration_end=registration_end,
-                finalization_deadline=finalization_deadline,
-                nametags_deadline=nametags_deadline,
-                event_date=event_date,
-            )
+            event = KpEvent(**create_kp_input.model_dump())
             self._validate_model(event, exclude={"booth_zones", "bookings", "services"})
             self.session.add(event)
             await self.session.commit()
             await self.session.refresh(event)
             return event
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def update_kp(self, event: KpEvent, update_kp_input: UpdateKpInput) -> KpEvent:
+        try:
+            event.sqlmodel_update(update_kp_input.model_dump(exclude_unset=True))
+            self._validate_model(event, exclude={"booth_zones", "bookings", "services", "registration_exceptions"})
+            self.session.add(event)
+            await self.session.commit()
+            await self.session.refresh(event)
+            return event
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def create_booth_zone(
+        self, event_id: UUID, create_booth_zone_input: CreateBoothZoneInput
+    ) -> KpEventBoothZone:
+        try:
+            zone = KpEventBoothZone(
+                **create_booth_zone_input.model_dump(),
+                event_id=event_id,
+            )
+            self._validate_model(
+                zone,
+                exclude={"event", "included_services", "bookings", "upgrade_waitlist_entries"},
+            )
+            self.session.add(zone)
+            await self.session.commit()
+            await self.session.refresh(zone)
+            return zone
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def update_booth_zone(
+        self, zone: KpEventBoothZone, update_booth_zone_input: UpdateBoothZoneInput
+    ) -> KpEventBoothZone:
+        try:
+            zone.sqlmodel_update(update_booth_zone_input.model_dump(exclude_unset=True))
+            self._validate_model(
+                zone,
+                exclude={"event", "included_services", "bookings", "upgrade_waitlist_entries"},
+            )
+            self.session.add(zone)
+            await self.session.commit()
+            await self.session.refresh(zone)
+            return zone
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def delete_booth_zone(self, zone: KpEventBoothZone) -> None:
+        try:
+            await self.session.delete(zone)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def create_service(
+        self, event_id: UUID, create_service_input: CreateServiceInput
+    ) -> KpEventService:
+        try:
+            service = KpEventService(
+                **create_service_input.model_dump(),
+                event_id=event_id,
+            )
+            self._validate_model(
+                service, exclude={"event", "booth_zones", "booking_services", "requirements"}
+            )
+            self.session.add(service)
+            await self.session.commit()
+            await self.session.refresh(service)
+            return service
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def update_service(
+        self, service: KpEventService, update_service_input: UpdateServiceInput
+    ) -> KpEventService:
+        try:
+            service.sqlmodel_update(update_service_input.model_dump(exclude_unset=True))
+            self._validate_model(
+                service, exclude={"event", "booth_zones", "booking_services", "requirements"}
+            )
+            self.session.add(service)
+            await self.session.commit()
+            await self.session.refresh(service)
+            return service
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def delete_service(self, service: KpEventService) -> None:
+        try:
+            await self.session.delete(service)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def delete_industry(self, industry: KpIndustry) -> None:
+        try:
+            await self.session.delete(industry)
+            await self.session.commit()
         except Exception as e:
             await self.session.rollback()
             raise e
@@ -128,16 +233,14 @@ class KpRepository(BaseRepository[KpEvent]):
         event_id: UUID,
         company_id: UUID,
         booth_zone_id: UUID,
-        booth_nr: int,
-        status: KpBookingStatus = KpBookingStatus.REGISTERED,
+        create_booking_input: CreateBookingInput,
     ) -> KpEventBooking:
         try:
             booking = KpEventBooking(
+                **create_booking_input.model_dump(),
                 event_id=event_id,
                 company_id=company_id,
                 booth_zone_id=booth_zone_id,
-                booth_nr=booth_nr,
-                status=status,
             )
             self._validate_booking(booking)
             self.session.add(booking)
@@ -148,20 +251,10 @@ class KpRepository(BaseRepository[KpEvent]):
             raise e
 
     async def update_booking(
-        self,
-        booking: KpEventBooking,
-        booth_zone_id: UUID | None = None,
-        booth_nr: int | None = None,
-        status: KpBookingStatus | None = None,
+        self, booking: KpEventBooking, update_booking_input: UpdateBookingInput
     ) -> KpEventBooking:
         try:
-            if booth_zone_id is not None:
-                booking.booth_zone_id = booth_zone_id
-            if booth_nr is not None:
-                booking.booth_nr = booth_nr
-            if status is not None:
-                booking.status = status
-
+            booking.sqlmodel_update(update_booking_input.model_dump(exclude_unset=True))
             self._validate_booking(booking)
             self.session.add(booking)
             await self.session.commit()
@@ -446,9 +539,9 @@ class KpRepository(BaseRepository[KpEvent]):
     async def get_industry_by_name(self, name: str) -> Optional[KpIndustry]:
         return await self._get_by_field(KpIndustry.name, name)
 
-    async def create_industry(self, name: str) -> KpIndustry:
+    async def create_industry(self, create_industry_input: CreateIndustryInput) -> KpIndustry:
         try:
-            industry = KpIndustry(name=name)
+            industry = KpIndustry(**create_industry_input.model_dump())
             self.session.add(industry)
             await self.session.commit()
             await self.session.refresh(industry)
@@ -527,19 +620,7 @@ class KpRepository(BaseRepository[KpEvent]):
             raise e
 
     async def upsert_company_details(
-        self,
-        booking_id: UUID,
-        profile: str | None = None,
-        brand_name: str | None = None,
-        address: str | None = None,
-        contact_person: str | None = None,
-        places_of_work: str | None = None,
-        employees_count: int | None = None,
-        employees_count_switzerland: int | None = None,
-        offer_internship: bool | None = None,
-        offer_part_time: bool | None = None,
-        offer_thesis: bool | None = None,
-        languages: list[KpCompanyLanguage] | None = None,
+        self, booking_id: UUID, upsert_company_details_input: UpsertCompanyDetailsInput
     ) -> KpBookingCompanyDetails:
         try:
             statement = select(KpBookingCompanyDetails).where(
@@ -551,30 +632,7 @@ class KpRepository(BaseRepository[KpEvent]):
             if company_details is None:
                 company_details = KpBookingCompanyDetails(booking_id=booking_id)
 
-            if profile is not None:
-                company_details.profile = profile
-            if brand_name is not None:
-                company_details.brand_name = brand_name
-            if address is not None:
-                company_details.address = address
-            if contact_person is not None:
-                company_details.contact_person = contact_person
-            if places_of_work is not None:
-                company_details.places_of_work = places_of_work
-            if employees_count is not None:
-                company_details.employees_count = employees_count
-            if employees_count_switzerland is not None:
-                company_details.employees_count_switzerland = (
-                    employees_count_switzerland
-                )
-            if offer_internship is not None:
-                company_details.offer_internship = offer_internship
-            if offer_part_time is not None:
-                company_details.offer_part_time = offer_part_time
-            if offer_thesis is not None:
-                company_details.offer_thesis = offer_thesis
-            if languages is not None:
-                company_details.languages = languages
+            company_details.sqlmodel_update(upsert_company_details_input.model_dump(exclude_unset=True))
 
             self.session.add(company_details)
             await self.session.commit()

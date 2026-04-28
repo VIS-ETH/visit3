@@ -1,21 +1,25 @@
 import {
   Alert,
+  Badge,
   Button,
   Card,
   Center,
   Group,
   Loader,
+  Modal,
   Stack,
   Table,
   Text,
   TextInput,
   Title,
 } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconAlertCircle } from "@tabler/icons-react";
+import { IconAlertCircle, IconPlus } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 import BackButton from "../components/BackButton";
 import {
   formatKpDateInput,
@@ -31,6 +35,34 @@ import {
   useCreateKp,
   useListKps,
 } from "../orval/generated/kp/kp";
+import type { KpResponse } from "../orval/generated/fastAPI.schemas";
+
+type EventStatus = "upcoming" | "registration_open" | "finalizing" | "past";
+
+function getEventStatus(event: KpResponse): EventStatus {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const regOpen = event.registration_open
+    ? new Date(event.registration_open)
+    : null;
+  const regEnd = event.registration_end
+    ? new Date(event.registration_end)
+    : null;
+  const eventDate = event.event_date ? new Date(event.event_date) : null;
+
+  if (eventDate && today > eventDate) return "past";
+  if (regOpen && today < regOpen) return "upcoming";
+  if (regEnd && today <= regEnd) return "registration_open";
+  return "finalizing";
+}
+
+const STATUS_COLORS: Record<EventStatus, string> = {
+  upcoming: "blue",
+  registration_open: "green",
+  finalizing: "yellow",
+  past: "gray",
+};
 
 function formatDate(dateString?: string) {
   return formatKpDisplayDate(dateString);
@@ -51,6 +83,9 @@ const dateFieldNames = [
 export default function KpDashboard() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const [modalOpened, { open: openModal, close: closeModal }] =
+    useDisclosure(false);
+
   const initialValues: KpFormValues = {
     name: "",
     registrationOpen: todayAsDateInput(),
@@ -88,6 +123,7 @@ export default function KpDashboard() {
           queryKey: getGetLatestKpQueryKey(),
         });
         form.reset();
+        closeModal();
 
         notifications.show({
           color: "green",
@@ -113,14 +149,29 @@ export default function KpDashboard() {
 
   return (
     <Stack gap="md">
-      <BackButton to="/kp" />
-      <Title order={2}>{t("kp.dashboard.title")}</Title>
-      <Text>{t("kp.dashboard.description")}</Text>
+      <BackButton to="/" />
 
-      <Card withBorder radius="md" p="md">
+      <Group justify="space-between" align="center">
+        <div>
+          <Title order={2}>{t("kp.dashboard.title")}</Title>
+          <Text c="dimmed" size="sm">
+            {t("kp.dashboard.description")}
+          </Text>
+        </div>
+        <Button leftSection={<IconPlus size={16} />} onClick={openModal}>
+          {t("kp.dashboard.create_new_button")}
+        </Button>
+      </Group>
+
+      <Modal
+        opened={modalOpened}
+        onClose={closeModal}
+        title={t("kp.dashboard.create_title")}
+        size="lg"
+        centered
+      >
         <form onSubmit={form.onSubmit(handleCreate)}>
           <Stack gap="sm">
-            <Title order={4}>{t("kp.dashboard.create_title")}</Title>
             <Group grow>
               <TextInput
                 label={t("kp.dashboard.name")}
@@ -170,6 +221,13 @@ export default function KpDashboard() {
             </Group>
             <Group justify="flex-end">
               <Button
+                variant="default"
+                onClick={closeModal}
+                disabled={isCreating}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
                 type="submit"
                 loading={isCreating}
                 disabled={isCreating || !form.isValid()}
@@ -179,10 +237,10 @@ export default function KpDashboard() {
             </Group>
           </Stack>
         </form>
-      </Card>
+      </Modal>
 
       {isLoading ? (
-        <Center py="md">
+        <Center py="xl">
           <Loader />
         </Center>
       ) : null}
@@ -194,45 +252,66 @@ export default function KpDashboard() {
       ) : null}
 
       {!isLoading && !isError ? (
-        <Card withBorder radius="md" p="md">
-          <Stack gap="sm">
-            <Title order={4}>{t("kp.dashboard.list_title")}</Title>
-            {events && events.length > 0 ? (
-              <Table striped highlightOnHover withTableBorder>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>{t("kp.dashboard.name")}</Table.Th>
-                    <Table.Th>{t("kp.dashboard.registration_window")}</Table.Th>
-                    <Table.Th>
-                      {t("kp.dashboard.finalization_deadline")}
-                    </Table.Th>
-                    <Table.Th>{t("kp.dashboard.nametags_deadline")}</Table.Th>
-                    <Table.Th>{t("kp.dashboard.event_date")}</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {events.map((event) => (
+        <Card withBorder radius="md" p={0}>
+          {events && events.length > 0 ? (
+            <Table highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>{t("kp.dashboard.name")}</Table.Th>
+                  <Table.Th>{t("kp.dashboard.registration_window")}</Table.Th>
+                  <Table.Th>{t("kp.dashboard.event_date")}</Table.Th>
+                  <Table.Th>{t("kp.dashboard.finalization_deadline")}</Table.Th>
+                  <Table.Th>{t("kp.dashboard.nametags_deadline")}</Table.Th>
+                  <Table.Th>Status</Table.Th>
+                  <Table.Th />
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {events.map((event) => {
+                  const status = getEventStatus(event);
+                  return (
                     <Table.Tr
                       key={event.id ?? `${event.name}-${event.event_date}`}
                     >
-                      <Table.Td>{event.name}</Table.Td>
+                      <Table.Td fw={500}>{event.name}</Table.Td>
                       <Table.Td>
-                        {formatDate(event.registration_open)} -{" "}
+                        {formatDate(event.registration_open)} –{" "}
                         {formatDate(event.registration_end)}
                       </Table.Td>
+                      <Table.Td>{formatDate(event.event_date)}</Table.Td>
                       <Table.Td>
                         {formatDate(event.finalization_deadline)}
                       </Table.Td>
                       <Table.Td>{formatDate(event.nametags_deadline)}</Table.Td>
-                      <Table.Td>{formatDate(event.event_date)}</Table.Td>
+                      <Table.Td>
+                        <Badge
+                          color={STATUS_COLORS[status]}
+                          variant="light"
+                          size="sm"
+                        >
+                          {t(`kp.dashboard.status_${status}`)}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Button
+                          size="xs"
+                          variant="light"
+                          component={Link}
+                          to={`/kp/${event.id}`}
+                        >
+                          {t("kp.dashboard.manage_button")}
+                        </Button>
+                      </Table.Td>
                     </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            ) : (
-              <Text c="dimmed">{t("kp.dashboard.no_events")}</Text>
-            )}
-          </Stack>
+                  );
+                })}
+              </Table.Tbody>
+            </Table>
+          ) : (
+            <Text c="dimmed" p="md">
+              {t("kp.dashboard.no_events")}
+            </Text>
+          )}
         </Card>
       ) : null}
     </Stack>

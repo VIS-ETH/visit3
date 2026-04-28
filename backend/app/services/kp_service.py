@@ -1,42 +1,36 @@
-from datetime import date
 from pathlib import Path
 from typing import Optional
 from uuid import UUID, uuid4
 
-from app.core.config import get_settings
-from app.core.decorators import (
-    require_confirmed_company,
-    require_role,
-    require_staff,
-)
-from app.core.exceptions import (
-    KpBookingConfirmationRequiresFinalized,
-    KpBookingNotFound,
-    KpBookingNotOwned,
-    KpBookingStatusTransitionInvalid,
-    KpBoothZoneEventMismatch,
-    KpBoothZoneNotFound,
-    KpNameExists,
-    KpRequirementBookingServiceMismatch,
-    KpRequirementFileUploadNotAllowed,
-    KpServiceRequirementNotFound,
-    KpWaitlistSameZone,
-    StorageFileInvalidMimeType,
-    StorageFileTooLarge,
-)
-from app.models.kp_event import (
-    KpBookingStatus,
-    KpEvent,
-    KpEventBooking,
-    KpEventBookingService,
-    KpEventBookingServiceFileLink,
-    KpEventBookingUpgradeWaitlist,
-    KpEventServiceRequirement,
-    KpEventServiceRequirementType,
-)
+from app.core.decorators import require_confirmed_company, require_kp_president
+from app.core.exceptions import (KpBookingConfirmationRequiresFinalized,
+                                 KpBookingNotFound, KpBookingNotOwned,
+                                 KpBookingStatusTransitionInvalid,
+                                 KpBoothZoneEventMismatch, KpBoothZoneNotFound,
+                                 KpEventNotFound, KpIndustryNameExists,
+                                 KpIndustryNotFound, KpNameExists,
+                                 KpRequirementBookingServiceMismatch,
+                                 KpRequirementFileUploadNotAllowed,
+                                 KpServiceNotFound,
+                                 KpServiceRequirementNotFound,
+                                 KpWaitlistSameZone,
+                                 StorageFileInvalidMimeType,
+                                 StorageFileTooLarge)
+from app.models.kp_event import (KpBookingStatus, KpEvent, KpEventBooking,
+                                 KpEventBookingService,
+                                 KpEventBookingServiceFileLink,
+                                 KpEventBookingUpgradeWaitlist,
+                                 KpEventBoothZone, KpEventService,
+                                 KpEventServiceRequirement,
+                                 KpEventServiceRequirementType, KpIndustry)
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
+from app.schemas.kp import (CreateBoothZoneInput, CreateIndustryInput,
+                            CreateKpInput, CreateServiceInput,
+                            UpdateBookingInput, UpdateBoothZoneInput,
+                            UpdateKpInput, UpdateServiceInput)
 from app.services.storage_service import StorageService
+from app.core.config import get_settings
 
 
 class KpService:
@@ -51,14 +45,121 @@ class KpService:
         self.current_user = current_user
         self.settings = get_settings()
 
+    async def _get_event(self, event_id: UUID) -> KpEvent:
+        event = await self.kp_repository.get_by_id(event_id)
+        if event is None:
+            raise KpEventNotFound(f"event:not_found:{event_id}")
+        return event
+
     async def list_kps(self) -> list[KpEvent]:
         return await self.kp_repository.list_kps()
 
     async def get_latest_kp(self) -> Optional[KpEvent]:
         return await self.kp_repository.get_latest_kp()
 
-    async def get_event_by_name(self, name: str) -> Optional[KpEvent]:
-        return await self.kp_repository.get_by_name(name)
+    @require_kp_president
+    async def get_event_by_id(self, event_id: UUID) -> KpEvent:
+        return await self._get_event(event_id)
+
+    @require_kp_president
+    async def update_kp(self, event_id: UUID, update_kp_input: UpdateKpInput) -> KpEvent:
+        updates = update_kp_input.model_dump(exclude_unset=True)
+        event = await self._get_event(event_id)
+        new_name = updates.get("name")
+        if new_name is not None and new_name != event.name:
+            existing = await self.kp_repository.get_by_name(new_name)
+            if existing is not None:
+                raise KpNameExists(f"update_kp:{new_name}")
+        return await self.kp_repository.update_kp(event=event, update_kp_input=update_kp_input)
+
+    # --- Booth Zones ---
+
+    @require_kp_president
+    async def list_booth_zones(self, event_id: UUID) -> list[KpEventBoothZone]:
+        await self._get_event(event_id)
+        return await self.kp_repository.list_booth_zones(event_id)
+
+    @require_kp_president
+    async def create_booth_zone(
+        self, event_id: UUID, create_booth_zone_input: CreateBoothZoneInput
+    ) -> KpEventBoothZone:
+        await self._get_event(event_id)
+        return await self.kp_repository.create_booth_zone(event_id, create_booth_zone_input)
+
+    @require_kp_president
+    async def update_booth_zone(
+        self, booth_zone_id: UUID, update_booth_zone_input: UpdateBoothZoneInput
+    ) -> KpEventBoothZone:
+        zone = await self.kp_repository.get_booth_zone_by_id(booth_zone_id)
+        if zone is None:
+            raise KpBoothZoneNotFound(f"booth_zone:not_found:{booth_zone_id}")
+        return await self.kp_repository.update_booth_zone(zone, update_booth_zone_input)
+
+    @require_kp_president
+    async def delete_booth_zone(self, booth_zone_id: UUID) -> None:
+        zone = await self.kp_repository.get_booth_zone_by_id(booth_zone_id)
+        if zone is None:
+            raise KpBoothZoneNotFound(f"booth_zone:not_found:{booth_zone_id}")
+        await self.kp_repository.delete_booth_zone(zone)
+
+    # --- Services ---
+
+    @require_kp_president
+    async def list_services(self, event_id: UUID) -> list[KpEventService]:
+        await self._get_event(event_id)
+        return await self.kp_repository.list_services(event_id)
+
+    @require_kp_president
+    async def create_service(
+        self, event_id: UUID, create_service_input: CreateServiceInput
+    ) -> KpEventService:
+        await self._get_event(event_id)
+        return await self.kp_repository.create_service(event_id, create_service_input)
+
+    @require_kp_president
+    async def update_service(
+        self, service_id: UUID, update_service_input: UpdateServiceInput
+    ) -> KpEventService:
+        service = await self.kp_repository.get_service_by_id(service_id)
+        if service is None:
+            raise KpServiceNotFound(f"service:not_found:{service_id}")
+        return await self.kp_repository.update_service(service, update_service_input)
+
+    @require_kp_president
+    async def delete_service(self, service_id: UUID) -> None:
+        service = await self.kp_repository.get_service_by_id(service_id)
+        if service is None:
+            raise KpServiceNotFound(f"service:not_found:{service_id}")
+        await self.kp_repository.delete_service(service)
+
+    # --- Industries ---
+
+    @require_kp_president
+    async def list_industries(self) -> list[KpIndustry]:
+        return await self.kp_repository.list_industries()
+
+    @require_kp_president
+    async def create_industry(self, create_industry_input: CreateIndustryInput) -> KpIndustry:
+        existing = await self.kp_repository.get_industry_by_name(create_industry_input.name)
+        if existing is not None:
+            raise KpIndustryNameExists(f"create_industry:{create_industry_input.name}")
+        return await self.kp_repository.create_industry(create_industry_input)
+
+    @require_kp_president
+    async def delete_industry(self, industry_id: UUID) -> None:
+        industry = await self.kp_repository.get_industry_by_id(industry_id)
+        if industry is None:
+            raise KpIndustryNotFound(f"industry:not_found:{industry_id}")
+        await self.kp_repository.delete_industry(industry)
+
+    # --- Bookings ---
+
+    @require_kp_president
+    async def list_bookings_for_event(
+        self, event_id: UUID
+    ) -> list[KpEventBooking]:
+        await self._get_event(event_id)
+        return await self.kp_repository.list_bookings_for_event(event_id)
 
     async def _get_owned_booking(self, booking_id: UUID):
         booking = await self.kp_repository.get_booking_by_id(booking_id)
@@ -155,22 +256,21 @@ class KpService:
 
     @require_confirmed_company
     async def update_my_booking_status(
-        self, booking_id: UUID, status: KpBookingStatus
+        self, booking_id: UUID, update_booking_input: UpdateBookingInput
     ) -> KpEventBooking:
         booking = await self._get_owned_booking(booking_id)
-        self._ensure_company_status_transition(booking, status)
-        return await self.kp_repository.update_booking(booking=booking, status=status)
+        if update_booking_input.status is not None:
+            self._ensure_company_status_transition(booking, update_booking_input.status)
+        return await self.kp_repository.update_booking(booking, update_booking_input)
 
-    @require_staff
+    @require_kp_president
     async def update_booking_booth_number(
-        self, booking_id: UUID, booth_nr: int
+        self, booking_id: UUID, update_booking_input: UpdateBookingInput
     ) -> KpEventBooking:
         booking = await self._get_booking(booking_id)
-        return await self.kp_repository.update_booking(
-            booking=booking, booth_nr=booth_nr
-        )
+        return await self.kp_repository.update_booking(booking, update_booking_input)
 
-    @require_staff
+    @require_kp_president
     async def confirm_booking(self, booking_id: UUID) -> KpEventBooking:
         booking = await self._get_booking(booking_id)
         if booking.status != KpBookingStatus.FINALIZED:
@@ -178,7 +278,7 @@ class KpService:
                 f"booking_confirm:not_finalized:{booking_id}:{booking.status}"
             )
         return await self.kp_repository.update_booking(
-            booking=booking, status=KpBookingStatus.CONFIRMED
+            booking, UpdateBookingInput(status=KpBookingStatus.CONFIRMED)
         )
 
     async def _get_requirement_for_booking_service(
@@ -355,25 +455,10 @@ class KpService:
             await self.storage_service.delete_object(stored_file.storage_key)
             await self.kp_repository.delete_stored_file(stored_file)
 
-    @require_role(get_settings().VISIT_KP_PRESIDENT_ROLE)
-    async def create_kp(
-        self,
-        name: str,
-        registration_open: date,
-        registration_end: date,
-        finalization_deadline: date,
-        nametags_deadline: date,
-        event_date: date,
-    ) -> KpEvent:
-        existing = await self.kp_repository.get_by_name(name)
+    @require_kp_president
+    async def create_kp(self, create_kp_input: CreateKpInput) -> KpEvent:
+        existing = await self.kp_repository.get_by_name(create_kp_input.name)
         if existing is not None:
-            raise KpNameExists(f"create_kp:{name}")
+            raise KpNameExists(f"create_kp:{create_kp_input.name}")
 
-        return await self.kp_repository.create_kp(
-            name=name,
-            registration_open=registration_open,
-            registration_end=registration_end,
-            finalization_deadline=finalization_deadline,
-            nametags_deadline=nametags_deadline,
-            event_date=event_date,
-        )
+        return await self.kp_repository.create_kp(create_kp_input)

@@ -16,7 +16,7 @@ export default function KpJoin() {
 
   return (
     <Stack gap="md">
-      <BackButton to="/kp" />
+      <BackButton to="/" />
       <Title order={2}>{t("kp.join.title")}</Title>
       <Text>{t("kp.join.description")}</Text>
 

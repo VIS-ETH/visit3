@@ -9,16 +9,34 @@ from app.models.kp_event import (
     KpEventBooking,
     KpEventBookingServiceFileLink,
     KpEventBookingUpgradeWaitlist,
+    KpCompanyLanguage,
 )
 
 
-class CreateKpRequest(BaseModel):
+class CreateKpInput(BaseModel):
     name: str
     registration_open: date
     registration_end: date
     finalization_deadline: date
     nametags_deadline: date
     event_date: date
+
+
+class CreateKpRequest(CreateKpInput):
+    pass
+
+
+class UpdateKpInput(BaseModel):
+    name: str | None = None
+    registration_open: date | None = None
+    registration_end: date | None = None
+    finalization_deadline: date | None = None
+    nametags_deadline: date | None = None
+    event_date: date | None = None
+
+
+class UpdateKpRequest(UpdateKpInput):
+    pass
 
 
 class KpResponse(BaseModel):
@@ -30,17 +48,140 @@ class KpResponse(BaseModel):
     nametags_deadline: date
     event_date: date
 
-    @classmethod
-    def from_model(cls, event: KpEvent) -> "KpResponse":
-        return cls(
-            id=event.id,
-            name=event.name,
-            registration_open=event.registration_open,
-            registration_end=event.registration_end,
-            finalization_deadline=event.finalization_deadline,
-            nametags_deadline=event.nametags_deadline,
-            event_date=event.event_date,
-        )
+
+# --- Booth Zones ---
+
+
+class CreateBoothZoneInput(BaseModel):
+    name: str = Field(min_length=1)
+    description: str = ""
+    color: str = "#000000"
+    order: int = Field(default=100, ge=0)
+    capacity: int = Field(default=0, ge=0)
+    booth_size: float = Field(default=0, ge=0)
+    base_price: int = Field(default=0, ge=0)
+
+
+class CreateBoothZoneRequest(CreateBoothZoneInput):
+    pass
+
+
+class UpdateBoothZoneInput(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    color: str | None = None
+    order: int | None = Field(default=None, ge=0)
+    capacity: int | None = Field(default=None, ge=0)
+    booth_size: float | None = Field(default=None, ge=0)
+    base_price: int | None = Field(default=None, ge=0)
+
+
+class UpdateBoothZoneRequest(UpdateBoothZoneInput):
+    pass
+
+
+class BoothZoneResponse(BaseModel):
+    id: UUID
+    event_id: UUID
+    name: str
+    description: str
+    color: str
+    order: int
+    capacity: int
+    booth_size: float
+    base_price: int
+
+
+# --- Services ---
+
+
+class CreateServiceInput(BaseModel):
+    name: str = Field(min_length=1)
+    description: str = ""
+    image_url: str | None = None
+    confirmation_description: str | None = None
+    order: int = Field(default=100, ge=0)
+    price: int = Field(default=0, ge=0)
+    max_quantity_per_booking: int = Field(default=1, ge=1)
+    max_total_quantity: int = Field(default=0, ge=0)
+    is_active: bool = True
+
+
+class CreateServiceRequest(CreateServiceInput):
+    pass
+
+
+class UpdateServiceInput(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    image_url: str | None = None
+    confirmation_description: str | None = None
+    order: int | None = Field(default=None, ge=0)
+    price: int | None = Field(default=None, ge=0)
+    max_quantity_per_booking: int | None = Field(default=None, ge=1)
+    max_total_quantity: int | None = Field(default=None, ge=0)
+    is_active: bool | None = None
+
+
+class UpdateServiceRequest(UpdateServiceInput):
+    pass
+
+
+class ServiceResponse(BaseModel):
+    id: UUID
+    event_id: UUID
+    name: str
+    description: str
+    image_url: str | None
+    confirmation_description: str | None
+    order: int
+    price: int
+    max_quantity_per_booking: int
+    max_total_quantity: int
+    is_active: bool
+
+
+# --- Industries ---
+
+
+class CreateIndustryInput(BaseModel):
+    name: str = Field(min_length=1)
+
+
+class CreateIndustryRequest(CreateIndustryInput):
+    pass
+
+
+class IndustryResponse(BaseModel):
+    id: UUID
+    name: str
+
+
+# --- Bookings ---
+
+
+class CreateBookingInput(BaseModel):
+    booth_nr: int = Field(ge=1)
+    status: KpBookingStatus = KpBookingStatus.REGISTERED
+
+
+class UpdateBookingInput(BaseModel):
+    status: KpBookingStatus | None = None
+    booth_nr: int | None = Field(default=None, ge=1)
+
+
+class UpsertCompanyDetailsInput(BaseModel):
+    profile: str | None = None
+    brand_name: str | None = None
+    address: str | None = None
+    contact_person: str | None = None
+    places_of_work: str | None = None
+    employees_count: int | None = Field(default=None, ge=0)
+    employees_count_switzerland: int | None = Field(default=None, ge=0)
+    offer_internship: bool | None = None
+    offer_part_time: bool | None = None
+    offer_thesis: bool | None = None
+    languages: list[KpCompanyLanguage] | None = None
 
 
 class ReplaceBookingUpgradeWaitlistRequest(BaseModel):
@@ -55,24 +196,6 @@ class BookingResponse(BaseModel):
     booth_nr: int
     status: KpBookingStatus
 
-    @classmethod
-    def from_model(cls, booking: KpEventBooking) -> "BookingResponse":
-        return cls(
-            id=booking.id,
-            event_id=booking.event_id,
-            company_id=booking.company_id,
-            booth_zone_id=booking.booth_zone_id,
-            booth_nr=booking.booth_nr,
-            status=booking.status,
-        )
-
-
-class UpdateBookingStatusRequest(BaseModel):
-    status: KpBookingStatus
-
-
-class UpdateBookingBoothNumberRequest(BaseModel):
-    booth_nr: int = Field(ge=1)
 
 
 class RequirementFileResponse(BaseModel):
@@ -113,17 +236,6 @@ class BookingUpgradeWaitlistEntryResponse(BaseModel):
     id: UUID
     booking_id: UUID
     target_booth_zone_id: UUID
-    target_booth_zone_name: str
     priority_rank: int | None
+    target_booth_zone: BoothZoneResponse
 
-    @classmethod
-    def from_model(
-        cls, entry: KpEventBookingUpgradeWaitlist
-    ) -> "BookingUpgradeWaitlistEntryResponse":
-        return cls(
-            id=entry.id,
-            booking_id=entry.booking_id,
-            target_booth_zone_id=entry.target_booth_zone_id,
-            target_booth_zone_name=entry.target_booth_zone.name,
-            priority_rank=entry.priority_rank,
-        )
