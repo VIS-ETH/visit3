@@ -125,6 +125,46 @@ class KpBookingConfirmationRequiresFinalized(AppError):
         )
 
 
+class KpEventNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP event not found",
+            "error.kp_event_not_found",
+            identifier,
+            404,
+        )
+
+
+class KpServiceNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP service not found",
+            "error.kp_service_not_found",
+            identifier,
+            404,
+        )
+
+
+class KpIndustryNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP industry not found",
+            "error.kp_industry_not_found",
+            identifier,
+            404,
+        )
+
+
+class KpIndustryNameExists(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP industry with this name already exists",
+            "error.kp_industry_name_exists",
+            identifier,
+            400,
+        )
+
+
 class KpServiceRequirementNotFound(AppError):
     def __init__(self, identifier: str):
         super().__init__(
