@@ -85,10 +85,7 @@ async def get_current_user(
     logger.debug(f"User authenticated: {user.email}")
 
     impersonate_id = request.headers.get("X-Impersonate-User-Id")
-    if impersonate_id:
-        if not user.is_admin:
-            logger.warning(f"Impersonation rejected - not admin: {user.email}")
-            raise NotAllowed(f"impersonate:not_admin:{user.email}")
+    if impersonate_id and user.is_admin:
         try:
             target_uuid = UUID(impersonate_id)
         except ValueError:
