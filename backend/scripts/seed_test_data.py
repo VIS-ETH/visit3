@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import random
+import struct
 import sys
+import zlib
+from datetime import date
 from pathlib import Path
 
 from pwdlib import PasswordHash
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlmodel import select
 
@@ -15,13 +20,78 @@ if str(BACKEND_DIR) not in sys.path:
 
 from app.core.config import get_settings
 from app.models.company import Company
+from app.models.kp_event import (
+    KpBookingStatus,
+    KpEvent,
+    KpEventBooking,
+    KpEventBoothZone,
+    KpEventNametagBackground,
+    NameTag,
+)
+from app.models.storage import StoredFile
 from app.models.user import User
+from app.services.storage_service import StorageService
 
 password_hash = PasswordHash.recommended()
 
 SEED_COMPANIES = {
     "seed-vendor": "Seed Vendor AG",
     "seed-partner": "Seed Partner GmbH",
+}
+
+KP_EVENT_NAME = "Kontaktparty Nametag Export Test"
+KP_BACKGROUND_STORAGE_KEY = "seed/nametag-export-test/background.png"
+
+KP_EXPORT_COMPANIES = [
+    {
+        "name": "Seed Robotics AG",
+        "zone": "Main Hall",
+        "booth_nr": 11,
+        "nametags": [
+            ("Ada", "Lovelace", "Software Engineer"),
+            ("Grace", "Hopper", "Compiler Specialist"),
+            ("Linus", "Torvalds", "Platform Engineer"),
+        ],
+    },
+    {
+        "name": "Seed Quantum GmbH",
+        "zone": "Main Hall",
+        "booth_nr": 12,
+        "nametags": [
+            ("Katherine", "Johnson", "Research Scientist"),
+            ("Alan", "Turing", "Cryptography Lead"),
+        ],
+    },
+    {
+        "name": "Seed Interfaces SA",
+        "zone": "Startup Alley",
+        "booth_nr": 3,
+        "nametags": [
+            ("Margaret", "Hamilton", "Systems Architect"),
+            ("Donald", "Knuth", "Algorithm Designer"),
+            ("Barbara", "Liskov", "Principal Engineer"),
+            ("Edsger", "Dijkstra", "Formal Methods Lead"),
+        ],
+    },
+]
+
+KP_EXPORT_ZONES = {
+    "Main Hall": {
+        "description": "Primary seed zone for nametag export testing.",
+        "color": "#1F7A5C",
+        "order": 10,
+        "capacity": 50,
+        "booth_size": 12.0,
+        "base_price": 120000,
+    },
+    "Startup Alley": {
+        "description": "Secondary seed zone for smaller company booths.",
+        "color": "#355C9A",
+        "order": 20,
+        "capacity": 20,
+        "booth_size": 8.0,
+        "base_price": 75000,
+    },
 }
 
 RANDOM_SEED = 20260217
@@ -222,6 +292,41 @@ def generate_seed_users() -> list[dict[str, object]]:
     return users
 
 
+def png_chunk(kind: bytes, data: bytes) -> bytes:
+    return (
+        struct.pack(">I", len(data))
+        + kind
+        + data
+        + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+    )
+
+
+def make_background_png(width: int = 900, height: int = 540) -> bytes:
+    rows: list[bytes] = []
+    for y in range(height):
+        row = bytearray()
+        for x in range(width):
+            in_border = x < 18 or x >= width - 18 or y < 18 or y >= height - 18
+            in_line = 350 <= y <= 360 or 425 <= y <= 432
+            if in_border:
+                row.extend((31, 122, 92))
+            elif in_line:
+                row.extend((210, 226, 220))
+            else:
+                shade = 248 - ((x + y) % 8)
+                row.extend((shade, shade, 244))
+        rows.append(b"\x00" + bytes(row))
+
+    raw = b"".join(rows)
+    header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + png_chunk(b"IHDR", header)
+        + png_chunk(b"IDAT", zlib.compress(raw, level=9))
+        + png_chunk(b"IEND", b"")
+    )
+
+
 async def get_or_create_company(session, name: str) -> Company:
     company = (
         await session.execute(select(Company).where(Company.name == name))
@@ -233,6 +338,172 @@ async def get_or_create_company(session, name: str) -> Company:
     session.add(company)
     await session.flush()
     return company
+
+
+async def get_or_create_kp_event(session) -> KpEvent:
+    event = (
+        await session.execute(select(KpEvent).where(KpEvent.name == KP_EVENT_NAME))
+    ).scalar_one_or_none()
+    if event:
+        return event
+
+    event = KpEvent(
+        name=KP_EVENT_NAME,
+        registration_open=date(2026, 1, 15),
+        registration_end=date(2026, 3, 31),
+        finalization_deadline=date(2026, 4, 15),
+        nametags_deadline=date(2026, 4, 30),
+        event_date=date(2026, 5, 15),
+    )
+    session.add(event)
+    await session.flush()
+    return event
+
+
+async def get_or_create_booth_zone(
+    session, event: KpEvent, name: str, values: dict[str, object]
+) -> KpEventBoothZone:
+    zone = (
+        await session.execute(
+            select(KpEventBoothZone).where(
+                KpEventBoothZone.event_id == event.id,
+                KpEventBoothZone.name == name,
+            )
+        )
+    ).scalar_one_or_none()
+
+    if zone is None:
+        zone = KpEventBoothZone(event_id=event.id, name=name, **values)
+    else:
+        for key, value in values.items():
+            setattr(zone, key, value)
+
+    session.add(zone)
+    await session.flush()
+    return zone
+
+
+async def get_or_create_booking(
+    session,
+    event: KpEvent,
+    company: Company,
+    zone: KpEventBoothZone,
+    booth_nr: int,
+) -> KpEventBooking:
+    booking = (
+        await session.execute(
+            select(KpEventBooking).where(
+                KpEventBooking.event_id == event.id,
+                KpEventBooking.company_id == company.id,
+                KpEventBooking.booth_zone_id == zone.id,
+            )
+        )
+    ).scalar_one_or_none()
+
+    if booking is None:
+        booking = KpEventBooking(
+            event_id=event.id,
+            company_id=company.id,
+            booth_zone_id=zone.id,
+            booth_nr=booth_nr,
+            status=KpBookingStatus.CONFIRMED,
+        )
+    else:
+        booking.booth_nr = booth_nr
+        booking.status = KpBookingStatus.CONFIRMED
+
+    session.add(booking)
+    await session.flush()
+    return booking
+
+
+async def seed_kp_background(session, event: KpEvent) -> None:
+    content = make_background_png()
+    stored_object = await StorageService(get_settings()).upload_bytes(
+        key=KP_BACKGROUND_STORAGE_KEY,
+        content=content,
+        filename="seed-nametag-background.png",
+        content_type="image/png",
+    )
+    content_hash = hashlib.sha256(content).hexdigest()
+
+    stored_file = (
+        await session.execute(
+            select(StoredFile).where(
+                StoredFile.storage_key == KP_BACKGROUND_STORAGE_KEY
+            )
+        )
+    ).scalar_one_or_none()
+    if stored_file is None:
+        stored_file = StoredFile(
+            storage_key=KP_BACKGROUND_STORAGE_KEY,
+            original_filename="seed-nametag-background.png",
+            mime_type="image/png",
+            size_bytes=len(content),
+            sha256=content_hash,
+            etag=stored_object.etag,
+        )
+    else:
+        stored_file.original_filename = "seed-nametag-background.png"
+        stored_file.mime_type = "image/png"
+        stored_file.size_bytes = len(content)
+        stored_file.sha256 = content_hash
+        stored_file.etag = stored_object.etag
+    session.add(stored_file)
+    await session.flush()
+
+    background = (
+        await session.execute(
+            select(KpEventNametagBackground).where(
+                KpEventNametagBackground.event_id == event.id
+            )
+        )
+    ).scalar_one_or_none()
+    if background is None:
+        background = KpEventNametagBackground(
+            event_id=event.id,
+            stored_file_id=stored_file.id,
+        )
+    else:
+        background.stored_file_id = stored_file.id
+    session.add(background)
+    await session.flush()
+
+
+async def seed_kp_nametag_exports(session) -> tuple[int, int, int]:
+    event = await get_or_create_kp_event(session)
+    zones = {
+        name: await get_or_create_booth_zone(session, event, name, values)
+        for name, values in KP_EXPORT_ZONES.items()
+    }
+
+    bookings: list[KpEventBooking] = []
+    for company_seed in KP_EXPORT_COMPANIES:
+        company = await get_or_create_company(session, str(company_seed["name"]))
+        zone = zones[str(company_seed["zone"])]
+        booking = await get_or_create_booking(
+            session,
+            event,
+            company,
+            zone,
+            int(company_seed["booth_nr"]),
+        )
+        bookings.append(booking)
+
+        await session.execute(delete(NameTag).where(NameTag.booking_id == booking.id))
+        for first_name, last_name, position in company_seed["nametags"]:
+            session.add(
+                NameTag(
+                    booking_id=booking.id,
+                    first_name=first_name,
+                    last_name=last_name,
+                    position=position,
+                )
+            )
+
+    await seed_kp_background(session, event)
+    nametag_count = sum(len(company["nametags"]) for company in KP_EXPORT_COMPANIES)
+    return len(KP_EXPORT_COMPANIES), len(bookings), nametag_count
 
 
 async def seed() -> None:
@@ -288,13 +559,17 @@ async def seed() -> None:
                 session.add(existing)
                 updated += 1
 
+        kp_companies, kp_bookings, kp_nametags = await seed_kp_nametag_exports(session)
+
         await session.commit()
 
     await engine.dispose()
     print(
         "Seed complete. "
         f"created={created}, updated={updated}, "
-        f"companies={len(SEED_COMPANIES)}, users={sum(SEED_USER_COUNTS.values())}"
+        f"companies={len(SEED_COMPANIES)}, users={sum(SEED_USER_COUNTS.values())}, "
+        f'kp_event="{KP_EVENT_NAME}", kp_companies={kp_companies}, '
+        f"kp_bookings={kp_bookings}, kp_nametags={kp_nametags}"
     )
 
 
