@@ -42,6 +42,7 @@ import {
   toKpIsoDate,
   type KpFormValues,
 } from "../schemas/kpSchema";
+import { downloadBlob, safeFilenamePart } from "../utils/download";
 import { useTranslatedForm } from "../utils/translator";
 import {
   downloadBookingNametags,
@@ -114,29 +115,6 @@ const dateFieldNames = [
 const downloadRequestOptions = { responseType: "blob" as const };
 type EventDownloadFunction = (eventId: string) => unknown;
 type NametagExportScope = "event" | "company" | "person";
-
-function safeFilenamePart(value: string) {
-  return (
-    value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "") || "kp"
-  );
-}
-
-function downloadBlob(content: unknown, filename: string) {
-  const blob =
-    content instanceof Blob ? content : new Blob([content as BlobPart]);
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
-}
 
 function eventSelectOptions(events: KpResponse[] | undefined) {
   return (events ?? [])
