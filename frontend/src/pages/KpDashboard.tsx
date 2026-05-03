@@ -29,12 +29,11 @@ import {
   IconPhotoUp,
   IconPlus,
 } from "@tabler/icons-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ChangeEvent } from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
-import { customInstance } from "../api/mutator";
 import BackButton from "../components/BackButton";
 import {
   formatKpDateInput,
@@ -63,6 +62,7 @@ import {
   getListKpsQueryKey,
   useCreateKp,
   useGetNametagExportBackground,
+  useListNametagExportTargets,
   useListKps,
   useUploadNametagExportBackground,
 } from "../orval/generated/kp/kp";
@@ -114,36 +114,6 @@ const dateFieldNames = [
 const downloadRequestOptions = { responseType: "blob" as const };
 type EventDownloadFunction = (eventId: string) => unknown;
 type NametagExportScope = "event" | "company" | "person";
-
-interface NametagExportCompany {
-  booking_id: string;
-  company_id: string;
-  company_name: string;
-  booth_zone_name: string;
-  booth_nr: number;
-  nametag_count: number;
-}
-
-interface NametagExportPerson {
-  id: string;
-  booking_id: string;
-  company_name: string;
-  first_name: string;
-  last_name: string;
-  position: string;
-}
-
-interface NametagExportTargets {
-  companies: NametagExportCompany[];
-  people: NametagExportPerson[];
-}
-
-function listNametagExportTargets(eventId: string) {
-  return customInstance<NametagExportTargets>({
-    url: `/api/kp/events/${eventId}/exports/nametags/targets`,
-    method: "GET",
-  });
-}
 
 function safeFilenamePart(value: string) {
   return (
@@ -243,11 +213,12 @@ export default function KpDashboard() {
     useGetNametagExportBackground(selectedEventId ?? "", {
       query: { enabled: Boolean(selectedEventId) },
     });
-  const { data: nametagExportTargets } = useQuery({
-    queryKey: ["nametag-export-targets", selectedEventId],
-    queryFn: () => listNametagExportTargets(selectedEventId ?? ""),
-    enabled: Boolean(selectedEventId),
-  });
+  const { data: nametagExportTargets } = useListNametagExportTargets(
+    selectedEventId ?? "",
+    {
+      query: { enabled: Boolean(selectedEventId) },
+    },
+  );
 
   useEffect(() => {
     setSelectedNametagBookingId(null);
