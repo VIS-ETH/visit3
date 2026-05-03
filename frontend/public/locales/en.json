@@ -291,6 +291,7 @@
         "upload_background": "Upload background",
         "background_upload_success_title": "Background uploaded",
         "background_upload_success_message": "The nametag background was saved successfully.",
+        "scope_label": "Scope",
         "scope_event": "Whole event",
         "scope_company": "Company",
         "scope_person": "Person",

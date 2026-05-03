@@ -10,6 +10,7 @@ import {
   Divider,
   FileInput,
   Group,
+  Input,
   Loader,
   Modal,
   NumberInput,
@@ -1154,27 +1155,32 @@ function ExportsTab({
             }}
           >
             <Group align="end" gap="sm">
-              <SegmentedControl
-                value={nametagExportScope}
-                onChange={(value) =>
-                  setNametagExportScope(value as NametagExportScope)
-                }
-                data={[
-                  {
-                    value: "event",
-                    label: t("kp.dashboard.exports.scope_event"),
-                  },
-                  {
-                    value: "company",
-                    label: t("kp.dashboard.exports.scope_company"),
-                  },
-                  {
-                    value: "person",
-                    label: t("kp.dashboard.exports.scope_person"),
-                  },
-                ]}
+              <Input.Wrapper
+                label={t("kp.dashboard.exports.scope_label")}
                 w={{ base: "100%", sm: 420 }}
-              />
+              >
+                <SegmentedControl
+                  value={nametagExportScope}
+                  onChange={(value) =>
+                    setNametagExportScope(value as NametagExportScope)
+                  }
+                  data={[
+                    {
+                      value: "event",
+                      label: t("kp.dashboard.exports.scope_event"),
+                    },
+                    {
+                      value: "company",
+                      label: t("kp.dashboard.exports.scope_company"),
+                    },
+                    {
+                      value: "person",
+                      label: t("kp.dashboard.exports.scope_person"),
+                    },
+                  ]}
+                  w="100%"
+                />
+              </Input.Wrapper>
 
               {nametagExportScope === "company" ? (
                 <Select

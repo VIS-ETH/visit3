@@ -291,6 +291,7 @@
         "upload_background": "Hintergrund hochladen",
         "background_upload_success_title": "Hintergrund hochgeladen",
         "background_upload_success_message": "Der Namensschild-Hintergrund wurde erfolgreich gespeichert.",
+        "scope_label": "Bereich",
         "scope_event": "Ganzes Event",
         "scope_company": "Unternehmen",
         "scope_person": "Person",
