@@ -11,8 +11,6 @@ from app.models.company import Company, KpCompanyProfile
 from app.models.kp_event import (
     KpBookingCompanyDetails,
     KpBookingCompanyDetailsIndustryLink,
-    KpBookingStatus,
-    KpCompanyLanguage,
     KpEvent,
     KpEventBooking,
     KpEventBookingService,
@@ -111,10 +109,20 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
-    async def update_kp(self, event: KpEvent, update_kp_input: UpdateKpInput) -> KpEvent:
+    async def update_kp(
+        self, event: KpEvent, update_kp_input: UpdateKpInput
+    ) -> KpEvent:
         try:
             event.sqlmodel_update(update_kp_input.model_dump(exclude_unset=True))
-            self._validate_model(event, exclude={"booth_zones", "bookings", "services", "registration_exceptions"})
+            self._validate_model(
+                event,
+                exclude={
+                    "booth_zones",
+                    "bookings",
+                    "services",
+                    "registration_exceptions",
+                },
+            )
             self.session.add(event)
             await self.session.commit()
             await self.session.refresh(event)
@@ -133,7 +141,12 @@ class KpRepository(BaseRepository[KpEvent]):
             )
             self._validate_model(
                 zone,
-                exclude={"event", "included_services", "bookings", "upgrade_waitlist_entries"},
+                exclude={
+                    "event",
+                    "included_services",
+                    "bookings",
+                    "upgrade_waitlist_entries",
+                },
             )
             self.session.add(zone)
             await self.session.commit()
@@ -150,7 +163,12 @@ class KpRepository(BaseRepository[KpEvent]):
             zone.sqlmodel_update(update_booth_zone_input.model_dump(exclude_unset=True))
             self._validate_model(
                 zone,
-                exclude={"event", "included_services", "bookings", "upgrade_waitlist_entries"},
+                exclude={
+                    "event",
+                    "included_services",
+                    "bookings",
+                    "upgrade_waitlist_entries",
+                },
             )
             self.session.add(zone)
             await self.session.commit()
@@ -177,7 +195,8 @@ class KpRepository(BaseRepository[KpEvent]):
                 event_id=event_id,
             )
             self._validate_model(
-                service, exclude={"event", "booth_zones", "booking_services", "requirements"}
+                service,
+                exclude={"event", "booth_zones", "booking_services", "requirements"},
             )
             self.session.add(service)
             await self.session.commit()
@@ -193,7 +212,8 @@ class KpRepository(BaseRepository[KpEvent]):
         try:
             service.sqlmodel_update(update_service_input.model_dump(exclude_unset=True))
             self._validate_model(
-                service, exclude={"event", "booth_zones", "booking_services", "requirements"}
+                service,
+                exclude={"event", "booth_zones", "booking_services", "requirements"},
             )
             self.session.add(service)
             await self.session.commit()
@@ -632,7 +652,9 @@ class KpRepository(BaseRepository[KpEvent]):
     async def get_industry_by_name(self, name: str) -> Optional[KpIndustry]:
         return await self._get_by_field(KpIndustry.name, name)
 
-    async def create_industry(self, create_industry_input: CreateIndustryInput) -> KpIndustry:
+    async def create_industry(
+        self, create_industry_input: CreateIndustryInput
+    ) -> KpIndustry:
         try:
             industry = KpIndustry(**create_industry_input.model_dump())
             self.session.add(industry)
@@ -727,7 +749,9 @@ class KpRepository(BaseRepository[KpEvent]):
             if company_details is None:
                 company_details = KpBookingCompanyDetails(booking_id=booking_id)
 
-            company_details.sqlmodel_update(upsert_company_details_input.model_dump(exclude_unset=True))
+            company_details.sqlmodel_update(
+                upsert_company_details_input.model_dump(exclude_unset=True)
+            )
 
             self.session.add(company_details)
             await self.session.commit()
