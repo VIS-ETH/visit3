@@ -58,6 +58,24 @@ interface ErrorResponse {
   }>;
 }
 
+const parseBlobErrorResponse = async (
+  data: unknown,
+): Promise<ErrorResponse | undefined> => {
+  if (!(data instanceof Blob)) {
+    return data as ErrorResponse | undefined;
+  }
+
+  if (!data.type.includes("json")) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(await data.text()) as ErrorResponse;
+  } catch {
+    return undefined;
+  }
+};
+
 const ERROR_CODE_REDIRECTS: Record<string, string> = {
   "error.email_not_confirmed": "/unconfirmed-email",
   "error.not_confirmed": "/unconfirmed-user",
@@ -101,12 +119,12 @@ const getErrorMessage = (errorResponse: ErrorResponse | undefined): string => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
     if (error.code === "ERR_CANCELED") {
       return Promise.reject(error);
     }
 
-    const errorResponse = error?.response?.data as ErrorResponse;
+    const errorResponse = await parseBlobErrorResponse(error?.response?.data);
     const status = errorResponse?.statusCode ?? error?.response?.status ?? 0;
     const redirectTo = errorResponse?.code
       ? ERROR_CODE_REDIRECTS[errorResponse.code]

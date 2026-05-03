@@ -23,11 +23,7 @@ import {
 import { profileSchema } from "../schemas/profileSchema";
 import { useTranslatedForm } from "../utils/translator";
 import { useState } from "react";
-
-function getFullName(firstName?: string | null, lastName?: string | null) {
-  const fullName = `${firstName ?? ""} ${lastName ?? ""}`.trim();
-  return fullName.length > 0 ? fullName : "-";
-}
+import { getDisplayName } from "../utils/display";
 
 function normalizeProfileValue(value?: string | null) {
   const trimmed = value?.trim() ?? "";
@@ -221,7 +217,7 @@ export default function Profile() {
               <Text span fw={600}>
                 {t("profile.name")}:{" "}
               </Text>
-              {getFullName(user.first_name, user.last_name)}
+              {getDisplayName(user.first_name, user.last_name)}
             </Text>
             <Text>
               <Text span fw={600}>

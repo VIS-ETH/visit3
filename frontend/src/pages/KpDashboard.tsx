@@ -64,10 +64,6 @@ const STATUS_COLORS: Record<EventStatus, string> = {
   past: "gray",
 };
 
-function formatDate(dateString?: string) {
-  return formatKpDisplayDate(dateString);
-}
-
 function todayAsDateInput() {
   return formatKpDateInput(new Date());
 }
@@ -114,6 +110,12 @@ export default function KpDashboard() {
   };
 
   const { data: events, isLoading, isError } = useListKps();
+  const statusLabels: Record<EventStatus, string> = {
+    upcoming: t("kp.dashboard.status_upcoming"),
+    registration_open: t("kp.dashboard.status_registration_open"),
+    finalizing: t("kp.dashboard.status_finalizing"),
+    past: t("kp.dashboard.status_past"),
+  };
 
   const { mutate: createEvent, isPending: isCreating } = useCreateKp({
     mutation: {
@@ -275,21 +277,25 @@ export default function KpDashboard() {
                     >
                       <Table.Td fw={500}>{event.name}</Table.Td>
                       <Table.Td>
-                        {formatDate(event.registration_open)} –{" "}
-                        {formatDate(event.registration_end)}
+                        {formatKpDisplayDate(event.registration_open)} -{" "}
+                        {formatKpDisplayDate(event.registration_end)}
                       </Table.Td>
-                      <Table.Td>{formatDate(event.event_date)}</Table.Td>
                       <Table.Td>
-                        {formatDate(event.finalization_deadline)}
+                        {formatKpDisplayDate(event.event_date)}
                       </Table.Td>
-                      <Table.Td>{formatDate(event.nametags_deadline)}</Table.Td>
+                      <Table.Td>
+                        {formatKpDisplayDate(event.finalization_deadline)}
+                      </Table.Td>
+                      <Table.Td>
+                        {formatKpDisplayDate(event.nametags_deadline)}
+                      </Table.Td>
                       <Table.Td>
                         <Badge
                           color={STATUS_COLORS[status]}
                           variant="light"
                           size="sm"
                         >
-                          {t(`kp.dashboard.status_${status}`)}
+                          {statusLabels[status]}
                         </Badge>
                       </Table.Td>
                       <Table.Td>

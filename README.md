@@ -117,10 +117,10 @@ docker compose exec backend alembic downgrade -1
 ## Test Data Seeding
 
 ```bash
-docker compose exec backend sh -lc "cd /app && .venv/bin/python scripts/seed_test_data.py"
+docker compose exec backend sh -lc "cd /app && /opt/venv/bin/python scripts/seed_test_data.py"
 ```
 
-Creates/updates test users (unconfirmed, staff, admin, confirmed company) and companies. The script is idempotent.
+Creates/updates test users (unconfirmed, staff, admin, confirmed company), companies, and one KP event with confirmed bookings, nametags, and a simple nametag background. The script is idempotent.
 
 ## Important Bits
 

@@ -23,6 +23,7 @@ import {
 } from "../orval/generated/company/company";
 import type { CompanyAssignedUserResponse } from "../orval/generated/fastAPI.schemas";
 import { useCurrentUser } from "../context/useCurrentUser";
+import { getDisplayName } from "../utils/display";
 
 interface CompanyForDelete {
   id: string;
@@ -30,9 +31,8 @@ interface CompanyForDelete {
   usersCount: number;
 }
 
-function getDisplayName(user: CompanyAssignedUserResponse): string {
-  const fullName = `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim();
-  return fullName.length > 0 ? fullName : "-";
+function getCompanyUserDisplayName(user: CompanyAssignedUserResponse): string {
+  return getDisplayName(user.first_name, user.last_name);
 }
 
 export default function CompanyManagement() {
@@ -250,7 +250,7 @@ export default function CompanyManagement() {
                     <Table.Tbody>
                       {company.users.map((user) => (
                         <Table.Tr key={user.id}>
-                          <Table.Td>{getDisplayName(user)}</Table.Td>
+                          <Table.Td>{getCompanyUserDisplayName(user)}</Table.Td>
                           <Table.Td>{user.email}</Table.Td>
                           <Table.Td>{user.phone_number ?? "-"}</Table.Td>
                         </Table.Tr>

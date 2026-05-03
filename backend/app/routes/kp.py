@@ -1,8 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, Query, Response, UploadFile
 
-from app.core.deps import CsrfDep, KpServiceDep
+from app.core.decorators import (
+    require_confirmed_company,
+    require_kp_president,
+)
+from app.core.deps import CsrfDep, ExportServiceDep, KpServiceDep
 from app.schemas.kp import (
     BookingResponse,
     BookingUpgradeWaitlistEntryResponse,
@@ -11,23 +15,44 @@ from app.schemas.kp import (
     CreateIndustryRequest,
     CreateKpRequest,
     CreateServiceRequest,
+    ExportBackgroundResponse,
     IndustryResponse,
     KpResponse,
-    RequirementFileDownloadResponse,
+    NametagExportTargetsResponse,
     ReplaceBookingUpgradeWaitlistRequest,
-    ServiceResponse,
+    RequirementFileDownloadResponse,
     RequirementFileResponse,
+    ServiceResponse,
     UpdateBookingInput,
     UpdateBoothZoneRequest,
     UpdateKpRequest,
     UpdateServiceRequest,
 )
-from app.core.decorators import (
-    require_confirmed_company,
-    require_kp_president,
-)
 
 router = APIRouter(prefix="/kp", tags=["kp"], dependencies=[CsrfDep])
+
+
+def _pdf_download(content: bytes, filename: str) -> Response:
+    return _download(content, filename, "application/pdf")
+
+
+def _csv_download(content: bytes, filename: str) -> Response:
+    return _download(content, filename, "text/csv; charset=utf-8")
+
+
+def _zip_download(content: bytes, filename: str) -> Response:
+    return _download(content, filename, "application/zip")
+
+
+def _download(content: bytes, filename: str, media_type: str) -> Response:
+    safe_filename = filename.replace('"', "").replace("/", "-")
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_filename}"',
+        },
+    )
 
 
 # --- KP Events ---
@@ -106,9 +131,7 @@ async def update_booth_zone(
 
 @require_kp_president
 @router.delete("/booth-zones/{booth_zone_id}", operation_id="deleteBoothZone")
-async def delete_booth_zone(
-    kp_service: KpServiceDep, booth_zone_id: UUID
-) -> None:
+async def delete_booth_zone(kp_service: KpServiceDep, booth_zone_id: UUID) -> None:
     await kp_service.delete_booth_zone(booth_zone_id)
 
 
@@ -171,7 +194,9 @@ async def list_industries(kp_service: KpServiceDep) -> list[IndustryResponse]:
 
 
 @require_kp_president
-@router.post("/industries", operation_id="createIndustry", response_model=IndustryResponse)
+@router.post(
+    "/industries", operation_id="createIndustry", response_model=IndustryResponse
+)
 async def create_industry(
     kp_service: KpServiceDep, request: CreateIndustryRequest
 ) -> IndustryResponse:
@@ -271,25 +296,22 @@ async def confirm_booking(
 @router.get(
     "/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
     operation_id="getBookingRequirementFile",
+    response_model=RequirementFileResponse | None,
 )
 async def get_booking_requirement_file(
     kp_service: KpServiceDep,
     booking_service_id: UUID,
     requirement_id: UUID,
 ) -> RequirementFileResponse | None:
-    requirement_file = await kp_service.get_booking_requirement_file(
+    return await kp_service.get_booking_requirement_file(
         booking_service_id, requirement_id
-    )
-    return (
-        RequirementFileResponse.from_model(requirement_file)
-        if requirement_file is not None
-        else None
     )
 
 
 @router.post(
     "/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
     operation_id="uploadBookingRequirementFile",
+    response_model=RequirementFileResponse,
 )
 async def upload_booking_requirement_file(
     kp_service: KpServiceDep,
@@ -297,14 +319,13 @@ async def upload_booking_requirement_file(
     requirement_id: UUID,
     file: UploadFile = File(...),
 ) -> RequirementFileResponse:
-    requirement_file = await kp_service.upload_booking_requirement_file(
+    return await kp_service.upload_booking_requirement_file(
         booking_service_id=booking_service_id,
         requirement_id=requirement_id,
         filename=file.filename or "upload.bin",
         content=await file.read(),
         content_type=file.content_type,
     )
-    return RequirementFileResponse.from_model(requirement_file)
 
 
 @router.delete(
@@ -334,3 +355,204 @@ async def get_booking_requirement_file_download_url(
     return RequirementFileDownloadResponse(url=url)
 
 
+# --- Exports ---
+
+
+@router.post(
+    "/events/{event_id}/exports/nametags/background",
+    operation_id="uploadNametagExportBackground",
+    response_model=ExportBackgroundResponse,
+)
+async def upload_nametag_export_background(
+    export_service: ExportServiceDep,
+    event_id: UUID,
+    file: UploadFile = File(...),
+) -> ExportBackgroundResponse:
+    return await export_service.upload_nametag_background(
+        event_id=event_id,
+        filename=file.filename or "nametag-background",
+        content=await file.read(),
+        content_type=file.content_type,
+    )
+
+
+@router.get(
+    "/events/{event_id}/exports/nametags/background",
+    operation_id="getNametagExportBackground",
+    response_model=ExportBackgroundResponse | None,
+)
+async def get_nametag_export_background(
+    export_service: ExportServiceDep,
+    event_id: UUID,
+) -> ExportBackgroundResponse | None:
+    return await export_service.get_nametag_background(event_id)
+
+
+@router.get(
+    "/events/{event_id}/exports/nametags/targets",
+    operation_id="listNametagExportTargets",
+    response_model=NametagExportTargetsResponse,
+)
+async def list_nametag_export_targets(
+    export_service: ExportServiceDep,
+    event_id: UUID,
+) -> NametagExportTargetsResponse:
+    return await export_service.list_nametag_export_targets(event_id)
+
+
+@router.get(
+    "/events/{event_id}/exports/nametags/download",
+    operation_id="downloadEventNametags",
+)
+async def download_event_nametags(
+    export_service: ExportServiceDep,
+    event_id: UUID,
+    columns: int | None = Query(default=None, ge=1, le=10),
+) -> Response:
+    export = await export_service.render_event_nametags(event_id, columns)
+    return _pdf_download(export.content, export.filename)
+
+
+@router.get(
+    "/bookings/{booking_id}/nametags/download",
+    operation_id="downloadBookingNametags",
+)
+async def download_booking_nametags(
+    export_service: ExportServiceDep,
+    booking_id: UUID,
+    columns: int | None = Query(default=None, ge=1, le=10),
+) -> Response:
+    export = await export_service.render_booking_nametags(booking_id, columns)
+    return _pdf_download(export.content, export.filename)
+
+
+@router.get(
+    "/nametags/{name_tag_id}/download",
+    operation_id="downloadSingleNametag",
+)
+async def download_single_nametag(
+    export_service: ExportServiceDep,
+    name_tag_id: UUID,
+) -> Response:
+    export = await export_service.render_single_nametag(name_tag_id)
+    return _pdf_download(export.content, export.filename)
+
+
+@router.get(
+    "/events/{event_id}/exports/bookings/download",
+    operation_id="downloadEventBookingsCsv",
+)
+async def download_event_bookings_csv(
+    export_service: ExportServiceDep,
+    event_id: UUID,
+) -> Response:
+    export = await export_service.export_bookings_csv(event_id)
+    return _csv_download(export.content, export.filename)
+
+
+@router.get(
+    "/events/{event_id}/exports/bookings/by-zone/download",
+    operation_id="downloadEventBookingsByZoneZip",
+)
+async def download_event_bookings_by_zone_zip(
+    export_service: ExportServiceDep,
+    event_id: UUID,
+) -> Response:
+    export = await export_service.export_bookings_by_zone_zip(event_id)
+    return _zip_download(export.content, export.filename)
+
+
+@router.get(
+    "/events/{event_id}/exports/waitlist-companies/download",
+    operation_id="downloadEventWaitlistCompaniesCsv",
+)
+async def download_event_waitlist_companies_csv(
+    export_service: ExportServiceDep,
+    event_id: UUID,
+) -> Response:
+    export = await export_service.export_waitlist_companies_csv(event_id)
+    return _csv_download(export.content, export.filename)
+
+
+@router.get(
+    "/events/{event_id}/exports/booked-services/download",
+    operation_id="downloadEventBookedServicesCsv",
+)
+async def download_event_booked_services_csv(
+    export_service: ExportServiceDep,
+    event_id: UUID,
+) -> Response:
+    export = await export_service.export_booked_services_csv(event_id)
+    return _csv_download(export.content, export.filename)
+
+
+@router.get(
+    "/events/{event_id}/exports/nametags-data/download",
+    operation_id="downloadEventNametagsDataCsv",
+)
+async def download_event_nametags_data_csv(
+    export_service: ExportServiceDep,
+    event_id: UUID,
+) -> Response:
+    export = await export_service.export_nametags_data_csv(event_id)
+    return _csv_download(export.content, export.filename)
+
+
+@router.get(
+    "/events/{event_id}/exports/company-details/download",
+    operation_id="downloadEventCompanyDetailsCsv",
+)
+async def download_event_company_details_csv(
+    export_service: ExportServiceDep,
+    event_id: UUID,
+) -> Response:
+    export = await export_service.export_company_details_csv(event_id)
+    return _csv_download(export.content, export.filename)
+
+
+@router.get(
+    "/events/{event_id}/exports/service-requirements/download",
+    operation_id="downloadEventServiceRequirementsCsv",
+)
+async def download_event_service_requirements_csv(
+    export_service: ExportServiceDep,
+    event_id: UUID,
+) -> Response:
+    export = await export_service.export_service_requirements_csv(event_id)
+    return _csv_download(export.content, export.filename)
+
+
+@router.get(
+    "/events/{event_id}/exports/booth-zone-capacity/download",
+    operation_id="downloadEventBoothZoneCapacityCsv",
+)
+async def download_event_booth_zone_capacity_csv(
+    export_service: ExportServiceDep,
+    event_id: UUID,
+) -> Response:
+    export = await export_service.export_booth_zone_capacity_csv(event_id)
+    return _csv_download(export.content, export.filename)
+
+
+@router.get(
+    "/events/{event_id}/exports/contacts/download",
+    operation_id="downloadEventContactsCsv",
+)
+async def download_event_contacts_csv(
+    export_service: ExportServiceDep,
+    event_id: UUID,
+) -> Response:
+    export = await export_service.export_contacts_csv(event_id)
+    return _csv_download(export.content, export.filename)
+
+
+@router.get(
+    "/events/{event_id}/exports/registration-exceptions/download",
+    operation_id="downloadEventRegistrationExceptionsCsv",
+)
+async def download_event_registration_exceptions_csv(
+    export_service: ExportServiceDep,
+    event_id: UUID,
+) -> Response:
+    export = await export_service.export_registration_exceptions_csv(event_id)
+    return _csv_download(export.content, export.filename)

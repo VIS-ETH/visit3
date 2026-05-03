@@ -37,10 +37,7 @@ import {
 } from "../api/utils";
 
 import UserTable from "../components/UserTable";
-import type {
-  CompanyUserResponse,
-  UserResponse,
-} from "../orval/generated/fastAPI.schemas";
+import type { UserResponse } from "../orval/generated/fastAPI.schemas";
 import { useCurrentUser } from "../context/useCurrentUser";
 
 export default function UserManagement() {
@@ -234,7 +231,7 @@ export default function UserManagement() {
               </Alert>
             ) : unconfirmedUsers && unconfirmedUsers.length > 0 ? (
               <UserTable
-                users={unconfirmedUsers as CompanyUserResponse[]}
+                users={unconfirmedUsers}
                 t={t}
                 actionButton={(user) => (
                   <Button
@@ -274,7 +271,7 @@ export default function UserManagement() {
               </Alert>
             ) : companyUsers && companyUsers.length > 0 ? (
               <UserTable
-                users={companyUsers as UserResponse[]}
+                users={companyUsers}
                 t={t}
                 actionButton={
                   adminStatus
@@ -341,11 +338,7 @@ export default function UserManagement() {
                 {t("user_management.error")}
               </Alert>
             ) : staffUsers && staffUsers.length > 0 ? (
-              <UserTable
-                users={staffUsers as UserResponse[]}
-                t={t}
-                showCompany={false}
-              />
+              <UserTable users={staffUsers} t={t} showCompany={false} />
             ) : (
               <Alert
                 icon={<IconAlertCircle />}
@@ -369,11 +362,7 @@ export default function UserManagement() {
                 {t("user_management.error")}
               </Alert>
             ) : adminUsers && adminUsers.length > 0 ? (
-              <UserTable
-                users={adminUsers as UserResponse[]}
-                t={t}
-                showCompany={false}
-              />
+              <UserTable users={adminUsers} t={t} showCompany={false} />
             ) : (
               <Alert
                 icon={<IconAlertCircle />}

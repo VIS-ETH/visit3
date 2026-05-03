@@ -7,17 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
+from app.models.company import Company, KpCompanyProfile
 from app.models.kp_event import (
     KpBookingCompanyDetails,
     KpBookingCompanyDetailsIndustryLink,
-    KpBookingStatus,
-    KpCompanyLanguage,
     KpEvent,
     KpEventBooking,
     KpEventBookingService,
     KpEventBookingServiceFileLink,
     KpEventBookingUpgradeWaitlist,
     KpEventBoothZone,
+    KpEventNametagBackground,
     KpEventRegistrationException,
     KpEventService,
     KpEventServiceRequirement,
@@ -60,11 +60,21 @@ class KpRepository(BaseRepository[KpEvent]):
     def _booking_select(self):
         return select(KpEventBooking).options(
             selectinload(KpEventBooking.event),
-            selectinload(KpEventBooking.company),
+            selectinload(KpEventBooking.company).selectinload(Company.kp_profile),
+            selectinload(KpEventBooking.company)
+            .selectinload(Company.kp_profile)
+            .selectinload(KpCompanyProfile.kp_contact_user),
+            selectinload(KpEventBooking.company).selectinload(Company.users),
             selectinload(KpEventBooking.booth_zone),
-            selectinload(KpEventBooking.services).selectinload(
-                KpEventBookingService.service
-            ),
+            selectinload(KpEventBooking.services)
+            .selectinload(KpEventBookingService.service)
+            .selectinload(KpEventService.requirements),
+            selectinload(KpEventBooking.services)
+            .selectinload(KpEventBookingService.requirement_file_links)
+            .selectinload(KpEventBookingServiceFileLink.requirement),
+            selectinload(KpEventBooking.services)
+            .selectinload(KpEventBookingService.requirement_file_links)
+            .selectinload(KpEventBookingServiceFileLink.stored_file),
             selectinload(KpEventBooking.name_tags),
             selectinload(KpEventBooking.upgrade_waitlist_entries).selectinload(
                 KpEventBookingUpgradeWaitlist.target_booth_zone
@@ -99,10 +109,20 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
-    async def update_kp(self, event: KpEvent, update_kp_input: UpdateKpInput) -> KpEvent:
+    async def update_kp(
+        self, event: KpEvent, update_kp_input: UpdateKpInput
+    ) -> KpEvent:
         try:
             event.sqlmodel_update(update_kp_input.model_dump(exclude_unset=True))
-            self._validate_model(event, exclude={"booth_zones", "bookings", "services", "registration_exceptions"})
+            self._validate_model(
+                event,
+                exclude={
+                    "booth_zones",
+                    "bookings",
+                    "services",
+                    "registration_exceptions",
+                },
+            )
             self.session.add(event)
             await self.session.commit()
             await self.session.refresh(event)
@@ -121,7 +141,12 @@ class KpRepository(BaseRepository[KpEvent]):
             )
             self._validate_model(
                 zone,
-                exclude={"event", "included_services", "bookings", "upgrade_waitlist_entries"},
+                exclude={
+                    "event",
+                    "included_services",
+                    "bookings",
+                    "upgrade_waitlist_entries",
+                },
             )
             self.session.add(zone)
             await self.session.commit()
@@ -138,7 +163,12 @@ class KpRepository(BaseRepository[KpEvent]):
             zone.sqlmodel_update(update_booth_zone_input.model_dump(exclude_unset=True))
             self._validate_model(
                 zone,
-                exclude={"event", "included_services", "bookings", "upgrade_waitlist_entries"},
+                exclude={
+                    "event",
+                    "included_services",
+                    "bookings",
+                    "upgrade_waitlist_entries",
+                },
             )
             self.session.add(zone)
             await self.session.commit()
@@ -165,7 +195,8 @@ class KpRepository(BaseRepository[KpEvent]):
                 event_id=event_id,
             )
             self._validate_model(
-                service, exclude={"event", "booth_zones", "booking_services", "requirements"}
+                service,
+                exclude={"event", "booth_zones", "booking_services", "requirements"},
             )
             self.session.add(service)
             await self.session.commit()
@@ -181,7 +212,8 @@ class KpRepository(BaseRepository[KpEvent]):
         try:
             service.sqlmodel_update(update_service_input.model_dump(exclude_unset=True))
             self._validate_model(
-                service, exclude={"event", "booth_zones", "booking_services", "requirements"}
+                service,
+                exclude={"event", "booth_zones", "booking_services", "requirements"},
             )
             self.session.add(service)
             await self.session.commit()
@@ -211,6 +243,45 @@ class KpRepository(BaseRepository[KpEvent]):
         statement = self._booking_select().where(KpEventBooking.id == booking_id)
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
+
+    async def get_name_tag_by_id(self, name_tag_id: UUID) -> Optional[NameTag]:
+        statement = (
+            select(NameTag)
+            .where(NameTag.id == name_tag_id)
+            .options(
+                selectinload(NameTag.booking).selectinload(KpEventBooking.company),
+                selectinload(NameTag.booking).selectinload(KpEventBooking.event),
+            )
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def list_name_tags_for_event(self, event_id: UUID) -> list[NameTag]:
+        statement = (
+            select(NameTag)
+            .join(KpEventBooking)
+            .where(KpEventBooking.event_id == event_id)
+            .options(
+                selectinload(NameTag.booking).selectinload(KpEventBooking.company),
+                selectinload(NameTag.booking).selectinload(KpEventBooking.event),
+            )
+            .order_by(NameTag.last_name.asc(), NameTag.first_name.asc())
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().all()
+
+    async def list_name_tags_for_booking(self, booking_id: UUID) -> list[NameTag]:
+        statement = (
+            select(NameTag)
+            .where(NameTag.booking_id == booking_id)
+            .options(
+                selectinload(NameTag.booking).selectinload(KpEventBooking.company),
+                selectinload(NameTag.booking).selectinload(KpEventBooking.event),
+            )
+            .order_by(NameTag.last_name.asc(), NameTag.first_name.asc())
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().all()
 
     async def list_bookings_for_event(self, event_id: UUID) -> list[KpEventBooking]:
         statement = self._booking_select().where(KpEventBooking.event_id == event_id)
@@ -492,6 +563,43 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
+    async def get_nametag_background(
+        self, event_id: UUID
+    ) -> Optional[KpEventNametagBackground]:
+        statement = (
+            select(KpEventNametagBackground)
+            .where(KpEventNametagBackground.event_id == event_id)
+            .options(
+                selectinload(KpEventNametagBackground.event),
+                selectinload(KpEventNametagBackground.stored_file),
+            )
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def upsert_nametag_background(
+        self,
+        event_id: UUID,
+        stored_file_id: UUID,
+    ) -> KpEventNametagBackground:
+        try:
+            background = await self.get_nametag_background(event_id)
+            if background is None:
+                background = KpEventNametagBackground(
+                    event_id=event_id,
+                    stored_file_id=stored_file_id,
+                )
+            else:
+                background.stored_file_id = stored_file_id
+
+            self._validate_model(background, exclude={"event", "stored_file"})
+            self.session.add(background)
+            await self.session.commit()
+            return await self.get_nametag_background(event_id) or background
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
     async def delete_requirement_file_link(
         self, requirement_file: KpEventBookingServiceFileLink
     ) -> None:
@@ -518,9 +626,14 @@ class KpRepository(BaseRepository[KpEvent]):
                 KpEventBookingServiceFileLink,
                 KpEventBookingServiceFileLink.stored_file_id == StoredFile.id,
             )
+            .outerjoin(
+                KpEventNametagBackground,
+                KpEventNametagBackground.stored_file_id == StoredFile.id,
+            )
             .where(
                 and_(
                     KpEventBookingServiceFileLink.id.is_(None),
+                    KpEventNametagBackground.id.is_(None),
                     StoredFile.updated_at < cutoff,
                 )
             )
@@ -539,7 +652,9 @@ class KpRepository(BaseRepository[KpEvent]):
     async def get_industry_by_name(self, name: str) -> Optional[KpIndustry]:
         return await self._get_by_field(KpIndustry.name, name)
 
-    async def create_industry(self, create_industry_input: CreateIndustryInput) -> KpIndustry:
+    async def create_industry(
+        self, create_industry_input: CreateIndustryInput
+    ) -> KpIndustry:
         try:
             industry = KpIndustry(**create_industry_input.model_dump())
             self.session.add(industry)
@@ -572,8 +687,10 @@ class KpRepository(BaseRepository[KpEvent]):
     async def list_registration_exceptions(
         self, event_id: UUID
     ) -> list[KpEventRegistrationException]:
-        statement = select(KpEventRegistrationException).where(
-            KpEventRegistrationException.event_id == event_id
+        statement = (
+            select(KpEventRegistrationException)
+            .where(KpEventRegistrationException.event_id == event_id)
+            .options(selectinload(KpEventRegistrationException.company))
         )
         result = await self.session.execute(statement)
         return result.scalars().all()
@@ -632,7 +749,9 @@ class KpRepository(BaseRepository[KpEvent]):
             if company_details is None:
                 company_details = KpBookingCompanyDetails(booking_id=booking_id)
 
-            company_details.sqlmodel_update(upsert_company_details_input.model_dump(exclude_unset=True))
+            company_details.sqlmodel_update(
+                upsert_company_details_input.model_dump(exclude_unset=True)
+            )
 
             self.session.add(company_details)
             await self.session.commit()
