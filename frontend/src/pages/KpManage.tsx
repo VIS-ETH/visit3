@@ -21,11 +21,7 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import {
-  IconAlertCircle,
-  IconPlus,
-  IconTrash,
-} from "@tabler/icons-react";
+import { IconAlertCircle, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { type ChangeEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -59,10 +55,6 @@ import {
   useUpdateKp,
   useUpdateService,
 } from "../orval/generated/kp/kp";
-
-function formatDate(dateString?: string) {
-  return formatKpDisplayDate(dateString);
-}
 
 const dateFieldNames = [
   "registrationOpen",
@@ -845,7 +837,7 @@ export default function KpManage() {
             {event.name} — {t("kp.manage.title")}
           </Title>
           <Text c="dimmed" size="sm">
-            {formatDate(event.event_date)}
+            {formatKpDisplayDate(event.event_date)}
           </Text>
         </div>
       </Group>

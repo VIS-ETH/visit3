@@ -96,10 +96,6 @@ const STATUS_COLORS: Record<EventStatus, string> = {
   past: "gray",
 };
 
-function formatDate(dateString?: string) {
-  return formatKpDisplayDate(dateString);
-}
-
 function todayAsDateInput() {
   return formatKpDateInput(new Date());
 }
@@ -121,7 +117,7 @@ function eventSelectOptions(events: KpResponse[] | undefined) {
     .filter((event): event is KpResponse & { id: string } => Boolean(event.id))
     .map((event) => ({
       value: event.id,
-      label: `${event.name} (${formatDate(event.event_date)})`,
+      label: `${event.name} (${formatKpDisplayDate(event.event_date)})`,
     }));
 }
 
@@ -606,15 +602,17 @@ export default function KpDashboard() {
                         >
                           <Table.Td fw={500}>{event.name}</Table.Td>
                           <Table.Td>
-                            {formatDate(event.registration_open)} -{" "}
-                            {formatDate(event.registration_end)}
-                          </Table.Td>
-                          <Table.Td>{formatDate(event.event_date)}</Table.Td>
-                          <Table.Td>
-                            {formatDate(event.finalization_deadline)}
+                            {formatKpDisplayDate(event.registration_open)} -{" "}
+                            {formatKpDisplayDate(event.registration_end)}
                           </Table.Td>
                           <Table.Td>
-                            {formatDate(event.nametags_deadline)}
+                            {formatKpDisplayDate(event.event_date)}
+                          </Table.Td>
+                          <Table.Td>
+                            {formatKpDisplayDate(event.finalization_deadline)}
+                          </Table.Td>
+                          <Table.Td>
+                            {formatKpDisplayDate(event.nametags_deadline)}
                           </Table.Td>
                           <Table.Td>
                             <Badge
