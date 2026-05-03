@@ -1,3 +1,5 @@
+// This file is AI generated as a prototype for the nametag exports.
+// Change before production use.
 #let data = json.decode(sys.inputs.at("data"))
 
 #let tag-width = 90mm
