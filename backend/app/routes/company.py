@@ -29,14 +29,12 @@ async def setup_company(
 @router.get(
     "/me/members",
     operation_id="getMyCompanyMembers",
+    response_model=list[UserResponse],
 )
 async def get_my_company_members(
     company_service: CompanyServiceDep,
 ) -> list[UserResponse]:
-    return [
-        UserResponse.model_validate(user, from_attributes=True)
-        for user in await company_service.get_my_members()
-    ]
+    return await company_service.get_my_members()
 
 
 @router.get("/me/kp-profile", operation_id="getMyKpCompanyProfile")
@@ -81,29 +79,25 @@ async def get_company_invite_info(
 @router.post(
     "/invite/{token}/accept",
     operation_id="acceptCompanyInvite",
+    response_model=UserResponse,
 )
 async def accept_company_invite(
     company_service: CompanyServiceDep,
     token: str,
 ) -> UserResponse:
-    return UserResponse.model_validate(
-        await company_service.accept_invite(token),
-        from_attributes=True,
-    )
+    return await company_service.accept_invite(token)
 
 
 @router.get(
     "/{company_id}/users",
     operation_id="getCompanyUsers",
+    response_model=list[UserResponse],
 )
 async def get_company_users(
     company_service: CompanyServiceDep,
     company_id: UUID,
 ) -> list[UserResponse]:
-    return [
-        UserResponse.model_validate(user, from_attributes=True)
-        for user in await company_service.get_company_users(company_id)
-    ]
+    return await company_service.get_company_users(company_id)
 
 
 @router.get("/management", operation_id="listCompaniesWithUsers")

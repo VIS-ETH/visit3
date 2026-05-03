@@ -296,25 +296,22 @@ async def confirm_booking(
 @router.get(
     "/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
     operation_id="getBookingRequirementFile",
+    response_model=RequirementFileResponse | None,
 )
 async def get_booking_requirement_file(
     kp_service: KpServiceDep,
     booking_service_id: UUID,
     requirement_id: UUID,
 ) -> RequirementFileResponse | None:
-    requirement_file = await kp_service.get_booking_requirement_file(
+    return await kp_service.get_booking_requirement_file(
         booking_service_id, requirement_id
-    )
-    return (
-        RequirementFileResponse.from_model(requirement_file)
-        if requirement_file is not None
-        else None
     )
 
 
 @router.post(
     "/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
     operation_id="uploadBookingRequirementFile",
+    response_model=RequirementFileResponse,
 )
 async def upload_booking_requirement_file(
     kp_service: KpServiceDep,
@@ -322,14 +319,13 @@ async def upload_booking_requirement_file(
     requirement_id: UUID,
     file: UploadFile = File(...),
 ) -> RequirementFileResponse:
-    requirement_file = await kp_service.upload_booking_requirement_file(
+    return await kp_service.upload_booking_requirement_file(
         booking_service_id=booking_service_id,
         requirement_id=requirement_id,
         filename=file.filename or "upload.bin",
         content=await file.read(),
         content_type=file.content_type,
     )
-    return RequirementFileResponse.from_model(requirement_file)
 
 
 @router.delete(
@@ -372,13 +368,12 @@ async def upload_nametag_export_background(
     event_id: UUID,
     file: UploadFile = File(...),
 ) -> ExportBackgroundResponse:
-    background = await export_service.upload_nametag_background(
+    return await export_service.upload_nametag_background(
         event_id=event_id,
         filename=file.filename or "nametag-background",
         content=await file.read(),
         content_type=file.content_type,
     )
-    return ExportBackgroundResponse.from_model(background)
 
 
 @router.get(
@@ -390,12 +385,7 @@ async def get_nametag_export_background(
     export_service: ExportServiceDep,
     event_id: UUID,
 ) -> ExportBackgroundResponse | None:
-    background = await export_service.get_nametag_background(event_id)
-    return (
-        ExportBackgroundResponse.from_model(background)
-        if background is not None
-        else None
-    )
+    return await export_service.get_nametag_background(event_id)
 
 
 @router.get(

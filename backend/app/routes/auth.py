@@ -43,6 +43,7 @@ def set_refresh_cookie(response: Response, raw_refresh_token: str):
 @router.post(
     "/register",
     operation_id="registerUser",
+    response_model=UserResponse,
 )
 async def register_user(
     auth_service: AuthServiceDep,
@@ -56,10 +57,7 @@ async def register_user(
         phone_number=request.phone_number,
     )
 
-    return UserResponse.model_validate(
-        await auth_service.register_user(user),
-        from_attributes=True,
-    )
+    return await auth_service.register_user(user)
 
 
 @router.post("/login", operation_id="loginUser")
