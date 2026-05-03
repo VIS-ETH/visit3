@@ -321,6 +321,7 @@
       "loading": "Event wird geladen...",
       "not_found": "Event nicht gefunden.",
       "tab_details": "Details",
+      "tab_exports": "Exporte",
       "tab_services": "Services",
       "tab_bookings": "Buchungen",
       "tab_booth_zones": "Standzonen",
