@@ -105,6 +105,36 @@ class KpWaitlistSameZone(AppError):
         )
 
 
+class KpRegistrationClosed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Registration window for this KP event is not open",
+            "error.kp_registration_closed",
+            identifier,
+            403,
+        )
+
+
+class KpBoothZoneAtCapacity(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The selected booth zone has no remaining capacity",
+            "error.kp_booth_zone_at_capacity",
+            identifier,
+            409,
+        )
+
+
+class KpBookingAlreadyExists(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Your company already has an active booking for this event",
+            "error.kp_booking_already_exists",
+            identifier,
+            409,
+        )
+
+
 class KpBookingStatusTransitionInvalid(AppError):
     def __init__(self, identifier: str):
         super().__init__(

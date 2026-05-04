@@ -1,11 +1,12 @@
+import re
 from datetime import date
 from enum import Enum
-import re
 from typing import Self
 from uuid import UUID
 
 from pydantic import field_validator, model_validator
-from sqlalchemy import CheckConstraint, Column, Enum as SAEnum
+from sqlalchemy import CheckConstraint, Column, Integer, Sequence
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field, Relationship, UniqueConstraint
 
@@ -13,7 +14,6 @@ from app.core.utils import strip_text
 from app.models.base import BaseEntity, BaseLink
 from app.models.company import Company
 from app.models.storage import StoredFile
-from app.models.user import User
 
 
 class KpEvent(BaseEntity, table=True):
@@ -76,11 +76,11 @@ class KpEvent(BaseEntity, table=True):
 
 
 class KpBookingStatus(str, Enum):
-    DRAFT = "draft"
-    REGISTERED = "registered"
-    FINALIZED = "finalized"
-    CONFIRMED = "confirmed"
-    CANCELLED = "cancelled"
+    DRAFT = "DRAFT"  # TODO: Currently not used, do we need it?
+    REGISTERED = "REGISTERED"
+    FINALIZED = "FINALIZED"
+    CONFIRMED = "CONFIRMED"
+    CANCELLED = "CANCELLED"
 
 
 class KpEventBooking(BaseEntity, table=True):
@@ -97,7 +97,19 @@ class KpEventBooking(BaseEntity, table=True):
 
     status: KpBookingStatus = Field(default=KpBookingStatus.REGISTERED)
 
-    booth_nr: int = Field(ge=1)  # booth number within the booth zone
+    booking_number: int | None = Field(
+        default=None,
+        sa_column=Column(
+            Integer,
+            Sequence("kpeventbooking_booking_number_seq", start=1000),
+            nullable=False,
+            unique=True,
+        ),
+    )
+
+    booth_nr: int | None = Field(
+        default=None, ge=1
+    )  # assigned manually after registration
 
     event: "KpEvent" = Relationship(back_populates="bookings")
     company: Company = Relationship(back_populates="bookings")

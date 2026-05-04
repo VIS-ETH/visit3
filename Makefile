@@ -29,7 +29,7 @@ generate-grpc:
     $(PROTOS)
 
 	find $(PROTOS_DST) -type d -exec touch {}/__init__.py \;
-	./scripts/fix_imports.sh $(PROTOS_DST) $(PROTOS_PREFIX)
+	${PYTHON_BACKEND} ./scripts/fix_imports.py $(PROTOS_DST) $(PROTOS_PREFIX)
 
 clean-grpc:
 	rm -rf $(PROTOS_DST)
