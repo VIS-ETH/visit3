@@ -300,6 +300,31 @@
       "summary_no_additional_services": "Keine zusätzlichen Services",
       "summary_total": "Total",
       "summary_status": "Status",
+      "status_help_open_label": "Buchungsstatus erklaeren",
+      "status_help_title": "Buchungsstatus erklaert",
+      "status_help_description": "Im KP-Prozess durchlaeuft eine Buchung folgende Stati:",
+      "statuses": {
+        "draft": {
+          "title": "Entwurf",
+          "description": "Vorlaeufiger Zustand, bevor eine Buchung korrekt registriert ist."
+        },
+        "registered": {
+          "title": "Registriert",
+          "description": "Die Registrierung Ihrer Standzone wurde erfolgreich erfasst."
+        },
+        "finalized": {
+          "title": "Finalisiert",
+          "description": "Sie haben Ihre Buchung und Ihre Unternehmensangaben finalisiert und warten nun auf die abschliessende Pruefung durch die Organisatoren."
+        },
+        "confirmed": {
+          "title": "Bestaetigt",
+          "description": "Ihre Buchung ist finalisiert und von den KP-Organisatoren bestaetigt."
+        },
+        "cancelled": {
+          "title": "Storniert",
+          "description": "Diese Buchung ist nicht mehr aktiv."
+        }
+      },
       "no_booking_yet": "Es wurde noch keine Buchung erstellt.",
       "booth_nr_pending": "Wird später zugeteilt",
       "summary_select_zone_first": "Wählen Sie zuerst im Schritt \"Zone wählen\" eine Standzone, bevor Sie die Buchung abschließen können.",

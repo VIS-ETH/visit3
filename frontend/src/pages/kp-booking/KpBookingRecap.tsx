@@ -1,5 +1,6 @@
 import { Card, Group, Stack, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { KpBookingStatusHelp } from "../../components/KpBookingStatusHelp";
 import { KpBookingStatusBadge } from "../../components/KpBookingStatusBadge";
 import type { BookingResponse } from "../../orval/generated/fastAPI.schemas";
 import { formatPrice } from "../../utils/price-utils";
@@ -12,7 +13,7 @@ type BookingAdditionalServiceCharge = {
   line_total_cents: number;
 };
 
-export function bookingToAdditionalServiceLines(
+function bookingToAdditionalServiceLines(
   booking: BookingResponse,
 ): BookingSummaryServiceLine[] {
   const charges = (
@@ -78,7 +79,10 @@ export function KpBookingRecap({ booking }: KpBookingRecapProps) {
           <Text size="sm" fw={500}>
             {t("kp.booking.summary_status")}
           </Text>
-          <KpBookingStatusBadge status={booking.status} />
+          <Group gap={4} align="center" wrap="nowrap">
+            <KpBookingStatusBadge status={booking.status} />
+            <KpBookingStatusHelp />
+          </Group>
         </Group>
       </Stack>
     </Card>

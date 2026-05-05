@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
 import { KpBoothZoneColorSwatch } from "../components/KpBoothZoneColorSwatch";
+import { KpBookingStatusHelp } from "../components/KpBookingStatusHelp";
 import { KpBookingStatusBadge } from "../components/KpBookingStatusBadge";
 import { useGetKpById, useGetMyBooking } from "../orval/generated/kp/kp";
 import {
@@ -190,7 +191,6 @@ export default function KpCompanyView() {
                     })}
                   </Title>
                 </Group>
-                <KpBookingStatusBadge status={myBooking.status} />
               </Group>
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                 <div>
@@ -225,6 +225,15 @@ export default function KpCompanyView() {
                   <Text fw={500}>
                     CHF {formatPrice(myBooking.booth_zone?.base_price ?? 0)}
                   </Text>
+                </div>
+                <div>
+                  <Group gap={6} align="center">
+                    <Text size="sm" c="dimmed" style={{ lineHeight: 1 }}>
+                      {t("kp.company_view.booking_status")}
+                    </Text>
+                    <KpBookingStatusHelp />
+                  </Group>
+                  <KpBookingStatusBadge status={myBooking.status} size="md" />
                 </div>
               </SimpleGrid>
               <Button
