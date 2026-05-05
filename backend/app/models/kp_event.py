@@ -1,4 +1,5 @@
 import re
+import re
 from datetime import date
 from enum import Enum
 from typing import Self
@@ -48,6 +49,10 @@ class KpEvent(BaseEntity, table=True):
     services: list["KpEventService"] = Relationship(back_populates="event")
     registration_exceptions: list["KpEventRegistrationException"] = Relationship(
         back_populates="event"
+    )
+    nametag_background: "KpEventNametagBackground" = Relationship(
+        back_populates="event",
+        sa_relationship_kwargs={"uselist": False},
     )
 
     def is_registration_open(self) -> bool:
@@ -289,6 +294,14 @@ class KpEventBookingServiceFileLink(BaseEntity, table=True):
         back_populates="requirement_file_links"
     )
     requirement: "KpEventServiceRequirement" = Relationship()
+    stored_file: StoredFile = Relationship()
+
+
+class KpEventNametagBackground(BaseEntity, table=True):
+    event_id: UUID = Field(foreign_key="kpevent.id")
+    stored_file_id: UUID = Field(foreign_key="storedfile.id", unique=True)
+
+    event: KpEvent = Relationship(back_populates="nametag_background")
     stored_file: StoredFile = Relationship()
 
 

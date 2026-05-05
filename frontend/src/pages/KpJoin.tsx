@@ -5,10 +5,6 @@ import BackButton from "../components/BackButton";
 import { useGetLatestKp } from "../orval/generated/kp/kp";
 import { formatKpDisplayDate } from "../utils/kp-utils";
 
-function formatDate(dateString?: string) {
-  return formatKpDisplayDate(dateString);
-}
-
 export default function KpJoin() {
   const { t } = useTranslation();
 
@@ -48,26 +44,26 @@ export default function KpJoin() {
                   <Text span fw={600}>
                     {t("kp.join.registration_window")}:
                   </Text>
-                  {formatDate(latestKp.registration_open)} -{" "}
-                  {formatDate(latestKp.registration_end)}
+                  {formatKpDisplayDate(latestKp.registration_open)} -{" "}
+                  {formatKpDisplayDate(latestKp.registration_end)}
                 </Text>
                 <Text>
                   <Text span fw={600}>
                     {t("kp.join.finalization_deadline")}:
                   </Text>
-                  {formatDate(latestKp.finalization_deadline)}
+                  {formatKpDisplayDate(latestKp.finalization_deadline)}
                 </Text>
                 <Text>
                   <Text span fw={600}>
                     {t("kp.join.nametags_deadline")}:
                   </Text>
-                  {formatDate(latestKp.nametags_deadline)}
+                  {formatKpDisplayDate(latestKp.nametags_deadline)}
                 </Text>
                 <Text>
                   <Text span fw={600}>
                     {t("kp.join.event_date")}:
                   </Text>
-                  {formatDate(latestKp.event_date)}
+                  {formatKpDisplayDate(latestKp.event_date)}
                 </Text>
               </>
             ) : (

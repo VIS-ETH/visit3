@@ -11,6 +11,17 @@ from app.models.kp_event import (
 from app.models.company import Company
 
 
+class StoredFileResponse(BaseModel):
+    id: UUID
+    original_filename: str
+    mime_type: str
+    size_bytes: int
+    sha256: str
+    etag: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
 class CreateKpInput(BaseModel):
     name: str
     registration_open: date
@@ -213,34 +224,42 @@ class RequirementFileResponse(BaseModel):
     id: UUID
     booking_service_id: UUID
     requirement_id: UUID
-    original_filename: str
-    mime_type: str
-    size_bytes: int
-    sha256: str
-    etag: str | None
-    created_at: datetime
-    updated_at: datetime
-
-    @classmethod
-    def from_model(
-        cls, file: KpEventBookingServiceFileLink
-    ) -> "RequirementFileResponse":
-        return cls(
-            id=file.stored_file.id,
-            booking_service_id=file.booking_service_id,
-            requirement_id=file.requirement_id,
-            original_filename=file.stored_file.original_filename,
-            mime_type=file.stored_file.mime_type,
-            size_bytes=file.stored_file.size_bytes,
-            sha256=file.stored_file.sha256,
-            etag=file.stored_file.etag,
-            created_at=file.stored_file.created_at,
-            updated_at=file.stored_file.updated_at,
-        )
+    stored_file: StoredFileResponse
 
 
 class RequirementFileDownloadResponse(BaseModel):
     url: str
+
+
+class ExportBackgroundResponse(BaseModel):
+    id: UUID
+    event_id: UUID
+    created_at: datetime
+    updated_at: datetime
+    stored_file: StoredFileResponse
+
+
+class NametagExportPersonResponse(BaseModel):
+    id: UUID
+    booking_id: UUID
+    company_name: str
+    first_name: str
+    last_name: str
+    position: str
+
+
+class NametagExportCompanyResponse(BaseModel):
+    booking_id: UUID
+    company_id: UUID
+    company_name: str
+    booth_zone_name: str
+    booth_nr: int
+    nametag_count: int
+
+
+class NametagExportTargetsResponse(BaseModel):
+    companies: list[NametagExportCompanyResponse]
+    people: list[NametagExportPersonResponse]
 
 
 class BookingUpgradeWaitlistEntryResponse(BaseModel):

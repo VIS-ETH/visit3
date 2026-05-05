@@ -7,7 +7,11 @@ import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
 from app.core.config import Settings
-from app.core.exceptions import StorageDeleteFailed, StorageUploadFailed
+from app.core.exceptions import (
+    StorageDeleteFailed,
+    StorageDownloadFailed,
+    StorageUploadFailed,
+)
 
 
 @dataclass
@@ -79,6 +83,21 @@ class StorageService:
             await asyncio.to_thread(_delete)
         except (BotoCoreError, ClientError) as error:
             raise StorageDeleteFailed(f"delete_object:{key}:{error.__class__.__name__}")
+
+    async def download_bytes(self, key: str) -> bytes:
+        def _download() -> bytes:
+            response = self.client.get_object(
+                Bucket=self.settings.SIP_S3_FILES_BUCKET,
+                Key=key,
+            )
+            return response["Body"].read()
+
+        try:
+            return await asyncio.to_thread(_download)
+        except (BotoCoreError, ClientError) as error:
+            raise StorageDownloadFailed(
+                f"download_bytes:{key}:{error.__class__.__name__}"
+            )
 
     async def generate_download_url(self, key: str, filename: str) -> str:
         def _presign() -> str:

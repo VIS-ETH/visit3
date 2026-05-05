@@ -1,7 +1,7 @@
 """uppercase kpbookingstatus enum values
 
-Revision ID: 0014
-Revises: 0013
+Revision ID: 0015
+Revises: 0014
 Create Date: 2026-04-28 11:37:00.000000
 
 """
@@ -11,8 +11,8 @@ from typing import Sequence, Union
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "0014"
-down_revision: Union[str, Sequence[str], None] = "0013"
+revision: str = "0015"
+down_revision: Union[str, Sequence[str], None] = "0014"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

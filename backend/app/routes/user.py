@@ -17,75 +17,62 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/user", tags=["user"], dependencies=[CsrfDep])
 
 
-@router.get("/me", operation_id="getCurrentUser")
+@router.get("/me", operation_id="getCurrentUser", response_model=UserResponse)
 async def get_current_user(user_service: UserServiceDep) -> UserResponse:
-    return UserResponse.model_validate(
-        await user_service.get_current_user(),
-        from_attributes=True,
-    )
+    return await user_service.get_current_user()
 
 
 @router.get(
     "/profile",
     operation_id="getUserProfile",
+    response_model=CompanyUserResponse,
 )
 async def get_user_profile(user_service: UserServiceDep) -> CompanyUserResponse:
-    return CompanyUserResponse.model_validate(
-        await user_service.get_current_user_profile(),
-        from_attributes=True,
-    )
+    return await user_service.get_current_user_profile()
 
 
 @router.patch(
     "/me",
     operation_id="updateUserProfile",
+    response_model=CompanyUserResponse,
 )
 async def update_user_profile(
     user_service: UserServiceDep, request: UpdateUserProfileRequest
 ) -> CompanyUserResponse:
-    return CompanyUserResponse.model_validate(
-        await user_service.update_current_user_profile(
-            request.first_name,
-            request.last_name,
-            request.phone_number,
-        ),
-        from_attributes=True,
+    return await user_service.update_current_user_profile(
+        request.first_name,
+        request.last_name,
+        request.phone_number,
     )
 
 
 @router.get(
     "/companies",
     operation_id="getAllCompanyUsers",
+    response_model=list[CompanyUserResponse],
 )
 async def get_all_company_users(
     user_service: UserServiceDep,
 ) -> list[CompanyUserResponse]:
-    return [
-        CompanyUserResponse.model_validate(user, from_attributes=True)
-        for user in await user_service.get_company_users()
-    ]
+    return await user_service.get_company_users()
 
 
 @router.get(
     "/admins",
     operation_id="getAllAdmins",
+    response_model=list[UserResponse],
 )
 async def get_all_admins(user_service: UserServiceDep) -> list[UserResponse]:
-    return [
-        UserResponse.model_validate(user, from_attributes=True)
-        for user in await user_service.get_admins()
-    ]
+    return await user_service.get_admins()
 
 
 @router.get(
     "/staff",
     operation_id="getAllStaff",
+    response_model=list[UserResponse],
 )
 async def get_all_staff(user_service: UserServiceDep) -> list[UserResponse]:
-    return [
-        UserResponse.model_validate(user, from_attributes=True)
-        for user in await user_service.get_staff()
-    ]
+    return await user_service.get_staff()
 
 
 @router.post("/send-confirmation-email", operation_id="sendConfirmationMail")
@@ -108,46 +95,40 @@ async def validate_confirm_email_token(
 @router.get(
     "/unconfirmed",
     operation_id="getUnconfirmedUsers",
+    response_model=list[CompanyUserResponse],
 )
 async def get_unconfirmed_users(
     user_service: UserServiceDep,
 ) -> List[CompanyUserResponse]:
-    return [
-        CompanyUserResponse.model_validate(user, from_attributes=True)
-        for user in await user_service.get_unconfirmed_users()
-    ]
+    return await user_service.get_unconfirmed_users()
 
 
 @router.post(
     "/confirm/{user_id}",
     operation_id="confirmUser",
+    response_model=UserResponse,
 )
 async def confirm_user(user_service: UserServiceDep, user_id: UUID) -> UserResponse:
-    return UserResponse.model_validate(
-        await user_service.confirm_user(user_id),
-        from_attributes=True,
-    )
+    return await user_service.confirm_user(user_id)
 
 
 @router.patch(
     "/{user_id}",
     operation_id="updateCompanyUser",
+    response_model=CompanyUserResponse,
 )
 async def update_company_user(
     user_service: UserServiceDep,
     user_id: UUID,
     request: UpdateCompanyUserRequest,
 ) -> CompanyUserResponse:
-    return CompanyUserResponse.model_validate(
-        await user_service.update_company_user(
-            user_id,
-            request.email,
-            request.first_name,
-            request.last_name,
-            request.phone_number,
-            request.company_id,
-        ),
-        from_attributes=True,
+    return await user_service.update_company_user(
+        user_id,
+        request.email,
+        request.first_name,
+        request.last_name,
+        request.phone_number,
+        request.company_id,
     )
 
 

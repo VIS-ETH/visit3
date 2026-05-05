@@ -7,25 +7,26 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi_csrf_protect import CsrfProtect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlmodel import select
 
 from app.core.config import get_settings
 from app.core.exceptions import NotAllowed, Unauthenticated
 from app.core.grpc import grpc_client
 from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 from app.models.user import User
+from app.repositories.company_repository import CompanyRepository
 from app.repositories.kp_repository import KpRepository
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
+from app.services.company_service import CompanyService
+from app.services.csv_service import CsvService
+from app.services.export_service import ExportService
 from app.services.kp_service import KpService
 from app.services.mail_service import MailService
 from app.services.pdf_service import PdfService
 from app.services.storage_service import StorageService
 from app.services.user_service import UserService
-from app.repositories.company_repository import CompanyRepository
-from app.services.company_service import CompanyService
 
 logger = logging.getLogger(__name__)
 
@@ -235,3 +236,25 @@ def get_pdf_service():
 
 
 PdfServiceDep = Annotated[PdfService, Depends(get_pdf_service)]
+
+
+def get_csv_service():
+    return CsvService()
+
+
+CsvServiceDep = Annotated[CsvService, Depends(get_csv_service)]
+
+
+async def get_export_service(
+    kp_repository: KpRepositoryDep,
+    storage_service: StorageServiceDep,
+    pdf_service: PdfServiceDep,
+    csv_service: CsvServiceDep,
+    current_user: CurrentUserDep,
+):
+    return ExportService(
+        kp_repository, storage_service, pdf_service, csv_service, current_user
+    )
+
+
+ExportServiceDep = Annotated[ExportService, Depends(get_export_service)]

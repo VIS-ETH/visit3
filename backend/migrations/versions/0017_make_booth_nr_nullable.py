@@ -1,7 +1,7 @@
 """Make booth_nr nullable
 
-Revision ID: 0015
-Revises: 0014
+Revision ID: 0017
+Revises: 0016
 Create Date: 2026-04-28 13:21:22.985412
 
 """
@@ -14,8 +14,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = "0015"
-down_revision: Union[str, Sequence[str], None] = "0014"
+revision: str = "0017"
+down_revision: Union[str, Sequence[str], None] = "0016"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

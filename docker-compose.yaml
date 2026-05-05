@@ -60,8 +60,6 @@ services:
 
   rclone:
     image: rclone/rclone
-    environment:
-      RCLONE_AUTH_KEY: '"rclone,rclone123"'
     ports:
       - "9000:9000"
     volumes:

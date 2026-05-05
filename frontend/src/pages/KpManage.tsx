@@ -20,6 +20,7 @@ import BoothZonesTab from "./kp-manage/BoothZonesTab";
 import DetailsTab from "./kp-manage/DetailsTab";
 import IndustriesTab from "./kp-manage/IndustriesTab";
 import ServicesTab from "./kp-manage/ServicesTab";
+import ExportsTab from "./kp-manage/ExportsTab";
 
 function formatDate(dateString?: string) {
   return formatKpDisplayDate(dateString);
@@ -129,6 +130,7 @@ export default function KpManage() {
       <Tabs value={activeTab} onChange={setActiveTabInUrl}>
         <Tabs.List>
           <Tabs.Tab value="details">{t("kp.manage.tab_details")}</Tabs.Tab>
+          <Tabs.Tab value="exports">{t("kp.manage.tab_exports")}</Tabs.Tab>
           <Tabs.Tab value="services">{t("kp.manage.tab_services")}</Tabs.Tab>
           <Tabs.Tab value="booth_zones">
             {t("kp.manage.tab_booth_zones")}
@@ -141,6 +143,9 @@ export default function KpManage() {
 
         <Tabs.Panel value="details" pt="md">
           <DetailsTab eventId={id} />
+        </Tabs.Panel>
+        <Tabs.Panel value="exports" pt="md">
+          <ExportsTab eventId={id} eventName={event.name} />
         </Tabs.Panel>
         <Tabs.Panel value="services" pt="md">
           <ServicesTab eventId={id} />

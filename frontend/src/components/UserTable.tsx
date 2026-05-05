@@ -1,23 +1,21 @@
 import { Table, Paper } from "@mantine/core";
 import React from "react";
+import type {
+  CompanyAssignedUserResponse,
+  CompanyUserResponse,
+  UserResponse,
+} from "../orval/generated/fastAPI.schemas";
+import { getDisplayName } from "../utils/display";
 
-interface Company {
-  name?: string | null;
-}
-
-interface User {
-  id?: string;
-  email?: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  phone_number?: string | null;
-  company?: Company | null;
-}
+type UserTableUser =
+  | CompanyAssignedUserResponse
+  | CompanyUserResponse
+  | UserResponse;
 
 interface UserTableProps {
-  users: User[];
+  users: UserTableUser[];
   t: (key: string) => string;
-  actionButton?: (user: User) => React.ReactNode;
+  actionButton?: (user: UserTableUser) => React.ReactNode;
   showCompany?: boolean;
 }
 
@@ -49,13 +47,13 @@ const UserTable: React.FC<UserTableProps> = ({
           <Table.Tr key={user.id}>
             <Table.Td>{user.email}</Table.Td>
             <Table.Td>
-              {!user.first_name && !user.last_name
-                ? "-"
-                : `${user.first_name ? user.first_name + " " : ""}${user.last_name ? user.last_name : ""}`}
+              {getDisplayName(user.first_name, user.last_name)}
             </Table.Td>
             <Table.Td>{user.phone_number || "-"}</Table.Td>
             {showCompany ? (
-              <Table.Td>{user.company?.name || "-"}</Table.Td>
+              <Table.Td>
+                {"company" in user ? user.company?.name || "-" : "-"}
+              </Table.Td>
             ) : null}
             {actionButton ? <Table.Td>{actionButton(user)}</Table.Td> : null}
           </Table.Tr>
