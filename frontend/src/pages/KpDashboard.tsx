@@ -28,6 +28,7 @@ import {
   formatKpDisplayDate,
   getEventStatus,
   toKpIsoDate,
+  type EventStatus,
 } from "../utils/kp-utils";
 import { useTranslatedForm } from "../utils/translator";
 import {
@@ -86,7 +87,6 @@ export default function KpDashboard() {
   const statusLabels: Record<EventStatus, string> = {
     upcoming: t("kp.dashboard.status_upcoming"),
     registration_open: t("kp.dashboard.status_registration_open"),
-    finalizing: t("kp.dashboard.status_finalizing"),
     past: t("kp.dashboard.status_past"),
   };
 
