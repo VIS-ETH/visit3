@@ -28,6 +28,7 @@ function formatDate(dateString?: string) {
 
 const KP_MANAGE_TAB_VALUES = [
   "details",
+  "exports",
   "services",
   "booth_zones",
   "bookings",
