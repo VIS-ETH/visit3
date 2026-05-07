@@ -1,17 +1,17 @@
 import logging
+from collections.abc import Sequence
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Response
 
 from app.core.deps import CsrfDep, UserServiceDep
+from app.models.user import User
 from app.schemas.user import (
     CompanyUserResponse,
-    CompanyUserResult,
     UpdateCompanyUserRequest,
     UpdateUserProfileRequest,
     UserResponse,
-    UserResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/user", tags=["user"], dependencies=[CsrfDep])
 
 
 @router.get("/me", operation_id="getCurrentUser", response_model=UserResponse)
-async def get_current_user(user_service: UserServiceDep) -> UserResult:
+async def get_current_user(user_service: UserServiceDep) -> User:
     return await user_service.get_current_user()
 
 
@@ -29,7 +29,7 @@ async def get_current_user(user_service: UserServiceDep) -> UserResult:
     operation_id="getUserProfile",
     response_model=CompanyUserResponse,
 )
-async def get_user_profile(user_service: UserServiceDep) -> CompanyUserResult:
+async def get_user_profile(user_service: UserServiceDep) -> User:
     return await user_service.get_current_user_profile()
 
 
@@ -40,7 +40,7 @@ async def get_user_profile(user_service: UserServiceDep) -> CompanyUserResult:
 )
 async def update_user_profile(
     user_service: UserServiceDep, request: UpdateUserProfileRequest
-) -> CompanyUserResult:
+) -> User:
     return await user_service.update_current_user_profile(
         request.first_name,
         request.last_name,
@@ -55,7 +55,7 @@ async def update_user_profile(
 )
 async def get_all_company_users(
     user_service: UserServiceDep,
-) -> list[CompanyUserResult]:
+) -> Sequence[User]:
     return await user_service.get_company_users()
 
 
@@ -64,7 +64,7 @@ async def get_all_company_users(
     operation_id="getAllAdmins",
     response_model=list[UserResponse],
 )
-async def get_all_admins(user_service: UserServiceDep) -> list[UserResult]:
+async def get_all_admins(user_service: UserServiceDep) -> Sequence[User]:
     return await user_service.get_admins()
 
 
@@ -73,7 +73,7 @@ async def get_all_admins(user_service: UserServiceDep) -> list[UserResult]:
     operation_id="getAllStaff",
     response_model=list[UserResponse],
 )
-async def get_all_staff(user_service: UserServiceDep) -> list[UserResult]:
+async def get_all_staff(user_service: UserServiceDep) -> Sequence[User]:
     return await user_service.get_staff()
 
 
@@ -101,7 +101,7 @@ async def validate_confirm_email_token(
 )
 async def get_unconfirmed_users(
     user_service: UserServiceDep,
-) -> list[CompanyUserResult]:
+) -> Sequence[User]:
     return await user_service.get_unconfirmed_users()
 
 
@@ -110,7 +110,7 @@ async def get_unconfirmed_users(
     operation_id="confirmUser",
     response_model=UserResponse,
 )
-async def confirm_user(user_service: UserServiceDep, user_id: UUID) -> UserResult:
+async def confirm_user(user_service: UserServiceDep, user_id: UUID) -> User:
     return await user_service.confirm_user(user_id)
 
 
@@ -123,7 +123,7 @@ async def update_company_user(
     user_service: UserServiceDep,
     user_id: UUID,
     request: UpdateCompanyUserRequest,
-) -> CompanyUserResult:
+) -> User:
     return await user_service.update_company_user(
         user_id,
         request.email,

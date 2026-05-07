@@ -90,5 +90,5 @@ class CompanyWithUsersResult(CompanyBase):
     users: list[CompanyAssignedUserResult]
 
 
-class CompanyWithUsersResponse(CompanyBase):
-    users: list[CompanyAssignedUserResponse]
+class CompanyWithUsersResponse(CompanyWithUsersResult):
+    pass

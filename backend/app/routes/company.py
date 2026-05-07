@@ -5,6 +5,7 @@ from fastapi import APIRouter
 
 from app.core.deps import CompanyServiceDep, CsrfDep
 from app.models.company import Company
+from app.models.user import User
 from app.schemas.company import (
     CompanyWithUsersResponse,
     CompanyWithUsersResult,
@@ -17,7 +18,7 @@ from app.schemas.company import (
     UpdateCompanyRequest,
     UpdateKpCompanyProfileRequest,
 )
-from app.schemas.user import UserResponse, UserResult
+from app.schemas.user import UserResponse
 
 router = APIRouter(prefix="/company", tags=["company"], dependencies=[CsrfDep])
 
@@ -37,7 +38,7 @@ async def setup_company(
 )
 async def get_my_company_members(
     company_service: CompanyServiceDep,
-) -> Sequence[UserResult]:
+) -> Sequence[User]:
     return await company_service.get_my_members()
 
 
@@ -97,7 +98,7 @@ async def get_company_invite_info(
 async def accept_company_invite(
     company_service: CompanyServiceDep,
     token: str,
-) -> UserResult:
+) -> User:
     return await company_service.accept_invite(token)
 
 
@@ -109,7 +110,7 @@ async def accept_company_invite(
 async def get_company_users(
     company_service: CompanyServiceDep,
     company_id: UUID,
-) -> Sequence[UserResult]:
+) -> Sequence[User]:
     return await company_service.get_company_users(company_id)
 
 

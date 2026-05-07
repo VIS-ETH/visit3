@@ -280,9 +280,8 @@ class NametagExportTargetsResult(BaseModel):
     people: list[NametagExportPersonResult]
 
 
-class NametagExportTargetsResponse(BaseModel):
-    companies: list[NametagExportCompanyResponse]
-    people: list[NametagExportPersonResponse]
+class NametagExportTargetsResponse(NametagExportTargetsResult):
+    pass
 
 
 class BookingUpgradeWaitlistEntryResponse(BaseModel):

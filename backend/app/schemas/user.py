@@ -5,18 +5,14 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from app.core.utils import strip_text
 
 
-class CompanyResult(BaseModel):
+class CompanyResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     name: str
 
 
-class CompanyResponse(CompanyResult):
-    pass
-
-
-class CompanyUserResult(BaseModel):
+class CompanyUserResponse(BaseModel):
     id: UUID
     email: str
     first_name: str | None = None
@@ -27,11 +23,7 @@ class CompanyUserResult(BaseModel):
     company: CompanyResponse | None = None
 
 
-class CompanyUserResponse(CompanyUserResult):
-    pass
-
-
-class UserResult(BaseModel):
+class UserResponse(BaseModel):
     id: UUID
     email: str
     first_name: str | None = None
@@ -44,10 +36,6 @@ class UserResult(BaseModel):
     email_confirmed: bool
     company_id: UUID | None = None
     company: CompanyResponse | None = None
-
-
-class UserResponse(UserResult):
-    pass
 
 
 class RegisterUserInput(BaseModel):
@@ -99,13 +87,9 @@ class UpdateCompanyUserRequest(UpdateCompanyUserInput):
     pass
 
 
-class TokenResult(BaseModel):
+class Token(BaseModel):
     access_token: str
     token_type: str
-
-
-class Token(TokenResult):
-    pass
 
 
 class TokenData(BaseModel):
