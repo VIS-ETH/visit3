@@ -81,11 +81,14 @@ class CompanyAssignedUserResponse(CompanyAssignedUserResult):
     pass
 
 
-class CompanyWithUsersResult(BaseModel):
+class CompanyBase(BaseModel):
     id: UUID
     name: str
+
+
+class CompanyWithUsersResult(CompanyBase):
     users: list[CompanyAssignedUserResult]
 
 
-class CompanyWithUsersResponse(CompanyWithUsersResult):
+class CompanyWithUsersResponse(CompanyBase):
     users: list[CompanyAssignedUserResponse]

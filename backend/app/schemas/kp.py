@@ -211,7 +211,7 @@ class BoothZoneWithAvailabilityResponse(BoothZoneWithAvailabilityResult):
     pass
 
 
-class BookingResponse(BaseModel):
+class BookingBase(BaseModel):
     id: UUID
     booking_number: int
     event_id: UUID
@@ -219,10 +219,13 @@ class BookingResponse(BaseModel):
     booth_zone_id: UUID
     booth_nr: int | None
     status: KpBookingStatus
+
+
+class BookingResponse(BookingBase):
     booth_zone: BoothZoneResponse | None = None
 
 
-class BookingWithCompanyAndBoothZoneResponse(BookingResponse):
+class BookingWithCompanyAndBoothZoneResponse(BookingBase):
     company: Company
     booth_zone: BoothZoneResponse
 
@@ -277,7 +280,7 @@ class NametagExportTargetsResult(BaseModel):
     people: list[NametagExportPersonResult]
 
 
-class NametagExportTargetsResponse(NametagExportTargetsResult):
+class NametagExportTargetsResponse(BaseModel):
     companies: list[NametagExportCompanyResponse]
     people: list[NametagExportPersonResponse]
 
