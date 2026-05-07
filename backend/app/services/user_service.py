@@ -81,7 +81,7 @@ class UserService:
         first_name: str | None,
         last_name: str | None,
         phone_number: str | None,
-    ) -> User:
+    ):
         updated_user = await self.user_repository.update_company_user(
             self.current_user,
             first_name=first_name,

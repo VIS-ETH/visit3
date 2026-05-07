@@ -1,14 +1,14 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional, Sequence
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlmodel import delete, select, update
+from sqlmodel import col, delete, select, update
 
 from app.models.company import Company, CompanyInvite, KpCompanyProfile
 from app.models.user import User
-from app.repositories.base import BaseRepository
+from app.repositories.base import BaseRepository, rel
 
 
 class CompanyRepository(BaseRepository[Company]):
@@ -27,32 +27,41 @@ class CompanyRepository(BaseRepository[Company]):
             raise e
 
     async def get_by_name(self, name: str) -> Optional[Company]:
-        return await self._get_by_field(Company.name, name)
+        return await self._get_by_field(col(Company.name), name)
 
-    async def get_users(self, company: Company) -> List[User]:
+    async def get_users(self, company: Company) -> Sequence[User]:
         statement = (
             select(User)
-            .where(User.company_id == company.id)
-            .options(selectinload(User.company))
+            .where(col(User.company_id) == company.id)
+            .options(selectinload(rel(User.company)))
         )
         result = await self.session.execute(statement)
         return result.scalars().all()
 
-    async def get_companies(self) -> List[Company]:
+    async def get_company_user_by_id(self, user_id: UUID) -> Optional[User]:
+        statement = (
+            select(User)
+            .where(col(User.id) == user_id)
+            .options(selectinload(rel(User.company)))
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def get_companies(self) -> Sequence[Company]:
         statement = select(Company)
         result = await self.session.execute(statement)
         return result.scalars().all()
 
-    async def get_companies_with_users(self) -> List[Company]:
-        statement = select(Company).options(selectinload(Company.users))
+    async def get_companies_with_users(self) -> Sequence[Company]:
+        statement = select(Company).options(selectinload(rel(Company.users)))
         result = await self.session.execute(statement)
         return result.scalars().all()
 
     async def get_kp_profile(self, company_id: UUID) -> Optional[KpCompanyProfile]:
         statement = (
             select(KpCompanyProfile)
-            .where(KpCompanyProfile.company_id == company_id)
-            .options(selectinload(KpCompanyProfile.kp_contact_user))
+            .where(col(KpCompanyProfile.company_id) == company_id)
+            .options(selectinload(rel(KpCompanyProfile.kp_contact_user)))
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
@@ -92,7 +101,9 @@ class CompanyRepository(BaseRepository[Company]):
 
     async def delete_company_with_users(self, company: Company):
         try:
-            delete_users_statement = delete(User).where(User.company_id == company.id)
+            delete_users_statement = delete(User).where(
+                col(User.company_id) == company.id
+            )
             await self.session.execute(delete_users_statement)
             await self.session.delete(company)
             await self.session.commit()
@@ -104,7 +115,7 @@ class CompanyRepository(BaseRepository[Company]):
         try:
             unassign_users_statement = (
                 update(User)
-                .where(User.company_id == company.id)
+                .where(col(User.company_id) == company.id)
                 .values(company_id=None)
             )
             await self.session.execute(unassign_users_statement)
@@ -128,6 +139,22 @@ class CompanyRepository(BaseRepository[Company]):
     async def assign_user(self, user: User, company_id: UUID) -> User:
         try:
             user.company_id = company_id
+            self.session.add(user)
+            await self.session.commit()
+            await self.session.refresh(user, attribute_names=["company"])
+            return user
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def remove_user_from_company(self, user: User, company: Company) -> User:
+        try:
+            profile = await self.get_kp_profile(company.id)
+            if profile is not None and profile.kp_contact_user_id == user.id:
+                profile.kp_contact_user_id = None
+                self.session.add(profile)
+
+            user.company_id = None
             self.session.add(user)
             await self.session.commit()
             await self.session.refresh(user, attribute_names=["company"])
@@ -160,7 +187,7 @@ class CompanyRepository(BaseRepository[Company]):
             raise e
 
     async def get_invite_by_token(self, token: str) -> Optional[CompanyInvite]:
-        statement = select(CompanyInvite).where(CompanyInvite.token == token)
+        statement = select(CompanyInvite).where(col(CompanyInvite.token) == token)
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 

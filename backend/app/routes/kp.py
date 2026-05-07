@@ -1,3 +1,4 @@
+from typing import Sequence
 from uuid import UUID
 
 from fastapi import APIRouter, File, Query, Response, UploadFile
@@ -7,6 +8,7 @@ from app.core.decorators import (
     require_kp_president,
 )
 from app.core.deps import CsrfDep, ExportServiceDep, KpServiceDep
+from app.models.kp_event import KpEvent
 from app.schemas.kp import (
     BookingResponse,
     BookingUpgradeWaitlistEntryResponse,
@@ -62,23 +64,23 @@ def _download(content: bytes, filename: str, media_type: str) -> Response:
 
 
 @router.get("/list", operation_id="listKps", response_model=list[KpResponse])
-async def list_kps(kp_service: KpServiceDep) -> list[KpResponse]:
+async def list_kps(kp_service: KpServiceDep) -> Sequence[KpEvent]:
     return await kp_service.list_kps()
 
 
 @router.get("/latest", operation_id="getLatestKp", response_model=KpResponse | None)
-async def get_latest_kp(kp_service: KpServiceDep) -> KpResponse | None:
+async def get_latest_kp(kp_service: KpServiceDep) -> KpEvent | None:
     return await kp_service.get_latest_kp()
 
 
 @router.get("/events/{event_id}", operation_id="getKpById", response_model=KpResponse)
-async def get_kp_by_id(kp_service: KpServiceDep, event_id: UUID) -> KpResponse:
+async def get_kp_by_id(kp_service: KpServiceDep, event_id: UUID) -> KpEvent:
     return await kp_service.get_event_by_id(event_id)
 
 
 @require_kp_president
 @router.post("/create", operation_id="createKp", response_model=KpResponse)
-async def create_kp(kp_service: KpServiceDep, request: CreateKpRequest) -> KpResponse:
+async def create_kp(kp_service: KpServiceDep, request: CreateKpRequest) -> KpEvent:
     return await kp_service.create_kp(request)
 
 

@@ -1,6 +1,6 @@
 from datetime import date
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 from uuid import UUID, uuid4
 
 from app.core.config import get_settings
@@ -75,7 +75,7 @@ class KpService:
             raise KpEventNotFound(f"event:not_found:{event_id}")
         return event
 
-    async def list_kps(self) -> list[KpEvent]:
+    async def list_kps(self) -> Sequence[KpEvent]:
         return await self.kp_repository.list_kps()
 
     async def get_latest_kp(self) -> Optional[KpEvent]:
@@ -102,7 +102,7 @@ class KpService:
     # --- Booth Zones ---
 
     @require_kp_president
-    async def list_booth_zones(self, event_id: UUID) -> list[KpEventBoothZone]:
+    async def list_booth_zones(self, event_id: UUID) -> Sequence[KpEventBoothZone]:
         await self._get_event(event_id)
         return await self.kp_repository.list_booth_zones(event_id)
 
@@ -134,7 +134,7 @@ class KpService:
     # --- Services ---
 
     @require_kp_president
-    async def list_services(self, event_id: UUID) -> list[KpEventService]:
+    async def list_services(self, event_id: UUID) -> Sequence[KpEventService]:
         await self._get_event(event_id)
         return await self.kp_repository.list_services(event_id)
 
@@ -164,7 +164,7 @@ class KpService:
     # --- Industries ---
 
     @require_kp_president
-    async def list_industries(self) -> list[KpIndustry]:
+    async def list_industries(self) -> Sequence[KpIndustry]:
         return await self.kp_repository.list_industries()
 
     @require_kp_president
@@ -188,6 +188,7 @@ class KpService:
     # --- Company Booking Flow ---
 
     async def _ensure_registration_open(self, event: KpEvent) -> None:
+        assert self.current_user.company_id is not None
         if event.is_registration_open():
             return
         exception = await self.kp_repository.get_registration_exception(
@@ -223,6 +224,7 @@ class KpService:
     async def register_booking(
         self, event_id: UUID, booth_zone_id: UUID
     ) -> KpEventBooking:
+        assert self.current_user.company_id is not None
         event = await self._get_event(event_id)
         await self._ensure_registration_open(event)
 
@@ -267,6 +269,7 @@ class KpService:
 
     @require_confirmed_company
     async def get_my_booking(self, event_id: UUID) -> Optional[KpEventBooking]:
+        assert self.current_user.company_id is not None
         await self._get_event(event_id)
         return await self.kp_repository.get_company_active_booking_for_event(
             event_id, self.current_user.company_id
@@ -275,7 +278,7 @@ class KpService:
     # --- Bookings ---
 
     @require_kp_president
-    async def list_bookings_for_event(self, event_id: UUID) -> list[KpEventBooking]:
+    async def list_bookings_for_event(self, event_id: UUID) -> Sequence[KpEventBooking]:
         await self._get_event(event_id)
         return await self.kp_repository.list_bookings_for_event(event_id)
 
@@ -337,7 +340,7 @@ class KpService:
     @require_confirmed_company
     async def list_booking_upgrade_waitlist(
         self, booking_id: UUID
-    ) -> list[KpEventBookingUpgradeWaitlist]:
+    ) -> Sequence[KpEventBookingUpgradeWaitlist]:
         booking = await self._get_owned_booking(booking_id)
         return await self.kp_repository.list_booking_upgrade_waitlist_entries(
             booking.id
@@ -346,7 +349,7 @@ class KpService:
     @require_confirmed_company
     async def replace_booking_upgrade_waitlist(
         self, booking_id: UUID, target_booth_zone_ids: list[UUID]
-    ) -> list[KpEventBookingUpgradeWaitlist]:
+    ) -> Sequence[KpEventBookingUpgradeWaitlist]:
         booking = await self._get_owned_booking(booking_id)
 
         unique_target_ids = list(dict.fromkeys(target_booth_zone_ids))

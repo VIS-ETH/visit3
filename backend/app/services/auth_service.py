@@ -2,7 +2,7 @@ import asyncio
 import logging
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import List
+from typing import Any
 
 import httpx
 import jwt
@@ -58,7 +58,7 @@ class AuthService:
         return user
 
     async def create_access_token(self, user: User):
-        to_encode = {
+        to_encode: dict[str, Any] = {
             "sub": str(
                 user.id
             ),  # we use the internal user id as the subject to have a uniform way to identify users, regardless of the login method (keycloak or password)
@@ -91,6 +91,8 @@ class AuthService:
         return await self.token_repository.get_active_refresh_token(hash_str(raw_token))
 
     async def verify_and_update_password(self, user: User, plain_password: str) -> bool:
+        if user.password is None:
+            return False
         valid, updated_hash = await asyncio.to_thread(
             password_hash.verify_and_update,
             plain_password,
@@ -120,6 +122,9 @@ class AuthService:
     async def register_user(self, user: User):
         if await self.user_repository.get_by_email(user.email):
             raise EmailUsed(f"register_user:{user.email}")
+
+        if not user.password:
+            raise PasswordTooShort("register:password_required")
 
         if len(user.password) < 10:
             raise PasswordTooShort("register:register_password_too_short")
@@ -237,11 +242,11 @@ class AuthService:
             raise KeycloakExchangeFailed(f"keycloak_callback:invalid_token:{code}")
         return await self.login_keycloak_user(decoded_token)
 
-    async def login_keycloak_user(self, decoded_token: str):
+    async def login_keycloak_user(self, decoded_token: dict[str, Any]):
         user = await self.map_keycloak_to_user(decoded_token)
         return await self.create_refresh_token(user)
 
-    async def map_keycloak_to_user(self, decoded_token: str):
+    async def map_keycloak_to_user(self, decoded_token: dict[str, Any]):
         if get_settings().DEBUG_KEYCLOAK_ADMIN:
             keycloak_roles = [get_settings().ADMIN_GROUP]
         else:
@@ -275,7 +280,7 @@ class AuthService:
             )
         )
 
-    async def map_keycloak_roles(self, roles: List[str], vis_groups: List[str]):
+    async def map_keycloak_roles(self, roles: list[str], vis_groups: list[str]):
         result = []
         admin = False
         for role in roles:

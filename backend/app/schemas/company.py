@@ -3,12 +3,20 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr
 
 
-class CreateCompanyRequest(BaseModel):
+class CreateCompanyInput(BaseModel):
     name: str
 
 
-class UpdateCompanyRequest(BaseModel):
+class CreateCompanyRequest(CreateCompanyInput):
+    pass
+
+
+class UpdateCompanyInput(BaseModel):
     name: str
+
+
+class UpdateCompanyRequest(UpdateCompanyInput):
+    pass
 
 
 class KpCompanyProfileResult(BaseModel):
@@ -24,19 +32,31 @@ class KpCompanyProfileResponse(KpCompanyProfileResult):
     pass
 
 
-class UpdateKpCompanyProfileRequest(BaseModel):
+class UpdateKpCompanyProfileInput(BaseModel):
     invoice_address: str
     shipping_address: str
     contact_email: EmailStr | None = None
     kp_contact_user_id: UUID | None = None
 
 
-class SetupCompanyRequest(BaseModel):
+class UpdateKpCompanyProfileRequest(UpdateKpCompanyProfileInput):
+    pass
+
+
+class SetupCompanyInput(BaseModel):
     name: str
 
 
-class CreateInviteRequest(BaseModel):
+class SetupCompanyRequest(SetupCompanyInput):
+    pass
+
+
+class CreateInviteInput(BaseModel):
     email: EmailStr
+
+
+class CreateInviteRequest(CreateInviteInput):
+    pass
 
 
 class InviteInfoResult(BaseModel):

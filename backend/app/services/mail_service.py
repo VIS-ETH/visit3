@@ -30,7 +30,7 @@ class MailService:
             logger.info("MailService gRPC send completed")
             return None
         except grpc.RpcError as e:
-            logger.error(f"gRPC Error: {e.code()} - {e.details()}")
+            logger.error("gRPC Error")
             raise e
 
     def construct_mail(
@@ -64,7 +64,7 @@ class MailService:
 
         if plain_text:
             mail.plain_text = plain_text
-        else:
+        elif multipart_body:
             for part in multipart_body.parts:
                 new_part = mail.multipart_body.parts.add()
                 new_part.content_type = part.content_type

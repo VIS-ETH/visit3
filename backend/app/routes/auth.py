@@ -81,6 +81,9 @@ async def refresh_user(
     refresh_token: Annotated[str | None, Cookie()] = None,
 ) -> Token:
     try:
+        if refresh_token is None:
+            raise TokenInvalid("refresh:no_token")
+
         (access_token, refresh_token) = await auth_service.refresh_user(refresh_token)
 
         set_refresh_cookie(response, refresh_token)

@@ -264,7 +264,7 @@ class NametagExportCompanyResult(BaseModel):
     company_id: UUID
     company_name: str
     booth_zone_name: str
-    booth_nr: int
+    booth_nr: int | None
     nametag_count: int
 
 

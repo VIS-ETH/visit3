@@ -20,6 +20,7 @@ dependencies = [
     "cryptography>=46.0.5",
     "phonenumbers>=9.0.24",
     "typst>=0.14.8",
+    "ty>=0.0.34",
 ]
 
 [tool.ruff]

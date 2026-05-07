@@ -10,7 +10,7 @@ TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 class PdfService:
     async def render(
         self, template_name: str, data: dict, filename: str, root: str | None = None
-    ) -> tuple[bytes, str]:
+    ) -> tuple[None | bytes, str]:
         template_path = TEMPLATES_DIR / template_name
         pdf_bytes = await asyncio.to_thread(
             typst.compile,

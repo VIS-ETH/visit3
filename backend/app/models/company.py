@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import EmailStr
 from sqlalchemy import Column, DateTime
-from sqlmodel import Field, Relationship
+from sqlmodel import Field, Relationship, Sequence
 
 from app.models.base import BaseEntity
 
@@ -16,14 +16,14 @@ if TYPE_CHECKING:
 class Company(BaseEntity, table=True):
     name: str = Field(index=True, unique=True)
 
-    users: list["User"] = Relationship(back_populates="company")
-    invites: list["CompanyInvite"] = Relationship(back_populates="company")
-    bookings: list["KpEventBooking"] = Relationship(back_populates="company")
+    users: Sequence["User"] = Relationship(back_populates="company")
+    invites: Sequence["CompanyInvite"] = Relationship(back_populates="company")
+    bookings: Sequence["KpEventBooking"] = Relationship(back_populates="company")
     kp_profile: "KpCompanyProfile" = Relationship(
         back_populates="company",
-        sa_relationship_kwargs={"uselist": False},
+        sa_relationship_kwargs={"useSequence": False},
     )
-    registration_exceptions: list["KpEventRegistrationException"] = Relationship(
+    registration_exceptions: Sequence["KpEventRegistrationException"] = Relationship(
         back_populates="company"
     )
 

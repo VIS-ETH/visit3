@@ -1,13 +1,18 @@
-from typing import Generic, TypeVar
+from collections.abc import Sequence
+from typing import Any, Generic, TypeVar, cast
 from uuid import UUID
 
-from sqlalchemy import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import SQLModel, select
+from sqlmodel import SQLModel, col, select
 
 from app.models.base import BaseEntity
 
 T = TypeVar("T", bound=SQLModel)
+ModelT = TypeVar("ModelT", bound=SQLModel)
+
+
+def rel(value: object) -> Any:
+    return cast(Any, value)
 
 
 class BaseRepository(Generic[T]):
@@ -15,12 +20,14 @@ class BaseRepository(Generic[T]):
         self.model = model
         self.session = session
 
-    async def _get_by_field(self, field: ColumnElement, value) -> T | None:
+    async def _get_by_field(self, field, value) -> T | None:
         statement = select(self.model).where(field == value)
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
-    def _validate_model(self, instance: T, *, exclude: set[str] | None = None) -> T:
+    def _validate_model(
+        self, instance: ModelT, *, exclude: set[str] | None = None
+    ) -> ModelT:
         validated = instance.__class__.model_validate(
             instance.model_dump(exclude=exclude or set())
         )
@@ -33,13 +40,13 @@ class BaseRepository(Generic[T]):
             raise TypeError(
                 f"{self.model.__name__} does not inherit from BaseEntity and has no id field"
             )
-        return await self._get_by_field(self.model.id, entity_id)
+        return await self._get_by_field(col(self.model.id), entity_id)
 
-    async def get_by_ids(self, ids: list[UUID]) -> list[T]:
+    async def get_by_ids(self, ids: list[UUID]) -> Sequence[T]:
         if not issubclass(self.model, BaseEntity):
             raise TypeError(
                 f"{self.model.__name__} does not inherit from BaseEntity and has no id field"
             )
-        statement = select(self.model).where(self.model.id.in_(ids))
+        statement = select(self.model).where(col(self.model.id).in_(ids))
         result = await self.session.execute(statement)
-        return result.scalars().all()
+        return cast(Sequence[T], result.scalars().all())

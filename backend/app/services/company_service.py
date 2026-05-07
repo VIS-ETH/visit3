@@ -1,6 +1,7 @@
 import logging
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import Sequence
 from uuid import UUID
 
 from app.core.decorators import require_admin, require_confirmed_company, require_staff
@@ -10,6 +11,7 @@ from app.core.exceptions import (
     InviteExpired,
     InviteNotFound,
     NotAllowed,
+    UserNotFound,
 )
 from app.core.utils import normalize_email
 from app.models.user import User
@@ -39,14 +41,14 @@ class CompanyService:
         self.current_user = current_user
 
     @require_staff
-    async def get_company_users(self, company_id: UUID) -> list[User]:
+    async def get_company_users(self, company_id: UUID) -> Sequence[User]:
         company = await self.company_repository.get_by_id(company_id)
         if not company:
             raise CompanyNotFound(f"company_users:{company_id}")
         return await self.company_repository.get_users(company)
 
     @require_staff
-    async def get_companies_with_users(self) -> list[CompanyWithUsersResult]:
+    async def get_companies_with_users(self) -> Sequence[CompanyWithUsersResult]:
         companies = await self.company_repository.get_companies_with_users()
         return [
             CompanyWithUsersResult(
@@ -82,6 +84,23 @@ class CompanyService:
             raise CompanyNotFound(f"delete_company_keep_users:{company_id}")
         await self.company_repository.delete_company_keep_users(company)
 
+    @require_admin
+    async def remove_company_user(self, company_id: UUID, user_id: UUID) -> None:
+        company = await self.company_repository.get_by_id(company_id)
+        if not company:
+            raise CompanyNotFound(f"remove_company_user:{company_id}")
+        user = await self.company_repository.get_company_user_by_id(user_id)
+        if not user:
+            raise UserNotFound(f"remove_company_user:{user_id}")
+        if user.company_id != company.id:
+            raise CompanyUserNotFound(f"remove_company_user:{company_id}:{user_id}")
+
+        await self.company_repository.remove_user_from_company(user, company)
+        logger.info(
+            f"Company user removed by admin {self.current_user.email}: "
+            f"{user.email} from {company.name}"
+        )
+
     async def setup_company(self, name: str):
         if not (
             self.current_user.email_confirmed
@@ -103,13 +122,16 @@ class CompanyService:
         return company
 
     @require_confirmed_company
-    async def get_my_members(self) -> list[User]:
-        return await self.company_repository.get_users(
-            await self.company_repository.get_by_id(self.current_user.company_id)
-        )
+    async def get_my_members(self) -> Sequence[User]:
+        assert self.current_user.company_id is not None
+        company = await self.company_repository.get_by_id(self.current_user.company_id)
+        if company is None:
+            raise CompanyNotFound(f"my_members:{self.current_user.company_id}")
+        return await self.company_repository.get_users(company)
 
     @require_confirmed_company
     async def create_invite(self, email: str):
+        assert self.current_user.company_id is not None
         normalized = normalize_email(email)
         company = await self.company_repository.get_by_id(self.current_user.company_id)
         if not company:
@@ -188,6 +210,7 @@ class CompanyService:
 
     @require_confirmed_company
     async def get_my_kp_profile(self) -> KpCompanyProfileResult | None:
+        assert self.current_user.company_id is not None
         profile = await self.company_repository.get_kp_profile(
             self.current_user.company_id
         )
@@ -210,6 +233,7 @@ class CompanyService:
         contact_email: str | None,
         kp_contact_user_id: UUID | None,
     ) -> KpCompanyProfileResult:
+        assert self.current_user.company_id is not None
         if kp_contact_user_id is not None:
             user = next(
                 (
