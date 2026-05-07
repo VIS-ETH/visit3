@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -21,7 +20,7 @@ class UserRole(BaseLink, table=True):
 class Role(BaseEntity, table=True):
     name: str = Field(index=True, unique=True)
 
-    users: Sequence["User"] = Relationship(back_populates="roles", link_model=UserRole)
+    users: list["User"] = Relationship(back_populates="roles", link_model=UserRole)
 
 
 class User(BaseEntity, table=True):
@@ -40,13 +39,13 @@ class User(BaseEntity, table=True):
     user_confirmed: bool = False
     email_confirmed: bool = False
 
-    roles: Sequence["Role"] = Relationship(back_populates="users", link_model=UserRole)
+    roles: list["Role"] = Relationship(back_populates="users", link_model=UserRole)
 
     company_id: UUID | None = Field(default=None, foreign_key="company.id", index=True)
     company: Company = Relationship(
         back_populates="users", sa_relationship_kwargs={"lazy": "noload"}
     )
-    kp_company_profiles: Sequence["KpCompanyProfile"] = Relationship(
+    kp_company_profiles: list["KpCompanyProfile"] = Relationship(
         back_populates="kp_contact_user"
     )
 

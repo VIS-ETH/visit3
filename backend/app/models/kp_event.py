@@ -1,5 +1,4 @@
 import re
-from collections.abc import Sequence
 from datetime import date
 from enum import Enum
 from typing import Self
@@ -45,10 +44,10 @@ class KpEvent(BaseEntity, table=True):
     nametags_deadline: date  # deadline for submitting nametags. after this date, no nametags can be changed.
     event_date: date
 
-    booth_zones: Sequence["KpEventBoothZone"] = Relationship(back_populates="event")
-    bookings: Sequence["KpEventBooking"] = Relationship(back_populates="event")
-    services: Sequence["KpEventService"] = Relationship(back_populates="event")
-    registration_exceptions: Sequence["KpEventRegistrationException"] = Relationship(
+    booth_zones: list["KpEventBoothZone"] = Relationship(back_populates="event")
+    bookings: list["KpEventBooking"] = Relationship(back_populates="event")
+    services: list["KpEventService"] = Relationship(back_populates="event")
+    registration_exceptions: list["KpEventRegistrationException"] = Relationship(
         back_populates="event"
     )
     nametag_background: "KpEventNametagBackground" = Relationship(
@@ -120,9 +119,9 @@ class KpEventBooking(BaseEntity, table=True):
     event: "KpEvent" = Relationship(back_populates="bookings")
     company: Company = Relationship(back_populates="bookings")
     booth_zone: "KpEventBoothZone" = Relationship(back_populates="bookings")
-    services: Sequence["KpEventBookingService"] = Relationship(back_populates="booking")
-    name_tags: Sequence["NameTag"] = Relationship(back_populates="booking")
-    upgrade_waitlist_entries: Sequence["KpEventBookingUpgradeWaitlist"] = Relationship(
+    services: list["KpEventBookingService"] = Relationship(back_populates="booking")
+    name_tags: list["NameTag"] = Relationship(back_populates="booking")
+    upgrade_waitlist_entries: list["KpEventBookingUpgradeWaitlist"] = Relationship(
         back_populates="booking"
     )
     company_details: "KpBookingCompanyDetails" = Relationship(
@@ -191,11 +190,11 @@ class KpEventBoothZone(BaseEntity, table=True):
     base_price: int = Field(default=0, ge=0)  # cents
 
     event: "KpEvent" = Relationship(back_populates="booth_zones")
-    included_services: Sequence["KpEventBoothZoneServiceLink"] = Relationship(
+    included_services: list["KpEventBoothZoneServiceLink"] = Relationship(
         back_populates="booth_zone"
     )
-    bookings: Sequence["KpEventBooking"] = Relationship(back_populates="booth_zone")
-    upgrade_waitlist_entries: Sequence["KpEventBookingUpgradeWaitlist"] = Relationship(
+    bookings: list["KpEventBooking"] = Relationship(back_populates="booth_zone")
+    upgrade_waitlist_entries: list["KpEventBookingUpgradeWaitlist"] = Relationship(
         back_populates="target_booth_zone"
     )
 
@@ -249,13 +248,13 @@ class KpEventService(BaseEntity, table=True):
     is_active: bool = Field(default=True)
 
     event: "KpEvent" = Relationship(back_populates="services")
-    booth_zones: Sequence["KpEventBoothZoneServiceLink"] = Relationship(
+    booth_zones: list["KpEventBoothZoneServiceLink"] = Relationship(
         back_populates="service"
     )
-    booking_services: Sequence["KpEventBookingService"] = Relationship(
+    booking_services: list["KpEventBookingService"] = Relationship(
         back_populates="service"
     )
-    requirements: Sequence["KpEventServiceRequirement"] = Relationship(
+    requirements: list["KpEventServiceRequirement"] = Relationship(
         back_populates="service",
     )
 
@@ -272,7 +271,7 @@ class KpEventBookingService(BaseEntity, table=True):
 
     booking: "KpEventBooking" = Relationship(back_populates="services")
     service: "KpEventService" = Relationship(back_populates="booking_services")
-    requirement_file_links: Sequence["KpEventBookingServiceFileLink"] = Relationship(
+    requirement_file_links: list["KpEventBookingServiceFileLink"] = Relationship(
         back_populates="booking_service"
     )
 
@@ -323,10 +322,8 @@ _kp_company_language_pg_enum = SAEnum(
 class KpIndustry(BaseEntity, table=True):
     name: str = Field(min_length=1, index=True, unique=True)
 
-    company_details_links: Sequence["KpBookingCompanyDetailsIndustryLink"] = (
-        Relationship(
-            back_populates="industry",
-        )
+    company_details_links: list["KpBookingCompanyDetailsIndustryLink"] = Relationship(
+        back_populates="industry",
     )
 
 
@@ -346,7 +343,7 @@ class KpBookingCompanyDetails(BaseEntity, table=True):
     offer_part_time: bool = Field(default=False)
     offer_thesis: bool = Field(default=False)
 
-    languages: Sequence[KpCompanyLanguage] = Field(
+    languages: list[KpCompanyLanguage] = Field(
         default_factory=list,
         sa_column=Column(
             ARRAY(_kp_company_language_pg_enum),
@@ -355,7 +352,7 @@ class KpBookingCompanyDetails(BaseEntity, table=True):
     )
 
     booking: "KpEventBooking" = Relationship(back_populates="company_details")
-    industry_links: Sequence["KpBookingCompanyDetailsIndustryLink"] = Relationship(
+    industry_links: list["KpBookingCompanyDetailsIndustryLink"] = Relationship(
         back_populates="booking_company_details",
     )
 

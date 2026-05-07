@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
@@ -17,14 +16,14 @@ if TYPE_CHECKING:
 class Company(BaseEntity, table=True):
     name: str = Field(index=True, unique=True)
 
-    users: Sequence["User"] = Relationship(back_populates="company")
-    invites: Sequence["CompanyInvite"] = Relationship(back_populates="company")
-    bookings: Sequence["KpEventBooking"] = Relationship(back_populates="company")
+    users: list["User"] = Relationship(back_populates="company")
+    invites: list["CompanyInvite"] = Relationship(back_populates="company")
+    bookings: list["KpEventBooking"] = Relationship(back_populates="company")
     kp_profile: "KpCompanyProfile" = Relationship(
         back_populates="company",
-        sa_relationship_kwargs={"useSequence": False},
+        sa_relationship_kwargs={"uselist": False},
     )
-    registration_exceptions: Sequence["KpEventRegistrationException"] = Relationship(
+    registration_exceptions: list["KpEventRegistrationException"] = Relationship(
         back_populates="company"
     )
 
