@@ -14,6 +14,7 @@ from app.core.exceptions import (
     UserNotFound,
 )
 from app.core.utils import normalize_email
+from app.models.company import Company, CompanyInvite
 from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
 from app.schemas.company import (
@@ -35,7 +36,7 @@ class CompanyService:
         company_repository: CompanyRepository,
         mail_service: MailService,
         current_user: User,
-    ):
+    ) -> None:
         self.company_repository = company_repository
         self.mail_service = mail_service
         self.current_user = current_user
@@ -71,14 +72,14 @@ class CompanyService:
         ]
 
     @require_admin
-    async def delete_company_with_users(self, company_id: UUID):
+    async def delete_company_with_users(self, company_id: UUID) -> None:
         company = await self.company_repository.get_by_id(company_id)
         if not company:
             raise CompanyNotFound(f"delete_company_with_users:{company_id}")
         await self.company_repository.delete_company_with_users(company)
 
     @require_admin
-    async def delete_company_keep_users(self, company_id: UUID):
+    async def delete_company_keep_users(self, company_id: UUID) -> None:
         company = await self.company_repository.get_by_id(company_id)
         if not company:
             raise CompanyNotFound(f"delete_company_keep_users:{company_id}")
@@ -101,7 +102,7 @@ class CompanyService:
             f"{user.email} from {company.name}"
         )
 
-    async def setup_company(self, name: str):
+    async def setup_company(self, name: str) -> Company:
         if not (
             self.current_user.email_confirmed
             and self.current_user.user_confirmed
@@ -130,7 +131,7 @@ class CompanyService:
         return await self.company_repository.get_users(company)
 
     @require_confirmed_company
-    async def create_invite(self, email: str):
+    async def create_invite(self, email: str) -> CompanyInvite:
         assert self.current_user.company_id is not None
         normalized = normalize_email(email)
         company = await self.company_repository.get_by_id(self.current_user.company_id)
@@ -186,7 +187,7 @@ class CompanyService:
         return user
 
     @require_confirmed_company
-    async def update_company_name(self, name: str):
+    async def update_company_name(self, name: str) -> Company:
         if not self.current_user.company_id:
             logger.warning(
                 f"Update company name failed - user has no company: {self.current_user.email}"

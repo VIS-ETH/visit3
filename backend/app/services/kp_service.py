@@ -64,7 +64,7 @@ class KpService:
         kp_repository: KpRepository,
         storage_service: StorageService,
         current_user: User,
-    ):
+    ) -> None:
         self.kp_repository = kp_repository
         self.storage_service = storage_service
         self.current_user = current_user
@@ -283,7 +283,7 @@ class KpService:
         await self._get_event(event_id)
         return await self.kp_repository.list_bookings_for_event(event_id)
 
-    async def _get_owned_booking(self, booking_id: UUID):
+    async def _get_owned_booking(self, booking_id: UUID) -> KpEventBooking:
         booking = await self.kp_repository.get_booking_by_id(booking_id)
         if booking is None:
             raise KpBookingNotFound(f"booking_upgrade_waitlist:not_found:{booking_id}")

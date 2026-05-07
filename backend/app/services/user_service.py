@@ -1,5 +1,6 @@
 import logging
 import secrets
+from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
@@ -23,15 +24,15 @@ class UserService:
         token_repository: TokenRepository,
         mail_service: MailService,
         current_user: User,
-    ):
+    ) -> None:
         self.user_repository = user_repository
         self.token_repository = token_repository
         self.mail_service = mail_service
         self.current_user = current_user
 
-    async def send_confirmation_mail(self):
+    async def send_confirmation_mail(self) -> None:
         if self.current_user.email_confirmed:
-            return None
+            return
 
         await self.token_repository.revoke_confirm_email_tokens(self.current_user.id)
         raw_token = await self.create_confirm_email_token()
@@ -40,7 +41,7 @@ class UserService:
             self.current_user.email, raw_token
         )
 
-    async def create_confirm_email_token(self):
+    async def create_confirm_email_token(self) -> str:
         raw_token = secrets.token_urlsafe(32)
         hashed_token = hash_str(raw_token)
         expire = datetime.now(timezone.utc) + CONFIRM_EMAIL_TOKEN_EXPIRE
@@ -49,7 +50,7 @@ class UserService:
         )
         return raw_token
 
-    async def confirm_email(self, token: str):
+    async def confirm_email(self, token: str) -> bool:
         token_is_valid = await self.token_repository.validate_confirm_email_token(
             self.current_user.id, hash_str(token)
         )
@@ -70,10 +71,10 @@ class UserService:
             self.current_user.id, hash_str(token)
         )
 
-    async def get_current_user(self):
+    async def get_current_user(self) -> User:
         return await self.user_repository.load_user_roles(self.current_user)
 
-    async def get_current_user_profile(self):
+    async def get_current_user_profile(self) -> User:
         return await self.user_repository.load_user_company(self.current_user)
 
     async def update_current_user_profile(
@@ -81,7 +82,7 @@ class UserService:
         first_name: str | None,
         last_name: str | None,
         phone_number: str | None,
-    ):
+    ) -> User:
         updated_user = await self.user_repository.update_company_user(
             self.current_user,
             first_name=first_name,
@@ -91,18 +92,18 @@ class UserService:
         logger.info(f"User profile updated: {self.current_user.email}")
         return updated_user
 
-    async def logout_user(self, refresh_token: str | None):
+    async def logout_user(self, refresh_token: str | None) -> None:
         if refresh_token:
             await self.token_repository.revoke_refresh_token(
                 self.current_user.id, hash_str(refresh_token)
             )
 
     @require_staff
-    async def get_unconfirmed_users(self):
+    async def get_unconfirmed_users(self) -> Sequence[User]:
         return await self.user_repository.get_unconfirmed_users()
 
     @require_staff
-    async def confirm_user(self, user_id: UUID):
+    async def confirm_user(self, user_id: UUID) -> User:
         user = await self.user_repository.get_by_id(user_id)
         if not user:
             logger.warning(f"Confirm user failed - user not found: {user_id}")
@@ -113,15 +114,15 @@ class UserService:
         return result
 
     @require_staff
-    async def get_company_users(self):
+    async def get_company_users(self) -> Sequence[User]:
         return await self.user_repository.get_company_users()
 
     @require_staff
-    async def get_admins(self):
+    async def get_admins(self) -> Sequence[User]:
         return await self.user_repository.get_admins()
 
     @require_staff
-    async def get_staff(self):
+    async def get_staff(self) -> Sequence[User]:
         return await self.user_repository.get_staff()
 
     @require_admin
@@ -147,7 +148,7 @@ class UserService:
         )
 
     @require_admin
-    async def delete_user(self, user_id: UUID):
+    async def delete_user(self, user_id: UUID) -> None:
         user = await self.user_repository.get_by_id(user_id)
         if not user:
             logger.warning(f"Delete user failed - user not found: {user_id}")

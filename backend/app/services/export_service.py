@@ -144,7 +144,7 @@ class ExportService:
         pdf_service: PdfService,
         csv_service: CsvService,
         current_user: User,
-    ):
+    ) -> None:
         self.kp_repository = kp_repository
         self.storage_service = storage_service
         self.pdf_service = pdf_service

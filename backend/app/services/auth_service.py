@@ -1,8 +1,9 @@
 import asyncio
 import logging
 import secrets
+from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 import jwt
@@ -21,7 +22,7 @@ from app.core.exceptions import (
 )
 from app.core.security import decode_token
 from app.core.utils import hash_str
-from app.models.user import User
+from app.models.user import RefreshToken, Role, User
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
@@ -42,13 +43,15 @@ class AuthService:
         token_repository: TokenRepository,
         role_repository: RoleRepository,
         mail_service: MailService,
-    ):
+    ) -> None:
         self.user_repository = user_repository
         self.token_repository = token_repository
         self.role_repository = role_repository
         self.mail_service = mail_service
 
-    async def authenticate_user(self, email: str, password: str):
+    async def authenticate_user(
+        self, email: str, password: str
+    ) -> User | Literal[False]:
         user = await self.user_repository.get_by_email(email)
         if not user:
             return False
@@ -57,7 +60,7 @@ class AuthService:
             return False
         return user
 
-    async def create_access_token(self, user: User):
+    async def create_access_token(self, user: User) -> str:
         to_encode: dict[str, Any] = {
             "sub": str(
                 user.id
@@ -68,7 +71,7 @@ class AuthService:
         to_encode.update({"exp": expire})
         return jwt.encode(to_encode, get_settings().SECRET_KEY, algorithm="HS256")
 
-    async def create_refresh_token(self, user: User):
+    async def create_refresh_token(self, user: User) -> str:
         raw_token = secrets.token_urlsafe(64)
         hashed_token = hash_str(raw_token)
         token = await self.token_repository.create_refresh_token(
@@ -82,12 +85,12 @@ class AuthService:
 
         return raw_token
 
-    async def create_tokens(self, user: User):
+    async def create_tokens(self, user: User) -> tuple[str, str]:
         access_token = await self.create_access_token(user)
         refresh_token = await self.create_refresh_token(user)
         return (access_token, refresh_token)
 
-    async def get_active_refresh_token(self, raw_token: str):
+    async def get_active_refresh_token(self, raw_token: str) -> RefreshToken | None:
         return await self.token_repository.get_active_refresh_token(hash_str(raw_token))
 
     async def verify_and_update_password(self, user: User, plain_password: str) -> bool:
@@ -107,10 +110,10 @@ class AuthService:
                 logger.exception(f"Failed to rehash password for user: {user.email}")
         return True
 
-    async def hash_password(self, password: str):
+    async def hash_password(self, password: str) -> str:
         return await asyncio.to_thread(password_hash.hash, password)
 
-    async def create_forget_password_token(self, user: User):
+    async def create_forget_password_token(self, user: User) -> str:
         raw_token = secrets.token_urlsafe(32)
         hashed_token = hash_str(raw_token)
         expire = datetime.now(timezone.utc) + FORGET_PASSWORD_TOKEN_EXPIRE
@@ -119,7 +122,7 @@ class AuthService:
         )
         return raw_token
 
-    async def register_user(self, user: User):
+    async def register_user(self, user: User) -> User:
         if await self.user_repository.get_by_email(user.email):
             raise EmailUsed(f"register_user:{user.email}")
 
@@ -150,7 +153,7 @@ class AuthService:
             logger.error(f"User registration failed: {user.email} - {str(e)}")
             raise e
 
-    async def login_user(self, username: str, password: str):
+    async def login_user(self, username: str, password: str) -> tuple[str, str]:
         user = await self.authenticate_user(username, password)
         if not user:
             logger.warning(f"Login failed: invalid credentials for {username}")
@@ -158,7 +161,7 @@ class AuthService:
         logger.info(f"User login successful: {username}")
         return await self.create_tokens(user)
 
-    async def refresh_user(self, refresh_token: str):
+    async def refresh_user(self, refresh_token: str) -> tuple[str, str]:
         if not refresh_token:
             raise TokenInvalid("refresh:no_token")
 
@@ -178,12 +181,12 @@ class AuthService:
 
         return await self.create_tokens(user)
 
-    async def forget_password(self, email: str):
+    async def forget_password(self, email: str) -> None:
         user = await self.user_repository.get_by_email(email)
 
         if not user:
             logger.debug(f"Forget password request for non-existent user: {email}")
-            return None
+            return
 
         if not user.password:
             logger.warning(f"Forget password requested for OAuth-only user: {email}")
@@ -193,7 +196,7 @@ class AuthService:
         logger.info(f"Password reset token created for user: {email}")
         await self.mail_service.send_forget_password_mail(email, token)
 
-    async def reset_password(self, token: str, new_password: str):
+    async def reset_password(self, token: str, new_password: str) -> bool:
         hashed = hash_str(token)
         forget_token = await self.token_repository.get_forget_password_token(hashed)
 
@@ -213,13 +216,13 @@ class AuthService:
             logger.error(f"Password reset failed: {str(e)}")
             raise e
 
-    async def validate_reset_token(self, token: str):
+    async def validate_reset_token(self, token: str) -> bool:
         return (
             await self.token_repository.get_forget_password_token(hash_str(token))
             is not None
         )
 
-    async def keycloak_callback(self, code: str):
+    async def keycloak_callback(self, code: str) -> str:
         settings = get_settings()
         payload = {
             "grant_type": "authorization_code",
@@ -242,11 +245,11 @@ class AuthService:
             raise KeycloakExchangeFailed(f"keycloak_callback:invalid_token:{code}")
         return await self.login_keycloak_user(decoded_token)
 
-    async def login_keycloak_user(self, decoded_token: dict[str, Any]):
+    async def login_keycloak_user(self, decoded_token: dict[str, Any]) -> str:
         user = await self.map_keycloak_to_user(decoded_token)
         return await self.create_refresh_token(user)
 
-    async def map_keycloak_to_user(self, decoded_token: dict[str, Any]):
+    async def map_keycloak_to_user(self, decoded_token: dict[str, Any]) -> User:
         if get_settings().DEBUG_KEYCLOAK_ADMIN:
             keycloak_roles = [get_settings().ADMIN_GROUP]
         else:
@@ -280,7 +283,9 @@ class AuthService:
             )
         )
 
-    async def map_keycloak_roles(self, roles: list[str], vis_groups: list[str]):
+    async def map_keycloak_roles(
+        self, roles: Sequence[str], vis_groups: Sequence[str]
+    ) -> tuple[bool, list[Role]]:
         result = []
         admin = False
         for role in roles:
