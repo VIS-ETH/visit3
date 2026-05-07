@@ -1,10 +1,11 @@
+from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import EmailStr
 from sqlalchemy import Column, DateTime
-from sqlmodel import Field, Relationship, Sequence
+from sqlmodel import Field, Relationship
 
 from app.models.base import BaseEntity
 

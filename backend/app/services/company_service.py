@@ -1,7 +1,7 @@
 import logging
 import secrets
+from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
-from typing import Sequence
 from uuid import UUID
 
 from app.core.decorators import require_admin, require_confirmed_company, require_staff

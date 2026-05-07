@@ -1,12 +1,14 @@
 import re
+from collections.abc import Sequence
 from datetime import date
 from enum import Enum
 from typing import Self
 from uuid import UUID
 
 from pydantic import field_validator, model_validator
-from sqlalchemy import CheckConstraint, Column, Integer, Sequence
+from sqlalchemy import CheckConstraint, Column, Integer
 from sqlalchemy import Enum as SAEnum
+from sqlalchemy import Sequence as SQLSequence
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field, Relationship, UniqueConstraint
 
@@ -105,7 +107,7 @@ class KpEventBooking(BaseEntity, table=True):
         default=None,
         sa_column=Column(
             Integer,
-            Sequence("kpeventbooking_booking_number_seq", start=1000),
+            SQLSequence("kpeventbooking_booking_number_seq", start=1000),
             nullable=False,
             unique=True,
         ),

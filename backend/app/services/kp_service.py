@@ -1,6 +1,7 @@
+from collections.abc import Sequence
 from datetime import date
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional
 from uuid import UUID, uuid4
 
 from app.core.config import get_settings

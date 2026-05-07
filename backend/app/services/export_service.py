@@ -1,7 +1,7 @@
 import tempfile
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 from uuid import UUID, uuid4
 
 from app.core.config import get_settings
