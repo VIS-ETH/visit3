@@ -31,6 +31,16 @@ ignore = ["E501", "E402", "E712", "F403"]
 
 [tool.pyright]
 pythonVersion = "3.12"
+exclude = [
+    '**/migrations',
+    '**/scripts',
+    '**/generated',
+    '**/__pycache__',
+    '**/node_modules',
+    '**/.*',
+    '.venv',
+    '**/.venv',
+]
 
 [dependency-groups]
 dev = [
