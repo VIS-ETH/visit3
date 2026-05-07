@@ -32,7 +32,7 @@ class CsrfSettings(BaseModel):
     httponly: bool = False
 
 
-@CsrfProtect.load_config
+@CsrfProtect.load_config  # type: ignore
 def get_csrf_config():
     return CsrfSettings()
 

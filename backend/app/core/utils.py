@@ -2,7 +2,7 @@ import hashlib
 import json
 from typing import Any, Protocol, TypeVar, cast, overload
 
-T = TypeVar("T")
+T = TypeVar("T", covariant=True)
 
 
 class ModelValidateType(Protocol[T]):
