@@ -21,13 +21,15 @@ import type { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import BackButton from "../components/BackButton";
+import { kpSchema, type KpFormValues } from "../schemas/kpSchema";
 import {
+  EVENT_STATUS_COLORS,
   formatKpDateInput,
   formatKpDisplayDate,
-  kpSchema,
+  getEventStatus,
   toKpIsoDate,
-  type KpFormValues,
-} from "../schemas/kpSchema";
+  type EventStatus,
+} from "../utils/kp-utils";
 import { useTranslatedForm } from "../utils/translator";
 import {
   getGetLatestKpQueryKey,
@@ -35,34 +37,6 @@ import {
   useCreateKp,
   useListKps,
 } from "../orval/generated/kp/kp";
-import type { KpResponse } from "../orval/generated/fastAPI.schemas";
-
-type EventStatus = "upcoming" | "registration_open" | "finalizing" | "past";
-
-function getEventStatus(event: KpResponse): EventStatus {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const regOpen = event.registration_open
-    ? new Date(event.registration_open)
-    : null;
-  const regEnd = event.registration_end
-    ? new Date(event.registration_end)
-    : null;
-  const eventDate = event.event_date ? new Date(event.event_date) : null;
-
-  if (eventDate && today > eventDate) return "past";
-  if (regOpen && today < regOpen) return "upcoming";
-  if (regEnd && today <= regEnd) return "registration_open";
-  return "finalizing";
-}
-
-const STATUS_COLORS: Record<EventStatus, string> = {
-  upcoming: "blue",
-  registration_open: "green",
-  finalizing: "yellow",
-  past: "gray",
-};
 
 function todayAsDateInput() {
   return formatKpDateInput(new Date());
@@ -113,7 +87,6 @@ export default function KpDashboard() {
   const statusLabels: Record<EventStatus, string> = {
     upcoming: t("kp.dashboard.status_upcoming"),
     registration_open: t("kp.dashboard.status_registration_open"),
-    finalizing: t("kp.dashboard.status_finalizing"),
     past: t("kp.dashboard.status_past"),
   };
 
@@ -291,7 +264,7 @@ export default function KpDashboard() {
                       </Table.Td>
                       <Table.Td>
                         <Badge
-                          color={STATUS_COLORS[status]}
+                          color={EVENT_STATUS_COLORS[status]}
                           variant="light"
                           size="sm"
                         >

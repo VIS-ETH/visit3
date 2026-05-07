@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -11,6 +11,7 @@ from app.models.company import Company, KpCompanyProfile
 from app.models.kp_event import (
     KpBookingCompanyDetails,
     KpBookingCompanyDetailsIndustryLink,
+    KpBookingStatus,
     KpEvent,
     KpEventBooking,
     KpEventBookingService,
@@ -298,6 +299,46 @@ class KpRepository(BaseRepository[KpEvent]):
             statement = statement.where(KpEventBooking.event_id == event_id)
         result = await self.session.execute(statement)
         return result.scalars().all()
+
+    async def get_company_active_booking_for_event(
+        self, event_id: UUID, company_id: UUID
+    ) -> Optional[KpEventBooking]:
+        statement = self._booking_select().where(
+            KpEventBooking.event_id == event_id,
+            KpEventBooking.company_id == company_id,
+            KpEventBooking.status != KpBookingStatus.CANCELLED,
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def count_active_bookings_for_zone(
+        self, event_id: UUID, booth_zone_id: UUID
+    ) -> int:
+        statement = (
+            select(func.count())
+            .select_from(KpEventBooking)
+            .where(
+                KpEventBooking.event_id == event_id,
+                KpEventBooking.booth_zone_id == booth_zone_id,
+                KpEventBooking.status != KpBookingStatus.CANCELLED,
+            )
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one()
+
+    async def lock_booth_zone_for_update(
+        self, booth_zone_id: UUID
+    ) -> Optional[KpEventBoothZone]:
+        """Acquires a row-level lock on the zone row. Must be called within the
+        same transaction as the subsequent capacity count check and booking creation,
+        so the lock is held until commit, preventing concurrent oversubscription."""
+        statement = (
+            select(KpEventBoothZone)
+            .where(KpEventBoothZone.id == booth_zone_id)
+            .with_for_update()
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
 
     async def create_booking(
         self,

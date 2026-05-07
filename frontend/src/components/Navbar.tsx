@@ -10,6 +10,7 @@ import {
 } from "@mantine/core";
 import {
   IconBuilding,
+  IconCalendarEvent,
   IconHome2,
   IconLogout2,
   IconSettings,
@@ -90,6 +91,15 @@ export default function Navbar() {
                 justify="flex-start"
               >
                 {t("nav.company")}
+              </Button>
+              <Button
+                component={NavLink}
+                to="/kp"
+                leftSection={<IconCalendarEvent />}
+                variant="subtle"
+                justify="flex-start"
+              >
+                {t("nav.kontaktparty")}
               </Button>
             </>
           )}

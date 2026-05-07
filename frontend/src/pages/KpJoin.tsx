@@ -3,7 +3,7 @@ import { IconAlertCircle } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import BackButton from "../components/BackButton";
 import { useGetLatestKp } from "../orval/generated/kp/kp";
-import { formatKpDisplayDate } from "../schemas/kpSchema";
+import { formatKpDisplayDate } from "../utils/kp-utils";
 
 export default function KpJoin() {
   const { t } = useTranslation();

@@ -10,7 +10,9 @@ from app.core.deps import CsrfDep, ExportServiceDep, KpServiceDep
 from app.schemas.kp import (
     BookingResponse,
     BookingUpgradeWaitlistEntryResponse,
+    BookingWithCompanyAndBoothZoneResponse,
     BoothZoneResponse,
+    BoothZoneWithAvailabilityResponse,
     CreateBoothZoneRequest,
     CreateIndustryRequest,
     CreateKpRequest,
@@ -18,6 +20,7 @@ from app.schemas.kp import (
     ExportBackgroundResponse,
     IndustryResponse,
     KpResponse,
+    RegisterBookingRequest,
     NametagExportTargetsResponse,
     ReplaceBookingUpgradeWaitlistRequest,
     RequirementFileDownloadResponse,
@@ -68,7 +71,6 @@ async def get_latest_kp(kp_service: KpServiceDep) -> KpResponse | None:
     return await kp_service.get_latest_kp()
 
 
-@require_kp_president
 @router.get("/events/{event_id}", operation_id="getKpById", response_model=KpResponse)
 async def get_kp_by_id(kp_service: KpServiceDep, event_id: UUID) -> KpResponse:
     return await kp_service.get_event_by_id(event_id)
@@ -209,6 +211,45 @@ async def delete_industry(kp_service: KpServiceDep, industry_id: UUID) -> None:
     await kp_service.delete_industry(industry_id)
 
 
+# --- Company Booking Flow ---
+
+
+@require_confirmed_company
+@router.get(
+    "/events/{event_id}/booth-zones/available",
+    operation_id="listAvailableBoothZones",
+    response_model=list[BoothZoneWithAvailabilityResponse],
+)
+async def list_available_booth_zones(
+    kp_service: KpServiceDep, event_id: UUID
+) -> list[BoothZoneWithAvailabilityResponse]:
+    return await kp_service.list_booth_zones_for_company(event_id)
+
+
+@require_confirmed_company
+@router.post(
+    "/events/{event_id}/bookings/register",
+    operation_id="registerBooking",
+    response_model=BookingResponse,
+)
+async def register_booking(
+    kp_service: KpServiceDep, event_id: UUID, request: RegisterBookingRequest
+) -> BookingResponse:
+    return await kp_service.register_booking(event_id, request.booth_zone_id)
+
+
+@require_confirmed_company
+@router.get(
+    "/events/{event_id}/my-booking",
+    operation_id="getMyBooking",
+    response_model=BookingResponse | None,
+)
+async def get_my_booking(
+    kp_service: KpServiceDep, event_id: UUID
+) -> BookingResponse | None:
+    return await kp_service.get_my_booking(event_id)
+
+
 # --- Bookings ---
 
 
@@ -216,11 +257,11 @@ async def delete_industry(kp_service: KpServiceDep, industry_id: UUID) -> None:
 @router.get(
     "/events/{event_id}/bookings",
     operation_id="listEventBookings",
-    response_model=list[BookingResponse],
+    response_model=list[BookingWithCompanyAndBoothZoneResponse],
 )
 async def list_event_bookings(
     kp_service: KpServiceDep, event_id: UUID
-) -> list[BookingResponse]:
+) -> list[BookingWithCompanyAndBoothZoneResponse]:
     return await kp_service.list_bookings_for_event(event_id)
 
 
@@ -256,13 +297,13 @@ async def replace_booking_upgrade_waitlist(
 @router.patch(
     "/bookings/{booking_id}/status",
     operation_id="updateMyBookingStatus",
-    response_model=BookingResponse,
+    response_model=BookingWithCompanyAndBoothZoneResponse,
 )
 async def update_my_booking_status(
     kp_service: KpServiceDep,
     booking_id: UUID,
     request: UpdateBookingInput,
-) -> BookingResponse:
+) -> BookingWithCompanyAndBoothZoneResponse:
     return await kp_service.update_my_booking_status(booking_id, request)
 
 
@@ -270,13 +311,13 @@ async def update_my_booking_status(
 @router.patch(
     "/bookings/{booking_id}/booth-number",
     operation_id="updateBookingBoothNumber",
-    response_model=BookingResponse,
+    response_model=BookingWithCompanyAndBoothZoneResponse,
 )
 async def update_booking_booth_number(
     kp_service: KpServiceDep,
     booking_id: UUID,
     request: UpdateBookingInput,
-) -> BookingResponse:
+) -> BookingWithCompanyAndBoothZoneResponse:
     return await kp_service.update_booking_booth_number(booking_id, request)
 
 
@@ -284,12 +325,12 @@ async def update_booking_booth_number(
 @router.patch(
     "/bookings/{booking_id}/confirm",
     operation_id="confirmBooking",
-    response_model=BookingResponse,
+    response_model=BookingWithCompanyAndBoothZoneResponse,
 )
 async def confirm_booking(
     kp_service: KpServiceDep,
     booking_id: UUID,
-) -> BookingResponse:
+) -> BookingWithCompanyAndBoothZoneResponse:
     return await kp_service.confirm_booking(booking_id)
 
 

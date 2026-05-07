@@ -5,8 +5,10 @@ from pydantic import BaseModel, Field
 
 from app.models.kp_event import (
     KpBookingStatus,
+    KpEventBookingServiceFileLink,
     KpCompanyLanguage,
 )
+from app.models.company import Company
 
 
 class StoredFileResponse(BaseModel):
@@ -168,7 +170,6 @@ class IndustryResponse(BaseModel):
 
 
 class CreateBookingInput(BaseModel):
-    booth_nr: int = Field(ge=1)
     status: KpBookingStatus = KpBookingStatus.REGISTERED
 
 
@@ -195,13 +196,28 @@ class ReplaceBookingUpgradeWaitlistRequest(BaseModel):
     target_booth_zone_ids: list[UUID]
 
 
+class RegisterBookingRequest(BaseModel):
+    booth_zone_id: UUID
+
+
+class BoothZoneWithAvailabilityResponse(BoothZoneResponse):
+    available_spots: int
+
+
 class BookingResponse(BaseModel):
     id: UUID
+    booking_number: int
     event_id: UUID
     company_id: UUID
     booth_zone_id: UUID
-    booth_nr: int
+    booth_nr: int | None
     status: KpBookingStatus
+    booth_zone: BoothZoneResponse | None = None
+
+
+class BookingWithCompanyAndBoothZoneResponse(BookingResponse):
+    company: Company
+    booth_zone: BoothZoneResponse
 
 
 class RequirementFileResponse(BaseModel):
