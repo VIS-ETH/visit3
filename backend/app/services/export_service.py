@@ -18,9 +18,9 @@ from app.models.kp_event import KpEventBooking, KpEventNametagBackground, NameTa
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
 from app.schemas.kp import (
-    NametagExportCompanyResponse,
-    NametagExportPersonResponse,
-    NametagExportTargetsResponse,
+    NametagExportCompanyResult,
+    NametagExportPersonResult,
+    NametagExportTargetsResult,
 )
 from app.services.csv_service import CsvService
 from app.services.pdf_service import PdfService
@@ -326,11 +326,11 @@ class ExportService:
     @require_staff
     async def list_nametag_export_targets(
         self, event_id: UUID
-    ) -> NametagExportTargetsResponse:
+    ) -> NametagExportTargetsResult:
         await self._get_event_or_raise(event_id)
         bookings = await self.kp_repository.list_bookings_for_event(event_id)
         companies = [
-            NametagExportCompanyResponse(
+            NametagExportCompanyResult(
                 booking_id=booking.id,
                 company_id=booking.company_id,
                 company_name=booking.company.name,
@@ -350,7 +350,7 @@ class ExportService:
         )
 
         people = [
-            NametagExportPersonResponse(
+            NametagExportPersonResult(
                 id=name_tag.id,
                 booking_id=booking.id,
                 company_name=booking.company.name,
@@ -368,7 +368,7 @@ class ExportService:
                 person.first_name.casefold(),
             )
         )
-        return NametagExportTargetsResponse(companies=companies, people=people)
+        return NametagExportTargetsResult(companies=companies, people=people)
 
     @require_staff
     async def render_event_nametags(

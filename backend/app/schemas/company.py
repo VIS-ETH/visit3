@@ -11,13 +11,17 @@ class UpdateCompanyRequest(BaseModel):
     name: str
 
 
-class KpCompanyProfileResponse(BaseModel):
+class KpCompanyProfileResult(BaseModel):
     id: UUID
     company_id: UUID
     invoice_address: str
     shipping_address: str
     contact_email: EmailStr | None
     kp_contact_user_id: UUID | None
+
+
+class KpCompanyProfileResponse(KpCompanyProfileResult):
+    pass
 
 
 class UpdateKpCompanyProfileRequest(BaseModel):
@@ -35,11 +39,15 @@ class CreateInviteRequest(BaseModel):
     email: EmailStr
 
 
-class InviteInfoResponse(BaseModel):
+class InviteInfoResult(BaseModel):
     company_name: str
 
 
-class CompanyAssignedUserResponse(BaseModel):
+class InviteInfoResponse(InviteInfoResult):
+    pass
+
+
+class CompanyAssignedUserResult(BaseModel):
     id: UUID
     email: str
     first_name: str | None = None
@@ -49,7 +57,15 @@ class CompanyAssignedUserResponse(BaseModel):
     email_confirmed: bool
 
 
-class CompanyWithUsersResponse(BaseModel):
+class CompanyAssignedUserResponse(CompanyAssignedUserResult):
+    pass
+
+
+class CompanyWithUsersResult(BaseModel):
     id: UUID
     name: str
+    users: list[CompanyAssignedUserResult]
+
+
+class CompanyWithUsersResponse(CompanyWithUsersResult):
     users: list[CompanyAssignedUserResponse]

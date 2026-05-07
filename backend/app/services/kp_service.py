@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional
 from uuid import UUID, uuid4
 
+from app.core.config import get_settings
 from app.core.decorators import require_confirmed_company, require_kp_president
 from app.core.exceptions import (
     KpBookingAlreadyExists,
@@ -42,7 +43,7 @@ from app.models.kp_event import (
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
 from app.schemas.kp import (
-    BoothZoneWithAvailabilityResponse,
+    BoothZoneWithAvailabilityResult,
     CreateBookingInput,
     CreateBoothZoneInput,
     CreateIndustryInput,
@@ -54,7 +55,6 @@ from app.schemas.kp import (
     UpdateServiceInput,
 )
 from app.services.storage_service import StorageService
-from app.core.config import get_settings
 
 
 class KpService:
@@ -202,7 +202,7 @@ class KpService:
     @require_confirmed_company
     async def list_booth_zones_for_company(
         self, event_id: UUID
-    ) -> list[BoothZoneWithAvailabilityResponse]:
+    ) -> list[BoothZoneWithAvailabilityResult]:
         await self._get_event(event_id)
         zones = await self.kp_repository.list_booth_zones(event_id)
         result = []
@@ -212,7 +212,7 @@ class KpService:
             )
             available = max(zone.capacity - count, 0)
             result.append(
-                BoothZoneWithAvailabilityResponse(
+                BoothZoneWithAvailabilityResult(
                     **zone.model_dump(),
                     available_spots=available,
                 )

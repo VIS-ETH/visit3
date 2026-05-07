@@ -3,12 +3,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.models.company import Company
 from app.models.kp_event import (
     KpBookingStatus,
-    KpEventBookingServiceFileLink,
     KpCompanyLanguage,
 )
-from app.models.company import Company
 
 
 class StoredFileResponse(BaseModel):
@@ -178,6 +177,10 @@ class UpdateBookingInput(BaseModel):
     booth_nr: int | None = Field(default=None, ge=1)
 
 
+class UpdateBookingRequest(UpdateBookingInput):
+    pass
+
+
 class UpsertCompanyDetailsInput(BaseModel):
     profile: str | None = None
     brand_name: str | None = None
@@ -200,8 +203,12 @@ class RegisterBookingRequest(BaseModel):
     booth_zone_id: UUID
 
 
-class BoothZoneWithAvailabilityResponse(BoothZoneResponse):
+class BoothZoneWithAvailabilityResult(BoothZoneResponse):
     available_spots: int
+
+
+class BoothZoneWithAvailabilityResponse(BoothZoneWithAvailabilityResult):
+    pass
 
 
 class BookingResponse(BaseModel):
@@ -239,7 +246,7 @@ class ExportBackgroundResponse(BaseModel):
     stored_file: StoredFileResponse
 
 
-class NametagExportPersonResponse(BaseModel):
+class NametagExportPersonResult(BaseModel):
     id: UUID
     booking_id: UUID
     company_name: str
@@ -248,7 +255,11 @@ class NametagExportPersonResponse(BaseModel):
     position: str
 
 
-class NametagExportCompanyResponse(BaseModel):
+class NametagExportPersonResponse(NametagExportPersonResult):
+    pass
+
+
+class NametagExportCompanyResult(BaseModel):
     booking_id: UUID
     company_id: UUID
     company_name: str
@@ -257,7 +268,16 @@ class NametagExportCompanyResponse(BaseModel):
     nametag_count: int
 
 
-class NametagExportTargetsResponse(BaseModel):
+class NametagExportCompanyResponse(NametagExportCompanyResult):
+    pass
+
+
+class NametagExportTargetsResult(BaseModel):
+    companies: list[NametagExportCompanyResult]
+    people: list[NametagExportPersonResult]
+
+
+class NametagExportTargetsResponse(NametagExportTargetsResult):
     companies: list[NametagExportCompanyResponse]
     people: list[NametagExportPersonResponse]
 

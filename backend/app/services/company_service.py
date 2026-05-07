@@ -15,10 +15,10 @@ from app.core.utils import normalize_email
 from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
 from app.schemas.company import (
-    CompanyAssignedUserResponse,
-    CompanyWithUsersResponse,
-    InviteInfoResponse,
-    KpCompanyProfileResponse,
+    CompanyAssignedUserResult,
+    CompanyWithUsersResult,
+    InviteInfoResult,
+    KpCompanyProfileResult,
 )
 from app.services.mail_service import MailService
 
@@ -46,14 +46,14 @@ class CompanyService:
         return await self.company_repository.get_users(company)
 
     @require_staff
-    async def get_companies_with_users(self) -> list[CompanyWithUsersResponse]:
+    async def get_companies_with_users(self) -> list[CompanyWithUsersResult]:
         companies = await self.company_repository.get_companies_with_users()
         return [
-            CompanyWithUsersResponse(
+            CompanyWithUsersResult(
                 id=company.id,
                 name=company.name,
                 users=[
-                    CompanyAssignedUserResponse(
+                    CompanyAssignedUserResult(
                         id=user.id,
                         email=user.email,
                         first_name=user.first_name,
@@ -130,7 +130,7 @@ class CompanyService:
         )
         return invite
 
-    async def get_invite_info(self, token: str) -> InviteInfoResponse:
+    async def get_invite_info(self, token: str) -> InviteInfoResult:
         invite = await self.company_repository.get_invite_by_token(token)
         if not invite or invite.is_used:
             raise InviteNotFound(f"get_invite_info:{token}")
@@ -139,7 +139,7 @@ class CompanyService:
         company = await self.company_repository.get_by_id(invite.company_id)
         if not company:
             raise CompanyNotFound(f"get_invite_info:{invite.company_id}")
-        return InviteInfoResponse(company_name=company.name)
+        return InviteInfoResult(company_name=company.name)
 
     @require_confirmed_company
     async def accept_invite(self, token: str) -> User:
@@ -187,13 +187,13 @@ class CompanyService:
         return updated_company
 
     @require_confirmed_company
-    async def get_my_kp_profile(self) -> KpCompanyProfileResponse | None:
+    async def get_my_kp_profile(self) -> KpCompanyProfileResult | None:
         profile = await self.company_repository.get_kp_profile(
             self.current_user.company_id
         )
         if profile is None:
             return None
-        return KpCompanyProfileResponse(
+        return KpCompanyProfileResult(
             id=profile.id,
             company_id=profile.company_id,
             invoice_address=profile.invoice_address,
@@ -209,7 +209,7 @@ class CompanyService:
         shipping_address: str,
         contact_email: str | None,
         kp_contact_user_id: UUID | None,
-    ) -> KpCompanyProfileResponse:
+    ) -> KpCompanyProfileResult:
         if kp_contact_user_id is not None:
             user = next(
                 (
@@ -231,7 +231,7 @@ class CompanyService:
             contact_email=contact_email,
             kp_contact_user_id=kp_contact_user_id,
         )
-        return KpCompanyProfileResponse(
+        return KpCompanyProfileResult(
             id=profile.id,
             company_id=profile.company_id,
             invoice_address=profile.invoice_address,
