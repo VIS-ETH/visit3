@@ -176,6 +176,27 @@ ruff check backend/         # lint
 prek run --all-files        # run all hooks
 ```
 
+### Local Checks
+
+Use the root `Makefile` for the same lint/typecheck/i18n checks you usually want before pushing:
+
+```bash
+make check              # backend + frontend lint, typecheck, and i18n checks
+make lint               # backend and frontend linters
+make typecheck          # backend pyright and frontend tsc -b
+make backend-check      # backend lint + typecheck
+make frontend-check     # frontend lint + typecheck + i18n checks
+make backend-lint-all   # stricter backend ruff run including migrations
+```
+
+Frontend-only aliases are also available in `frontend/package.json`:
+
+```bash
+cd frontend
+yarn check:all
+yarn typecheck
+```
+
 ### API Routes & Types
 
 - Ensure FastAPI routes are **properly typed** with return types and request body schemas

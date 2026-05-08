@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "typecheck": "tsc -b",
+    "check:all": "yarn lint && yarn typecheck && yarn check:i18n-keys && yarn check:i18n-literals",
     "preview": "vite preview",
     "check:i18n-literals": "node scripts/check-i18n-literals.mjs",
     "check:i18n-keys": "node scripts/check-i18n-keys.mjs"

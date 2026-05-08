@@ -7,7 +7,7 @@ PROTOS_PREFIX = app.generated
 
 PROTOS := $(shell find ./servis -name "*.proto" -not -path "./servis/google/*")
 
-.PHONY: generate clean
+.PHONY: generate clean check lint typecheck frontend-check frontend-lint frontend-typecheck frontend-i18n backend-check backend-lint backend-lint-all backend-typecheck backend-typecheck-all
 
 generate:
 	$(MAKE) generate-grpc
@@ -16,6 +16,50 @@ generate:
 clean:
 	$(MAKE) clean-grpc
 	$(MAKE)	clean-orval
+
+check:
+	$(MAKE) lint
+	$(MAKE) typecheck
+	$(MAKE) frontend-i18n
+
+lint:
+	$(MAKE) backend-lint
+	$(MAKE) frontend-lint
+
+typecheck:
+	$(MAKE) backend-typecheck
+	$(MAKE) frontend-typecheck
+
+frontend-check:
+	$(MAKE) frontend-lint
+	$(MAKE) frontend-typecheck
+	$(MAKE) frontend-i18n
+
+frontend-lint:
+	cd frontend && yarn lint
+
+frontend-typecheck:
+	cd frontend && yarn tsc -b
+
+frontend-i18n:
+	cd frontend && yarn check:i18n-keys
+	cd frontend && yarn check:i18n-literals
+
+backend-check:
+	$(MAKE) backend-lint
+	$(MAKE) backend-typecheck
+
+backend-lint:
+	cd backend && uv run ruff check app
+
+backend-typecheck:
+	cd backend && uv run pyright
+
+backend-lint-all:
+	uv run --project backend ruff check backend
+
+backend-typecheck-all:
+	cd backend && uv run pyright .
 
 generate-grpc:
 	$(MAKE) clean-grpc
