@@ -5,6 +5,7 @@ const rootDir = process.cwd();
 const sourceDirs = [
   path.join(rootDir, "src", "pages"),
   path.join(rootDir, "src", "components"),
+  path.join(rootDir, "src", "schemas")
 ];
 
 const localePaths = {
@@ -60,6 +61,22 @@ function collectTranslationUsages(source) {
   return keys;
 }
 
+function collectSchemaTranslationUsages(source) {
+  const keys = new Set();
+  const patterns = [
+    /\bmessage:\s*["'`]([^"'`]+)["'`]/g,
+    /\.(?:email|min|max|regex|refine)\([\s\S]*?["'`]([^"'`]+)["'`][\s\S]*?\)/g,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of source.matchAll(pattern)) {
+      keys.add(match[1]);
+    }
+  }
+
+  return keys;
+}
+
 function loadLocaleKeys(localePath) {
   const content = fs.readFileSync(localePath, "utf8");
   const parsed = JSON.parse(content);
@@ -73,6 +90,11 @@ for (const filePath of sourceFiles) {
   const source = fs.readFileSync(filePath, "utf8");
   for (const key of collectTranslationUsages(source)) {
     usedKeys.add(key);
+  }
+  if (filePath.includes(`${path.sep}src${path.sep}schemas${path.sep}`)) {
+    for (const key of collectSchemaTranslationUsages(source)) {
+      usedKeys.add(key);
+    }
   }
 }
 

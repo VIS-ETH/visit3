@@ -15,3 +15,5 @@ export const profileSchema = z
       path: ["phoneNumber"],
     },
   );
+
+export type ProfileFormValues = z.infer<typeof profileSchema>;

@@ -26,7 +26,7 @@ export const zPhone = z.string().transform((arg, ctx) => {
   // when it's not
   ctx.addIssue({
     code: "custom",
-    message: "phoneNumber.invalid",
+    message: "register.phoneNumber.invalid",
   });
   return z.NEVER;
 });

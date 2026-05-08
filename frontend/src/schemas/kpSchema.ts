@@ -66,7 +66,7 @@ export const kpSchema = z
 
     if (registrationEnd <= registrationOpen) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["registrationEnd"],
         message: "kp.dashboard.registration_end_after_open",
       });
@@ -74,7 +74,7 @@ export const kpSchema = z
 
     if (finalizationDeadline < registrationEnd) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["finalizationDeadline"],
         message: "kp.dashboard.finalization_deadline_after_registration_end",
       });
@@ -82,7 +82,7 @@ export const kpSchema = z
 
     if (eventDate <= registrationEnd) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["eventDate"],
         message: "kp.dashboard.event_date_after_registration_end",
       });
@@ -90,7 +90,7 @@ export const kpSchema = z
 
     if (nametagsDeadline < registrationEnd) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["nametagsDeadline"],
         message: "kp.dashboard.nametags_deadline_after_registration_end",
       });
@@ -98,7 +98,7 @@ export const kpSchema = z
 
     if (finalizationDeadline >= eventDate) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["finalizationDeadline"],
         message: "kp.dashboard.finalization_deadline_before_event",
       });
@@ -106,7 +106,7 @@ export const kpSchema = z
 
     if (nametagsDeadline >= eventDate) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["nametagsDeadline"],
         message: "kp.dashboard.nametags_deadline_before_event",
       });

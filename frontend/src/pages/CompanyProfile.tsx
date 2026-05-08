@@ -17,7 +17,6 @@ import { IconAlertCircle, IconMail, IconSettings } from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { z } from "zod";
 import {
   useCreateCompanyInvite,
   useGetMyCompanyMembers,
@@ -29,10 +28,7 @@ import {
 } from "../orval/generated/user/user";
 import { useTranslatedForm } from "../utils/translator";
 import { companySchema } from "../schemas/companySchema";
-
-const inviteSchema = z.object({
-  email: z.string().trim().min(1, "register.required").email("email.valid"),
-});
+import { inviteSchema } from "../schemas/inviteSchema";
 
 const CompanyProfile = () => {
   const { t } = useTranslation();

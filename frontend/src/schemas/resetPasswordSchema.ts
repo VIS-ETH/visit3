@@ -9,3 +9,5 @@ export const resetPasswordSchema = z
     message: "register.password.nomatch",
     path: ["confirmPassword"],
   });
+
+export type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
