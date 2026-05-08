@@ -21,7 +21,6 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetAllCompanyUsersQueryKey,
-  getGetCurrentUserQueryKey,
   getGetUnconfirmedUsersQueryKey,
   useConfirmUser,
   useDeleteUser,
