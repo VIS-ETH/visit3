@@ -39,11 +39,13 @@ import {
 import UserTable from "../components/UserTable";
 import type { UserResponse } from "../orval/generated/fastAPI.schemas";
 import { useCurrentUser } from "../context/useCurrentUser";
+import { useNavigate } from "react-router";
 
 const UserManagement = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
+  const navigate = useNavigate();
   const adminStatus = user?.is_admin ?? false;
   const [activeTab, setActiveTab] = useState<string | null>("unconfirmed");
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
@@ -112,7 +114,7 @@ const UserManagement = () => {
   ) => {
     if (!adminStatus || !userId) return;
     setImpersonation(userId, displayName);
-    queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+    navigate("/", { replace: true });
   };
 
   const handleDeleteUser = (userId: string | undefined) => {
