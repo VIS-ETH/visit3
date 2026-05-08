@@ -6,15 +6,24 @@ The frontend is React with Mantine and the backend is FastAPI.
 
 ## Table of Contents
 
-- [Setup](#setup)
-  - [Prerequisites](#prerequisites)
-  - [Quick Start](#quick-start)
-  - [Code Generation](#code-generation)
-  - [Backend](#backend)
-  - [Frontend](#frontend)
-- [Database Migrations](#database-migrations)
-- [Test Data Seeding](#test-data-seeding)
-- [Important Bits](#important-bits)
+- [VISIT 3](#visit-3)
+  - [The new company portal for VIS](#the-new-company-portal-for-vis)
+  - [Table of Contents](#table-of-contents)
+  - [Setup](#setup)
+    - [Prerequisites](#prerequisites)
+    - [Quick Start](#quick-start)
+    - [Code Generation](#code-generation)
+    - [Backend](#backend)
+    - [Frontend](#frontend)
+  - [Database Migrations](#database-migrations)
+  - [Test Data Seeding](#test-data-seeding)
+  - [Important Bits](#important-bits)
+    - [Backend Architecture](#backend-architecture)
+  - [i18n checks](#i18n-checks)
+    - [Scheduled Tasks](#scheduled-tasks)
+    - [Code Formatting](#code-formatting)
+    - [API Routes \& Types](#api-routes--types)
+    - [Translations](#translations)
 
 ## Setup
 
@@ -132,6 +141,19 @@ The backend follows a layered pattern: **routes -> services -> repositories**.
 - **Services** (`app/services/`) contain business logic. Authorization is enforced via decorators (`@require_staff`, `@require_admin`, etc.) in `app/core/decorators.py`.
 - **Repositories** (`app/repositories/`) handle all database access, one repository per domain.
 
+## i18n checks
+
+Run the frontend i18n check scripts to find missing translation keys or literals.
+
+From the repository root:
+
+```bash
+cd frontend
+npm run check:i18n-keys    # lists referenced translation keys missing in locales
+npm run check:i18n-literals # checks for i18n literal usage issues
+```
+
+These scripts read `frontend/src` and compare used `t(...)` keys against `frontend/public/locales/en.json` and `de.json`.
 ### Scheduled Tasks
 
 Periodic tasks are registered with the `Scheduler` in `app/core/scheduler.py`. To add a task, define an async function and register it in `app/main.py`:
