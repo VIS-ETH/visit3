@@ -49,6 +49,7 @@ Open http://localhost:3000.
 
 ```bash
 make                  # generate gRPC + Orval code
+make DOCKER=true      # generate code in Docker containers
 make clean            # remove generated artifacts
 make check            # backend + frontend lint, typecheck, and i18n checks
 make lint             # backend and frontend linters
