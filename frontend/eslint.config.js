@@ -59,6 +59,12 @@ export default defineConfig([
     },
   },
   {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+  {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       parserOptions: {

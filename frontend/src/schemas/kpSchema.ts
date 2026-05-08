@@ -9,7 +9,7 @@ export const kpSchema = z
     registrationOpen: z
       .string()
       .trim()
-      .min(1, "register.required")
+      .min(1, "validation.required")
       .refine(
         (value) => parseKpDateInput(value) !== null,
         "kp.dashboard.invalid_date",
@@ -17,7 +17,7 @@ export const kpSchema = z
     registrationEnd: z
       .string()
       .trim()
-      .min(1, "register.required")
+      .min(1, "validation.required")
       .refine(
         (value) => parseKpDateInput(value) !== null,
         "kp.dashboard.invalid_date",
@@ -25,7 +25,7 @@ export const kpSchema = z
     finalizationDeadline: z
       .string()
       .trim()
-      .min(1, "register.required")
+      .min(1, "validation.required")
       .refine(
         (value) => parseKpDateInput(value) !== null,
         "kp.dashboard.invalid_date",
@@ -33,7 +33,7 @@ export const kpSchema = z
     nametagsDeadline: z
       .string()
       .trim()
-      .min(1, "register.required")
+      .min(1, "validation.required")
       .refine(
         (value) => parseKpDateInput(value) !== null,
         "kp.dashboard.invalid_date",
@@ -41,7 +41,7 @@ export const kpSchema = z
     eventDate: z
       .string()
       .trim()
-      .min(1, "register.required")
+      .min(1, "validation.required")
       .refine(
         (value) => parseKpDateInput(value) !== null,
         "kp.dashboard.invalid_date",

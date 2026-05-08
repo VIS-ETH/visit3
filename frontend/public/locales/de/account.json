@@ -1,0 +1,78 @@
+{
+  "profile": {
+    "title": "Profil",
+    "name": "Name",
+    "email": "E-Mail",
+    "phone": "Telefonnummer",
+    "company": "Unternehmen",
+    "company_section_title": "Unternehmensinformationen",
+    "company_name": "Unternehmensname",
+    "load_error": "Profil konnte nicht geladen werden",
+    "edit": {
+      "button": "Einstellungen",
+      "title": "Profil bearbeiten",
+      "first_name": "Vorname",
+      "last_name": "Nachname",
+      "phone_number": "Telefonnummer",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "success_title": "Profil aktualisiert",
+      "success_message": "Ihr Profil wurde erfolgreich aktualisiert.",
+      "error_message": "Profil konnte nicht aktualisiert werden"
+    },
+    "company_edit": {
+      "button": "Einstellungen",
+      "title": "Unternehmen bearbeiten",
+      "name": "Unternehmensname",
+      "name_placeholder": "Unternehmensname eingeben",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "success_title": "Unternehmen aktualisiert",
+      "success_message": "Unternehmensinformationen wurden erfolgreich aktualisiert.",
+      "error_message": "Unternehmen konnte nicht aktualisiert werden"
+    }
+  },
+  "impersonation": {
+    "banner_title": "Ansicht als {{name}}",
+    "stop": "Imitation beenden"
+  },
+  "setup_company": {
+    "title": "Ihr Unternehmen einrichten",
+    "login_required": "Bitte melden Sie sich an, um Ihr Unternehmen einzurichten",
+    "login_required_description": "Die Unternehmenseinrichtung ist Teil des Onboarding-Ablaufs nach der Anmeldung.",
+    "create_title": "Unternehmen erstellen",
+    "create_description": "Erstellen Sie Ihr Unternehmensprofil. Sie werden das erste Mitglied sein.",
+    "name_label": "Unternehmensname",
+    "name_placeholder": "Unternehmensname eingeben",
+    "create_button": "Unternehmen erstellen",
+    "invite_title": "Auf eine Einladung warten?",
+    "invite_description": "Bitten Sie einen Kollegen, der bereits einem Unternehmen angehört, Ihnen eine Einladung zu schicken.",
+    "invite_hint": "Falls eine Einladung an {{email}} gesendet wurde, oeffnen Sie genau diesen Link, sobald Ihr Konto und Ihre E-Mail bestätigt sind."
+  },
+  "company_join": {
+    "title": "Unternehmen beitreten",
+    "joining": "Sie wurden eingeladen, beizutreten",
+    "button": "{{company}} beitreten",
+    "invalid": "Ungültige Einladung",
+    "login_required": "Melden Sie sich an oder erstellen Sie das eingeladene Konto, bevor Sie diese Einladung annehmen.",
+    "log_in": "Anmelden",
+    "create_account": "Konto erstellen",
+    "email_mismatch": "Sie sind als {{currentEmail}} angemeldet, aber diese Einladung gehört zu einem anderen Konto."
+  },
+  "company_profile": {
+    "title": "Unternehmen",
+    "settings_button": "Einstellungen",
+    "settings_title": "Unternehmen bearbeiten",
+    "name_label": "Unternehmensname",
+    "name_placeholder": "Unternehmensname eingeben",
+    "save": "Speichern",
+    "settings_success": "Unternehmen aktualisiert",
+    "invite_title": "Mitglied einladen",
+    "invite_email": "E-Mail-Adresse",
+    "invite_email_placeholder": "kollege@beispiel.com",
+    "invite_button": "Einladung senden",
+    "invite_success": "Einladung gesendet",
+    "members_title": "Mitglieder",
+    "no_members": "Keine Mitglieder gefunden."
+  }
+}

@@ -3,6 +3,8 @@ import { initReactI18next } from "react-i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import HttpBackend from "i18next-http-backend";
 
+const namespaces = ["common", "auth", "account", "admin", "kp"];
+
 i18n
   .use(HttpBackend)
   .use(LanguageDetector)
@@ -10,12 +12,15 @@ i18n
   .init({
     fallbackLng: "en",
     supportedLngs: ["en", "de"],
+    ns: namespaces,
+    defaultNS: "common",
+    fallbackNS: namespaces.filter((namespace) => namespace !== "common"),
     debug: true,
     interpolation: {
       escapeValue: false,
     },
     backend: {
-      loadPath: "/locales/{{lng}}.json",
+      loadPath: "/locales/{{lng}}/{{ns}}.json",
     },
   });
 

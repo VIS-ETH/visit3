@@ -1,0 +1,78 @@
+{
+  "profile": {
+    "title": "Profile",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone Number",
+    "company": "Company",
+    "company_section_title": "Company Information",
+    "company_name": "Company Name",
+    "load_error": "Failed to load profile",
+    "edit": {
+      "button": "Settings",
+      "title": "Edit profile",
+      "first_name": "First Name",
+      "last_name": "Last Name",
+      "phone_number": "Phone Number",
+      "cancel": "Cancel",
+      "save": "Save",
+      "success_title": "Profile updated",
+      "success_message": "Your profile was updated successfully.",
+      "error_message": "Failed to update your profile"
+    },
+    "company_edit": {
+      "button": "Settings",
+      "title": "Edit company",
+      "name": "Company Name",
+      "name_placeholder": "Enter company name",
+      "cancel": "Cancel",
+      "save": "Save",
+      "success_title": "Company updated",
+      "success_message": "Company information was updated successfully.",
+      "error_message": "Failed to update company"
+    }
+  },
+  "impersonation": {
+    "banner_title": "Viewing as {{name}}",
+    "stop": "Stop impersonating"
+  },
+  "setup_company": {
+    "title": "Set Up Your Company",
+    "login_required": "Log in to set up your company",
+    "login_required_description": "Company setup is part of the signed-in onboarding flow.",
+    "create_title": "Create a Company",
+    "create_description": "Start by creating your company profile. You'll be the first member.",
+    "name_label": "Company Name",
+    "name_placeholder": "Enter company name",
+    "create_button": "Create Company",
+    "invite_title": "Waiting for an Invite?",
+    "invite_description": "Ask a colleague who is already in a company to send you an invite. Once you receive the email, click the link to join their company.",
+    "invite_hint": "If an invite was sent to {{email}}, open that exact link after your account and email are confirmed."
+  },
+  "company_join": {
+    "title": "Join Company",
+    "joining": "You have been invited to join",
+    "button": "Join {{company}}",
+    "invalid": "Invalid Invite",
+    "login_required": "Log in or create the invited account before accepting this invite.",
+    "log_in": "Log in",
+    "create_account": "Create account",
+    "email_mismatch": "You are signed in as {{currentEmail}}, but this invite belongs to a different account."
+  },
+  "company_profile": {
+    "title": "Company",
+    "settings_button": "Settings",
+    "settings_title": "Edit Company",
+    "name_label": "Company Name",
+    "name_placeholder": "Enter company name",
+    "save": "Save",
+    "settings_success": "Company updated",
+    "invite_title": "Invite a Member",
+    "invite_email": "Email Address",
+    "invite_email_placeholder": "colleague@example.com",
+    "invite_button": "Send Invite",
+    "invite_success": "Invitation sent",
+    "members_title": "Members",
+    "no_members": "No members found."
+  }
+}

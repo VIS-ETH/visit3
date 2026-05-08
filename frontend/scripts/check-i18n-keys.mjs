@@ -2,16 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 const rootDir = process.cwd();
-const sourceDirs = [
-  path.join(rootDir, "src", "pages"),
-  path.join(rootDir, "src", "components"),
-  path.join(rootDir, "src", "schemas")
-];
-
-const localePaths = {
-  en: path.join(rootDir, "public", "locales", "en.json"),
-  de: path.join(rootDir, "public", "locales", "de.json"),
-};
+const sourceDirs = [path.join(rootDir, "src")];
+const localeRootDir = path.join(rootDir, "public", "locales");
+const locales = ["en", "de"];
 
 const fileExtensions = new Set([".ts", ".tsx"]);
 
@@ -24,6 +17,22 @@ function walk(dir) {
     if (entry.isDirectory()) {
       files.push(...walk(fullPath));
     } else if (fileExtensions.has(path.extname(entry.name))) {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
+
+function walkAll(dir) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...walkAll(fullPath));
+    } else {
       files.push(fullPath);
     }
   }
@@ -48,8 +57,8 @@ function flattenKeys(value, prefix = "") {
 function collectTranslationUsages(source) {
   const keys = new Set();
   const patterns = [
-    /\bt\(\s*["'`]([^"'`]+)["'`]\s*[\),]/g,
-    /\bi18n\.t\(\s*["'`]([^"'`]+)["'`]\s*[\),]/g,
+    /\bt\(\s*["'`]([^"'`]+)["'`]\s*[),]/g,
+    /\bi18n\.t\(\s*["'`]([^"'`]+)["'`]\s*[),]/g,
   ];
 
   for (const pattern of patterns) {
@@ -77,10 +86,28 @@ function collectSchemaTranslationUsages(source) {
   return keys;
 }
 
-function loadLocaleKeys(localePath) {
-  const content = fs.readFileSync(localePath, "utf8");
-  const parsed = JSON.parse(content);
-  return new Set(flattenKeys(parsed));
+function collectJsonFiles(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return walkAll(dir).filter((filePath) => path.extname(filePath) === ".json");
+}
+
+function loadLocaleKeys(locale) {
+  const localeDir = path.join(localeRootDir, locale);
+  const localeFile = path.join(localeRootDir, `${locale}.json`);
+  const jsonFiles = fs.existsSync(localeDir)
+    ? collectJsonFiles(localeDir)
+    : [localeFile].filter((filePath) => fs.existsSync(filePath));
+
+  const keys = new Set();
+  for (const filePath of jsonFiles) {
+    const content = fs.readFileSync(filePath, "utf8");
+    const parsed = JSON.parse(content);
+    for (const key of flattenKeys(parsed)) {
+      keys.add(key);
+    }
+  }
+
+  return keys;
 }
 
 const sourceFiles = sourceDirs.flatMap((dir) => (fs.existsSync(dir) ? walk(dir) : []));
@@ -99,13 +126,16 @@ for (const filePath of sourceFiles) {
 }
 
 const localeKeys = Object.fromEntries(
-  Object.entries(localePaths).map(([locale, localePath]) => [
+  locales.map((locale) => [
     locale,
-    loadLocaleKeys(localePath),
+    loadLocaleKeys(locale),
   ]),
 );
 
 const missingByLocale = Object.fromEntries(
+  Object.keys(localeKeys).map((locale) => [locale, []]),
+);
+const missingLocaleKeysByLocale = Object.fromEntries(
   Object.keys(localeKeys).map((locale) => [locale, []]),
 );
 
@@ -118,8 +148,23 @@ for (const key of [...usedKeys].sort()) {
 }
 
 const hasMissingKeys = Object.values(missingByLocale).some((keys) => keys.length > 0);
+const allLocaleKeys = new Set(
+  Object.values(localeKeys).flatMap((keys) => [...keys]),
+);
 
-if (!hasMissingKeys) {
+for (const key of [...allLocaleKeys].sort()) {
+  for (const [locale, keys] of Object.entries(localeKeys)) {
+    if (!keys.has(key)) {
+      missingLocaleKeysByLocale[locale].push(key);
+    }
+  }
+}
+
+const hasLocaleMismatch = Object.values(missingLocaleKeysByLocale).some(
+  (keys) => keys.length > 0,
+);
+
+if (!hasMissingKeys && !hasLocaleMismatch) {
   console.log("i18n-keys: all referenced translation keys exist in en/de locale files.");
   process.exit(0);
 }
@@ -127,7 +172,15 @@ if (!hasMissingKeys) {
 console.error("i18n-keys: missing translation keys detected.");
 for (const [locale, keys] of Object.entries(missingByLocale)) {
   if (keys.length === 0) continue;
-  console.error(`\nMissing in ${locale}.json:`);
+  console.error(`\nReferenced keys missing in ${locale}:`);
+  for (const key of keys) {
+    console.error(`- ${key}`);
+  }
+}
+
+for (const [locale, keys] of Object.entries(missingLocaleKeysByLocale)) {
+  if (keys.length === 0) continue;
+  console.error(`\nLocale keys missing in ${locale}:`);
   for (const key of keys) {
     console.error(`- ${key}`);
   }

@@ -115,7 +115,7 @@ console.error("i18n-check: found potential hardcoded user-facing literals:");
 for (const item of report) {
   const relativeFile = path.relative(rootDir, item.filePath);
   for (const violation of item.violations) {
-    console.error(`- ${relativeFile}:${violation.line} -> \"${violation.literal}\"`);
+    console.error(`- ${relativeFile}:${violation.line} -> "${violation.literal}"`);
   }
 }
 

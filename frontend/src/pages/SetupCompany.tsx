@@ -115,7 +115,7 @@ const SetupCompany = () => {
           </Stack>
         </Paper>
 
-        <Divider label={t("setup_company.or")} labelPosition="center" />
+        <Divider label={t("common.or")} labelPosition="center" />
 
         <Paper withBorder p="xl" radius="md">
           <Stack gap="md">

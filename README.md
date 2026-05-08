@@ -153,7 +153,8 @@ npm run check:i18n-keys    # lists referenced translation keys missing in locale
 npm run check:i18n-literals # checks for i18n literal usage issues
 ```
 
-These scripts read `frontend/src` and compare used `t(...)` keys against `frontend/public/locales/en.json` and `de.json`.
+These scripts read `frontend/src`, including Zod schema validation messages, and compare used keys against the split namespace files in `frontend/public/locales/en/` and `frontend/public/locales/de/`. The key check also verifies that EN and DE expose the same full key set.
+
 ### Scheduled Tasks
 
 Periodic tasks are registered with the `Scheduler` in `app/core/scheduler.py`. To add a task, define an async function and register it in `app/main.py`:
@@ -189,5 +190,11 @@ pre-commit run --all-files  # run all hooks
 ### Translations
 
 - Use **i18next** for all UI text -- never hardcode strings
-- Save translations in `frontend/public/locales/[language].json`
+- Save translations in namespace files under `frontend/public/locales/[language]/`
+- Current namespaces are `common`, `auth`, `account`, `admin`, and `kp`
 - Use translation keys: `t("key.path")` instead of plain text
+- Put shared UI labels and validation copy in `common.json`; keep feature-specific copy in its feature namespace, for example `kp.json`
+- Zod schema validation messages should also be translation keys, for example `z.email("email.valid")` or `.min(1, "validation.required")`
+- Run `yarn check:i18n-keys` after changing translations. It scans `src`, schema validation messages, split namespace files, and checks that EN/DE expose the same keys.
+- Run `yarn check:i18n-literals` to catch obvious hardcoded UI text.
+- Translation JSON files are LLM generated. LLMs do a good enough job with this, so I recommend letting them translate while still keeping an eye out for obvious errors.

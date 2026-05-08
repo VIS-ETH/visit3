@@ -1,0 +1,60 @@
+{
+  "company_management": {
+    "title": "Unternehmensverwaltung",
+    "delete": "Unternehmen löschen",
+    "delete_error": "Unternehmen konnte nicht gelöscht werden",
+    "user_name": "Name",
+    "user_email": "E-Mail",
+    "user_phone": "Telefonnummer",
+    "user_status": "Status",
+    "confirmed": "Bestätigt",
+    "unconfirmed": "Unbestätigt",
+    "no_users": "Keine Benutzer diesem Unternehmen zugewiesen",
+    "no_companies": "Keine Unternehmen",
+    "no_companies_description": "Es wurden keine Unternehmen gefunden.",
+    "error": "Unternehmen konnten nicht geladen werden",
+    "delete_modal": {
+      "title": "Unternehmen löschen",
+      "message": "Wählen Sie, wie {{name}} gelöscht werden soll.",
+      "irreversible": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "cancel": "Abbrechen",
+      "keep_users": "Unternehmen löschen, Benutzer behalten",
+      "delete_with_users": "Unternehmen und Benutzer löschen"
+    }
+  },
+  "user_management": {
+    "title": "Benutzerverwaltung",
+    "email": "E-Mail",
+    "name": "Name",
+    "phone": "Telefonnummer",
+    "actions": "Aktionen",
+    "status": "Status",
+    "company": "Unternehmen",
+    "tabs": {
+      "unconfirmed": "Unbestätigt",
+      "staff": "Mitarbeiter",
+      "companies": "Unternehmensbenutzer",
+      "admins": "Admins"
+    },
+    "unconfirmed": "Unbestätigt",
+    "no_users": "Keine unbestätigten Benutzer",
+    "no_users_description": "Alle Benutzer wurden bestätigt.",
+    "no_staff": "Keine Mitarbeiter",
+    "no_companies": "Keine Unternehmen",
+    "no_admins": "Keine Admins",
+    "error": "Fehler beim Laden unbestätigter Benutzer",
+    "confirm": "Benutzer bestätigen",
+    "confirm_error": "Fehler beim Bestätigen des Benutzers",
+    "impersonate": "Imitieren",
+    "impersonating": "Wird imitiert",
+    "delete": "Benutzer löschen",
+    "delete_error": "Fehler beim Löschen des Benutzers",
+    "delete_modal": {
+      "title": "Unternehmensbenutzer löschen",
+      "message": "Möchten Sie {{email}} wirklich löschen?",
+      "irreversible": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "cancel": "Abbrechen",
+      "confirm": "Dauerhaft löschen"
+    }
+  }
+}

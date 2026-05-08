@@ -135,7 +135,7 @@ const CompanyProfile = () => {
                   onClick={() => setSettingsOpened(false)}
                   disabled={isUpdating}
                 >
-                  {t("company_profile.cancel")}
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   type="submit"
