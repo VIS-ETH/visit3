@@ -11,14 +11,14 @@ interface AuthCardLayoutProps {
   footer?: ReactNode;
 }
 
-export default function AuthCardLayout({
+const AuthCardLayout = ({
   title,
   subtitle,
   maxWidth = 440,
   backTo,
   children,
   footer,
-}: AuthCardLayoutProps) {
+}: AuthCardLayoutProps) => {
   return (
     <Box className="auth-shell">
       <Stack align="center" gap="lg" w="100%" maw={maxWidth} px="md">
@@ -44,4 +44,5 @@ export default function AuthCardLayout({
       </Stack>
     </Box>
   );
-}
+};
+export default AuthCardLayout;

@@ -21,7 +21,7 @@ import { useTranslatedForm } from "../utils/translator";
 import { setupCompanySchema } from "../schemas/setupCompanySchema";
 import { getSafeNextPath } from "../utils/navigation";
 
-export default function SetupCompany() {
+const SetupCompany = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -143,4 +143,5 @@ export default function SetupCompany() {
       </Stack>
     </Center>
   );
-}
+};
+export default SetupCompany;

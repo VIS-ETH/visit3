@@ -5,7 +5,7 @@ import BackButton from "../components/BackButton";
 import { useGetLatestKp } from "../orval/generated/kp/kp";
 import { formatKpDisplayDate } from "../utils/kp-utils";
 
-export default function KpJoin() {
+const KpJoin = () => {
   const { t } = useTranslation();
 
   const { data: latestKp, isLoading, isError } = useGetLatestKp();
@@ -74,4 +74,5 @@ export default function KpJoin() {
       ) : null}
     </Stack>
   );
-}
+};
+export default KpJoin;

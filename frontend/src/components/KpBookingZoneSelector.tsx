@@ -13,8 +13,8 @@ import { useTranslation } from "react-i18next";
 import type {
   BookingResponse,
   BoothZoneWithAvailabilityResponse,
-} from "../../orval/generated/fastAPI.schemas";
-import { useListAvailableBoothZones } from "../../orval/generated/kp/kp";
+} from "../orval/generated/fastAPI.schemas";
+import { useListAvailableBoothZones } from "../orval/generated/kp/kp";
 import KpBookingZoneCard from "./KpBookingZoneCard";
 
 interface KpBookingZoneSelectorProps {
@@ -24,12 +24,12 @@ interface KpBookingZoneSelectorProps {
   onSelectZone: (zone: BoothZoneWithAvailabilityResponse) => void;
 }
 
-export default function KpBookingZoneSelector({
+const KpBookingZoneSelector = ({
   eventId,
   currentBooking,
   selectedZone,
   onSelectZone,
-}: KpBookingZoneSelectorProps) {
+}: KpBookingZoneSelectorProps) => {
   const { t } = useTranslation();
   const { data: availableZones, isLoading: isLoadingZones } =
     useListAvailableBoothZones(eventId);
@@ -86,4 +86,5 @@ export default function KpBookingZoneSelector({
       ) : null}
     </Stack>
   );
-}
+};
+export default KpBookingZoneSelector;

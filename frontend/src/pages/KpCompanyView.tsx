@@ -33,7 +33,7 @@ import {
 } from "../utils/kp-utils";
 import { formatPrice } from "../utils/price-utils";
 
-export default function KpCompanyView() {
+const KpCompanyView = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id = "" } = useParams<{ id: string }>();
@@ -277,4 +277,5 @@ export default function KpCompanyView() {
       ) : null}
     </Stack>
   );
-}
+};
+export default KpCompanyView;

@@ -40,7 +40,7 @@ import UserTable from "../components/UserTable";
 import type { UserResponse } from "../orval/generated/fastAPI.schemas";
 import { useCurrentUser } from "../context/useCurrentUser";
 
-export default function UserManagement() {
+const UserManagement = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
@@ -375,4 +375,5 @@ export default function UserManagement() {
       </Stack>
     </Center>
   );
-}
+};
+export default UserManagement;

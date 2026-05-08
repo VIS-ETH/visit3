@@ -7,7 +7,7 @@ import { useSendConfirmationMail } from "../orval/generated/user/user";
 import IconTitle from "../components/IconTitle";
 import { useCurrentUser } from "../context/useCurrentUser";
 
-export default function UnconfirmedEmail() {
+const UnconfirmedEmail = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useCurrentUser();
@@ -86,4 +86,5 @@ export default function UnconfirmedEmail() {
       )}
     </Center>
   );
-}
+};
+export default UnconfirmedEmail;

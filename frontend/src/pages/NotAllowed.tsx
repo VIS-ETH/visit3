@@ -1,18 +1,26 @@
+import { Center, Stack, Alert } from "@mantine/core";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import StatusPage from "../components/StatusPage";
 
-export default function NotAllowed() {
+interface NotAllowedProps {
+  titleKey?: string;
+  descriptionKey?: string;
+}
+
+const NotAllowed = ({
+  titleKey = "not_allowed.title",
+  descriptionKey = "not_allowed.description",
+}: NotAllowedProps) => {
   const { t } = useTranslation();
 
   return (
-    <StatusPage
-      code="403"
-      title={t("not_allowed.title")}
-      description={t("not_allowed.description")}
-      icon={<IconAlertCircle size={34} />}
-      iconColor="red"
-      homeLabel={t("nav.home")}
-    />
+    <Center h="100%" w="100%" py="xl">
+      <Stack w="100%" maw={1000} gap="lg">
+        <Alert icon={<IconAlertCircle />} color="red" title={t(titleKey)}>
+          {t(descriptionKey)}
+        </Alert>
+      </Stack>
+    </Center>
   );
-}
+};
+export default NotAllowed;

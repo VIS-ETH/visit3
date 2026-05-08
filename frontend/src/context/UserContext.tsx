@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { UserResponse } from "../orval/generated/fastAPI.schemas";
 import { UserContext } from "./useCurrentUser";
 
-export function UserProvider({
+export const UserProvider = ({
   children,
   user,
   isLoading,
@@ -10,10 +10,11 @@ export function UserProvider({
   children: ReactNode;
   user: UserResponse | undefined;
   isLoading: boolean;
-}) {
+}) => {
   return (
     <UserContext.Provider value={{ user, isLoading }}>
       {children}
     </UserContext.Provider>
   );
-}
+};
+export default UserProvider;

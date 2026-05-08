@@ -13,7 +13,7 @@ interface ManageEntityModalProps {
   children: ReactNode;
 }
 
-export default function ManageEntityModal({
+const ManageEntityModal = ({
   opened,
   onClose,
   title,
@@ -22,7 +22,7 @@ export default function ManageEntityModal({
   submitLabel,
   onSubmit,
   children,
-}: ManageEntityModalProps) {
+}: ManageEntityModalProps) => {
   const { t } = useTranslation();
 
   return (
@@ -44,4 +44,5 @@ export default function ManageEntityModal({
       </Stack>
     </Modal>
   );
-}
+};
+export default ManageEntityModal;

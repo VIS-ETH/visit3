@@ -13,11 +13,11 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
 import { useGetKpById, useGetMyBooking } from "../orval/generated/kp/kp";
-import { KpBookingRecap } from "./kp-booking/KpBookingRecap";
+import { KpBookingRecap } from "../components/KpBookingRecap";
 
 const KP_BOOKING_HELP_EMAIL = "info@kontaktparty.ch";
 
-export default function KpBookingConfirmation() {
+const KpBookingConfirmation = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -156,4 +156,5 @@ export default function KpBookingConfirmation() {
       </Text>
     </Stack>
   );
-}
+};
+export default KpBookingConfirmation;

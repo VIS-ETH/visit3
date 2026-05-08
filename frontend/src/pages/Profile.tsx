@@ -59,7 +59,7 @@ function hasMeaningfulChanges(
   );
 }
 
-export default function Profile() {
+const Profile = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [settingsOpened, setSettingsOpened] = useState(false);
@@ -236,4 +236,5 @@ export default function Profile() {
       </Stack>
     </Center>
   );
-}
+};
+export default Profile;

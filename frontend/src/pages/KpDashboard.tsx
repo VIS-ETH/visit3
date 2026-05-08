@@ -50,7 +50,7 @@ const dateFieldNames = [
   "eventDate",
 ] as const;
 
-export default function KpDashboard() {
+const KpDashboard = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [modalOpened, { open: openModal, close: closeModal }] =
@@ -295,4 +295,5 @@ export default function KpDashboard() {
       ) : null}
     </Stack>
   );
-}
+};
+export default KpDashboard;

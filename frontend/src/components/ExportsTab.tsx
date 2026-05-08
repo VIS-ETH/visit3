@@ -37,20 +37,20 @@ import {
   useGetNametagExportBackground,
   useListNametagExportTargets,
   useUploadNametagExportBackground,
-} from "../../orval/generated/kp/kp";
-import { downloadBlob, safeFilenamePart } from "../../utils/download";
+} from "../orval/generated/kp/kp";
+import { downloadBlob, safeFilenamePart } from "../utils/download";
 
 const downloadRequestOptions = { responseType: "blob" as const };
 type EventDownloadFunction = (eventId: string) => unknown;
 type NametagExportScope = "event" | "company" | "person";
 
-export default function ExportsTab({
+const ExportsTab = ({
   eventId,
   eventName,
 }: {
   eventId: string;
   eventName: string;
-}) {
+}) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [nametagExportScope, setNametagExportScope] =
@@ -478,4 +478,5 @@ export default function ExportsTab({
       </Stack>
     </Card>
   );
-}
+};
+export default ExportsTab;

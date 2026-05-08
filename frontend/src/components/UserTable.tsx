@@ -1,16 +1,12 @@
 import { Table, Paper } from "@mantine/core";
 import React from "react";
 import type {
-  CompanyAssignedUserResponse,
   CompanyUserResponse,
   UserResponse,
 } from "../orval/generated/fastAPI.schemas";
 import { getDisplayName } from "../utils/display";
 
-type UserTableUser =
-  | CompanyAssignedUserResponse
-  | CompanyUserResponse
-  | UserResponse;
+type UserTableUser = CompanyUserResponse | UserResponse;
 
 interface UserTableProps {
   users: UserTableUser[];
@@ -62,5 +58,4 @@ const UserTable: React.FC<UserTableProps> = ({
     </Table>
   </Paper>
 );
-
 export default UserTable;

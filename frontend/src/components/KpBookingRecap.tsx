@@ -1,11 +1,11 @@
 import { Card, Group, Stack, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
-import { KpBookingStatusHelp } from "../../components/KpBookingStatusHelp";
-import { KpBookingStatusBadge } from "../../components/KpBookingStatusBadge";
-import type { BookingResponse } from "../../orval/generated/fastAPI.schemas";
-import { formatPrice } from "../../utils/price-utils";
+import { KpBookingStatusHelp } from "./KpBookingStatusHelp";
+import { KpBookingStatusBadge } from "./KpBookingStatusBadge";
+import type { BookingResponse } from "../orval/generated/fastAPI.schemas";
+import { formatPrice } from "../utils/price-utils";
 import type { BookingSummaryServiceLine } from "./KpBookingSummaryStep";
-import { SummaryPriceBreakdown } from "./KpBookingSummaryStep";
+import SummaryPriceBreakdown from "./SummaryPriceBreakdown";
 
 type BookingAdditionalServiceCharge = {
   name: string;
@@ -31,7 +31,7 @@ interface KpBookingRecapProps {
   booking: BookingResponse;
 }
 
-export function KpBookingRecap({ booking }: KpBookingRecapProps) {
+export const KpBookingRecap = ({ booking }: KpBookingRecapProps) => {
   const { t } = useTranslation();
   const additionalLines = bookingToAdditionalServiceLines(booking);
   const basePrice = booking.booth_zone?.base_price ?? 0;
@@ -87,4 +87,5 @@ export function KpBookingRecap({ booking }: KpBookingRecapProps) {
       </Stack>
     </Card>
   );
-}
+};
+export default KpBookingRecap;

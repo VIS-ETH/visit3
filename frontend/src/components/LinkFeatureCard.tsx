@@ -11,14 +11,14 @@ interface LinkFeatureCardProps {
   action?: ReactNode;
 }
 
-export default function LinkFeatureCard({
+const LinkFeatureCard = ({
   to,
   imageSrc,
   imageAlt,
   title,
   description,
   action,
-}: LinkFeatureCardProps) {
+}: LinkFeatureCardProps) => {
   return (
     <Card
       component={Link}
@@ -45,4 +45,5 @@ export default function LinkFeatureCard({
       </Stack>
     </Card>
   );
-}
+};
+export default LinkFeatureCard;

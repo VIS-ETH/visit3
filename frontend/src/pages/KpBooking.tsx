@@ -14,7 +14,7 @@ import BackButton from "../components/BackButton";
 import { useGetKpById } from "../orval/generated/kp/kp";
 import KpBookingStepper from "./KpBookingStepper.tsx";
 
-export default function KpBooking() {
+const KpBooking = () => {
   const { t } = useTranslation();
   const { id = "" } = useParams<{ id: string }>();
   const eventId = id.trim();
@@ -59,4 +59,5 @@ export default function KpBooking() {
       <KpBookingStepper event={event} />
     </Stack>
   );
-}
+};
+export default KpBooking;

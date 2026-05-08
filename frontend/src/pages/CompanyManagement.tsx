@@ -21,7 +21,7 @@ import {
   useDeleteCompanyWithUsers,
   useListCompaniesWithUsers,
 } from "../orval/generated/company/company";
-import type { CompanyAssignedUserResponse } from "../orval/generated/fastAPI.schemas";
+import type { CompanyUserResponse } from "../orval/generated/fastAPI.schemas";
 import { useCurrentUser } from "../context/useCurrentUser";
 import { getDisplayName } from "../utils/display";
 
@@ -31,11 +31,11 @@ interface CompanyForDelete {
   usersCount: number;
 }
 
-function getCompanyUserDisplayName(user: CompanyAssignedUserResponse): string {
+function getCompanyUserDisplayName(user: CompanyUserResponse): string {
   return getDisplayName(user.first_name, user.last_name);
 }
 
-export default function CompanyManagement() {
+const CompanyManagement = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
@@ -275,4 +275,5 @@ export default function CompanyManagement() {
       </Stack>
     </Center>
   );
-}
+};
+export default CompanyManagement;

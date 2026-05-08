@@ -25,16 +25,16 @@ import {
   useDeleteService,
   useListServices,
   useUpdateService,
-} from "../../orval/generated/kp/kp";
-import { serviceSchema } from "../../schemas/kpSchema";
-import { useTranslatedForm } from "../../utils/translator";
+} from "../orval/generated/kp/kp";
+import { serviceSchema } from "../schemas/kpSchema";
+import { useTranslatedForm } from "../utils/translator";
 import ManageEntityModal from "./ManageEntityModal";
 import {
   centsToCurrencyAmount,
   currencyAmountToCents,
-} from "../../utils/price-utils";
+} from "../utils/price-utils";
 
-export default function ServicesTab({ eventId }: { eventId: string }) {
+const ServicesTab = ({ eventId }: { eventId: string }) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data: services, isLoading } = useListServices(eventId);
@@ -301,4 +301,5 @@ export default function ServicesTab({ eventId }: { eventId: string }) {
       )}
     </Stack>
   );
-}
+};
+export default ServicesTab;

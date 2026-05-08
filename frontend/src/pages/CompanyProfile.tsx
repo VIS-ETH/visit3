@@ -34,7 +34,7 @@ const inviteSchema = z.object({
   email: z.string().trim().min(1, "register.required").email("email.valid"),
 });
 
-export default function CompanyProfile() {
+const CompanyProfile = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [settingsOpened, setSettingsOpened] = useState(false);
@@ -226,4 +226,5 @@ export default function CompanyProfile() {
       </Stack>
     </Center>
   );
-}
+};
+export default CompanyProfile;

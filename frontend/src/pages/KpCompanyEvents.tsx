@@ -25,7 +25,7 @@ import {
   getEventStatus,
 } from "../utils/kp-utils";
 
-export default function KpCompanyEvents() {
+const KpCompanyEvents = () => {
   const { t } = useTranslation();
   const { data: events, isLoading, isError } = useListKps();
   const bookingQueries = useQueries({
@@ -164,4 +164,5 @@ export default function KpCompanyEvents() {
       ) : null}
     </Stack>
   );
-}
+};
+export default KpCompanyEvents;

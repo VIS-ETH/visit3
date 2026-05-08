@@ -2,7 +2,7 @@ import { IconAlertCircle } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import StatusPage from "../components/StatusPage";
 
-export default function NotFound() {
+const NotFound = () => {
   const { t } = useTranslation();
 
   return (
@@ -15,4 +15,5 @@ export default function NotFound() {
       homeLabel={t("nav.home")}
     />
   );
-}
+};
+export default NotFound;

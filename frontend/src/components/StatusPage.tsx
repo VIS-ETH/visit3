@@ -11,14 +11,14 @@ interface StatusPageProps {
   homeLabel: string;
 }
 
-export default function StatusPage({
+const StatusPage = ({
   code,
   title,
   description,
   icon,
   iconColor,
   homeLabel,
-}: StatusPageProps) {
+}: StatusPageProps) => {
   return (
     <Center h="100%" w="100%" py="xl">
       <Stack align="center" gap="md" maw={520} px="md">
@@ -41,4 +41,5 @@ export default function StatusPage({
       </Stack>
     </Center>
   );
-}
+};
+export default StatusPage;

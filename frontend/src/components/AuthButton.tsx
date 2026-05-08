@@ -9,7 +9,7 @@ type AuthButtonProps = ButtonProps & {
   [key: string]: unknown;
 };
 
-export default function AuthButton({
+const AuthButton = ({
   intent = "primary",
   size,
   fullWidth,
@@ -17,7 +17,7 @@ export default function AuthButton({
   variant,
   styles,
   ...props
-}: AuthButtonProps) {
+}: AuthButtonProps) => {
   const baseRootStyles = {
     minHeight: 46,
     borderRadius: 10,
@@ -59,4 +59,5 @@ export default function AuthButton({
       {...(props as Record<string, unknown>)}
     />
   );
-}
+};
+export default AuthButton;

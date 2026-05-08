@@ -25,17 +25,17 @@ import {
   useDeleteBoothZone,
   useListBoothZones,
   useUpdateBoothZone,
-} from "../../orval/generated/kp/kp";
-import { boothZoneSchema } from "../../schemas/kpSchema";
-import { KpBoothZoneColorSwatch } from "../../components/KpBoothZoneColorSwatch";
-import { useTranslatedForm } from "../../utils/translator";
+} from "../orval/generated/kp/kp";
+import { boothZoneSchema } from "../schemas/kpSchema";
+import { KpBoothZoneColorSwatch } from "./KpBoothZoneColorSwatch";
+import { useTranslatedForm } from "../utils/translator";
 import ManageEntityModal from "./ManageEntityModal";
 import {
   centsToCurrencyAmount,
   currencyAmountToCents,
-} from "../../utils/price-utils";
+} from "../utils/price-utils";
 
-export default function BoothZonesTab({ eventId }: { eventId: string }) {
+const BoothZonesTab = ({ eventId }: { eventId: string }) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data: zones, isLoading } = useListBoothZones(eventId);
@@ -297,4 +297,5 @@ export default function BoothZonesTab({ eventId }: { eventId: string }) {
       )}
     </Stack>
   );
-}
+};
+export default BoothZonesTab;

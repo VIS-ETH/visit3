@@ -23,7 +23,7 @@ import { useLogoutUser } from "../orval/generated/user/user";
 import { useCurrentUser } from "../context/useCurrentUser";
 import serverData from "../utils/server-data";
 
-export default function Navbar() {
+const Navbar = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useCurrentUser();
@@ -140,4 +140,5 @@ export default function Navbar() {
       </Stack>
     </AppShell.Navbar>
   );
-}
+};
+export default Navbar;

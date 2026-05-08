@@ -12,7 +12,7 @@ import {
 import AuthCardLayout from "../components/AuthCardLayout";
 import AuthButton from "../components/AuthButton";
 
-export default function ResetPassword() {
+const ResetPassword = () => {
   const { token } = useParams();
   const { t } = useTranslation();
   const [passwordReset, setPasswordReset] = useState(false);
@@ -113,4 +113,5 @@ export default function ResetPassword() {
       </form>
     </AuthCardLayout>
   );
-}
+};
+export default ResetPassword;
