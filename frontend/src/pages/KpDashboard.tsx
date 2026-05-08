@@ -50,7 +50,7 @@ const dateFieldNames = [
   "eventDate",
 ] as const;
 
-export default function KpDashboard() {
+const KpDashboard = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [modalOpened, { open: openModal, close: closeModal }] =
@@ -150,7 +150,7 @@ export default function KpDashboard() {
             <Group grow>
               <TextInput
                 label={t("kp.dashboard.name")}
-                placeholder="Kontaktparty 2026"
+                placeholder={t("kp.dashboard.name_input_placeholder")}
                 disabled={isCreating}
                 {...form.getInputProps("name")}
               />
@@ -237,7 +237,7 @@ export default function KpDashboard() {
                   <Table.Th>{t("kp.dashboard.event_date")}</Table.Th>
                   <Table.Th>{t("kp.dashboard.finalization_deadline")}</Table.Th>
                   <Table.Th>{t("kp.dashboard.nametags_deadline")}</Table.Th>
-                  <Table.Th>Status</Table.Th>
+                  <Table.Th>{t("kp.dashboard.status_label")}</Table.Th>
                   <Table.Th />
                 </Table.Tr>
               </Table.Thead>
@@ -245,9 +245,7 @@ export default function KpDashboard() {
                 {events.map((event) => {
                   const status = getEventStatus(event);
                   return (
-                    <Table.Tr
-                      key={event.id ?? `${event.name}-${event.event_date}`}
-                    >
+                    <Table.Tr key={`${event.name}-${event.event_date}`}>
                       <Table.Td fw={500}>{event.name}</Table.Td>
                       <Table.Td>
                         {formatKpDisplayDate(event.registration_open)} -{" "}
@@ -295,4 +293,5 @@ export default function KpDashboard() {
       ) : null}
     </Stack>
   );
-}
+};
+export default KpDashboard;

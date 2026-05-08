@@ -15,12 +15,12 @@ import { useParams, useSearchParams } from "react-router";
 import BackButton from "../components/BackButton";
 import { useGetKpById } from "../orval/generated/kp/kp";
 import { formatKpDisplayDate } from "../utils/kp-utils";
-import BookingsTab from "./kp-manage/BookingsTab";
-import BoothZonesTab from "./kp-manage/BoothZonesTab";
-import DetailsTab from "./kp-manage/DetailsTab";
-import IndustriesTab from "./kp-manage/IndustriesTab";
-import ServicesTab from "./kp-manage/ServicesTab";
-import ExportsTab from "./kp-manage/ExportsTab";
+import BookingsTab from "../components/BookingsTab";
+import BoothZonesTab from "../components/BoothZonesTab";
+import DetailsTab from "../components/DetailsTab";
+import IndustriesTab from "../components/IndustriesTab";
+import ServicesTab from "../components/ServicesTab";
+import ExportsTab from "../components/ExportsTab";
 
 function formatDate(dateString?: string) {
   return formatKpDisplayDate(dateString);
@@ -45,7 +45,7 @@ function isKpManageTabValue(v: string | null): v is KpManageTabValue {
 
 // ─── Main Page ───
 
-export default function KpManage() {
+const KpManage = () => {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -163,4 +163,5 @@ export default function KpManage() {
       </Tabs>
     </Stack>
   );
-}
+};
+export default KpManage;

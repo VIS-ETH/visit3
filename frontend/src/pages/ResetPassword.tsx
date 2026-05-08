@@ -12,7 +12,7 @@ import {
 import AuthCardLayout from "../components/AuthCardLayout";
 import AuthButton from "../components/AuthButton";
 
-export default function ResetPassword() {
+const ResetPassword = () => {
   const { token } = useParams();
   const { t } = useTranslation();
   const [passwordReset, setPasswordReset] = useState(false);
@@ -22,7 +22,7 @@ export default function ResetPassword() {
     data: valid,
     isPending: validPending,
     isError: validError,
-  } = useValidResetPassword(token || "", {
+  } = useValidResetPassword(token ?? "", {
     query: {
       retry: false,
       enabled: token !== undefined,
@@ -81,7 +81,7 @@ export default function ResetPassword() {
       <form
         onSubmit={form.onSubmit((values) => {
           reset({
-            data: { token: token, new_password: values.password },
+            data: { token, new_password: values.password },
           });
         })}
       >
@@ -113,4 +113,5 @@ export default function ResetPassword() {
       </form>
     </AuthCardLayout>
   );
-}
+};
+export default ResetPassword;

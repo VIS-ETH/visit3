@@ -1,204 +1,4 @@
 {
-  "user": {
-    "unconfirmed": "Ihr Konto ist nicht bestätigt, warten Sie, bis ein Admin Ihr Konto bestätigt.",
-    "unconfirmed_description": "Ein VIS-Admin muss Ihr Konto noch freigeben, bevor Sie auf das Firmenportal zugreifen können. Melden Sie sich später erneut an, sobald die Freigabe erfolgt ist.",
-    "unconfirmed_login_required": "Bitte melden Sie sich an",
-    "unconfirmed_login_required_description": "Sie muessen angemeldet sein, damit wir Ihren Bestaetigungsstatus anzeigen können."
-  },
-  "server": {
-    "error": "Serverfehler"
-  },
-  "error": {
-    "title": "Fehler",
-    "unauthenticated": "Benutzer ist nicht authentifiziert",
-    "user_not_found": "Benutzer wurde in der Datenbank nicht gefunden",
-    "company_not_found": "Unternehmen wurde in der Datenbank nicht gefunden",
-    "company_user_not_found": "Der ausgewählte Kontaktbenutzer muss zu Ihrem Unternehmen gehoeren.",
-    "keycloak_exchange_failed": "Keycloak-Austausch fehlgeschlagen",
-    "token_invalid": "Token ist ungültig",
-    "not_allowed": "Benutzer darf diese Anfrage nicht ausführen",
-    "email_not_confirmed": "Die E-Mail des Benutzers ist nicht bestätigt",
-    "not_confirmed": "Benutzer ist nicht durch einen Administrator bestätigt",
-    "phone_number_invalid": "Telefonnummer ist ungültig",
-    "invalid_credentials": "Ungültige Anmeldeinformationen, bitte überprüfen Sie Ihre E-Mail und Ihr Passwort",
-    "email_used": "E-Mail wird bereits verwendet",
-    "password_too_short": "Passwort ist zu kurz",
-    "reset_password_failed": "Zurücksetzen des Passworts fehlgeschlagen",
-    "kp_name_exists": "Ein KP-Event mit diesem Namen existiert bereits",
-    "kp_booking_not_found": "Die ausgewählte KP-Buchung wurde nicht gefunden.",
-    "kp_booking_not_owned": "Diese KP-Buchung gehört nicht zu Ihrem Unternehmen.",
-    "kp_booking_status_transition_invalid": "Der angeforderte Buchungsstatuswechsel ist nicht erlaubt.",
-    "kp_booking_confirmation_requires_finalized": "Nur finalisierte Buchungen können bestätigt werden.",
-    "kp_service_requirement_not_found": "Die ausgewählte Serviceanforderung wurde nicht gefunden.",
-    "kp_requirement_booking_service_mismatch": "Die ausgewählte Anforderung gehört nicht zu einem gebuchten Service.",
-    "kp_booth_zone_not_found": "Die ausgewählte Standzone wurde nicht gefunden.",
-    "kp_booth_zone_event_mismatch": "Die ausgewählte Standzone gehört zu einem anderen KP-Event.",
-    "kp_waitlist_same_zone": "Die aktuelle Standzone kann nicht auf die Warteliste gesetzt werden.",
-    "storage_upload_failed": "Der Datei-Upload ist fehlgeschlagen.",
-    "storage_delete_failed": "Das Löschen der Datei ist fehlgeschlagen.",
-    "storage_file_too_large": "Die hochgeladene Datei ist zu groß.",
-    "storage_file_invalid_mime_type": "Dieser Dateityp ist nicht erlaubt.",
-    "kp_registration_closed": "Die Anmeldung für dieses Event ist derzeit geschlossen.",
-    "kp_booth_zone_at_capacity": "Die ausgewählte Standzone hat keine verfügbaren Plätze mehr.",
-    "kp_booking_already_exists": "Ihr Unternehmen hat bereits eine aktive Buchung für dieses Event.",
-    "kp_requirement_file_upload_not_allowed": "Diese Anforderung erlaubt keinen Datei-Upload.",
-    "validation_failed": "Einige Felder sind ungültig.",
-    "invite_not_found": "Diese Einladung ist ungültig oder wurde bereits verwendet.",
-    "invite_expired": "Diese Einladung ist abgelaufen."
-  },
-  "validation": {
-    "required": "Dieses Feld ist erforderlich.",
-    "invalid": "Ungültige Eingabe.",
-    "invalid_email": "Bitte geben Sie eine gueltige E-Mail-Adresse ein.",
-    "invalid_uuid": "Ungültige Auswahl.",
-    "invalid_integer": "Bitte geben Sie eine gueltige ganze Zahl ein.",
-    "invalid_number": "Bitte geben Sie eine gueltige Zahl ein.",
-    "invalid_boolean": "Bitte wählen Sie einen gueltigen Wert aus.",
-    "invalid_date": "Bitte geben Sie ein gueltiges Datum ein.",
-    "invalid_string": "Bitte geben Sie einen gueltigen Textwert ein.",
-    "too_short": "Der Wert ist zu kurz.",
-    "too_long": "Der Wert ist zu lang."
-  },
-  "company": {
-    "login": "Unternehmensanmeldung"
-  },
-  "login": {
-    "fail": "Anmeldung fehlgeschlagen",
-    "title": "Anmelden",
-    "register": {
-      "title": "Registrierung bei VISIT"
-    }
-  },
-  "welcome": "Willkommen",
-  "common": {
-    "or": "oder",
-    "cancel": "Abbrechen"
-  },
-  "system-theme-follow": "Systemthema folgen",
-  "language-change": "Sprache ändern",
-  "register": {
-    "title": "Registrieren",
-    "button": "Registrieren",
-    "fail": "Registrierung fehlgeschlagen",
-    "required": "Dieses Feld ist erforderlich",
-    "optional": "optional",
-    "first_name": "Vorname",
-    "first_name_placeholder": "Ihr Vorname",
-    "last_name": "Nachname",
-    "last_name_placeholder": "Ihr Nachname",
-    "phone_number": "Telefonnummer",
-    "phone_number_placeholder": "Ihre Telefonnummer",
-    "company": {
-      "select": "Unternehmen auswählen",
-      "select_placeholder": "Wählen Sie ein Unternehmen",
-      "or": "ODER",
-      "add": "Unternehmen hinzufügen",
-      "add_placeholder": "Neuen Unternehmensnamen eingeben",
-      "required": "Bitte wählen Sie ein Unternehmen aus oder fügen Sie eines hinzu",
-      "pick_or_add": "Bitte wählen Sie ein Unternehmen aus oder fügen Sie ein neues hinzu, nicht beides"
-    },
-    "email": {
-      "placeholder": "deine@email.com",
-      "used": "Diese E-Mail wird bereits von einem anderen Benutzer verwendet."
-    },
-    "password": {
-      "confirm": "Passwort bestätigen",
-      "title": "Passwort",
-      "min": "Das Passwort muss länger als 10 Zeichen sein",
-      "nomatch": "Passwörter stimmen nicht überein"
-    },
-    "phoneNumber": {
-      "invalid": "Telefonnummer ist ungültig"
-    },
-    "failed": "Die Registrierung ist fehlgeschlagen. Kontaktieren Sie uns, wenn dies weiterhin der Fall ist.",
-    "success": {
-      "title": "Posteingang pruefen",
-      "subtitle": "Ihr Konto wurde erstellt.",
-      "alert": "Wir haben ein Konto für {{email}} erstellt.",
-      "description": "Bestätigen Sie zuerst Ihre E-Mail-Adresse. Danach können Sie sich anmelden und mit dem Firmen-Onboarding fortfahren.",
-      "login": "Zur Anmeldung",
-      "register_another": "Weiteres Konto registrieren"
-    }
-  },
-  "password": {
-    "wrong": "Falsches Passwort oder E-Mail",
-    "min": "Das Passwort muss länger als 10 Zeichen sein"
-  },
-  "email": {
-    "title": "E-Mail",
-    "valid": "Geben Sie eine gültige E-Mail ein",
-    "confirm": {
-      "title": "Bestätigen Sie Ihre E-Mail",
-      "description": "Klicken Sie auf die untenstehende Schaltfläche, um Ihre E-Mail-Adresse zu bestätigen",
-      "success": "E-Mail bestätigt",
-      "success_description": "Ihre E-Mail wurde erfolgreich bestätigt. Sie können sich jetzt in Ihr Konto einloggen.",
-      "invalid": "Ungültiger oder abgelaufener Link",
-      "link_expired": "Dieser Bestätigungslink ist abgelaufen. Bitte fordern Sie eine neue Bestätigungsmail an.",
-      "unconfirmed": "Um VISIT zu nutzen, müssen Sie Ihre E-Mail bestätigen",
-      "unconfirmed_description": "Wir muessen {{email}} bestätigen, bevor Sie fortfahren können. Oeffnen Sie den Bestaetigungslink in Ihrem Posteingang oder fordern Sie unten eine neue E-Mail an.",
-      "button": "Bestätigungsmail senden",
-      "confirm_button": "E-Mail bestätigen",
-      "cancel": "Abbrechen",
-      "validating": "Link wird validiert",
-      "please_wait": "Bitte warten Sie, während wir Ihren Bestätigungslink validieren",
-      "back_to_login": "Zurück zur Anmeldung",
-      "go_to_login": "Zur Anmeldung",
-      "error": "Fehler beim Senden der Bestätigungsmail",
-      "sent": "Bestätigungsmail wurde an Ihre E-Mail gesendet",
-      "sent_description": "Wir haben eine neue Bestätigungsmail an {{email}} gesendet.",
-      "login_required": "Anmelden, um Ihre E-Mail zu bestätigen",
-      "login_required_description": "Diese Seite kann eine Bestätigungsmail nur für ein angemeldetes Konto erneut senden."
-    }
-  },
-  "forget_password": {
-    "fail": "Passwort-Zurücksetzen fehlgeschlagen",
-    "login": "Haben Sie Ihr Passwort vergessen?",
-    "title": "E-Mail zum Zurücksetzen des Passworts senden",
-    "submit": "E-Mail senden",
-    "sent": "Zurücksetze-Mail wurde gesendet"
-  },
-  "reset_password": {
-    "title": "Ändern Sie Ihr Passwort",
-    "error": "Fehler beim Ändern des Passworts",
-    "submit": "Passwort ändern",
-    "done": "Passwortänderung war erfolgreich",
-    "invalid": "Dieser Link ist ungültig oder abgelaufen"
-  },
-  "keycloak": {
-    "redirecting": "Weiterleitung",
-    "login": "VIS-Anmeldung"
-  },
-  "not_allowed": {
-    "title": "Zugriff verweigert",
-    "description": "Sie haben keine Berechtigung, um auf diese Seite zuzugreifen."
-  },
-  "not_found": {
-    "title": "Seite nicht gefunden",
-    "description": "Die gesuchte Seite existiert nicht."
-  },
-  "home": {
-    "welcome_name": "Willkommen {{name}}",
-    "portal_badge": "VISIT Portal",
-    "subtitle": "Verwalten Sie Ihr Firmenprofil und entdecken Sie kommende Kontaktparty-Events.",
-    "kp": {
-      "title": "Kontaktparty",
-      "description": "Entdecken Sie den ETH-Jobmesse-Zeitplan, die neuesten Eventdetails und Optionen zur Firmenbeteiligung.",
-      "image_alt": "Kontaktparty Event Platzhalter"
-    }
-  },
-  "nav": {
-    "company_portal_of": "Unternehmensportal von",
-    "vis_short": "VIS",
-    "vis_logo_alt": "VIS-Logo",
-    "navigation": "Navigation",
-    "home": "Startseite",
-    "profile": "Profil",
-    "company": "Unternehmen",
-    "user_management": "Benutzerverwaltung",
-    "kontaktparty": "Kontaktparty",
-    "company_management": "Unternehmensverwaltung",
-    "logout": "Abmelden"
-  },
   "kp": {
     "title": "Kontaktparty",
     "description": "Kontaktparty ist eine ETH-Jobmesse, organisiert von VIS.",
@@ -241,6 +41,7 @@
       "status_registration_open": "Anmeldung offen",
       "status_finalizing": "Finalisierung",
       "status_past": "Vergangen",
+      "status_${status}": "Status {{status}}",
       "booth_zones_title": "Standzone auswählen",
       "zone_spots_remaining": "{{available}} von {{total}} Plätzen verfügbar",
       "zone_no_spots": "Keine Plätze verfügbar",
@@ -323,6 +124,9 @@
         "cancelled": {
           "title": "Storniert",
           "description": "Diese Buchung ist nicht mehr aktiv."
+        },
+        "${status.toLowerCase()}": {
+          "description": "Statusbeschreibung: {{status}}"
         }
       },
       "no_booking_yet": "Es wurde noch keine Buchung erstellt.",
@@ -394,6 +198,8 @@
       "name": "Name",
       "finalization_deadline": "Finalisierungsfrist",
       "nametags_deadline": "Namensschildfrist",
+      "status_label": "Status",
+      "name_input_placeholder": "Eventname",
       "tabs": {
         "events": "Events",
         "exports": "Exporte"
@@ -500,141 +306,5 @@
       "booking_booth_nr": "Standnummer",
       "booking_status": "Status"
     }
-  },
-  "profile": {
-    "title": "Profil",
-    "name": "Name",
-    "email": "E-Mail",
-    "phone": "Telefonnummer",
-    "company": "Unternehmen",
-    "company_section_title": "Unternehmensinformationen",
-    "company_name": "Unternehmensname",
-    "load_error": "Profil konnte nicht geladen werden",
-    "edit": {
-      "button": "Einstellungen",
-      "title": "Profil bearbeiten",
-      "first_name": "Vorname",
-      "last_name": "Nachname",
-      "phone_number": "Telefonnummer",
-      "cancel": "Abbrechen",
-      "save": "Speichern",
-      "success_title": "Profil aktualisiert",
-      "success_message": "Ihr Profil wurde erfolgreich aktualisiert.",
-      "error_message": "Profil konnte nicht aktualisiert werden"
-    },
-    "company_edit": {
-      "button": "Einstellungen",
-      "title": "Unternehmen bearbeiten",
-      "name": "Unternehmensname",
-      "name_placeholder": "Unternehmensname eingeben",
-      "cancel": "Abbrechen",
-      "save": "Speichern",
-      "success_title": "Unternehmen aktualisiert",
-      "success_message": "Unternehmensinformationen wurden erfolgreich aktualisiert.",
-      "error_message": "Unternehmen konnte nicht aktualisiert werden"
-    }
-  },
-  "impersonation": {
-    "banner_title": "Ansicht als {{name}}",
-    "stop": "Imitation beenden"
-  },
-  "company_management": {
-    "title": "Unternehmensverwaltung",
-    "delete": "Unternehmen löschen",
-    "delete_error": "Unternehmen konnte nicht gelöscht werden",
-    "user_name": "Name",
-    "user_email": "E-Mail",
-    "user_phone": "Telefonnummer",
-    "user_status": "Status",
-    "confirmed": "Bestätigt",
-    "unconfirmed": "Unbestätigt",
-    "no_users": "Keine Benutzer diesem Unternehmen zugewiesen",
-    "no_companies": "Keine Unternehmen",
-    "no_companies_description": "Es wurden keine Unternehmen gefunden.",
-    "error": "Unternehmen konnten nicht geladen werden",
-    "delete_modal": {
-      "title": "Unternehmen löschen",
-      "message": "Wählen Sie, wie {{name}} gelöscht werden soll.",
-      "irreversible": "Diese Aktion kann nicht rückgängig gemacht werden.",
-      "cancel": "Abbrechen",
-      "keep_users": "Unternehmen löschen, Benutzer behalten",
-      "delete_with_users": "Unternehmen und Benutzer löschen"
-    }
-  },
-  "user_management": {
-    "title": "Benutzerverwaltung",
-    "email": "E-Mail",
-    "name": "Name",
-    "phone": "Telefonnummer",
-    "actions": "Aktionen",
-    "status": "Status",
-    "company": "Unternehmen",
-    "tabs": {
-      "unconfirmed": "Unbestätigt",
-      "staff": "Mitarbeiter",
-      "companies": "Unternehmensbenutzer",
-      "admins": "Admins"
-    },
-    "unconfirmed": "Unbestätigt",
-    "no_users": "Keine unbestätigten Benutzer",
-    "no_users_description": "Alle Benutzer wurden bestätigt.",
-    "no_staff": "Keine Mitarbeiter",
-    "no_companies": "Keine Unternehmen",
-    "no_admins": "Keine Admins",
-    "error": "Fehler beim Laden unbestätigter Benutzer",
-    "confirm": "Benutzer bestätigen",
-    "confirm_error": "Fehler beim Bestätigen des Benutzers",
-    "impersonate": "Imitieren",
-    "impersonating": "Wird imitiert",
-    "delete": "Benutzer löschen",
-    "delete_error": "Fehler beim Löschen des Benutzers",
-    "delete_modal": {
-      "title": "Unternehmensbenutzer löschen",
-      "message": "Möchten Sie {{email}} wirklich löschen?",
-      "irreversible": "Diese Aktion kann nicht rückgängig gemacht werden.",
-      "cancel": "Abbrechen",
-      "confirm": "Dauerhaft löschen"
-    }
-  },
-  "setup_company": {
-    "title": "Ihr Unternehmen einrichten",
-    "login_required": "Bitte melden Sie sich an, um Ihr Unternehmen einzurichten",
-    "login_required_description": "Die Unternehmenseinrichtung ist Teil des Onboarding-Ablaufs nach der Anmeldung.",
-    "create_title": "Unternehmen erstellen",
-    "create_description": "Erstellen Sie Ihr Unternehmensprofil. Sie werden das erste Mitglied sein.",
-    "name_label": "Unternehmensname",
-    "name_placeholder": "Unternehmensname eingeben",
-    "create_button": "Unternehmen erstellen",
-    "or": "ODER",
-    "invite_title": "Auf eine Einladung warten?",
-    "invite_description": "Bitten Sie einen Kollegen, der bereits einem Unternehmen angehört, Ihnen eine Einladung zu schicken.",
-    "invite_hint": "Falls eine Einladung an {{email}} gesendet wurde, oeffnen Sie genau diesen Link, sobald Ihr Konto und Ihre E-Mail bestätigt sind."
-  },
-  "company_join": {
-    "title": "Unternehmen beitreten",
-    "joining": "Sie wurden eingeladen, beizutreten",
-    "button": "{{company}} beitreten",
-    "invalid": "Ungültige Einladung",
-    "login_required": "Melden Sie sich an oder erstellen Sie das eingeladene Konto, bevor Sie diese Einladung annehmen.",
-    "log_in": "Anmelden",
-    "create_account": "Konto erstellen",
-    "email_mismatch": "Sie sind als {{currentEmail}} angemeldet, aber diese Einladung gehört zu einem anderen Konto."
-  },
-  "company_profile": {
-    "title": "Unternehmen",
-    "settings_button": "Einstellungen",
-    "settings_title": "Unternehmen bearbeiten",
-    "name_label": "Unternehmensname",
-    "name_placeholder": "Unternehmensname eingeben",
-    "save": "Speichern",
-    "cancel": "Abbrechen",
-    "settings_success": "Unternehmen aktualisiert",
-    "invite_title": "Mitglied einladen",
-    "invite_email": "E-Mail-Adresse",
-    "invite_email_placeholder": "kollege@beispiel.com",
-    "invite_button": "Einladung senden",
-    "invite_success": "Einladung gesendet",
-    "members_title": "Mitglieder",
-    "no_members": "Keine Mitglieder gefunden."
   }
 }

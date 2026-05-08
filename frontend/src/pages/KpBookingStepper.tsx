@@ -30,9 +30,9 @@ import type {
 } from "../orval/generated/fastAPI.schemas";
 import { useGetMyBooking } from "../orval/generated/kp/kp";
 import { getEventStatus } from "../utils/kp-utils";
-import type { BookingSummaryServiceLine } from "./kp-booking/KpBookingSummaryStep";
-import KpBookingSummaryStep from "./kp-booking/KpBookingSummaryStep";
-import KpBookingZoneSelector from "./kp-booking/KpBookingZoneSelector";
+import type { BookingSummaryServiceLine } from "../components/KpBookingSummaryStep";
+import KpBookingSummaryStep from "../components/KpBookingSummaryStep";
+import KpBookingZoneSelector from "../components/KpBookingZoneSelector";
 
 interface KpBookingStepperProps {
   event: KpResponse;
@@ -133,7 +133,7 @@ function KpBookingServicesStep() {
   );
 }
 
-export default function KpBookingStepper({ event }: KpBookingStepperProps) {
+const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
@@ -309,4 +309,5 @@ export default function KpBookingStepper({ event }: KpBookingStepperProps) {
       </Group>
     </Stack>
   );
-}
+};
+export default KpBookingStepper;

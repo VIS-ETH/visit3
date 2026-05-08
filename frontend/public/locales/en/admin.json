@@ -1,0 +1,60 @@
+{
+  "company_management": {
+    "title": "Company Management",
+    "delete": "Delete Company",
+    "delete_error": "Failed to delete company",
+    "user_name": "Name",
+    "user_email": "Email",
+    "user_phone": "Phone Number",
+    "user_status": "Status",
+    "confirmed": "Confirmed",
+    "unconfirmed": "Unconfirmed",
+    "no_users": "No users assigned to this company",
+    "no_companies": "No Companies",
+    "no_companies_description": "No companies were found.",
+    "error": "Failed to load companies",
+    "delete_modal": {
+      "title": "Delete company",
+      "message": "Choose how to delete {{name}}.",
+      "irreversible": "This action is not reversible.",
+      "cancel": "Cancel",
+      "keep_users": "Delete company, keep users",
+      "delete_with_users": "Delete company and users"
+    }
+  },
+  "user_management": {
+    "title": "User Management",
+    "email": "Email",
+    "name": "Name",
+    "phone": "Phone Number",
+    "actions": "Actions",
+    "status": "Status",
+    "company": "Company",
+    "tabs": {
+      "unconfirmed": "Unconfirmed",
+      "staff": "Staff",
+      "companies": "Company Users",
+      "admins": "Admins"
+    },
+    "unconfirmed": "Unconfirmed",
+    "no_users": "No Unconfirmed Users",
+    "no_users_description": "All users have been confirmed.",
+    "no_staff": "No Staff Users",
+    "no_companies": "No Companies",
+    "no_admins": "No Admin Users",
+    "error": "Failed to load unconfirmed users",
+    "confirm": "Confirm User",
+    "confirm_error": "Failed to confirm user",
+    "impersonate": "Impersonate",
+    "impersonating": "Impersonating",
+    "delete": "Delete User",
+    "delete_error": "Failed to delete user",
+    "delete_modal": {
+      "title": "Delete company user",
+      "message": "Are you sure you want to delete {{email}}?",
+      "irreversible": "This action is not reversible.",
+      "cancel": "Cancel",
+      "confirm": "Delete permanently"
+    }
+  }
+}

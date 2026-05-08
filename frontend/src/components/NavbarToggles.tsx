@@ -1,11 +1,16 @@
-import { Group, HoverCard, Text, useMantineColorScheme } from "@mantine/core";
+import {
+  Group,
+  HoverCard,
+  Text,
+  useMantineColorScheme,
+  Button,
+} from "@mantine/core";
 import {
   IconLanguage,
   IconMoon,
   IconSun,
   IconSunMoon,
 } from "@tabler/icons-react";
-import { Button } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 
 const NavbarToggles = () => {

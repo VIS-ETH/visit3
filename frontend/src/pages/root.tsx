@@ -25,7 +25,7 @@ const defaultNavbarOpen = () => {
   return !window.matchMedia(MOBILE_MEDIA_QUERY).matches;
 };
 
-export default function RootLayout({ navbarHidden }: RootLayoutProps) {
+const RootLayout = ({ navbarHidden }: RootLayoutProps) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [navbarOpened, setNavbarOpened] = useState<boolean>(() =>
@@ -98,4 +98,5 @@ export default function RootLayout({ navbarHidden }: RootLayoutProps) {
       </AppShell.Main>
     </AppShell>
   );
-}
+};
+export default RootLayout;

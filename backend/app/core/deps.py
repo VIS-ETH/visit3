@@ -97,6 +97,8 @@ async def get_current_user(
         await user_repo.load_user_roles(target)
         logger.info(f"Admin {user.email} impersonating: {target.email}")
         return target
+    elif impersonate_id:
+        raise NotAllowed(f"impersonate:not_admin:{user.email}")
 
     return user
 

@@ -21,7 +21,7 @@ import { useTranslatedForm } from "../utils/translator";
 import { setupCompanySchema } from "../schemas/setupCompanySchema";
 import { getSafeNextPath } from "../utils/navigation";
 
-export default function SetupCompany() {
+const SetupCompany = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -115,7 +115,7 @@ export default function SetupCompany() {
           </Stack>
         </Paper>
 
-        <Divider label={t("setup_company.or")} labelPosition="center" />
+        <Divider label={t("common.or")} labelPosition="center" />
 
         <Paper withBorder p="xl" radius="md">
           <Stack gap="md">
@@ -143,4 +143,5 @@ export default function SetupCompany() {
       </Stack>
     </Center>
   );
-}
+};
+export default SetupCompany;

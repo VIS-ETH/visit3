@@ -4,11 +4,11 @@ interface KpBoothZoneColorSwatchProps {
   radius?: number;
 }
 
-export function KpBoothZoneColorSwatch({
+export const KpBoothZoneColorSwatch = ({
   color,
   size = 12,
   radius = 4,
-}: KpBoothZoneColorSwatchProps) {
+}: KpBoothZoneColorSwatchProps) => {
   return (
     <div
       style={{
@@ -20,4 +20,5 @@ export function KpBoothZoneColorSwatch({
       }}
     />
   );
-}
+};
+export default KpBoothZoneColorSwatch;

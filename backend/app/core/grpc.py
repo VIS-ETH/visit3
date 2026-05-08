@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 import grpc
+import grpc.aio
 
 from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 

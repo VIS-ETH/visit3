@@ -13,11 +13,11 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
 import { useGetKpById, useGetMyBooking } from "../orval/generated/kp/kp";
-import { KpBookingRecap } from "./kp-booking/KpBookingRecap";
+import { KpBookingRecap } from "../components/KpBookingRecap";
 
 const KP_BOOKING_HELP_EMAIL = "info@kontaktparty.ch";
 
-export default function KpBookingConfirmation() {
+const KpBookingConfirmation = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,8 +58,7 @@ export default function KpBookingConfirmation() {
       isEventError ||
       isBookingError ||
       !event ||
-      !booking ||
-      booking.id !== normalizedBookingId
+      booking?.id !== normalizedBookingId
     ) {
       navigate(`/kp/${eventId}/booking`, { replace: true });
     }
@@ -93,8 +92,7 @@ export default function KpBookingConfirmation() {
     isEventError ||
     isBookingError ||
     !event ||
-    !booking ||
-    booking.id !== normalizedBookingId
+    booking?.id !== normalizedBookingId
   ) {
     return (
       <Stack gap="md">
@@ -111,15 +109,14 @@ export default function KpBookingConfirmation() {
     );
   }
 
-  const supportSubject = `[${event.name}] - Booking #${booking.booking_number ?? "-"}`;
+  const supportSubject = `[${event.name}] - Booking #${booking.booking_number}`;
 
   return (
     <Stack gap="md">
       <BackButton to={`/kp/${eventId}`} />
       <div>
         <Title order={2}>
-          {t("kp.booking.summary_title")} (
-          {booking.booking_number != null ? `#${booking.booking_number}` : "-"})
+          {t("kp.booking.summary_title")} ({`#${booking.booking_number}`})
         </Title>
         <Text c="dimmed" size="sm" mt={4}>
           {event.name}
@@ -156,4 +153,5 @@ export default function KpBookingConfirmation() {
       </Text>
     </Stack>
   );
-}
+};
+export default KpBookingConfirmation;

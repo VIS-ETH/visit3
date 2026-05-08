@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"], dependencies=[CsrfDep])
 
 
-def set_refresh_cookie(response: Response, raw_refresh_token: str):
+def set_refresh_cookie(response: Response, raw_refresh_token: str) -> None:
     response.set_cookie(
         key="refresh_token",
         value=raw_refresh_token,
@@ -48,7 +48,7 @@ def set_refresh_cookie(response: Response, raw_refresh_token: str):
 async def register_user(
     auth_service: AuthServiceDep,
     request: RegisterUserRequest,
-) -> UserResponse:
+) -> User:
     user = User(
         email=request.email,
         password=request.password,
@@ -81,6 +81,9 @@ async def refresh_user(
     refresh_token: Annotated[str | None, Cookie()] = None,
 ) -> Token:
     try:
+        if refresh_token is None:
+            raise TokenInvalid("refresh:no_token")
+
         (access_token, refresh_token) = await auth_service.refresh_user(refresh_token)
 
         set_refresh_cookie(response, refresh_token)
@@ -90,7 +93,9 @@ async def refresh_user(
 
 
 @router.post("/forget-password", operation_id="forgetPassword")
-async def forget_password(auth_service: AuthServiceDep, request: ForgetPasswordRequest):
+async def forget_password(
+    auth_service: AuthServiceDep, request: ForgetPasswordRequest
+) -> None:
     try:
         return await auth_service.forget_password(request.email)
     except Exception:
@@ -120,7 +125,7 @@ async def keycloak_callback(
     code: str,
     state: str,
     oauth_state: str = Cookie(None),
-):
+) -> RedirectResponse:
     if not oauth_state or state != oauth_state:
         raise HTTPException(status_code=400, detail="State mismatch. CSRF suspected.")
 

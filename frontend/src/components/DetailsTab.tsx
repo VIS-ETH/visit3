@@ -3,15 +3,15 @@ import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { kpSchema, type KpFormValues } from "../../schemas/kpSchema";
-import { formatKpDateInput, toKpIsoDate } from "../../utils/kp-utils";
-import { useTranslatedForm } from "../../utils/translator";
+import { kpSchema, type KpFormValues } from "../schemas/kpSchema";
+import { formatKpDateInput, toKpIsoDate } from "../utils/kp-utils";
+import { useTranslatedForm } from "../utils/translator";
 import {
   getGetKpByIdQueryKey,
   getListKpsQueryKey,
   useGetKpById,
   useUpdateKp,
-} from "../../orval/generated/kp/kp";
+} from "../orval/generated/kp/kp";
 
 const dateFieldNames = [
   "registrationOpen",
@@ -21,7 +21,7 @@ const dateFieldNames = [
   "eventDate",
 ] as const;
 
-export default function DetailsTab({ eventId }: { eventId: string }) {
+const DetailsTab = ({ eventId }: { eventId: string }) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data: event } = useGetKpById(eventId);
@@ -152,4 +152,5 @@ export default function DetailsTab({ eventId }: { eventId: string }) {
       </form>
     </Card>
   );
-}
+};
+export default DetailsTab;

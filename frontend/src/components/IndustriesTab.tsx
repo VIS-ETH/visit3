@@ -21,10 +21,10 @@ import {
   useCreateIndustry,
   useDeleteIndustry,
   useListIndustries,
-} from "../../orval/generated/kp/kp";
+} from "../orval/generated/kp/kp";
 import ManageEntityModal from "./ManageEntityModal";
 
-export default function IndustriesTab() {
+const IndustriesTab = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data: industries, isLoading } = useListIndustries();
@@ -134,4 +134,5 @@ export default function IndustriesTab() {
       )}
     </Stack>
   );
-}
+};
+export default IndustriesTab;

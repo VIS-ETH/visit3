@@ -1,9 +1,9 @@
 import { Center, Loader, Stack, Table, Text, Title } from "@mantine/core";
 import { useTranslation } from "react-i18next";
-import { KpBookingStatusBadge } from "../../components/KpBookingStatusBadge";
-import { useListEventBookings } from "../../orval/generated/kp/kp";
+import { KpBookingStatusBadge } from "./KpBookingStatusBadge";
+import { useListEventBookings } from "../orval/generated/kp/kp";
 
-export default function BookingsTab({ eventId }: { eventId: string }) {
+const BookingsTab = ({ eventId }: { eventId: string }) => {
   const { t } = useTranslation();
   const { data: bookings, isLoading } = useListEventBookings(eventId);
 
@@ -46,4 +46,5 @@ export default function BookingsTab({ eventId }: { eventId: string }) {
       )}
     </Stack>
   );
-}
+};
+export default BookingsTab;

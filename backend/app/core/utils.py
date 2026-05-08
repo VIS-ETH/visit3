@@ -1,8 +1,13 @@
 import hashlib
 import json
-from typing import Any, TypeVar, overload
+from typing import Any, Protocol, TypeVar, cast, overload
 
-T = TypeVar("T")
+T = TypeVar("T", covariant=True)
+
+
+class ModelValidateType(Protocol[T]):
+    @classmethod
+    def model_validate(cls, obj: Any) -> T: ...
 
 
 def normalize_email(email: str) -> str:
@@ -42,7 +47,7 @@ def load_json(target_type: type[T], value: str) -> T:
     data = json.loads(value)
 
     if hasattr(target_type, "model_validate"):
-        return target_type.model_validate(data)
+        return cast(ModelValidateType[T], target_type).model_validate(data)
     else:
         raise TypeError(
             f"Target type {target_type.__name__} does not support model validation"

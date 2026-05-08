@@ -1,13 +1,13 @@
 import uuid
-from typing import List
+from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlmodel import select, update
+from sqlmodel import col, select, update
 
 from app.core.utils import normalize_email
 from app.models.user import User
-from app.repositories.base import BaseRepository
+from app.repositories.base import BaseRepository, rel
 
 
 class UserRepository(BaseRepository[User]):
@@ -20,21 +20,21 @@ class UserRepository(BaseRepository[User]):
             exclude={"roles", "company"},
         )
 
-    async def get_admins(self) -> list[User]:
+    async def get_admins(self) -> Sequence[User]:
         statement = select(User).where(User.is_admin == True)
         result = await self.session.execute(statement)
         return result.scalars().all()
 
-    async def get_staff(self) -> list[User]:
+    async def get_staff(self) -> Sequence[User]:
         statement = select(User).where(User.is_staff == True)
         result = await self.session.execute(statement)
         return result.scalars().all()
 
-    async def get_company_users(self) -> list[User]:
+    async def get_company_users(self) -> Sequence[User]:
         statement = (
             select(User)
             .where(User.is_company == True)
-            .options(selectinload(User.company))
+            .options(selectinload(rel(User.company)))
         )
         result = await self.session.execute(statement)
         return result.scalars().all()
@@ -47,15 +47,15 @@ class UserRepository(BaseRepository[User]):
         await self.session.refresh(user, attribute_names=["roles"])
         return user
 
-    async def get_users(self):
+    async def get_users(self) -> Sequence[User]:
         statement = select(User)
         result = await self.session.execute(statement)
         return result.scalars().all()
 
-    async def get_by_email(self, email: str):
+    async def get_by_email(self, email: str) -> User | None:
         return await self._get_by_field(User.email, normalize_email(email))
 
-    async def get_by_sub(self, sub: str):
+    async def get_by_sub(self, sub: str) -> User | None:
         return await self._get_by_field(User.sub, sub)
 
     async def get_by_sub_or_email(
@@ -70,11 +70,11 @@ class UserRepository(BaseRepository[User]):
             return await self.get_by_email(email)
         return None
 
-    async def get_unconfirmed_users(self) -> List[User]:
+    async def get_unconfirmed_users(self) -> Sequence[User]:
         statement = (
             select(User)
-            .where(User.user_confirmed == False)
-            .options(selectinload(User.company))
+            .where(col(User.user_confirmed) == False)
+            .options(selectinload(rel(User.company)))
         )
         result = await self.session.execute(statement)
         return result.scalars().all()
@@ -165,7 +165,7 @@ class UserRepository(BaseRepository[User]):
         try:
             await self.session.execute(
                 update(User)
-                .where(User.id == user_id)
+                .where(col(User.id) == user_id)
                 .values(password=new_password_hash)
             )
             await self.session.commit()

@@ -56,6 +56,7 @@ export const refreshToken = async () => {
       })
       .catch(() => {
         clearToken();
+        clearImpersonation();
         return null;
       })
       .finally(() => {

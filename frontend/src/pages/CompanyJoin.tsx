@@ -19,7 +19,7 @@ import {
 import { getGetCurrentUserQueryKey } from "../orval/generated/user/user";
 import { useCurrentUser } from "../context/useCurrentUser";
 
-export default function CompanyJoin() {
+const CompanyJoin = () => {
   const { t } = useTranslation();
   const { token } = useParams<{ token: string }>();
   const location = useLocation();
@@ -107,4 +107,5 @@ export default function CompanyJoin() {
       </Stack>
     </Center>
   );
-}
+};
+export default CompanyJoin;

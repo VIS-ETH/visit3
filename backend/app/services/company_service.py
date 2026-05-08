@@ -1,5 +1,6 @@
 import logging
 import secrets
+from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
@@ -10,15 +11,17 @@ from app.core.exceptions import (
     InviteExpired,
     InviteNotFound,
     NotAllowed,
+    UserNotFound,
 )
 from app.core.utils import normalize_email
+from app.models.company import Company, CompanyInvite
 from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
 from app.schemas.company import (
-    CompanyAssignedUserResponse,
-    CompanyWithUsersResponse,
-    InviteInfoResponse,
-    KpCompanyProfileResponse,
+    CompanyAssignedUserResult,
+    CompanyWithUsersResult,
+    InviteInfoResult,
+    KpCompanyProfileResult,
 )
 from app.services.mail_service import MailService
 
@@ -33,27 +36,27 @@ class CompanyService:
         company_repository: CompanyRepository,
         mail_service: MailService,
         current_user: User,
-    ):
+    ) -> None:
         self.company_repository = company_repository
         self.mail_service = mail_service
         self.current_user = current_user
 
     @require_staff
-    async def get_company_users(self, company_id: UUID) -> list[User]:
+    async def get_company_users(self, company_id: UUID) -> Sequence[User]:
         company = await self.company_repository.get_by_id(company_id)
         if not company:
             raise CompanyNotFound(f"company_users:{company_id}")
         return await self.company_repository.get_users(company)
 
     @require_staff
-    async def get_companies_with_users(self) -> list[CompanyWithUsersResponse]:
+    async def get_companies_with_users(self) -> Sequence[CompanyWithUsersResult]:
         companies = await self.company_repository.get_companies_with_users()
         return [
-            CompanyWithUsersResponse(
+            CompanyWithUsersResult(
                 id=company.id,
                 name=company.name,
                 users=[
-                    CompanyAssignedUserResponse(
+                    CompanyAssignedUserResult(
                         id=user.id,
                         email=user.email,
                         first_name=user.first_name,
@@ -69,20 +72,37 @@ class CompanyService:
         ]
 
     @require_admin
-    async def delete_company_with_users(self, company_id: UUID):
+    async def delete_company_with_users(self, company_id: UUID) -> None:
         company = await self.company_repository.get_by_id(company_id)
         if not company:
             raise CompanyNotFound(f"delete_company_with_users:{company_id}")
         await self.company_repository.delete_company_with_users(company)
 
     @require_admin
-    async def delete_company_keep_users(self, company_id: UUID):
+    async def delete_company_keep_users(self, company_id: UUID) -> None:
         company = await self.company_repository.get_by_id(company_id)
         if not company:
             raise CompanyNotFound(f"delete_company_keep_users:{company_id}")
         await self.company_repository.delete_company_keep_users(company)
 
-    async def setup_company(self, name: str):
+    @require_admin
+    async def remove_company_user(self, company_id: UUID, user_id: UUID) -> None:
+        company = await self.company_repository.get_by_id(company_id)
+        if not company:
+            raise CompanyNotFound(f"remove_company_user:{company_id}")
+        user = await self.company_repository.get_company_user_by_id(user_id)
+        if not user:
+            raise UserNotFound(f"remove_company_user:{user_id}")
+        if user.company_id != company.id:
+            raise CompanyUserNotFound(f"remove_company_user:{company_id}:{user_id}")
+
+        await self.company_repository.remove_user_from_company(user, company)
+        logger.info(
+            f"Company user removed by admin {self.current_user.email}: "
+            f"{user.email} from {company.name}"
+        )
+
+    async def setup_company(self, name: str) -> Company:
         if not (
             self.current_user.email_confirmed
             and self.current_user.user_confirmed
@@ -103,13 +123,16 @@ class CompanyService:
         return company
 
     @require_confirmed_company
-    async def get_my_members(self) -> list[User]:
-        return await self.company_repository.get_users(
-            await self.company_repository.get_by_id(self.current_user.company_id)
-        )
+    async def get_my_members(self) -> Sequence[User]:
+        assert self.current_user.company_id is not None
+        company = await self.company_repository.get_by_id(self.current_user.company_id)
+        if company is None:
+            raise CompanyNotFound(f"my_members:{self.current_user.company_id}")
+        return await self.company_repository.get_users(company)
 
     @require_confirmed_company
-    async def create_invite(self, email: str):
+    async def create_invite(self, email: str) -> CompanyInvite:
+        assert self.current_user.company_id is not None
         normalized = normalize_email(email)
         company = await self.company_repository.get_by_id(self.current_user.company_id)
         if not company:
@@ -130,7 +153,7 @@ class CompanyService:
         )
         return invite
 
-    async def get_invite_info(self, token: str) -> InviteInfoResponse:
+    async def get_invite_info(self, token: str) -> InviteInfoResult:
         invite = await self.company_repository.get_invite_by_token(token)
         if not invite or invite.is_used:
             raise InviteNotFound(f"get_invite_info:{token}")
@@ -139,7 +162,7 @@ class CompanyService:
         company = await self.company_repository.get_by_id(invite.company_id)
         if not company:
             raise CompanyNotFound(f"get_invite_info:{invite.company_id}")
-        return InviteInfoResponse(company_name=company.name)
+        return InviteInfoResult(company_name=company.name)
 
     @require_confirmed_company
     async def accept_invite(self, token: str) -> User:
@@ -164,7 +187,7 @@ class CompanyService:
         return user
 
     @require_confirmed_company
-    async def update_company_name(self, name: str):
+    async def update_company_name(self, name: str) -> Company:
         if not self.current_user.company_id:
             logger.warning(
                 f"Update company name failed - user has no company: {self.current_user.email}"
@@ -187,13 +210,14 @@ class CompanyService:
         return updated_company
 
     @require_confirmed_company
-    async def get_my_kp_profile(self) -> KpCompanyProfileResponse | None:
+    async def get_my_kp_profile(self) -> KpCompanyProfileResult | None:
+        assert self.current_user.company_id is not None
         profile = await self.company_repository.get_kp_profile(
             self.current_user.company_id
         )
         if profile is None:
             return None
-        return KpCompanyProfileResponse(
+        return KpCompanyProfileResult(
             id=profile.id,
             company_id=profile.company_id,
             invoice_address=profile.invoice_address,
@@ -209,7 +233,8 @@ class CompanyService:
         shipping_address: str,
         contact_email: str | None,
         kp_contact_user_id: UUID | None,
-    ) -> KpCompanyProfileResponse:
+    ) -> KpCompanyProfileResult:
+        assert self.current_user.company_id is not None
         if kp_contact_user_id is not None:
             user = next(
                 (
@@ -231,7 +256,7 @@ class CompanyService:
             contact_email=contact_email,
             kp_contact_user_id=kp_contact_user_id,
         )
-        return KpCompanyProfileResponse(
+        return KpCompanyProfileResult(
             id=profile.id,
             company_id=profile.company_id,
             invoice_address=profile.invoice_address,

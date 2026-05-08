@@ -39,7 +39,7 @@ const theme = makeVisitTheme(primaryColor);
 function StaffRoute() {
   const { user } = useCurrentUser();
   if (!user) return <Navigate to="/login" replace />;
-  return user?.is_staff || user?.is_admin ? (
+  return user.is_staff || user.is_admin ? (
     <Outlet />
   ) : (
     <Navigate to="/not-allowed" replace />
@@ -49,7 +49,7 @@ function StaffRoute() {
 function CompanyRoute() {
   const { user } = useCurrentUser();
   if (!user) return <Navigate to="/login" replace />;
-  return user?.company_id ? <Outlet /> : <Navigate to="/not-allowed" replace />;
+  return user.company_id ? <Outlet /> : <Navigate to="/not-allowed" replace />;
 }
 
 function ConfirmedRoute() {
@@ -159,7 +159,7 @@ function AppWithAuth() {
   }
 
   return (
-    <UserProvider user={contextUser} isLoading={isBootstrapping || isLoading}>
+    <UserProvider user={contextUser} isLoading={isLoading}>
       <AppRoutes />
     </UserProvider>
   );

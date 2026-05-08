@@ -3,12 +3,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.models.company import Company
 from app.models.kp_event import (
     KpBookingStatus,
-    KpEventBookingServiceFileLink,
     KpCompanyLanguage,
 )
-from app.models.company import Company
 
 
 class StoredFileResponse(BaseModel):
@@ -178,6 +177,10 @@ class UpdateBookingInput(BaseModel):
     booth_nr: int | None = Field(default=None, ge=1)
 
 
+class UpdateBookingRequest(UpdateBookingInput):
+    pass
+
+
 class UpsertCompanyDetailsInput(BaseModel):
     profile: str | None = None
     brand_name: str | None = None
@@ -200,11 +203,15 @@ class RegisterBookingRequest(BaseModel):
     booth_zone_id: UUID
 
 
-class BoothZoneWithAvailabilityResponse(BoothZoneResponse):
+class BoothZoneWithAvailabilityResult(BoothZoneResponse):
     available_spots: int
 
 
-class BookingResponse(BaseModel):
+class BoothZoneWithAvailabilityResponse(BoothZoneWithAvailabilityResult):
+    pass
+
+
+class BookingBase(BaseModel):
     id: UUID
     booking_number: int
     event_id: UUID
@@ -212,10 +219,13 @@ class BookingResponse(BaseModel):
     booth_zone_id: UUID
     booth_nr: int | None
     status: KpBookingStatus
+
+
+class BookingResponse(BookingBase):
     booth_zone: BoothZoneResponse | None = None
 
 
-class BookingWithCompanyAndBoothZoneResponse(BookingResponse):
+class BookingWithCompanyAndBoothZoneResponse(BookingBase):
     company: Company
     booth_zone: BoothZoneResponse
 
@@ -239,7 +249,7 @@ class ExportBackgroundResponse(BaseModel):
     stored_file: StoredFileResponse
 
 
-class NametagExportPersonResponse(BaseModel):
+class NametagExportPersonResult(BaseModel):
     id: UUID
     booking_id: UUID
     company_name: str
@@ -248,18 +258,30 @@ class NametagExportPersonResponse(BaseModel):
     position: str
 
 
-class NametagExportCompanyResponse(BaseModel):
+class NametagExportPersonResponse(NametagExportPersonResult):
+    pass
+
+
+class NametagExportCompanyResult(BaseModel):
     booking_id: UUID
     company_id: UUID
     company_name: str
     booth_zone_name: str
-    booth_nr: int
+    booth_nr: int | None
     nametag_count: int
 
 
-class NametagExportTargetsResponse(BaseModel):
-    companies: list[NametagExportCompanyResponse]
-    people: list[NametagExportPersonResponse]
+class NametagExportCompanyResponse(NametagExportCompanyResult):
+    pass
+
+
+class NametagExportTargetsResult(BaseModel):
+    companies: list[NametagExportCompanyResult]
+    people: list[NametagExportPersonResult]
+
+
+class NametagExportTargetsResponse(NametagExportTargetsResult):
+    pass
 
 
 class BookingUpgradeWaitlistEntryResponse(BaseModel):

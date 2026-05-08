@@ -5,9 +5,10 @@ const rootDir = process.cwd();
 const targetDirs = [
   path.join(rootDir, "src", "pages"),
   path.join(rootDir, "src", "components"),
+  path.join(rootDir, "src", "schemas"),
 ];
 
-const fileExtensions = new Set([".tsx"]);
+const fileExtensions = new Set([".tsx", ".ts"]);
 
 const ignoredTextPatterns = [
   /^\s*$/, // empty/whitespace
@@ -23,6 +24,7 @@ const ignoredTextLiterals = new Set([
   "@",
   ":",
   "|",
+  "new Date(isoDate).getTime()",
 ]);
 
 function walk(dir) {
@@ -50,6 +52,7 @@ function shouldIgnoreLiteral(literal) {
 function findViolations(filePath, source) {
   const violations = [];
   const lines = source.split(/\r?\n/);
+  const isSchemaFile = filePath.includes(`${path.sep}src${path.sep}schemas${path.sep}`);
 
   lines.forEach((line, index) => {
     const lineNumber = index + 1;
@@ -72,6 +75,20 @@ function findViolations(filePath, source) {
       const literal = (match[2] || "").trim();
       if (!literal || shouldIgnoreLiteral(literal)) continue;
       violations.push({ line: lineNumber, literal });
+    }
+
+    if (isSchemaFile) {
+      const schemaMessageMatches = [
+        ...line.matchAll(/\bmessage:\s*["'`]([^"'`]*[A-Za-z][^"'`]*)["'`]/g),
+        ...line.matchAll(/\.(?:email|min|max|regex|refine)\([^)]*["'`]([^"'`]*[A-Za-z][^"'`]*)["'`][^)]*\)/g),
+      ];
+
+      for (const match of schemaMessageMatches) {
+        const literal = (match[1] || "").trim();
+        if (!literal || shouldIgnoreLiteral(literal)) continue;
+        if (literal.includes(".")) continue;
+        violations.push({ line: lineNumber, literal });
+      }
     }
   });
 
@@ -98,7 +115,7 @@ console.error("i18n-check: found potential hardcoded user-facing literals:");
 for (const item of report) {
   const relativeFile = path.relative(rootDir, item.filePath);
   for (const violation of item.violations) {
-    console.error(`- ${relativeFile}:${violation.line} -> \"${violation.literal}\"`);
+    console.error(`- ${relativeFile}:${violation.line} -> "${violation.literal}"`);
   }
 }
 

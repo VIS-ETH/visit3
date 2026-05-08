@@ -22,7 +22,7 @@ import {
   IconArrowLeft,
 } from "@tabler/icons-react";
 
-export default function ConfirmEmail() {
+const ConfirmEmail = () => {
   const { token } = useParams();
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -31,7 +31,7 @@ export default function ConfirmEmail() {
     data: isValid,
     isPending: isValidationPending,
     isError: isValidationError,
-  } = useValidateConfirmEmailToken(token || "", {
+  } = useValidateConfirmEmailToken(token ?? "", {
     query: {
       enabled: token !== undefined,
       retry: false,
@@ -167,4 +167,5 @@ export default function ConfirmEmail() {
       </Paper>
     </Center>
   );
-}
+};
+export default ConfirmEmail;

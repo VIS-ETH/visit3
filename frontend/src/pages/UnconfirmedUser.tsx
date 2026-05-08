@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import IconTitle from "../components/IconTitle";
 import { useCurrentUser } from "../context/useCurrentUser";
 
-export default function UnconfirmedUser() {
+const UnconfirmedUser = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useCurrentUser();
@@ -49,4 +49,5 @@ export default function UnconfirmedUser() {
       </Stack>
     </Center>
   );
-}
+};
+export default UnconfirmedUser;

@@ -8,11 +8,7 @@ interface HeaderProps {
   toggleNavbar: () => void;
 }
 
-export default function Header({
-  showNavbar,
-  navbarOpened,
-  toggleNavbar,
-}: HeaderProps) {
+const Header = ({ showNavbar, navbarOpened, toggleNavbar }: HeaderProps) => {
   return (
     <AppShell.Header className="app-header">
       <Group h="100%" px="md" justify="space-between" wrap="nowrap" gap="xs">
@@ -44,4 +40,5 @@ export default function Header({
       </Group>
     </AppShell.Header>
   );
-}
+};
+export default Header;

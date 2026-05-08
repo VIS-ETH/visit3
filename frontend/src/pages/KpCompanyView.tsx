@@ -33,7 +33,7 @@ import {
 } from "../utils/kp-utils";
 import { formatPrice } from "../utils/price-utils";
 
-export default function KpCompanyView() {
+const KpCompanyView = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id = "" } = useParams<{ id: string }>();
@@ -84,7 +84,7 @@ export default function KpCompanyView() {
         </Center>
       ) : null}
 
-      {isError && !isLoading ? (
+      {isError ? (
         <Alert icon={<IconAlertCircle />} color="red" title={t("server.error")}>
           {t("kp.company_view.error")}
         </Alert>
@@ -223,7 +223,8 @@ export default function KpCompanyView() {
                     {t("kp.company_view.booking_price")}
                   </Text>
                   <Text fw={500}>
-                    CHF {formatPrice(myBooking.booth_zone?.base_price ?? 0)}
+                    {t("common.currency")}{" "}
+                    {formatPrice(myBooking.booth_zone?.base_price ?? 0)}
                   </Text>
                 </div>
                 <div>
@@ -277,4 +278,5 @@ export default function KpCompanyView() {
       ) : null}
     </Stack>
   );
-}
+};
+export default KpCompanyView;

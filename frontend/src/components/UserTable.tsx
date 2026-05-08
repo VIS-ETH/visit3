@@ -1,16 +1,12 @@
 import { Table, Paper } from "@mantine/core";
 import React from "react";
 import type {
-  CompanyAssignedUserResponse,
   CompanyUserResponse,
   UserResponse,
 } from "../orval/generated/fastAPI.schemas";
 import { getDisplayName } from "../utils/display";
 
-type UserTableUser =
-  | CompanyAssignedUserResponse
-  | CompanyUserResponse
-  | UserResponse;
+type UserTableUser = CompanyUserResponse | UserResponse;
 
 interface UserTableProps {
   users: UserTableUser[];
@@ -49,10 +45,10 @@ const UserTable: React.FC<UserTableProps> = ({
             <Table.Td>
               {getDisplayName(user.first_name, user.last_name)}
             </Table.Td>
-            <Table.Td>{user.phone_number || "-"}</Table.Td>
+            <Table.Td>{user.phone_number ?? "-"}</Table.Td>
             {showCompany ? (
               <Table.Td>
-                {"company" in user ? user.company?.name || "-" : "-"}
+                {"company" in user ? (user.company?.name ?? "-") : "-"}
               </Table.Td>
             ) : null}
             {actionButton ? <Table.Td>{actionButton(user)}</Table.Td> : null}
@@ -62,5 +58,4 @@ const UserTable: React.FC<UserTableProps> = ({
     </Table>
   </Paper>
 );
-
 export default UserTable;

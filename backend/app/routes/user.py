@@ -1,10 +1,12 @@
 import logging
-from typing import Annotated, List
+from collections.abc import Sequence
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Response
 
 from app.core.deps import CsrfDep, UserServiceDep
+from app.models.user import User
 from app.schemas.user import (
     CompanyUserResponse,
     UpdateCompanyUserRequest,
@@ -18,7 +20,7 @@ router = APIRouter(prefix="/user", tags=["user"], dependencies=[CsrfDep])
 
 
 @router.get("/me", operation_id="getCurrentUser", response_model=UserResponse)
-async def get_current_user(user_service: UserServiceDep) -> UserResponse:
+async def get_current_user(user_service: UserServiceDep) -> User:
     return await user_service.get_current_user()
 
 
@@ -27,7 +29,7 @@ async def get_current_user(user_service: UserServiceDep) -> UserResponse:
     operation_id="getUserProfile",
     response_model=CompanyUserResponse,
 )
-async def get_user_profile(user_service: UserServiceDep) -> CompanyUserResponse:
+async def get_user_profile(user_service: UserServiceDep) -> User:
     return await user_service.get_current_user_profile()
 
 
@@ -38,7 +40,7 @@ async def get_user_profile(user_service: UserServiceDep) -> CompanyUserResponse:
 )
 async def update_user_profile(
     user_service: UserServiceDep, request: UpdateUserProfileRequest
-) -> CompanyUserResponse:
+) -> User:
     return await user_service.update_current_user_profile(
         request.first_name,
         request.last_name,
@@ -53,7 +55,7 @@ async def update_user_profile(
 )
 async def get_all_company_users(
     user_service: UserServiceDep,
-) -> list[CompanyUserResponse]:
+) -> Sequence[User]:
     return await user_service.get_company_users()
 
 
@@ -62,7 +64,7 @@ async def get_all_company_users(
     operation_id="getAllAdmins",
     response_model=list[UserResponse],
 )
-async def get_all_admins(user_service: UserServiceDep) -> list[UserResponse]:
+async def get_all_admins(user_service: UserServiceDep) -> Sequence[User]:
     return await user_service.get_admins()
 
 
@@ -71,7 +73,7 @@ async def get_all_admins(user_service: UserServiceDep) -> list[UserResponse]:
     operation_id="getAllStaff",
     response_model=list[UserResponse],
 )
-async def get_all_staff(user_service: UserServiceDep) -> list[UserResponse]:
+async def get_all_staff(user_service: UserServiceDep) -> Sequence[User]:
     return await user_service.get_staff()
 
 
@@ -81,7 +83,7 @@ async def send_confirmation_mail(user_service: UserServiceDep) -> None:
 
 
 @router.post("/confirm-email/{token}", operation_id="confirmEmail")
-async def confirm_email(user_service: UserServiceDep, token: str):
+async def confirm_email(user_service: UserServiceDep, token: str) -> bool:
     return await user_service.confirm_email(token)
 
 
@@ -99,7 +101,7 @@ async def validate_confirm_email_token(
 )
 async def get_unconfirmed_users(
     user_service: UserServiceDep,
-) -> List[CompanyUserResponse]:
+) -> Sequence[User]:
     return await user_service.get_unconfirmed_users()
 
 
@@ -108,7 +110,7 @@ async def get_unconfirmed_users(
     operation_id="confirmUser",
     response_model=UserResponse,
 )
-async def confirm_user(user_service: UserServiceDep, user_id: UUID) -> UserResponse:
+async def confirm_user(user_service: UserServiceDep, user_id: UUID) -> User:
     return await user_service.confirm_user(user_id)
 
 
@@ -121,7 +123,7 @@ async def update_company_user(
     user_service: UserServiceDep,
     user_id: UUID,
     request: UpdateCompanyUserRequest,
-) -> CompanyUserResponse:
+) -> User:
     return await user_service.update_company_user(
         user_id,
         request.email,
@@ -136,7 +138,7 @@ async def update_company_user(
     "/{user_id}",
     operation_id="deleteUser",
 )
-async def delete_user(user_service: UserServiceDep, user_id: UUID):
+async def delete_user(user_service: UserServiceDep, user_id: UUID) -> None:
     await user_service.delete_user(user_id)
 
 
@@ -145,8 +147,7 @@ async def logout_user(
     user_service: UserServiceDep,
     response: Response,
     refresh_token: Annotated[str | None, Cookie()] = None,
-):
+) -> None:
     await user_service.logout_user(refresh_token)
     response.delete_cookie("refresh_token", samesite="lax")
     logger.info(f"User logout successful: {user_service.current_user.email}")
-    return None

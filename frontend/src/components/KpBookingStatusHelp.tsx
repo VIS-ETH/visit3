@@ -19,7 +19,7 @@ const BOOKING_STATUSES: KpBookingStatus[] = [
   "CANCELLED",
 ];
 
-export function KpBookingStatusHelp() {
+export const KpBookingStatusHelp = () => {
   const { t } = useTranslation();
   const [opened, { open, close }] = useDisclosure(false);
 
@@ -64,4 +64,5 @@ export function KpBookingStatusHelp() {
       </Modal>
     </>
   );
-}
+};
+export default KpBookingStatusHelp;

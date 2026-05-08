@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import EmailStr, field_validator
@@ -9,7 +9,6 @@ from app.models.base import BaseEntity, BaseLink, BaseToken
 from app.models.company import Company
 
 if TYPE_CHECKING:
-    from app.models.kp_event import KpEventBooking
     from app.models.company import KpCompanyProfile
 
 
@@ -40,7 +39,7 @@ class User(BaseEntity, table=True):
     user_confirmed: bool = False
     email_confirmed: bool = False
 
-    roles: List["Role"] = Relationship(back_populates="users", link_model=UserRole)
+    roles: list["Role"] = Relationship(back_populates="users", link_model=UserRole)
 
     company_id: UUID | None = Field(default=None, foreign_key="company.id", index=True)
     company: Company = Relationship(

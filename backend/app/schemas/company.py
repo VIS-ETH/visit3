@@ -3,15 +3,23 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr
 
 
-class CreateCompanyRequest(BaseModel):
+class CreateCompanyInput(BaseModel):
     name: str
 
 
-class UpdateCompanyRequest(BaseModel):
+class CreateCompanyRequest(CreateCompanyInput):
+    pass
+
+
+class UpdateCompanyInput(BaseModel):
     name: str
 
 
-class KpCompanyProfileResponse(BaseModel):
+class UpdateCompanyRequest(UpdateCompanyInput):
+    pass
+
+
+class KpCompanyProfileResult(BaseModel):
     id: UUID
     company_id: UUID
     invoice_address: str
@@ -20,26 +28,46 @@ class KpCompanyProfileResponse(BaseModel):
     kp_contact_user_id: UUID | None
 
 
-class UpdateKpCompanyProfileRequest(BaseModel):
+class KpCompanyProfileResponse(KpCompanyProfileResult):
+    pass
+
+
+class UpdateKpCompanyProfileInput(BaseModel):
     invoice_address: str
     shipping_address: str
     contact_email: EmailStr | None = None
     kp_contact_user_id: UUID | None = None
 
 
-class SetupCompanyRequest(BaseModel):
+class UpdateKpCompanyProfileRequest(UpdateKpCompanyProfileInput):
+    pass
+
+
+class SetupCompanyInput(BaseModel):
     name: str
 
 
-class CreateInviteRequest(BaseModel):
+class SetupCompanyRequest(SetupCompanyInput):
+    pass
+
+
+class CreateInviteInput(BaseModel):
     email: EmailStr
 
 
-class InviteInfoResponse(BaseModel):
+class CreateInviteRequest(CreateInviteInput):
+    pass
+
+
+class InviteInfoResult(BaseModel):
     company_name: str
 
 
-class CompanyAssignedUserResponse(BaseModel):
+class InviteInfoResponse(InviteInfoResult):
+    pass
+
+
+class CompanyAssignedUserResult(BaseModel):
     id: UUID
     email: str
     first_name: str | None = None
@@ -49,7 +77,18 @@ class CompanyAssignedUserResponse(BaseModel):
     email_confirmed: bool
 
 
-class CompanyWithUsersResponse(BaseModel):
+class CompanyAssignedUserResponse(CompanyAssignedUserResult):
+    pass
+
+
+class CompanyBase(BaseModel):
     id: UUID
     name: str
-    users: list[CompanyAssignedUserResponse]
+
+
+class CompanyWithUsersResult(CompanyBase):
+    users: list[CompanyAssignedUserResult]
+
+
+class CompanyWithUsersResponse(CompanyWithUsersResult):
+    pass

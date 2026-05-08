@@ -1,3 +1,5 @@
+from typing import Any
+
 import jwt
 
 from app.core.config import get_settings
@@ -5,12 +7,12 @@ from app.core.config import get_settings
 jwks_client = jwt.PyJWKClient(get_settings().SIP_AUTH_OIDC_JWKS_URL)
 
 
-def decode_token(token: str):
+def decode_token(token: str) -> dict[str, Any] | None:
     signing_token = jwks_client.get_signing_key_from_jwt(token)
     settings = get_settings()
 
     try:
-        payload = jwt.decode(
+        payload: dict[str, Any] = jwt.decode(
             token,
             signing_token,
             algorithms=[settings.KEYCLOAK_ALGORITHM],

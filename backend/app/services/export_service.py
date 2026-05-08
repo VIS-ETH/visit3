@@ -1,4 +1,5 @@
 import tempfile
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -14,13 +15,18 @@ from app.core.exceptions import (
     StorageFileInvalidMimeType,
     StorageFileTooLarge,
 )
-from app.models.kp_event import KpEventBooking, KpEventNametagBackground, NameTag
+from app.models.kp_event import (
+    KpEvent,
+    KpEventBooking,
+    KpEventNametagBackground,
+    NameTag,
+)
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
 from app.schemas.kp import (
-    NametagExportCompanyResponse,
-    NametagExportPersonResponse,
-    NametagExportTargetsResponse,
+    NametagExportCompanyResult,
+    NametagExportPersonResult,
+    NametagExportTargetsResult,
 )
 from app.services.csv_service import CsvService
 from app.services.pdf_service import PdfService
@@ -138,7 +144,7 @@ class ExportService:
         pdf_service: PdfService,
         csv_service: CsvService,
         current_user: User,
-    ):
+    ) -> None:
         self.kp_repository = kp_repository
         self.storage_service = storage_service
         self.pdf_service = pdf_service
@@ -159,10 +165,10 @@ class ExportService:
     def _money(self, cents: int) -> str:
         return f"{cents / 100:.2f}"
 
-    def _languages(self, languages: list[object]) -> str:
-        return ", ".join(str(language.value) for language in languages)
+    def _languages(self, languages: Sequence[str]) -> str:
+        return ", ".join(str(language) for language in languages)
 
-    async def _get_event_or_raise(self, event_id: UUID):
+    async def _get_event_or_raise(self, event_id: UUID) -> KpEvent:
         event = await self.kp_repository.get_by_id(event_id)
         if event is None:
             raise KpEventNotFound(f"export:event_not_found:{event_id}")
@@ -170,7 +176,7 @@ class ExportService:
 
     async def _list_event_bookings(
         self, event_id: UUID
-    ) -> tuple[object, list[KpEventBooking]]:
+    ) -> tuple[KpEvent, Sequence[KpEventBooking]]:
         event = await self._get_event_or_raise(event_id)
         return event, await self.kp_repository.list_bookings_for_event(event_id)
 
@@ -243,7 +249,7 @@ class ExportService:
         self,
         background_bytes: bytes,
         background_mime_type: str,
-        name_tags: list[NameTag],
+        name_tags: Sequence[NameTag],
         filename: str,
         columns: int | None,
     ) -> RenderedExport:
@@ -264,6 +270,10 @@ class ExportService:
                 filename,
                 root="/",
             )
+
+        if content is None:
+            raise KpExportEmpty("nametag_export:rendering_failed")
+
         return RenderedExport(content, rendered_filename)
 
     @require_staff
@@ -326,11 +336,11 @@ class ExportService:
     @require_staff
     async def list_nametag_export_targets(
         self, event_id: UUID
-    ) -> NametagExportTargetsResponse:
+    ) -> NametagExportTargetsResult:
         await self._get_event_or_raise(event_id)
         bookings = await self.kp_repository.list_bookings_for_event(event_id)
         companies = [
-            NametagExportCompanyResponse(
+            NametagExportCompanyResult(
                 booking_id=booking.id,
                 company_id=booking.company_id,
                 company_name=booking.company.name,
@@ -350,7 +360,7 @@ class ExportService:
         )
 
         people = [
-            NametagExportPersonResponse(
+            NametagExportPersonResult(
                 id=name_tag.id,
                 booking_id=booking.id,
                 company_name=booking.company.name,
@@ -368,7 +378,7 @@ class ExportService:
                 person.first_name.casefold(),
             )
         )
-        return NametagExportTargetsResponse(companies=companies, people=people)
+        return NametagExportTargetsResult(companies=companies, people=people)
 
     @require_staff
     async def render_event_nametags(
@@ -509,7 +519,7 @@ class ExportService:
     async def export_nametags_data_csv(self, event_id: UUID) -> RenderedExport:
         event = await self._get_event_or_raise(event_id)
         name_tags = await self.kp_repository.list_name_tags_for_event(event_id)
-        rows = [
+        rows: list[dict[str, object]] = [
             {
                 "name_tag_id": name_tag.id,
                 "booking_id": name_tag.booking_id,
@@ -673,7 +683,7 @@ class ExportService:
     ) -> RenderedExport:
         event = await self._get_event_or_raise(event_id)
         exceptions = await self.kp_repository.list_registration_exceptions(event_id)
-        rows = [
+        rows: list[dict[str, object]] = [
             {
                 "company": exception.company.name,
                 "company_id": exception.company_id,

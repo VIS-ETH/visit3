@@ -23,7 +23,7 @@ import { useLogoutUser } from "../orval/generated/user/user";
 import { useCurrentUser } from "../context/useCurrentUser";
 import serverData from "../utils/server-data";
 
-export default function Navbar() {
+const Navbar = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useCurrentUser();
@@ -49,7 +49,7 @@ export default function Navbar() {
             fit="contain"
           />
           <Text fw={700} size="lg" ta="center">
-            {t("nav.company_portal_of") + " "}
+            {`${t("nav.company_portal_of")} `}
             <Anchor
               href={serverData.visWebsiteUrl}
               target="_blank"
@@ -103,7 +103,7 @@ export default function Navbar() {
               </Button>
             </>
           )}
-          {(user?.is_staff || user?.is_admin) && (
+          {user && (user.is_staff || user.is_admin) && (
             <>
               <Button
                 component={NavLink}
@@ -140,4 +140,5 @@ export default function Navbar() {
       </Stack>
     </AppShell.Navbar>
   );
-}
+};
+export default Navbar;

@@ -3,7 +3,7 @@ import { useCurrentUser } from "../context/useCurrentUser";
 import LinkFeatureCard from "../components/LinkFeatureCard";
 import { useTranslation } from "react-i18next";
 
-export default function Home() {
+const Home = () => {
   const { user } = useCurrentUser();
   const { t } = useTranslation();
 
@@ -32,4 +32,5 @@ export default function Home() {
       />
     </Stack>
   );
-}
+};
+export default Home;

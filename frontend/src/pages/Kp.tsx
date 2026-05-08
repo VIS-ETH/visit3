@@ -1,12 +1,11 @@
-import { Navigate } from "react-router";
+import { Navigate, useParams } from "react-router";
 import { useCurrentUser } from "../context/useCurrentUser";
 import KpCompanyEvents from "./KpCompanyEvents";
 import KpCompanyView from "./KpCompanyView";
 import KpDashboard from "./KpDashboard";
 import KpManage from "./KpManage";
-import { useParams } from "react-router";
 
-export default function Kp() {
+const Kp = () => {
   const { user } = useCurrentUser();
   const { id } = useParams<{ id?: string }>();
 
@@ -23,4 +22,5 @@ export default function Kp() {
   }
 
   return <Navigate to="/not-allowed" replace />;
-}
+};
+export default Kp;

@@ -1,8 +1,8 @@
 import { Card, Group, Text, UnstyledButton } from "@mantine/core";
 import { IconCheck } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import type { BoothZoneWithAvailabilityResponse } from "../../orval/generated/fastAPI.schemas";
-import { formatPrice } from "../../utils/price-utils";
+import type { BoothZoneWithAvailabilityResponse } from "../orval/generated/fastAPI.schemas";
+import { formatPrice } from "../utils/price-utils";
 
 interface KpBookingZoneCardProps {
   zone: BoothZoneWithAvailabilityResponse;
@@ -11,12 +11,12 @@ interface KpBookingZoneCardProps {
   onSelect: () => void;
 }
 
-export default function KpBookingZoneCard({
+const KpBookingZoneCard = ({
   zone,
   isSelected,
   isDisabled,
   onSelect,
-}: KpBookingZoneCardProps) {
+}: KpBookingZoneCardProps) => {
   const { t } = useTranslation();
   const isFull = zone.available_spots <= 0;
 
@@ -80,4 +80,5 @@ export default function KpBookingZoneCard({
       </Card>
     </UnstyledButton>
   );
-}
+};
+export default KpBookingZoneCard;

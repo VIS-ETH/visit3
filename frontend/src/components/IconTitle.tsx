@@ -9,13 +9,13 @@ interface IconTitleProps {
   titleOrder?: 1 | 2 | 3 | 4 | 5 | 6;
 }
 
-export default function IconTitle({
+const IconTitle = ({
   icon,
   title,
   color,
   iconSize = 80,
   titleOrder = 2,
-}: IconTitleProps) {
+}: IconTitleProps) => {
   return (
     <>
       <ThemeIcon size={iconSize} radius="xl" variant="light" color={color}>
@@ -26,4 +26,5 @@ export default function IconTitle({
       </Title>
     </>
   );
-}
+};
+export default IconTitle;

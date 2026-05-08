@@ -6,13 +6,15 @@ import random
 import struct
 import sys
 import zlib
+from collections.abc import Mapping
 from datetime import date
 from pathlib import Path
+from typing import TypedDict
 
 from pwdlib import PasswordHash
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel import select
+from sqlmodel import col, select
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
@@ -34,6 +36,43 @@ from app.services.storage_service import StorageService
 
 password_hash = PasswordHash.recommended()
 
+
+class KpExportCompanySeed(TypedDict):
+    name: str
+    zone: str
+    booth_nr: int
+    nametags: list[tuple[str, str, str]]
+
+
+class BoothZoneSeed(TypedDict):
+    description: str
+    color: str
+    order: int
+    capacity: int
+    booth_size: float
+    base_price: int
+
+
+class SeedUser(TypedDict):
+    email: str
+    first_name: str
+    last_name: str
+    is_admin: bool
+    is_staff: bool
+    is_company: bool
+    user_confirmed: bool
+    email_confirmed: bool
+    company_key: str | None
+
+
+class SeedUserFlags(TypedDict):
+    is_admin: bool
+    is_staff: bool
+    is_company: bool
+    user_confirmed: bool
+    email_confirmed: bool
+
+
 SEED_COMPANIES = {
     "seed-vendor": "Seed Vendor AG",
     "seed-partner": "Seed Partner GmbH",
@@ -42,7 +81,7 @@ SEED_COMPANIES = {
 KP_EVENT_NAME = "Kontaktparty Nametag Export Test"
 KP_BACKGROUND_STORAGE_KEY = "seed/nametag-export-test/background.png"
 
-KP_EXPORT_COMPANIES = [
+KP_EXPORT_COMPANIES: list[KpExportCompanySeed] = [
     {
         "name": "Seed Robotics AG",
         "zone": "Main Hall",
@@ -75,7 +114,7 @@ KP_EXPORT_COMPANIES = [
     },
 ]
 
-KP_EXPORT_ZONES = {
+KP_EXPORT_ZONES: dict[str, BoothZoneSeed] = {
     "Main Hall": {
         "description": "Primary seed zone for nametag export testing.",
         "color": "#1F7A5C",
@@ -221,7 +260,7 @@ SEED_USER_COUNTS = {
 }
 
 
-def generate_seed_users() -> list[dict[str, object]]:
+def generate_seed_users() -> list[SeedUser]:
     randomizer = random.Random(RANDOM_SEED)
     shuffled_emails = EMAIL_POOL.copy()
     randomizer.shuffle(shuffled_emails)
@@ -232,7 +271,7 @@ def generate_seed_users() -> list[dict[str, object]]:
             f"Not enough emails in EMAIL_POOL: need {total_needed}, have {len(shuffled_emails)}"
         )
 
-    users: list[dict[str, object]] = []
+    users: list[SeedUser] = []
     company_keys = list(SEED_COMPANIES.keys())
     email_index = 0
 
@@ -245,7 +284,7 @@ def generate_seed_users() -> list[dict[str, object]]:
             last_name = randomizer.choice(LAST_NAMES)
 
             if group == "unconfirmed":
-                user_payload = {
+                user_payload: SeedUserFlags = {
                     "is_admin": False,
                     "is_staff": False,
                     "is_company": True,
@@ -282,12 +321,16 @@ def generate_seed_users() -> list[dict[str, object]]:
                     "email": email,
                     "first_name": first_name,
                     "last_name": last_name,
-                    **user_payload,
+                    "is_admin": user_payload["is_admin"],
+                    "is_staff": user_payload["is_staff"],
+                    "is_company": user_payload["is_company"],
+                    "user_confirmed": user_payload["user_confirmed"],
+                    "email_confirmed": user_payload["email_confirmed"],
+                    "company_key": randomizer.choice(company_keys)
+                    if user_payload["is_company"]
+                    else None,
                 }
             )
-
-            if user_payload["is_company"]:
-                users[-1]["company_key"] = randomizer.choice(company_keys)
 
     return users
 
@@ -361,7 +404,7 @@ async def get_or_create_kp_event(session) -> KpEvent:
 
 
 async def get_or_create_booth_zone(
-    session, event: KpEvent, name: str, values: dict[str, object]
+    session, event: KpEvent, name: str, values: Mapping[str, object]
 ) -> KpEventBoothZone:
     zone = (
         await session.execute(
@@ -490,7 +533,9 @@ async def seed_kp_nametag_exports(session) -> tuple[int, int, int]:
         )
         bookings.append(booking)
 
-        await session.execute(delete(NameTag).where(NameTag.booking_id == booking.id))
+        await session.execute(
+            delete(NameTag).where(col(NameTag.booking_id) == booking.id)
+        )
         for first_name, last_name, position in company_seed["nametags"]:
             session.add(
                 NameTag(

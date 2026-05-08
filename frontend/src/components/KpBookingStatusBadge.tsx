@@ -9,15 +9,15 @@ export type KpBookingStatusBadgeProps = Omit<
   status: KpBookingStatus;
 };
 
-export function KpBookingStatusBadge({
+export const KpBookingStatusBadge = ({
   status,
   variant = "light",
   size = "sm",
   ...props
-}: KpBookingStatusBadgeProps) {
+}: KpBookingStatusBadgeProps) => {
   return (
     <Badge
-      color={BOOKING_STATUS_COLORS[status] ?? "gray"}
+      color={BOOKING_STATUS_COLORS[status]}
       variant={variant}
       size={size}
       {...props}
@@ -25,4 +25,5 @@ export function KpBookingStatusBadge({
       {status}
     </Badge>
   );
-}
+};
+export default KpBookingStatusBadge;

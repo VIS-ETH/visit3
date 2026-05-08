@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
@@ -5,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.models.company import Company, KpCompanyProfile
 from app.models.kp_event import (
@@ -26,7 +27,7 @@ from app.models.kp_event import (
     NameTag,
 )
 from app.models.storage import StoredFile
-from app.repositories.base import BaseRepository
+from app.repositories.base import BaseRepository, rel
 from app.schemas.kp import (
     CreateBookingInput,
     CreateBoothZoneInput,
@@ -60,41 +61,43 @@ class KpRepository(BaseRepository[KpEvent]):
 
     def _booking_select(self):
         return select(KpEventBooking).options(
-            selectinload(KpEventBooking.event),
-            selectinload(KpEventBooking.company).selectinload(Company.kp_profile),
-            selectinload(KpEventBooking.company)
-            .selectinload(Company.kp_profile)
-            .selectinload(KpCompanyProfile.kp_contact_user),
-            selectinload(KpEventBooking.company).selectinload(Company.users),
-            selectinload(KpEventBooking.booth_zone),
-            selectinload(KpEventBooking.services)
-            .selectinload(KpEventBookingService.service)
-            .selectinload(KpEventService.requirements),
-            selectinload(KpEventBooking.services)
-            .selectinload(KpEventBookingService.requirement_file_links)
-            .selectinload(KpEventBookingServiceFileLink.requirement),
-            selectinload(KpEventBooking.services)
-            .selectinload(KpEventBookingService.requirement_file_links)
-            .selectinload(KpEventBookingServiceFileLink.stored_file),
-            selectinload(KpEventBooking.name_tags),
-            selectinload(KpEventBooking.upgrade_waitlist_entries).selectinload(
-                KpEventBookingUpgradeWaitlist.target_booth_zone
+            selectinload(rel(KpEventBooking.event)),
+            selectinload(rel(KpEventBooking.company)).selectinload(
+                rel(Company.kp_profile)
             ),
-            selectinload(KpEventBooking.company_details)
-            .selectinload(KpBookingCompanyDetails.industry_links)
-            .selectinload(KpBookingCompanyDetailsIndustryLink.industry),
+            selectinload(rel(KpEventBooking.company))
+            .selectinload(rel(Company.kp_profile))
+            .selectinload(rel(KpCompanyProfile.kp_contact_user)),
+            selectinload(rel(KpEventBooking.company)).selectinload(rel(Company.users)),
+            selectinload(rel(KpEventBooking.booth_zone)),
+            selectinload(rel(KpEventBooking.services))
+            .selectinload(rel(KpEventBookingService.service))
+            .selectinload(rel(KpEventService.requirements)),
+            selectinload(rel(KpEventBooking.services))
+            .selectinload(rel(KpEventBookingService.requirement_file_links))
+            .selectinload(rel(KpEventBookingServiceFileLink.requirement)),
+            selectinload(rel(KpEventBooking.services))
+            .selectinload(rel(KpEventBookingService.requirement_file_links))
+            .selectinload(rel(KpEventBookingServiceFileLink.stored_file)),
+            selectinload(rel(KpEventBooking.name_tags)),
+            selectinload(rel(KpEventBooking.upgrade_waitlist_entries)).selectinload(
+                rel(KpEventBookingUpgradeWaitlist.target_booth_zone)
+            ),
+            selectinload(rel(KpEventBooking.company_details))
+            .selectinload(rel(KpBookingCompanyDetails.industry_links))
+            .selectinload(rel(KpBookingCompanyDetailsIndustryLink.industry)),
         )
 
     async def get_by_name(self, name: str) -> Optional[KpEvent]:
-        return await self._get_by_field(KpEvent.name, name)
+        return await self._get_by_field(col(KpEvent.name), name)
 
-    async def list_kps(self) -> list[KpEvent]:
-        statement = select(KpEvent).order_by(KpEvent.event_date.desc())
+    async def list_kps(self) -> Sequence[KpEvent]:
+        statement = select(KpEvent).order_by(col(KpEvent.event_date).desc())
         result = await self.session.execute(statement)
         return result.scalars().all()
 
     async def get_latest_kp(self) -> Optional[KpEvent]:
-        statement = select(KpEvent).order_by(KpEvent.event_date.desc()).limit(1)
+        statement = select(KpEvent).order_by(col(KpEvent.event_date).desc()).limit(1)
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
@@ -241,62 +244,76 @@ class KpRepository(BaseRepository[KpEvent]):
             raise e
 
     async def get_booking_by_id(self, booking_id: UUID) -> Optional[KpEventBooking]:
-        statement = self._booking_select().where(KpEventBooking.id == booking_id)
+        statement = self._booking_select().where(col(KpEventBooking.id) == booking_id)
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
     async def get_name_tag_by_id(self, name_tag_id: UUID) -> Optional[NameTag]:
         statement = (
             select(NameTag)
-            .where(NameTag.id == name_tag_id)
+            .where(col(NameTag.id) == name_tag_id)
             .options(
-                selectinload(NameTag.booking).selectinload(KpEventBooking.company),
-                selectinload(NameTag.booking).selectinload(KpEventBooking.event),
+                selectinload(rel(NameTag.booking)).selectinload(
+                    rel(KpEventBooking.company)
+                ),
+                selectinload(rel(NameTag.booking)).selectinload(
+                    rel(KpEventBooking.event)
+                ),
             )
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
-    async def list_name_tags_for_event(self, event_id: UUID) -> list[NameTag]:
+    async def list_name_tags_for_event(self, event_id: UUID) -> Sequence[NameTag]:
         statement = (
             select(NameTag)
             .join(KpEventBooking)
-            .where(KpEventBooking.event_id == event_id)
+            .where(col(KpEventBooking.event_id) == event_id)
             .options(
-                selectinload(NameTag.booking).selectinload(KpEventBooking.company),
-                selectinload(NameTag.booking).selectinload(KpEventBooking.event),
+                selectinload(rel(NameTag.booking)).selectinload(
+                    rel(KpEventBooking.company)
+                ),
+                selectinload(rel(NameTag.booking)).selectinload(
+                    rel(KpEventBooking.event)
+                ),
             )
-            .order_by(NameTag.last_name.asc(), NameTag.first_name.asc())
+            .order_by(col(NameTag.last_name).asc(), col(NameTag.first_name).asc())
         )
         result = await self.session.execute(statement)
         return result.scalars().all()
 
-    async def list_name_tags_for_booking(self, booking_id: UUID) -> list[NameTag]:
+    async def list_name_tags_for_booking(self, booking_id: UUID) -> Sequence[NameTag]:
         statement = (
             select(NameTag)
-            .where(NameTag.booking_id == booking_id)
+            .where(col(NameTag.booking_id) == booking_id)
             .options(
-                selectinload(NameTag.booking).selectinload(KpEventBooking.company),
-                selectinload(NameTag.booking).selectinload(KpEventBooking.event),
+                selectinload(rel(NameTag.booking)).selectinload(
+                    rel(KpEventBooking.company)
+                ),
+                selectinload(rel(NameTag.booking)).selectinload(
+                    rel(KpEventBooking.event)
+                ),
             )
-            .order_by(NameTag.last_name.asc(), NameTag.first_name.asc())
+            .order_by(col(NameTag.last_name).asc(), col(NameTag.first_name).asc())
         )
         result = await self.session.execute(statement)
         return result.scalars().all()
 
-    async def list_bookings_for_event(self, event_id: UUID) -> list[KpEventBooking]:
-        statement = self._booking_select().where(KpEventBooking.event_id == event_id)
+    async def list_bookings_for_event(self, event_id: UUID) -> Sequence[KpEventBooking]:
+        statement = self._booking_select().where(
+            col(KpEventBooking.event_id) == event_id
+        )
         result = await self.session.execute(statement)
         return result.scalars().all()
 
     async def list_bookings_for_company(
         self, company_id: UUID, event_id: UUID | None = None
-    ) -> list[KpEventBooking]:
+    ) -> Sequence[KpEventBooking]:
         statement = self._booking_select().where(
-            KpEventBooking.company_id == company_id
+            col(KpEventBooking.company_id) == company_id
         )
         if event_id is not None:
-            statement = statement.where(KpEventBooking.event_id == event_id)
+            statement = statement.where(col(KpEventBooking.event_id) == event_id)
         result = await self.session.execute(statement)
         return result.scalars().all()
 
@@ -304,9 +321,9 @@ class KpRepository(BaseRepository[KpEvent]):
         self, event_id: UUID, company_id: UUID
     ) -> Optional[KpEventBooking]:
         statement = self._booking_select().where(
-            KpEventBooking.event_id == event_id,
-            KpEventBooking.company_id == company_id,
-            KpEventBooking.status != KpBookingStatus.CANCELLED,
+            col(KpEventBooking.event_id) == event_id,
+            col(KpEventBooking.company_id) == company_id,
+            col(KpEventBooking.status) != KpBookingStatus.CANCELLED,
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
@@ -318,9 +335,9 @@ class KpRepository(BaseRepository[KpEvent]):
             select(func.count())
             .select_from(KpEventBooking)
             .where(
-                KpEventBooking.event_id == event_id,
-                KpEventBooking.booth_zone_id == booth_zone_id,
-                KpEventBooking.status != KpBookingStatus.CANCELLED,
+                col(KpEventBooking.event_id) == event_id,
+                col(KpEventBooking.booth_zone_id) == booth_zone_id,
+                col(KpEventBooking.status) != KpBookingStatus.CANCELLED,
             )
         )
         result = await self.session.execute(statement)
@@ -334,7 +351,7 @@ class KpRepository(BaseRepository[KpEvent]):
         so the lock is held until commit, preventing concurrent oversubscription."""
         statement = (
             select(KpEventBoothZone)
-            .where(KpEventBoothZone.id == booth_zone_id)
+            .where(col(KpEventBoothZone.id) == booth_zone_id)
             .with_for_update()
         )
         result = await self.session.execute(statement)
@@ -377,17 +394,17 @@ class KpRepository(BaseRepository[KpEvent]):
 
     async def list_booking_upgrade_waitlist_entries(
         self, booking_id: UUID
-    ) -> list[KpEventBookingUpgradeWaitlist]:
+    ) -> Sequence[KpEventBookingUpgradeWaitlist]:
         statement = (
             select(KpEventBookingUpgradeWaitlist)
-            .where(KpEventBookingUpgradeWaitlist.booking_id == booking_id)
+            .where(col(KpEventBookingUpgradeWaitlist.booking_id) == booking_id)
             .order_by(
-                KpEventBookingUpgradeWaitlist.priority_rank.asc().nulls_last(),
-                KpEventBookingUpgradeWaitlist.created_at.asc(),
+                col(KpEventBookingUpgradeWaitlist.priority_rank).asc().nulls_last(),
+                col(KpEventBookingUpgradeWaitlist.created_at).asc(),
             )
             .options(
-                selectinload(KpEventBookingUpgradeWaitlist.target_booth_zone),
-                selectinload(KpEventBookingUpgradeWaitlist.booking),
+                selectinload(rel(KpEventBookingUpgradeWaitlist.target_booth_zone)),
+                selectinload(rel(KpEventBookingUpgradeWaitlist.booking)),
             )
         )
         result = await self.session.execute(statement)
@@ -397,10 +414,10 @@ class KpRepository(BaseRepository[KpEvent]):
         self,
         booking: KpEventBooking,
         target_booth_zone_ids: list[UUID],
-    ) -> list[KpEventBookingUpgradeWaitlist]:
+    ) -> Sequence[KpEventBookingUpgradeWaitlist]:
         try:
             statement = select(KpEventBookingUpgradeWaitlist).where(
-                KpEventBookingUpgradeWaitlist.booking_id == booking.id
+                col(KpEventBookingUpgradeWaitlist.booking_id) == booking.id
             )
             result = await self.session.execute(statement)
             existing_entries = result.scalars().all()
@@ -428,12 +445,14 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
-    async def list_booth_zones(self, event_id: UUID) -> list[KpEventBoothZone]:
+    async def list_booth_zones(self, event_id: UUID) -> Sequence[KpEventBoothZone]:
         statement = (
             select(KpEventBoothZone)
-            .where(KpEventBoothZone.event_id == event_id)
-            .order_by(KpEventBoothZone.order.asc(), KpEventBoothZone.name.asc())
-            .options(selectinload(KpEventBoothZone.included_services))
+            .where(col(KpEventBoothZone.event_id) == event_id)
+            .order_by(
+                col(KpEventBoothZone.order).asc(), col(KpEventBoothZone.name).asc()
+            )
+            .options(selectinload(rel(KpEventBoothZone.included_services)))
         )
         result = await self.session.execute(statement)
         return result.scalars().all()
@@ -443,8 +462,8 @@ class KpRepository(BaseRepository[KpEvent]):
     ) -> Optional[KpEventBoothZone]:
         statement = (
             select(KpEventBoothZone)
-            .where(KpEventBoothZone.id == booth_zone_id)
-            .options(selectinload(KpEventBoothZone.included_services))
+            .where(col(KpEventBoothZone.id) == booth_zone_id)
+            .options(selectinload(rel(KpEventBoothZone.included_services)))
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
@@ -454,18 +473,21 @@ class KpRepository(BaseRepository[KpEvent]):
     ) -> Optional[KpEventBoothZone]:
         statement = (
             select(KpEventBoothZone)
-            .where(KpEventBoothZone.event_id == event_id, KpEventBoothZone.name == name)
-            .options(selectinload(KpEventBoothZone.included_services))
+            .where(
+                col(KpEventBoothZone.event_id) == event_id,
+                col(KpEventBoothZone.name) == name,
+            )
+            .options(selectinload(rel(KpEventBoothZone.included_services)))
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
-    async def list_services(self, event_id: UUID) -> list[KpEventService]:
+    async def list_services(self, event_id: UUID) -> Sequence[KpEventService]:
         statement = (
             select(KpEventService)
-            .where(KpEventService.event_id == event_id)
-            .order_by(KpEventService.order.asc(), KpEventService.name.asc())
-            .options(selectinload(KpEventService.requirements))
+            .where(col(KpEventService.event_id) == event_id)
+            .order_by(col(KpEventService.order).asc(), col(KpEventService.name).asc())
+            .options(selectinload(rel(KpEventService.requirements)))
         )
         result = await self.session.execute(statement)
         return result.scalars().all()
@@ -473,8 +495,8 @@ class KpRepository(BaseRepository[KpEvent]):
     async def get_service_by_id(self, service_id: UUID) -> Optional[KpEventService]:
         statement = (
             select(KpEventService)
-            .where(KpEventService.id == service_id)
-            .options(selectinload(KpEventService.requirements))
+            .where(col(KpEventService.id) == service_id)
+            .options(selectinload(rel(KpEventService.requirements)))
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
@@ -484,8 +506,11 @@ class KpRepository(BaseRepository[KpEvent]):
     ) -> Optional[KpEventService]:
         statement = (
             select(KpEventService)
-            .where(KpEventService.event_id == event_id, KpEventService.name == name)
-            .options(selectinload(KpEventService.requirements))
+            .where(
+                col(KpEventService.event_id) == event_id,
+                col(KpEventService.name) == name,
+            )
+            .options(selectinload(rel(KpEventService.requirements)))
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
@@ -495,8 +520,8 @@ class KpRepository(BaseRepository[KpEvent]):
     ) -> Optional[KpEventServiceRequirement]:
         statement = (
             select(KpEventServiceRequirement)
-            .where(KpEventServiceRequirement.id == requirement_id)
-            .options(selectinload(KpEventServiceRequirement.service))
+            .where(col(KpEventServiceRequirement.id) == requirement_id)
+            .options(selectinload(rel(KpEventServiceRequirement.service)))
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
@@ -507,13 +532,14 @@ class KpRepository(BaseRepository[KpEvent]):
         statement = (
             select(KpEventBookingServiceFileLink)
             .where(
-                KpEventBookingServiceFileLink.booking_service_id == booking_service_id,
-                KpEventBookingServiceFileLink.requirement_id == requirement_id,
+                col(KpEventBookingServiceFileLink.booking_service_id)
+                == booking_service_id,
+                col(KpEventBookingServiceFileLink.requirement_id) == requirement_id,
             )
             .options(
-                selectinload(KpEventBookingServiceFileLink.requirement),
-                selectinload(KpEventBookingServiceFileLink.stored_file),
-                selectinload(KpEventBookingServiceFileLink.booking_service),
+                selectinload(rel(KpEventBookingServiceFileLink.requirement)),
+                selectinload(rel(KpEventBookingServiceFileLink.stored_file)),
+                selectinload(rel(KpEventBookingServiceFileLink.booking_service)),
             )
         )
         result = await self.session.execute(statement)
@@ -524,10 +550,10 @@ class KpRepository(BaseRepository[KpEvent]):
     ) -> Optional[KpEventBookingService]:
         statement = (
             select(KpEventBookingService)
-            .where(KpEventBookingService.id == booking_service_id)
+            .where(col(KpEventBookingService.id) == booking_service_id)
             .options(
-                selectinload(KpEventBookingService.booking),
-                selectinload(KpEventBookingService.service),
+                selectinload(rel(KpEventBookingService.booking)),
+                selectinload(rel(KpEventBookingService.service)),
             )
         )
         result = await self.session.execute(statement)
@@ -609,10 +635,10 @@ class KpRepository(BaseRepository[KpEvent]):
     ) -> Optional[KpEventNametagBackground]:
         statement = (
             select(KpEventNametagBackground)
-            .where(KpEventNametagBackground.event_id == event_id)
+            .where(col(KpEventNametagBackground.event_id) == event_id)
             .options(
-                selectinload(KpEventNametagBackground.event),
-                selectinload(KpEventNametagBackground.stored_file),
+                selectinload(rel(KpEventNametagBackground.event)),
+                selectinload(rel(KpEventNametagBackground.stored_file)),
             )
         )
         result = await self.session.execute(statement)
@@ -659,39 +685,45 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
-    async def list_orphaned_stored_files(self, max_age_hours: int) -> list[StoredFile]:
+    async def list_orphaned_stored_files(
+        self, max_age_hours: int
+    ) -> Sequence[StoredFile]:
         cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
         statement = (
             select(StoredFile)
             .outerjoin(
                 KpEventBookingServiceFileLink,
-                KpEventBookingServiceFileLink.stored_file_id == StoredFile.id,
+                col(KpEventBookingServiceFileLink.stored_file_id) == col(StoredFile.id),
             )
             .outerjoin(
                 KpEventNametagBackground,
-                KpEventNametagBackground.stored_file_id == StoredFile.id,
+                col(KpEventNametagBackground.stored_file_id) == col(StoredFile.id),
             )
             .where(
                 and_(
-                    KpEventBookingServiceFileLink.id.is_(None),
-                    KpEventNametagBackground.id.is_(None),
-                    StoredFile.updated_at < cutoff,
+                    col(KpEventBookingServiceFileLink.id).is_(None),
+                    col(KpEventNametagBackground.id).is_(None),
+                    col(StoredFile.updated_at) < cutoff,
                 )
             )
         )
         result = await self.session.execute(statement)
         return result.scalars().all()
 
-    async def list_industries(self) -> list[KpIndustry]:
-        statement = select(KpIndustry).order_by(KpIndustry.name.asc())
+    async def list_industries(self) -> Sequence[KpIndustry]:
+        statement = select(KpIndustry).order_by(col(KpIndustry.name).asc())
         result = await self.session.execute(statement)
         return result.scalars().all()
 
     async def get_industry_by_id(self, industry_id: UUID) -> Optional[KpIndustry]:
-        return await self._get_by_field(KpIndustry.id, industry_id)
+        statement = select(KpIndustry).where(col(KpIndustry.id) == industry_id)
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
 
     async def get_industry_by_name(self, name: str) -> Optional[KpIndustry]:
-        return await self._get_by_field(KpIndustry.name, name)
+        statement = select(KpIndustry).where(col(KpIndustry.name) == name)
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
 
     async def create_industry(
         self, create_industry_input: CreateIndustryInput
@@ -727,11 +759,11 @@ class KpRepository(BaseRepository[KpEvent]):
 
     async def list_registration_exceptions(
         self, event_id: UUID
-    ) -> list[KpEventRegistrationException]:
+    ) -> Sequence[KpEventRegistrationException]:
         statement = (
             select(KpEventRegistrationException)
-            .where(KpEventRegistrationException.event_id == event_id)
-            .options(selectinload(KpEventRegistrationException.company))
+            .where(col(KpEventRegistrationException.event_id) == event_id)
+            .options(selectinload(rel(KpEventRegistrationException.company)))
         )
         result = await self.session.execute(statement)
         return result.scalars().all()
@@ -740,8 +772,8 @@ class KpRepository(BaseRepository[KpEvent]):
         self, event_id: UUID, company_id: UUID
     ) -> Optional[KpEventRegistrationException]:
         statement = select(KpEventRegistrationException).where(
-            KpEventRegistrationException.event_id == event_id,
-            KpEventRegistrationException.company_id == company_id,
+            col(KpEventRegistrationException.event_id) == event_id,
+            col(KpEventRegistrationException.company_id) == company_id,
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
@@ -782,7 +814,7 @@ class KpRepository(BaseRepository[KpEvent]):
     ) -> KpBookingCompanyDetails:
         try:
             statement = select(KpBookingCompanyDetails).where(
-                KpBookingCompanyDetails.booking_id == booking_id
+                col(KpBookingCompanyDetails.booking_id) == booking_id
             )
             result = await self.session.execute(statement)
             company_details = result.scalar_one_or_none()

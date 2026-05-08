@@ -17,7 +17,6 @@ import { IconAlertCircle, IconMail, IconSettings } from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { z } from "zod";
 import {
   useCreateCompanyInvite,
   useGetMyCompanyMembers,
@@ -29,12 +28,9 @@ import {
 } from "../orval/generated/user/user";
 import { useTranslatedForm } from "../utils/translator";
 import { companySchema } from "../schemas/companySchema";
+import { inviteSchema } from "../schemas/inviteSchema";
 
-const inviteSchema = z.object({
-  email: z.string().trim().min(1, "register.required").email("email.valid"),
-});
-
-export default function CompanyProfile() {
+const CompanyProfile = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [settingsOpened, setSettingsOpened] = useState(false);
@@ -139,7 +135,7 @@ export default function CompanyProfile() {
                   onClick={() => setSettingsOpened(false)}
                   disabled={isUpdating}
                 >
-                  {t("company_profile.cancel")}
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   type="submit"
@@ -226,4 +222,5 @@ export default function CompanyProfile() {
       </Stack>
     </Center>
   );
-}
+};
+export default CompanyProfile;

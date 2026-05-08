@@ -24,7 +24,7 @@ class StoredObject:
 
 
 class StorageService:
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.client = boto3.client(
             "s3",

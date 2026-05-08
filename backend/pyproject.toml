@@ -29,7 +29,21 @@ line-length = 88
 select = ["E", "F", "I"]
 ignore = ["E501", "E402", "E712", "F403"]
 
+[tool.pyright]
+pythonVersion = "3.12"
+exclude = [
+    '**/migrations',
+    '**/scripts',
+    '**/generated',
+    '**/__pycache__',
+    '**/node_modules',
+    '**/.*',
+    '.venv',
+    '**/.venv',
+]
+
 [dependency-groups]
 dev = [
+    "pyright>=1.1.409",
     "ruff>=0.15.11",
 ]

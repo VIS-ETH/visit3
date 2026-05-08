@@ -1,0 +1,128 @@
+{
+  "common": {
+    "or": "oder",
+    "cancel": "Abbrechen",
+    "currency": "CHF"
+  },
+  "server": {
+    "error": "Serverfehler"
+  },
+  "error": {
+    "title": "Fehler",
+    "unauthenticated": "Benutzer ist nicht authentifiziert",
+    "user_not_found": "Benutzer wurde in der Datenbank nicht gefunden",
+    "company_not_found": "Unternehmen wurde in der Datenbank nicht gefunden",
+    "company_user_not_found": "Der ausgewählte Kontaktbenutzer muss zu Ihrem Unternehmen gehoeren.",
+    "keycloak_exchange_failed": "Keycloak-Austausch fehlgeschlagen",
+    "token_invalid": "Token ist ungültig",
+    "not_allowed": "Benutzer darf diese Anfrage nicht ausführen",
+    "email_not_confirmed": "Die E-Mail des Benutzers ist nicht bestätigt",
+    "not_confirmed": "Benutzer ist nicht durch einen Administrator bestätigt",
+    "phone_number_invalid": "Telefonnummer ist ungültig",
+    "invalid_credentials": "Ungültige Anmeldeinformationen, bitte überprüfen Sie Ihre E-Mail und Ihr Passwort",
+    "email_used": "E-Mail wird bereits verwendet",
+    "password_too_short": "Passwort ist zu kurz",
+    "reset_password_failed": "Zurücksetzen des Passworts fehlgeschlagen",
+    "kp_name_exists": "Ein KP-Event mit diesem Namen existiert bereits",
+    "kp_booking_not_found": "Die ausgewählte KP-Buchung wurde nicht gefunden.",
+    "kp_booking_not_owned": "Diese KP-Buchung gehört nicht zu Ihrem Unternehmen.",
+    "kp_booking_status_transition_invalid": "Der angeforderte Buchungsstatuswechsel ist nicht erlaubt.",
+    "kp_booking_confirmation_requires_finalized": "Nur finalisierte Buchungen können bestätigt werden.",
+    "kp_service_requirement_not_found": "Die ausgewählte Serviceanforderung wurde nicht gefunden.",
+    "kp_requirement_booking_service_mismatch": "Die ausgewählte Anforderung gehört nicht zu einem gebuchten Service.",
+    "kp_booth_zone_not_found": "Die ausgewählte Standzone wurde nicht gefunden.",
+    "kp_booth_zone_event_mismatch": "Die ausgewählte Standzone gehört zu einem anderen KP-Event.",
+    "kp_waitlist_same_zone": "Die aktuelle Standzone kann nicht auf die Warteliste gesetzt werden.",
+    "storage_upload_failed": "Der Datei-Upload ist fehlgeschlagen.",
+    "storage_delete_failed": "Das Löschen der Datei ist fehlgeschlagen.",
+    "storage_file_too_large": "Die hochgeladene Datei ist zu groß.",
+    "storage_file_invalid_mime_type": "Dieser Dateityp ist nicht erlaubt.",
+    "kp_registration_closed": "Die Anmeldung für dieses Event ist derzeit geschlossen.",
+    "kp_booth_zone_at_capacity": "Die ausgewählte Standzone hat keine verfügbaren Plätze mehr.",
+    "kp_booking_already_exists": "Ihr Unternehmen hat bereits eine aktive Buchung für dieses Event.",
+    "kp_requirement_file_upload_not_allowed": "Diese Anforderung erlaubt keinen Datei-Upload.",
+    "validation_failed": "Einige Felder sind ungültig.",
+    "invite_not_found": "Diese Einladung ist ungültig oder wurde bereits verwendet.",
+    "invite_expired": "Diese Einladung ist abgelaufen."
+  },
+  "validation": {
+    "required": "Dieses Feld ist erforderlich.",
+    "invalid": "Ungültige Eingabe.",
+    "invalid_email": "Bitte geben Sie eine gueltige E-Mail-Adresse ein.",
+    "invalid_uuid": "Ungültige Auswahl.",
+    "invalid_integer": "Bitte geben Sie eine gueltige ganze Zahl ein.",
+    "invalid_number": "Bitte geben Sie eine gueltige Zahl ein.",
+    "invalid_boolean": "Bitte wählen Sie einen gueltigen Wert aus.",
+    "invalid_date": "Bitte geben Sie ein gueltiges Datum ein.",
+    "invalid_string": "Bitte geben Sie einen gueltigen Textwert ein.",
+    "too_short": "Der Wert ist zu kurz.",
+    "too_long": "Der Wert ist zu lang."
+  },
+  "email": {
+    "title": "E-Mail",
+    "valid": "Geben Sie eine gültige E-Mail ein",
+    "confirm": {
+      "title": "Bestätigen Sie Ihre E-Mail",
+      "description": "Klicken Sie auf die untenstehende Schaltfläche, um Ihre E-Mail-Adresse zu bestätigen",
+      "success": "E-Mail bestätigt",
+      "success_description": "Ihre E-Mail wurde erfolgreich bestätigt. Sie können sich jetzt in Ihr Konto einloggen.",
+      "invalid": "Ungültiger oder abgelaufener Link",
+      "link_expired": "Dieser Bestätigungslink ist abgelaufen. Bitte fordern Sie eine neue Bestätigungsmail an.",
+      "unconfirmed": "Um VISIT zu nutzen, müssen Sie Ihre E-Mail bestätigen",
+      "unconfirmed_description": "Wir muessen {{email}} bestätigen, bevor Sie fortfahren können. Oeffnen Sie den Bestaetigungslink in Ihrem Posteingang oder fordern Sie unten eine neue E-Mail an.",
+      "button": "Bestätigungsmail senden",
+      "confirm_button": "E-Mail bestätigen",
+      "cancel": "Abbrechen",
+      "validating": "Link wird validiert",
+      "please_wait": "Bitte warten Sie, während wir Ihren Bestätigungslink validieren",
+      "back_to_login": "Zurück zur Anmeldung",
+      "go_to_login": "Zur Anmeldung",
+      "error": "Fehler beim Senden der Bestätigungsmail",
+      "sent": "Bestätigungsmail wurde an Ihre E-Mail gesendet",
+      "sent_description": "Wir haben eine neue Bestätigungsmail an {{email}} gesendet.",
+      "login_required": "Anmelden, um Ihre E-Mail zu bestätigen",
+      "login_required_description": "Diese Seite kann eine Bestätigungsmail nur für ein angemeldetes Konto erneut senden."
+    }
+  },
+  "password": {
+    "wrong": "Falsches Passwort oder E-Mail",
+    "min": "Das Passwort muss länger als 10 Zeichen sein"
+  },
+  "company": {
+    "login": "Unternehmensanmeldung"
+  },
+  "welcome": "Willkommen",
+  "system-theme-follow": "Systemthema folgen",
+  "language-change": "Sprache ändern",
+  "not_allowed": {
+    "title": "Zugriff verweigert",
+    "description": "Sie haben keine Berechtigung, um auf diese Seite zuzugreifen."
+  },
+  "not_found": {
+    "title": "Seite nicht gefunden",
+    "description": "Die gesuchte Seite existiert nicht."
+  },
+  "home": {
+    "welcome_name": "Willkommen {{name}}",
+    "portal_badge": "VISIT Portal",
+    "subtitle": "Verwalten Sie Ihr Firmenprofil und entdecken Sie kommende Kontaktparty-Events.",
+    "kp": {
+      "title": "Kontaktparty",
+      "description": "Entdecken Sie den ETH-Jobmesse-Zeitplan, die neuesten Eventdetails und Optionen zur Firmenbeteiligung.",
+      "image_alt": "Kontaktparty Event Platzhalter"
+    }
+  },
+  "nav": {
+    "company_portal_of": "Unternehmensportal von",
+    "vis_short": "VIS",
+    "vis_logo_alt": "VIS-Logo",
+    "navigation": "Navigation",
+    "home": "Startseite",
+    "profile": "Profil",
+    "company": "Unternehmen",
+    "user_management": "Benutzerverwaltung",
+    "kontaktparty": "Kontaktparty",
+    "company_management": "Unternehmensverwaltung",
+    "logout": "Abmelden"
+  }
+}

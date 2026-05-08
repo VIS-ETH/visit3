@@ -1,14 +1,19 @@
+from collections.abc import Sequence
 from uuid import UUID
 
 from fastapi import APIRouter
 
-from app.core.deps import CompanyServiceDep, CsrfDep, UserServiceDep
+from app.core.deps import CompanyServiceDep, CsrfDep
 from app.models.company import Company
+from app.models.user import User
 from app.schemas.company import (
     CompanyWithUsersResponse,
+    CompanyWithUsersResult,
     CreateInviteRequest,
     InviteInfoResponse,
+    InviteInfoResult,
     KpCompanyProfileResponse,
+    KpCompanyProfileResult,
     SetupCompanyRequest,
     UpdateCompanyRequest,
     UpdateKpCompanyProfileRequest,
@@ -18,7 +23,7 @@ from app.schemas.user import UserResponse
 router = APIRouter(prefix="/company", tags=["company"], dependencies=[CsrfDep])
 
 
-@router.post("/setup", operation_id="setupCompany")
+@router.post("/setup", operation_id="setupCompany", response_model=Company)
 async def setup_company(
     company_service: CompanyServiceDep,
     request: SetupCompanyRequest,
@@ -33,22 +38,30 @@ async def setup_company(
 )
 async def get_my_company_members(
     company_service: CompanyServiceDep,
-) -> list[UserResponse]:
+) -> Sequence[User]:
     return await company_service.get_my_members()
 
 
-@router.get("/me/kp-profile", operation_id="getMyKpCompanyProfile")
+@router.get(
+    "/me/kp-profile",
+    operation_id="getMyKpCompanyProfile",
+    response_model=KpCompanyProfileResponse | None,
+)
 async def get_my_kp_company_profile(
     company_service: CompanyServiceDep,
-) -> KpCompanyProfileResponse | None:
+) -> KpCompanyProfileResult | None:
     return await company_service.get_my_kp_profile()
 
 
-@router.put("/me/kp-profile", operation_id="updateMyKpCompanyProfile")
+@router.put(
+    "/me/kp-profile",
+    operation_id="updateMyKpCompanyProfile",
+    response_model=KpCompanyProfileResponse,
+)
 async def update_my_kp_company_profile(
     company_service: CompanyServiceDep,
     request: UpdateKpCompanyProfileRequest,
-) -> KpCompanyProfileResponse:
+) -> KpCompanyProfileResult:
     return await company_service.update_my_kp_profile(
         invoice_address=request.invoice_address,
         shipping_address=request.shipping_address,
@@ -61,18 +74,19 @@ async def update_my_kp_company_profile(
 async def create_company_invite(
     company_service: CompanyServiceDep,
     request: CreateInviteRequest,
-):
+) -> None:
     await company_service.create_invite(request.email)
 
 
 @router.get(
     "/invite/{token}",
     operation_id="getCompanyInviteInfo",
+    response_model=InviteInfoResponse,
 )
 async def get_company_invite_info(
     company_service: CompanyServiceDep,
     token: str,
-) -> InviteInfoResponse:
+) -> InviteInfoResult:
     return await company_service.get_invite_info(token)
 
 
@@ -84,7 +98,7 @@ async def get_company_invite_info(
 async def accept_company_invite(
     company_service: CompanyServiceDep,
     token: str,
-) -> UserResponse:
+) -> User:
     return await company_service.accept_invite(token)
 
 
@@ -96,14 +110,18 @@ async def accept_company_invite(
 async def get_company_users(
     company_service: CompanyServiceDep,
     company_id: UUID,
-) -> list[UserResponse]:
+) -> Sequence[User]:
     return await company_service.get_company_users(company_id)
 
 
-@router.get("/management", operation_id="listCompaniesWithUsers")
+@router.get(
+    "/management",
+    operation_id="listCompaniesWithUsers",
+    response_model=list[CompanyWithUsersResponse],
+)
 async def list_companies_with_users(
     company_service: CompanyServiceDep,
-) -> list[CompanyWithUsersResponse]:
+) -> Sequence[CompanyWithUsersResult]:
     return await company_service.get_companies_with_users()
 
 
@@ -114,7 +132,7 @@ async def list_companies_with_users(
 async def delete_company_with_users(
     company_service: CompanyServiceDep,
     company_id: UUID,
-):
+) -> None:
     await company_service.delete_company_with_users(company_id)
 
 
@@ -125,7 +143,7 @@ async def delete_company_with_users(
 async def delete_company_keep_users(
     company_service: CompanyServiceDep,
     company_id: UUID,
-):
+) -> None:
     await company_service.delete_company_keep_users(company_id)
 
 
@@ -134,14 +152,14 @@ async def delete_company_keep_users(
     operation_id="removeCompanyUser",
 )
 async def remove_company_user(
-    user_service: UserServiceDep,
+    company_service: CompanyServiceDep,
     company_id: UUID,
     user_id: UUID,
-):
-    await user_service.remove_company_user(company_id, user_id)
+) -> None:
+    await company_service.remove_company_user(company_id, user_id)
 
 
-@router.patch("/me", operation_id="updateMyCompany")
+@router.patch("/me", operation_id="updateMyCompany", response_model=Company)
 async def update_my_company(
     company_service: CompanyServiceDep,
     request: UpdateCompanyRequest,

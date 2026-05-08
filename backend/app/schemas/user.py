@@ -13,8 +13,6 @@ class CompanyResponse(BaseModel):
 
 
 class CompanyUserResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: UUID
     email: str
     first_name: str | None = None
@@ -26,8 +24,6 @@ class CompanyUserResponse(BaseModel):
 
 
 class UserResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: UUID
     email: str
     first_name: str | None = None
@@ -42,7 +38,7 @@ class UserResponse(BaseModel):
     company: CompanyResponse | None = None
 
 
-class RegisterUserRequest(BaseModel):
+class RegisterUserInput(BaseModel):
     email: EmailStr
     password: str
     first_name: str = Field(min_length=1)
@@ -55,7 +51,11 @@ class RegisterUserRequest(BaseModel):
         return strip_text(v)
 
 
-class UpdateUserProfileRequest(BaseModel):
+class RegisterUserRequest(RegisterUserInput):
+    pass
+
+
+class UpdateUserProfileInput(BaseModel):
     first_name: str | None = Field(default=None, min_length=1)
     last_name: str | None = Field(default=None, min_length=1)
     phone_number: str | None = None
@@ -66,7 +66,11 @@ class UpdateUserProfileRequest(BaseModel):
         return strip_text(v)
 
 
-class UpdateCompanyUserRequest(BaseModel):
+class UpdateUserProfileRequest(UpdateUserProfileInput):
+    pass
+
+
+class UpdateCompanyUserInput(BaseModel):
     email: EmailStr | None = None
     first_name: str | None = Field(default=None, min_length=1)
     last_name: str | None = Field(default=None, min_length=1)
@@ -79,6 +83,10 @@ class UpdateCompanyUserRequest(BaseModel):
         return strip_text(v)
 
 
+class UpdateCompanyUserRequest(UpdateCompanyUserInput):
+    pass
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -88,10 +96,18 @@ class TokenData(BaseModel):
     username: str | None = None
 
 
-class ForgetPasswordRequest(BaseModel):
+class ForgetPasswordInput(BaseModel):
     email: EmailStr
 
 
-class ResetPasswordRequest(BaseModel):
+class ForgetPasswordRequest(ForgetPasswordInput):
+    pass
+
+
+class ResetPasswordInput(BaseModel):
     token: str
     new_password: str
+
+
+class ResetPasswordRequest(ResetPasswordInput):
+    pass

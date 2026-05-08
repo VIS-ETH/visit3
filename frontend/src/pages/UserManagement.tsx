@@ -21,7 +21,6 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetAllCompanyUsersQueryKey,
-  getGetCurrentUserQueryKey,
   getGetUnconfirmedUsersQueryKey,
   useConfirmUser,
   useDeleteUser,
@@ -39,11 +38,13 @@ import {
 import UserTable from "../components/UserTable";
 import type { UserResponse } from "../orval/generated/fastAPI.schemas";
 import { useCurrentUser } from "../context/useCurrentUser";
+import { useNavigate } from "react-router";
 
-export default function UserManagement() {
+const UserManagement = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
+  const navigate = useNavigate();
   const adminStatus = user?.is_admin ?? false;
   const [activeTab, setActiveTab] = useState<string | null>("unconfirmed");
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
@@ -112,7 +113,7 @@ export default function UserManagement() {
   ) => {
     if (!adminStatus || !userId) return;
     setImpersonation(userId, displayName);
-    queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+    navigate("/", { replace: true });
   };
 
   const handleDeleteUser = (userId: string | undefined) => {
@@ -279,7 +280,7 @@ export default function UserManagement() {
                         const displayName =
                           user.first_name || user.last_name
                             ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim()
-                            : (user.email ?? "");
+                            : user.email;
                         const isCurrentlyImpersonating =
                           isImpersonating() &&
                           getImpersonatingUserId() === user.id;
@@ -375,4 +376,5 @@ export default function UserManagement() {
       </Stack>
     </Center>
   );
-}
+};
+export default UserManagement;

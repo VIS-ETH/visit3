@@ -29,4 +29,6 @@ class Scheduler:
             try:
                 await func()
             except Exception:
-                logger.exception(f"Scheduled task {func.__name__} failed")
+                logger.exception(
+                    f"Scheduled task {getattr(func, '__name__', repr(func))} failed"
+                )
