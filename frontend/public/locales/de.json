@@ -72,7 +72,8 @@
   "welcome": "Willkommen",
   "common": {
     "or": "oder",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "currency": "CHF"
   },
   "system-theme-follow": "Systemthema folgen",
   "language-change": "Sprache ändern",
@@ -241,6 +242,7 @@
       "status_registration_open": "Anmeldung offen",
       "status_finalizing": "Finalisierung",
       "status_past": "Vergangen",
+      "status_${status}": "Status {{status}}",
       "booth_zones_title": "Standzone auswählen",
       "zone_spots_remaining": "{{available}} von {{total}} Plätzen verfügbar",
       "zone_no_spots": "Keine Plätze verfügbar",
@@ -324,6 +326,10 @@
           "title": "Storniert",
           "description": "Diese Buchung ist nicht mehr aktiv."
         }
+        ,
+        "${status.toLowerCase()}": {
+          "description": "Statusbeschreibung: {{status}}"
+        }
       },
       "no_booking_yet": "Es wurde noch keine Buchung erstellt.",
       "booth_nr_pending": "Wird später zugeteilt",
@@ -394,6 +400,8 @@
       "name": "Name",
       "finalization_deadline": "Finalisierungsfrist",
       "nametags_deadline": "Namensschildfrist",
+      "status_label": "Status",
+      "name_input_placeholder": "Eventname",
       "tabs": {
         "events": "Events",
         "exports": "Exporte"

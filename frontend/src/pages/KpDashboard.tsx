@@ -150,7 +150,7 @@ const KpDashboard = () => {
             <Group grow>
               <TextInput
                 label={t("kp.dashboard.name")}
-                placeholder="Kontaktparty 2026"
+                placeholder={t("kp.dashboard.name_input_placeholder")}
                 disabled={isCreating}
                 {...form.getInputProps("name")}
               />
@@ -237,7 +237,7 @@ const KpDashboard = () => {
                   <Table.Th>{t("kp.dashboard.event_date")}</Table.Th>
                   <Table.Th>{t("kp.dashboard.finalization_deadline")}</Table.Th>
                   <Table.Th>{t("kp.dashboard.nametags_deadline")}</Table.Th>
-                  <Table.Th>Status</Table.Th>
+                  <Table.Th>{t("kp.dashboard.status_label")}</Table.Th>
                   <Table.Th />
                 </Table.Tr>
               </Table.Thead>

@@ -23,6 +23,7 @@ const ignoredTextLiterals = new Set([
   "@",
   ":",
   "|",
+  "new Date(isoDate).getTime()",
 ]);
 
 function walk(dir) {

@@ -223,7 +223,8 @@ const KpCompanyView = () => {
                     {t("kp.company_view.booking_price")}
                   </Text>
                   <Text fw={500}>
-                    CHF {formatPrice(myBooking.booth_zone?.base_price ?? 0)}
+                    {t("common.currency")}{" "}
+                    {formatPrice(myBooking.booth_zone?.base_price ?? 0)}
                   </Text>
                 </div>
                 <div>

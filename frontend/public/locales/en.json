@@ -72,7 +72,8 @@
   "welcome": "Welcome",
   "common": {
     "or": "or",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "currency": "CHF"
   },
   "system-theme-follow": "Follow system theme",
   "language-change": "Change language",
@@ -240,6 +241,7 @@
       "status_upcoming": "Upcoming",
       "status_registration_open": "Registration Open",
       "status_past": "Past",
+      "status_${status}": "Status {{status}}",
       "booth_zones_title": "Select Your Booth Zone",
       "zone_spots_remaining": "{{available}} of {{total}} spots remaining",
       "zone_no_spots": "No spots remaining",
@@ -323,6 +325,10 @@
           "title": "Cancelled",
           "description": "This booking is no longer active."
         }
+        ,
+        "${status.toLowerCase()}": {
+          "description": "Status description: {{status}}"
+        }
       },
       "no_booking_yet": "No booking has been created yet.",
       "booth_nr_pending": "Assigned later",
@@ -393,6 +399,8 @@
       "name": "Name",
       "finalization_deadline": "Finalization deadline",
       "nametags_deadline": "Nametags deadline",
+      "status_label": "Status",
+      "name_input_placeholder": "Event Name",
       "tabs": {
         "events": "Events",
         "exports": "Exports"
