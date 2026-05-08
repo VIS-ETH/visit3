@@ -32,7 +32,7 @@ The frontend is React with Mantine and the backend is FastAPI.
 - [Docker Engine / Docker Desktop](https://docs.docker.com/get-docker/)
 - [mise](https://mise.jdx.dev/) to manage Node, uv, and yarn
 
-Install tools and set up pre-commit hooks:
+Install tools and set up Git hooks:
 
 ```bash
 mise install
@@ -168,12 +168,12 @@ scheduler.add(my_task, interval=3600)  # interval in seconds
 - **Backend**: [Ruff](https://docs.astral.sh/ruff/) (formatter + linter)
 - **Frontend**: [Prettier](https://prettier.io/)
 
-Both run automatically as pre-commit hooks via `mise install`. To run manually:
+Both run automatically as `prek` hooks via `mise install`. To run manually:
 
 ```bash
 ruff format backend/        # format
 ruff check backend/         # lint
-pre-commit run --all-files  # run all hooks
+prek run --all-files        # run all hooks
 ```
 
 ### API Routes & Types
