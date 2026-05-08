@@ -279,7 +279,7 @@ const UserManagement = () => {
                         const displayName =
                           user.first_name || user.last_name
                             ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim()
-                            : (user.email ?? "");
+                            : user.email;
                         const isCurrentlyImpersonating =
                           isImpersonating() &&
                           getImpersonatingUserId() === user.id;

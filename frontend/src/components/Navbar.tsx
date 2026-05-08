@@ -49,7 +49,7 @@ const Navbar = () => {
             fit="contain"
           />
           <Text fw={700} size="lg" ta="center">
-            {t("nav.company_portal_of") + " "}
+            {`${t("nav.company_portal_of")} `}
             <Anchor
               href={serverData.visWebsiteUrl}
               target="_blank"
@@ -103,7 +103,7 @@ const Navbar = () => {
               </Button>
             </>
           )}
-          {(user?.is_staff || user?.is_admin) && (
+          {user && (user.is_staff || user.is_admin) && (
             <>
               <Button
                 component={NavLink}

@@ -1,5 +1,4 @@
-import { useContext } from "react";
-import { createContext } from "react";
+import { useContext, createContext } from "react";
 import type { UserResponse } from "../orval/generated/fastAPI.schemas";
 
 interface UserContextType {

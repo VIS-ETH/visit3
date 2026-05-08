@@ -93,9 +93,9 @@ const Register = () => {
               data: {
                 email: values.email,
                 password: values.password,
-                first_name: values.firstName?.trim(),
-                last_name: values.lastName?.trim(),
-                phone_number: values.phoneNumber?.trim() || undefined,
+                first_name: values.firstName.trim(),
+                last_name: values.lastName.trim(),
+                phone_number: values.phoneNumber?.trim() ?? undefined,
               },
             });
           })}

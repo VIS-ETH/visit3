@@ -22,7 +22,7 @@ const ResetPassword = () => {
     data: valid,
     isPending: validPending,
     isError: validError,
-  } = useValidResetPassword(token || "", {
+  } = useValidResetPassword(token ?? "", {
     query: {
       retry: false,
       enabled: token !== undefined,
@@ -81,7 +81,7 @@ const ResetPassword = () => {
       <form
         onSubmit={form.onSubmit((values) => {
           reset({
-            data: { token: token, new_password: values.password },
+            data: { token, new_password: values.password },
           });
         })}
       >

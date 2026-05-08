@@ -17,7 +17,7 @@ export const KpBookingStatusBadge = ({
 }: KpBookingStatusBadgeProps) => {
   return (
     <Badge
-      color={BOOKING_STATUS_COLORS[status] ?? "gray"}
+      color={BOOKING_STATUS_COLORS[status]}
       variant={variant}
       size={size}
       {...props}

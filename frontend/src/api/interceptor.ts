@@ -29,12 +29,12 @@ api.interceptors.request.use(
       token = getToken();
     }
 
-    if (token && config.headers) {
+    if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
     const impersonatingUserId = getImpersonatingUserId();
-    if (impersonatingUserId && config.headers) {
+    if (impersonatingUserId) {
       config.headers["X-Impersonate-User-Id"] = impersonatingUserId;
     }
 
@@ -124,8 +124,8 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const errorResponse = await parseBlobErrorResponse(error?.response?.data);
-    const status = errorResponse?.statusCode ?? error?.response?.status ?? 0;
+    const errorResponse = await parseBlobErrorResponse(error.response?.data);
+    const status = errorResponse?.statusCode ?? error.response?.status ?? 0;
     const redirectTo = errorResponse?.code
       ? ERROR_CODE_REDIRECTS[errorResponse.code]
       : undefined;

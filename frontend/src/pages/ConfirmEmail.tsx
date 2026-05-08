@@ -31,7 +31,7 @@ const ConfirmEmail = () => {
     data: isValid,
     isPending: isValidationPending,
     isError: isValidationError,
-  } = useValidateConfirmEmailToken(token || "", {
+  } = useValidateConfirmEmailToken(token ?? "", {
     query: {
       enabled: token !== undefined,
       retry: false,

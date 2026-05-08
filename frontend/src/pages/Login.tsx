@@ -23,7 +23,7 @@ const Login = () => {
     mutation: {
       onSuccess: (data: Token) => {
         setToken(data.access_token);
-        navigate(nextPath || "/");
+        navigate(nextPath ?? "/");
       },
     },
   });

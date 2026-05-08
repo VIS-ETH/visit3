@@ -136,7 +136,7 @@ const ServicesTab = ({ eventId }: { eventId: string }) => {
     setEditingServiceId(service.id);
     form.setValues({
       name: service.name,
-      description: service.description ?? "",
+      description: service.description,
       price: centsToCurrencyAmount(service.price),
       maxPerBooking: service.max_quantity_per_booking,
       maxTotal: service.max_total_quantity,

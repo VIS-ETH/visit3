@@ -58,8 +58,7 @@ const KpBookingConfirmation = () => {
       isEventError ||
       isBookingError ||
       !event ||
-      !booking ||
-      booking.id !== normalizedBookingId
+      booking?.id !== normalizedBookingId
     ) {
       navigate(`/kp/${eventId}/booking`, { replace: true });
     }
@@ -93,8 +92,7 @@ const KpBookingConfirmation = () => {
     isEventError ||
     isBookingError ||
     !event ||
-    !booking ||
-    booking.id !== normalizedBookingId
+    booking?.id !== normalizedBookingId
   ) {
     return (
       <Stack gap="md">
@@ -111,15 +109,14 @@ const KpBookingConfirmation = () => {
     );
   }
 
-  const supportSubject = `[${event.name}] - Booking #${booking.booking_number ?? "-"}`;
+  const supportSubject = `[${event.name}] - Booking #${booking.booking_number}`;
 
   return (
     <Stack gap="md">
       <BackButton to={`/kp/${eventId}`} />
       <div>
         <Title order={2}>
-          {t("kp.booking.summary_title")} (
-          {booking.booking_number != null ? `#${booking.booking_number}` : "-"})
+          {t("kp.booking.summary_title")} ({`#${booking.booking_number}`})
         </Title>
         <Text c="dimmed" size="sm" mt={4}>
           {event.name}

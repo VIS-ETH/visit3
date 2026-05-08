@@ -137,7 +137,7 @@ const BoothZonesTab = ({ eventId }: { eventId: string }) => {
     setEditingZoneId(zone.id);
     form.setValues({
       name: zone.name,
-      description: zone.description ?? "",
+      description: zone.description,
       color: zone.color,
       capacity: zone.capacity,
       boothSize: zone.booth_size,

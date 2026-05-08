@@ -84,7 +84,7 @@ const KpCompanyView = () => {
         </Center>
       ) : null}
 
-      {isError && !isLoading ? (
+      {isError ? (
         <Alert icon={<IconAlertCircle />} color="red" title={t("server.error")}>
           {t("kp.company_view.error")}
         </Alert>

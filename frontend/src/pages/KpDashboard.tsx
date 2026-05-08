@@ -245,9 +245,7 @@ const KpDashboard = () => {
                 {events.map((event) => {
                   const status = getEventStatus(event);
                   return (
-                    <Table.Tr
-                      key={event.id ?? `${event.name}-${event.event_date}`}
-                    >
+                    <Table.Tr key={`${event.name}-${event.event_date}`}>
                       <Table.Td fw={500}>{event.name}</Table.Td>
                       <Table.Td>
                         {formatKpDisplayDate(event.registration_open)} -{" "}

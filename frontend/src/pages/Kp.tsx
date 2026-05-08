@@ -1,10 +1,9 @@
-import { Navigate } from "react-router";
+import { Navigate, useParams } from "react-router";
 import { useCurrentUser } from "../context/useCurrentUser";
 import KpCompanyEvents from "./KpCompanyEvents";
 import KpCompanyView from "./KpCompanyView";
 import KpDashboard from "./KpDashboard";
 import KpManage from "./KpManage";
-import { useParams } from "react-router";
 
 const Kp = () => {
   const { user } = useCurrentUser();
