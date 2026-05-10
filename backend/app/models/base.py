@@ -19,6 +19,13 @@ class AppBase(SQLModel):
         sa_type=TIMESTAMP(timezone=True),
     )
 
+    @property
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None
+
+    def mark_deleted(self) -> None:
+        self.deleted_at = datetime.now(timezone.utc)
+
 
 class BaseEntity(AppBase):
     id: UUID = Field(default_factory=uuid4, primary_key=True)

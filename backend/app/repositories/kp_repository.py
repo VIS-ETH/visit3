@@ -62,6 +62,8 @@ class KpRepository(BaseRepository[KpEvent]):
     def _booking_select(self):
         return select(KpEventBooking).options(
             selectinload(rel(KpEventBooking.event)),
+            selectinload(rel(KpEventBooking.booth_zone)),
+            selectinload(rel(KpEventBooking.name_tags)),
             selectinload(rel(KpEventBooking.company)).selectinload(
                 rel(Company.kp_profile)
             ),
@@ -69,7 +71,6 @@ class KpRepository(BaseRepository[KpEvent]):
             .selectinload(rel(Company.kp_profile))
             .selectinload(rel(KpCompanyProfile.kp_contact_user)),
             selectinload(rel(KpEventBooking.company)).selectinload(rel(Company.users)),
-            selectinload(rel(KpEventBooking.booth_zone)),
             selectinload(rel(KpEventBooking.services))
             .selectinload(rel(KpEventBookingService.service))
             .selectinload(rel(KpEventService.requirements)),
@@ -79,7 +80,6 @@ class KpRepository(BaseRepository[KpEvent]):
             selectinload(rel(KpEventBooking.services))
             .selectinload(rel(KpEventBookingService.requirement_file_links))
             .selectinload(rel(KpEventBookingServiceFileLink.stored_file)),
-            selectinload(rel(KpEventBooking.name_tags)),
             selectinload(rel(KpEventBooking.upgrade_waitlist_entries)).selectinload(
                 rel(KpEventBookingUpgradeWaitlist.target_booth_zone)
             ),

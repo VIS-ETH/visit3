@@ -9,6 +9,7 @@ from fastapi_csrf_protect import CsrfProtect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.config import get_settings
+from app.core.deleted_filter import register_deleted_filter
 from app.core.exceptions import NotAllowed, Unauthenticated
 from app.core.grpc import grpc_client
 from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
@@ -49,6 +50,9 @@ SessionLocal = async_sessionmaker(
     engine,
     expire_on_commit=False,
 )
+
+# Hide deleted rows in ORM queries by default.
+register_deleted_filter()
 
 
 async def get_db_session():
