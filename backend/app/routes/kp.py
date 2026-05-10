@@ -39,7 +39,8 @@ from app.schemas.kp import (
     RequirementFileDownloadResponse,
     RequirementFileResponse,
     ServiceResponse,
-    UpdateBookingRequest,
+    UpdateBookingBoothNumberRequest,
+    UpdateBookingStatusRequest,
     UpdateBoothZoneRequest,
     UpdateKpRequest,
     UpdateServiceRequest,
@@ -315,7 +316,7 @@ async def replace_booking_upgrade_waitlist(
 async def update_my_booking_status(
     kp_service: KpServiceDep,
     booking_id: UUID,
-    request: UpdateBookingRequest,
+    request: UpdateBookingStatusRequest,
 ) -> KpEventBooking:
     return await kp_service.update_my_booking_status(booking_id, request)
 
@@ -329,7 +330,7 @@ async def update_my_booking_status(
 async def update_booking_booth_number(
     kp_service: KpServiceDep,
     booking_id: UUID,
-    request: UpdateBookingRequest,
+    request: UpdateBookingBoothNumberRequest,
 ) -> KpEventBooking:
     return await kp_service.update_booking_booth_number(booking_id, request)
 

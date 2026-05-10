@@ -177,7 +177,19 @@ class UpdateBookingInput(BaseModel):
     booth_nr: int | None = Field(default=None, ge=1)
 
 
-class UpdateBookingRequest(UpdateBookingInput):
+class UpdateBookingStatusInput(BaseModel):
+    status: KpBookingStatus
+
+
+class UpdateBookingStatusRequest(UpdateBookingStatusInput):
+    pass
+
+
+class UpdateBookingBoothNumberInput(BaseModel):
+    booth_nr: int | None = Field(default=None, ge=1)
+
+
+class UpdateBookingBoothNumberRequest(UpdateBookingBoothNumberInput):
     pass
 
 

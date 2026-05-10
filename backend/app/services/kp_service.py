@@ -50,7 +50,9 @@ from app.schemas.kp import (
     CreateIndustryInput,
     CreateKpInput,
     CreateServiceInput,
+    UpdateBookingBoothNumberInput,
     UpdateBookingInput,
+    UpdateBookingStatusInput,
     UpdateBoothZoneInput,
     UpdateKpInput,
     UpdateServiceInput,
@@ -384,19 +386,22 @@ class KpService:
 
     @require_confirmed_company
     async def update_my_booking_status(
-        self, booking_id: UUID, update_booking_input: UpdateBookingInput
+        self, booking_id: UUID, update_booking_input: UpdateBookingStatusInput
     ) -> KpEventBooking:
         booking = await self._get_owned_booking(booking_id)
-        if update_booking_input.status is not None:
-            self._ensure_company_status_transition(booking, update_booking_input.status)
-        return await self.kp_repository.update_booking(booking, update_booking_input)
+        self._ensure_company_status_transition(booking, update_booking_input.status)
+        return await self.kp_repository.update_booking(
+            booking, UpdateBookingInput(status=update_booking_input.status)
+        )
 
     @require_kp_president
     async def update_booking_booth_number(
-        self, booking_id: UUID, update_booking_input: UpdateBookingInput
+        self, booking_id: UUID, update_booking_input: UpdateBookingBoothNumberInput
     ) -> KpEventBooking:
         booking = await self._get_booking(booking_id)
-        return await self.kp_repository.update_booking(booking, update_booking_input)
+        return await self.kp_repository.update_booking(
+            booking, UpdateBookingInput(booth_nr=update_booking_input.booth_nr)
+        )
 
     @require_kp_president
     async def confirm_booking(self, booking_id: UUID) -> KpEventBooking:
