@@ -5,8 +5,13 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from app.core.decorators import require_admin, require_staff
-from app.core.exceptions import NotAllowed, TokenInvalid, UserNotFound
-from app.core.utils import hash_str
+from app.core.exceptions import (
+    NotAllowed,
+    PhoneNumberInvalid,
+    TokenInvalid,
+    UserNotFound,
+)
+from app.core.utils import hash_str, normalize_phone_number
 from app.models.user import User
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
@@ -83,6 +88,12 @@ class UserService:
         last_name: str | None,
         phone_number: str | None,
     ) -> User:
+        try:
+            phone_number = normalize_phone_number(phone_number)
+        except Exception:
+            raise PhoneNumberInvalid(
+                f"update_current_user_profile:{self.current_user.id}"
+            )
         updated_user = await self.user_repository.update_company_user(
             self.current_user,
             first_name=first_name,
@@ -138,6 +149,10 @@ class UserService:
         user = await self.user_repository.get_by_id(user_id)
         if not user:
             raise UserNotFound(f"update_company_user:{user_id}")
+        try:
+            phone_number = normalize_phone_number(phone_number)
+        except Exception:
+            raise PhoneNumberInvalid(f"update_company_user:{user_id}")
         return await self.user_repository.update_company_user(
             user,
             email=email,

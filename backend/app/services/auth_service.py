@@ -7,7 +7,6 @@ from typing import Any, Literal
 
 import httpx
 import jwt
-import phonenumbers
 from pwdlib import PasswordHash
 
 from app.core.config import get_settings
@@ -21,7 +20,7 @@ from app.core.exceptions import (
     TokenInvalid,
 )
 from app.core.security import decode_token
-from app.core.utils import hash_str
+from app.core.utils import hash_str, normalize_phone_number
 from app.models.user import RefreshToken, Role, User
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
@@ -134,12 +133,10 @@ class AuthService:
             raise PasswordTooShort("register:register_password_too_short")
 
         if user.phone_number:
-            phone_number = phonenumbers.parse(user.phone_number, "CH")
-            if not phonenumbers.is_valid_number(phone_number):
+            try:
+                user.phone_number = normalize_phone_number(user.phone_number)
+            except Exception:
                 raise PhoneNumberInvalid("register:phone_number_invalid")
-            user.phone_number = phonenumbers.format_number(
-                phone_number, phonenumbers.PhoneNumberFormat.E164
-            )
 
         user.password = await self.hash_password(user.password)
         user.is_admin = False

@@ -2,6 +2,8 @@ import hashlib
 import json
 from typing import Any, Protocol, TypeVar, cast, overload
 
+import phonenumbers
+
 T = TypeVar("T", covariant=True)
 
 
@@ -12,6 +14,18 @@ class ModelValidateType(Protocol[T]):
 
 def normalize_email(email: str) -> str:
     return email.strip().lower()
+
+
+def normalize_phone_number(phone_number: str | None) -> str | None:
+    if phone_number is None:
+        return None
+    stripped = phone_number.strip()
+    if not stripped:
+        return None
+    parsed = phonenumbers.parse(stripped, "CH")
+    if not phonenumbers.is_valid_number(parsed):
+        raise ValueError("invalid phone number")
+    return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
 
 
 @overload
