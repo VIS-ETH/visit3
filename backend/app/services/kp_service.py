@@ -229,6 +229,10 @@ class KpService:
         event = await self._get_event(event_id)
         await self._ensure_registration_open(event)
 
+        locked_event = await self.kp_repository.lock_model_by_id(KpEvent, event_id)
+        if locked_event is None:
+            raise KpEventNotFound(f"register_booking:locked_event_not_found:{event_id}")
+
         zone = await self.kp_repository.get_booth_zone_by_id(booth_zone_id)
         if zone is None:
             raise KpBoothZoneNotFound(
@@ -249,7 +253,9 @@ class KpService:
 
         # Acquire a row-level lock on the zone before counting, so that the
         # count check and the insert are serialised across concurrent requests.
-        locked_zone = await self.kp_repository.lock_booth_zone_for_update(booth_zone_id)
+        locked_zone = await self.kp_repository.lock_model_by_id(
+            KpEventBoothZone, booth_zone_id
+        )
         if locked_zone is None:
             raise KpBoothZoneNotFound(
                 f"register_booking:locked_zone_not_found:{booth_zone_id}"

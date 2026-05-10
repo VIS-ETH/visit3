@@ -343,20 +343,6 @@ class KpRepository(BaseRepository[KpEvent]):
         result = await self.session.execute(statement)
         return result.scalar_one()
 
-    async def lock_booth_zone_for_update(
-        self, booth_zone_id: UUID
-    ) -> Optional[KpEventBoothZone]:
-        """Acquires a row-level lock on the zone row. Must be called within the
-        same transaction as the subsequent capacity count check and booking creation,
-        so the lock is held until commit, preventing concurrent oversubscription."""
-        statement = (
-            select(KpEventBoothZone)
-            .where(col(KpEventBoothZone.id) == booth_zone_id)
-            .with_for_update()
-        )
-        result = await self.session.execute(statement)
-        return result.scalar_one_or_none()
-
     async def create_booking(
         self,
         event_id: UUID,

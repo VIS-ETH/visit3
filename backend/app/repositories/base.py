@@ -36,13 +36,27 @@ class BaseRepository(Generic[T]):
         return instance
 
     async def get_by_id(self, entity_id: UUID) -> T | None:
+        """Return one repository model row by id, or None if it does not exist."""
         if not issubclass(self.model, BaseEntity):
             raise TypeError(
                 f"{self.model.__name__} does not inherit from BaseEntity and has no id field"
             )
         return await self._get_by_field(col(self.model.id), entity_id)
 
+    async def lock_model_by_id(
+        self, model: type[ModelT], entity_id: UUID
+    ) -> ModelT | None:
+        """Lock one model row until the current transaction commits or rolls back."""
+        if not issubclass(model, BaseEntity):
+            raise TypeError(
+                f"{model.__name__} does not inherit from BaseEntity and has no id field"
+            )
+        statement = select(model).where(col(model.id) == entity_id).with_for_update()
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
     async def get_by_ids(self, ids: list[UUID]) -> Sequence[T]:
+        """Return repository model rows matching the given ids."""
         if not issubclass(self.model, BaseEntity):
             raise TypeError(
                 f"{self.model.__name__} does not inherit from BaseEntity and has no id field"
