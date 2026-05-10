@@ -34,6 +34,7 @@ password_hash = PasswordHash.recommended()
 ACCESS_TOKEN_EXPIRE = timedelta(minutes=15)
 REFRESH_TOKEN_EXPIRE = timedelta(days=7)
 FORGET_PASSWORD_TOKEN_EXPIRE = timedelta(minutes=10)
+MIN_PASSWORD_LENGTH = 10
 
 
 class AuthService:
@@ -129,7 +130,7 @@ class AuthService:
         if not user.password:
             raise PasswordTooShort("register:password_required")
 
-        if len(user.password) < 10:
+        if len(user.password) < MIN_PASSWORD_LENGTH:
             raise PasswordTooShort("register:register_password_too_short")
 
         if user.phone_number:
@@ -197,6 +198,9 @@ class AuthService:
         await self.mail_service.send_forget_password_mail(email, token)
 
     async def reset_password(self, token: str, new_password: str) -> bool:
+        if len(new_password) < MIN_PASSWORD_LENGTH:
+            raise PasswordTooShort("reset_password:password_too_short")
+
         hashed = hash_str(token)
         forget_token = await self.token_repository.get_forget_password_token(hashed)
 

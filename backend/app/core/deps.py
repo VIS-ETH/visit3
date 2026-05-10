@@ -31,7 +31,7 @@ from app.services.user_service import UserService
 logger = logging.getLogger(__name__)
 
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/users/login", refreshUrl="/users/refresh"
+    tokenUrl="/api/auth/login", refreshUrl="/api/auth/refresh"
 )
 
 _settings = get_settings()
