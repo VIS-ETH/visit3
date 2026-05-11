@@ -29,8 +29,6 @@ from app.core.exceptions import (
     KpServiceNotFound,
     KpServiceRequirementNotFound,
     KpWaitlistSameZone,
-    StorageFileInvalidMimeType,
-    StorageFileTooLarge,
 )
 from app.models.kp_event import (
     KpBookingStatus,
@@ -463,52 +461,33 @@ class KpService:
         content: bytes,
         content_type: str | None,
     ) -> None:
-        mime_type = self.storage_service._normalize_mime_type(filename, content_type)
-        size_bytes = len(content)
-
         if requirement.type == KpEventServiceRequirementType.TEXT:
             raise KpRequirementFileUploadNotAllowed(
                 f"booking_requirement:not_file_upload:{requirement.id}"
             )
 
+        error_context = f"booking_requirement:{requirement.type.value}:{requirement.id}"
         if requirement.type == KpEventServiceRequirementType.IMAGE:
-            if not mime_type.startswith("image/"):
-                raise StorageFileInvalidMimeType(
-                    f"booking_requirement:image_mime:{requirement.id}:{mime_type}"
-                )
-            if size_bytes > self.settings.STORAGE_IMAGE_MAX_SIZE_BYTES:
-                raise StorageFileTooLarge(
-                    f"booking_requirement:image_size:{requirement.id}:{size_bytes}"
-                )
+            self.storage_service.validate_image_file(
+                filename, content, content_type, error_context=error_context
+            )
             return
 
         if requirement.type == KpEventServiceRequirementType.PDF:
-            allowed_pdf_mimes = {"application/pdf"}
-            if mime_type not in allowed_pdf_mimes:
-                raise StorageFileInvalidMimeType(
-                    f"booking_requirement:pdf_mime:{requirement.id}:{mime_type}"
-                )
-            if size_bytes > self.settings.STORAGE_PDF_MAX_SIZE_BYTES:
-                raise StorageFileTooLarge(
-                    f"booking_requirement:pdf_size:{requirement.id}:{size_bytes}"
-                )
+            self.storage_service.validate_pdf_file(
+                filename, content, content_type, error_context=error_context
+            )
             return
 
         if requirement.type == KpEventServiceRequirementType.VIDEO:
-            if not mime_type.startswith("video/"):
-                raise StorageFileInvalidMimeType(
-                    f"booking_requirement:video_mime:{requirement.id}:{mime_type}"
-                )
-            if size_bytes > self.settings.STORAGE_VIDEO_MAX_SIZE_BYTES:
-                raise StorageFileTooLarge(
-                    f"booking_requirement:video_size:{requirement.id}:{size_bytes}"
-                )
+            self.storage_service.validate_video_file(
+                filename, content, content_type, error_context=error_context
+            )
             return
 
-        if size_bytes > self.settings.STORAGE_FILE_MAX_SIZE_BYTES:
-            raise StorageFileTooLarge(
-                f"booking_requirement:file_size:{requirement.id}:{size_bytes}"
-            )
+        self.storage_service.validate_generic_file(
+            filename, content, content_type, error_context=error_context
+        )
 
     async def upload_booking_requirement_file(
         self,

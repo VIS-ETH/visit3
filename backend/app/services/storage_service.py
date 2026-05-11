@@ -14,6 +14,8 @@ from app.core.config import Settings
 from app.core.exceptions import (
     StorageDeleteFailed,
     StorageDownloadFailed,
+    StorageFileInvalidMimeType,
+    StorageFileTooLarge,
     StorageUploadFailed,
 )
 
@@ -48,6 +50,102 @@ class StorageService:
 
     def compute_sha256(self, content: bytes) -> str:
         return hashlib.sha256(content).hexdigest()
+
+    def validate_file(
+        self,
+        filename: str,
+        content: bytes,
+        content_type: str | None,
+        *,
+        max_size_bytes: int,
+        error_context: str,
+        allowed_mime_types: set[str] | None = None,
+        mime_prefix: str | None = None,
+        required_signatures: dict[str, bytes] | None = None,
+    ) -> str:
+        mime_type = self._normalize_mime_type(filename, content_type)
+        if allowed_mime_types is not None and mime_type not in allowed_mime_types:
+            raise StorageFileInvalidMimeType(f"{error_context}:mime:{mime_type}")
+        if mime_prefix is not None and not mime_type.startswith(mime_prefix):
+            raise StorageFileInvalidMimeType(f"{error_context}:mime:{mime_type}")
+        if len(content) > max_size_bytes:
+            raise StorageFileTooLarge(f"{error_context}:size:{len(content)}")
+        if required_signatures is not None:
+            signature = required_signatures.get(mime_type)
+            if signature is not None and not content.startswith(signature):
+                raise StorageFileInvalidMimeType(f"{error_context}:signature")
+        return mime_type
+
+    def validate_image_file(
+        self,
+        filename: str,
+        content: bytes,
+        content_type: str | None,
+        *,
+        error_context: str,
+        allowed_mime_types: set[str] | None = None,
+        required_signatures: dict[str, bytes] | None = None,
+    ) -> str:
+        return self.validate_file(
+            filename,
+            content,
+            content_type,
+            max_size_bytes=self.settings.STORAGE_IMAGE_MAX_SIZE_BYTES,
+            error_context=error_context,
+            allowed_mime_types=allowed_mime_types,
+            mime_prefix="image/" if allowed_mime_types is None else None,
+            required_signatures=required_signatures,
+        )
+
+    def validate_pdf_file(
+        self,
+        filename: str,
+        content: bytes,
+        content_type: str | None,
+        *,
+        error_context: str,
+    ) -> str:
+        return self.validate_file(
+            filename,
+            content,
+            content_type,
+            max_size_bytes=self.settings.STORAGE_PDF_MAX_SIZE_BYTES,
+            error_context=error_context,
+            allowed_mime_types={"application/pdf"},
+        )
+
+    def validate_video_file(
+        self,
+        filename: str,
+        content: bytes,
+        content_type: str | None,
+        *,
+        error_context: str,
+    ) -> str:
+        return self.validate_file(
+            filename,
+            content,
+            content_type,
+            max_size_bytes=self.settings.STORAGE_VIDEO_MAX_SIZE_BYTES,
+            error_context=error_context,
+            mime_prefix="video/",
+        )
+
+    def validate_generic_file(
+        self,
+        filename: str,
+        content: bytes,
+        content_type: str | None,
+        *,
+        error_context: str,
+    ) -> str:
+        return self.validate_file(
+            filename,
+            content,
+            content_type,
+            max_size_bytes=self.settings.STORAGE_FILE_MAX_SIZE_BYTES,
+            error_context=error_context,
+        )
 
     async def upload_bytes(
         self,

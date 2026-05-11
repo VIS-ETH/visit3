@@ -5,15 +5,12 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from app.core.auth_context import require_staff_user
-from app.core.config import get_settings
 from app.core.exceptions import (
     KpBookingNotFound,
     KpEventNotFound,
     KpExportBackgroundNotFound,
     KpExportEmpty,
     KpNameTagNotFound,
-    StorageFileInvalidMimeType,
-    StorageFileTooLarge,
 )
 from app.models.kp_event import (
     KpEvent,
@@ -150,7 +147,6 @@ class ExportService:
         self.pdf_service = pdf_service
         self.csv_service = csv_service
         self.current_user = current_user
-        self.settings = get_settings()
 
     def _safe_filename_part(self, value: str) -> str:
         safe = "".join(
@@ -213,16 +209,17 @@ class ExportService:
     def _validate_background_upload(
         self, filename: str, content: bytes, content_type: str | None
     ) -> str:
-        mime_type = self.storage_service._normalize_mime_type(filename, content_type)
-        if mime_type not in NAMETAG_BACKGROUND_MIME_TYPES:
-            raise StorageFileInvalidMimeType(f"nametag_background:image:{mime_type}")
-        if len(content) > self.settings.STORAGE_IMAGE_MAX_SIZE_BYTES:
-            raise StorageFileTooLarge(f"nametag_background:size:{len(content)}")
-        if mime_type == "image/png" and not content.startswith(b"\x89PNG\r\n\x1a\n"):
-            raise StorageFileInvalidMimeType("nametag_background:not_png")
-        if mime_type == "image/jpeg" and not content.startswith(b"\xff\xd8"):
-            raise StorageFileInvalidMimeType("nametag_background:not_jpeg")
-        return mime_type
+        return self.storage_service.validate_image_file(
+            filename,
+            content,
+            content_type,
+            error_context="nametag_background",
+            allowed_mime_types=NAMETAG_BACKGROUND_MIME_TYPES,
+            required_signatures={
+                "image/png": b"\x89PNG\r\n\x1a\n",
+                "image/jpeg": b"\xff\xd8",
+            },
+        )
 
     def _background_suffix(self, mime_type: str) -> str:
         return ".jpg" if mime_type == "image/jpeg" else ".png"
