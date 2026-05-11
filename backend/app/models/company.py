@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import EmailStr
 from sqlalchemy import Column, DateTime
-from sqlmodel import Field, Relationship
+from sqlmodel import Field, Relationship  # pyright: ignore[reportUnknownVariableType]
 
 from app.models.base import BaseEntity
 

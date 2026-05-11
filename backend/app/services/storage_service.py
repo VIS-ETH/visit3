@@ -2,9 +2,13 @@ import asyncio
 import hashlib
 import mimetypes
 from dataclasses import dataclass
+from typing import Any, cast
 
-import boto3
-from botocore.exceptions import BotoCoreError, ClientError
+import boto3  # pyright: ignore[reportMissingTypeStubs]
+from botocore.exceptions import (  # pyright: ignore[reportMissingTypeStubs]
+    BotoCoreError,
+    ClientError,
+)
 
 from app.core.config import Settings
 from app.core.exceptions import (
@@ -26,7 +30,7 @@ class StoredObject:
 class StorageService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.client = boto3.client(
+        self.client: Any = cast(Any, boto3).client(
             "s3",
             endpoint_url=settings.S3_ENDPOINT_URL,
             region_name=settings.S3_REGION,
@@ -54,7 +58,7 @@ class StorageService:
     ) -> StoredObject:
         mime_type = self._normalize_mime_type(filename, content_type)
 
-        def _upload() -> dict:
+        def _upload() -> dict[str, Any]:
             return self.client.put_object(
                 Bucket=self.settings.SIP_S3_FILES_BUCKET,
                 Key=key,
@@ -69,7 +73,7 @@ class StorageService:
 
         return StoredObject(
             key=key,
-            etag=response.get("ETag", "").strip('"') or None,
+            etag=str(response.get("ETag", "")).strip('"') or None,
             mime_type=mime_type,
             size_bytes=len(content),
             sha256=self.compute_sha256(content),
@@ -90,7 +94,7 @@ class StorageService:
                 Bucket=self.settings.SIP_S3_FILES_BUCKET,
                 Key=key,
             )
-            return response["Body"].read()
+            return cast(bytes, response["Body"].read())
 
         try:
             return await asyncio.to_thread(_download)
@@ -101,14 +105,17 @@ class StorageService:
 
     async def generate_download_url(self, key: str, filename: str) -> str:
         def _presign() -> str:
-            return self.client.generate_presigned_url(
-                "get_object",
-                Params={
-                    "Bucket": self.settings.SIP_S3_FILES_BUCKET,
-                    "Key": key,
-                    "ResponseContentDisposition": f'attachment; filename="{filename}"',
-                },
-                ExpiresIn=self.settings.S3_PRESIGN_EXPIRY_SECONDS,
+            return cast(
+                str,
+                self.client.generate_presigned_url(
+                    "get_object",
+                    Params={
+                        "Bucket": self.settings.SIP_S3_FILES_BUCKET,
+                        "Key": key,
+                        "ResponseContentDisposition": f'attachment; filename="{filename}"',
+                    },
+                    ExpiresIn=self.settings.S3_PRESIGN_EXPIRY_SECONDS,
+                ),
             )
 
         return await asyncio.to_thread(_presign)

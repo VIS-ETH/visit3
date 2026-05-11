@@ -1,7 +1,8 @@
 from threading import Lock
 
 from sqlalchemy import event
-from sqlalchemy.orm import Session, with_loader_criteria
+from sqlalchemy.orm import ORMExecuteState, Session, with_loader_criteria
+from sqlalchemy.sql.base import Executable
 
 from app.models.base import AppBase
 
@@ -10,11 +11,11 @@ _is_registered = False
 _register_lock = Lock()
 
 
-def include_deleted(statement):
+def include_deleted(statement: Executable) -> Executable:
     return statement.execution_options(**{INCLUDE_DELETED: True})
 
 
-def _exclude_deleted_rows(execute_state):
+def _exclude_deleted_rows(execute_state: ORMExecuteState) -> None:
     if (
         not execute_state.is_select
         or execute_state.is_column_load

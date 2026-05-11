@@ -42,8 +42,8 @@ def strip_text(value: str | None) -> str | None:
     return value.strip()
 
 
-def hash_str(str) -> str:
-    return hashlib.sha256(str.encode()).hexdigest()
+def hash_str(s: str) -> str:
+    return hashlib.sha256(s.encode()).hexdigest()
 
 
 def dump_json(value: Any) -> str:

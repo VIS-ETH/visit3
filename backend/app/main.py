@@ -1,6 +1,7 @@
 import logging
 import os
 from contextlib import asynccontextmanager
+from typing import TypeGuard
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -74,7 +75,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-def _validation_error_code(error: dict) -> str:
+def _validation_error_code(error: dict[str, object]) -> str:
     error_type = str(error.get("type", ""))
     message = str(error.get("msg", "")).lower()
 
@@ -101,8 +102,14 @@ def _validation_error_code(error: dict) -> str:
     return "validation.invalid"
 
 
-def _validation_error_field(error: dict) -> str:
+def _is_validation_loc(value: object) -> TypeGuard[tuple[object, ...] | list[object]]:
+    return isinstance(value, (tuple, list))
+
+
+def _validation_error_field(error: dict[str, object]) -> str:
     loc = error.get("loc", ())
+    if not _is_validation_loc(loc):
+        return ""
     field_parts = [str(part) for part in loc if part not in {"body", "query", "path"}]
     return ".".join(field_parts)
 
@@ -124,15 +131,15 @@ async def app_error_handler(request: Request, exc: AppError):
 async def request_validation_error_handler(
     request: Request, exc: RequestValidationError
 ):
-    field_errors = [
+    field_errors: list[dict[str, str]] = [
         {
             "field": _validation_error_field(error),
             "code": _validation_error_code(error),
-            "message": error.get("msg", "Invalid input"),
+            "message": str(error.get("msg", "Invalid input")),
         }
         for error in exc.errors()
     ]
-    first_error_code = (
+    first_error_code: str = (
         field_errors[0]["code"] if field_errors else "error.validation_failed"
     )
     return JSONResponse(

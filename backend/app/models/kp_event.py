@@ -9,7 +9,11 @@ from sqlalchemy import CheckConstraint, Column, Integer
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import Sequence as SQLSequence
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlmodel import Field, Relationship, UniqueConstraint
+from sqlmodel import (
+    Field,  # pyright: ignore[reportUnknownVariableType]
+    Relationship,
+    UniqueConstraint,
+)
 
 from app.core.utils import strip_text
 from app.models.base import BaseEntity, BaseLink

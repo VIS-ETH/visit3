@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from app.core.decorators import require_admin, require_staff
+from app.core.auth_context import require_admin_user, require_staff_user
 from app.core.exceptions import (
     NotAllowed,
     PhoneNumberInvalid,
@@ -109,12 +109,12 @@ class UserService:
                 self.current_user.id, hash_str(refresh_token)
             )
 
-    @require_staff
     async def get_unconfirmed_users(self) -> Sequence[User]:
+        require_staff_user(self.current_user)
         return await self.user_repository.get_unconfirmed_users()
 
-    @require_staff
     async def confirm_user(self, user_id: UUID) -> User:
+        require_staff_user(self.current_user)
         user = await self.user_repository.get_by_id(user_id)
         if not user:
             logger.warning(f"Confirm user failed - user not found: {user_id}")
@@ -124,19 +124,18 @@ class UserService:
         logger.info(f"User confirmed by staff {self.current_user.email}: {user.email}")
         return result
 
-    @require_staff
     async def get_company_users(self) -> Sequence[User]:
+        require_staff_user(self.current_user)
         return await self.user_repository.get_company_users()
 
-    @require_staff
     async def get_admins(self) -> Sequence[User]:
+        require_staff_user(self.current_user)
         return await self.user_repository.get_admins()
 
-    @require_staff
     async def get_staff(self) -> Sequence[User]:
+        require_staff_user(self.current_user)
         return await self.user_repository.get_staff()
 
-    @require_admin
     async def update_company_user(
         self,
         user_id: UUID,
@@ -146,6 +145,7 @@ class UserService:
         phone_number: str | None,
         company_id: UUID | None,
     ) -> User:
+        require_admin_user(self.current_user)
         user = await self.user_repository.get_by_id(user_id)
         if not user:
             raise UserNotFound(f"update_company_user:{user_id}")
@@ -162,8 +162,8 @@ class UserService:
             company_id=company_id,
         )
 
-    @require_admin
     async def delete_user(self, user_id: UUID) -> None:
+        require_admin_user(self.current_user)
         user = await self.user_repository.get_by_id(user_id)
         if not user:
             logger.warning(f"Delete user failed - user not found: {user_id}")

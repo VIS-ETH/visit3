@@ -287,7 +287,7 @@ class AuthService:
     async def map_keycloak_roles(
         self, roles: Sequence[str], vis_groups: Sequence[str]
     ) -> tuple[bool, list[Role]]:
-        result = []
+        result: list[Role] = []
         admin = False
         for role in roles:
             if role in vis_groups:

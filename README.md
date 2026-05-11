@@ -93,7 +93,7 @@ Docker Compose starts the backend, PostgreSQL, MinIO, Keycloak, and the Notifica
 The backend follows `routes -> services -> repositories`.
 
 - `app/routes/` handles HTTP concerns
-- `app/services/` contains business logic and authorization decorators
+- `app/services/` contains business logic and explicit authorization checks
 - `app/repositories/` handles database access
 
 Migrations run automatically when the backend container starts.

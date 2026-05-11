@@ -7,23 +7,25 @@ logger = logging.getLogger(__name__)
 
 
 class Scheduler:
-    def __init__(self):
+    def __init__(self) -> None:
         self._tasks: list[tuple[Callable[[], Coroutine[Any, Any, None]], int]] = []
-        self._running: list[asyncio.Task] = []
+        self._running: list[asyncio.Task[None]] = []
 
-    def add(self, func: Callable[[], Coroutine[Any, Any, None]], interval: int):
+    def add(self, func: Callable[[], Coroutine[Any, Any, None]], interval: int) -> None:
         self._tasks.append((func, interval))
 
-    async def start(self):
+    async def start(self) -> None:
         for func, interval in self._tasks:
             self._running.append(asyncio.create_task(self._loop(func, interval)))
 
-    async def stop(self):
+    async def stop(self) -> None:
         for task in self._running:
             task.cancel()
         self._running.clear()
 
-    async def _loop(self, func: Callable[[], Coroutine[Any, Any, None]], interval: int):
+    async def _loop(
+        self, func: Callable[[], Coroutine[Any, Any, None]], interval: int
+    ) -> None:
         while True:
             await asyncio.sleep(interval)
             try:

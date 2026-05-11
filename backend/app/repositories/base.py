@@ -4,6 +4,8 @@ from typing import Any, Generic, TypeVar, cast
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql._typing import ColumnExpressionArgument
+from sqlalchemy.sql.elements import ColumnElement
 from sqlmodel import SQLModel, col, select, update
 
 from app.models.base import AppBase, BaseEntity
@@ -21,12 +23,14 @@ class BaseRepository(Generic[T]):
         self.model = model
         self.session = session
 
-    async def _get_by_field(self, field, value) -> T | None:
+    async def _get_by_field(
+        self, field: ColumnExpressionArgument[Any], value: object
+    ) -> T | None:
         statement = select(self.model).where(field == value)
         result = await self.session.execute(statement)
-        return cast(T | None, result.scalar_one_or_none())
+        return result.scalar_one_or_none()
 
-    def _not_deleted(self, model: type[AppBase]):
+    def _not_deleted(self, model: type[AppBase]) -> ColumnElement[bool]:
         """Return the condition used to target rows that are not deleted."""
         return col(model.deleted_at).is_(None)
 
@@ -82,7 +86,9 @@ class BaseRepository(Generic[T]):
         instance.mark_deleted()
         self.session.add(instance)
 
-    async def delete_where(self, model: type[AppBase], *conditions) -> None:
+    async def delete_where(
+        self, model: type[AppBase], *conditions: ColumnElement[bool]
+    ) -> None:
         """Mark model rows matching the conditions as deleted."""
         statement = (
             update(model)

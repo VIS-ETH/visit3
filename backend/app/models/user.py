@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import EmailStr, field_validator
-from sqlmodel import Field, Relationship
+from sqlmodel import Field, Relationship  # pyright: ignore[reportUnknownVariableType]
 
 from app.core.utils import normalize_email, strip_text
 from app.models.base import BaseEntity, BaseLink, BaseToken

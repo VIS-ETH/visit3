@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import TIMESTAMP
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel  # pyright: ignore[reportUnknownVariableType]
 
 
 class AppBase(SQLModel):

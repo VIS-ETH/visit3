@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Sequence
+from typing import Any, cast
 
 import grpc
 
@@ -26,7 +27,7 @@ class MailService:
     async def send_mail(self, request: mail_pb.Mail) -> None:
         try:
             logger.info("MailService sending mail via gRPC")
-            await self.mail.SendMail(request)
+            await cast(Any, self.mail).SendMail(request)
             logger.info("MailService gRPC send completed")
         except grpc.RpcError as e:
             logger.error("gRPC Error")
