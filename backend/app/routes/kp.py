@@ -3,10 +3,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, File, Query, Response, UploadFile
 
-from app.core.decorators import (
-    require_confirmed_company,
-    require_kp_president,
-)
 from app.core.deps import CsrfDep, ExportServiceDep, KpServiceDep
 from app.models.kp_event import (
     KpEvent,
@@ -39,7 +35,8 @@ from app.schemas.kp import (
     RequirementFileDownloadResponse,
     RequirementFileResponse,
     ServiceResponse,
-    UpdateBookingRequest,
+    UpdateBookingBoothNumberRequest,
+    UpdateBookingStatusRequest,
     UpdateBoothZoneRequest,
     UpdateKpRequest,
     UpdateServiceRequest,
@@ -89,13 +86,11 @@ async def get_kp_by_id(kp_service: KpServiceDep, event_id: UUID) -> KpEvent:
     return await kp_service.get_event_by_id(event_id)
 
 
-@require_kp_president
 @router.post("/create", operation_id="createKp", response_model=KpResponse)
 async def create_kp(kp_service: KpServiceDep, request: CreateKpRequest) -> KpEvent:
     return await kp_service.create_kp(request)
 
 
-@require_kp_president
 @router.patch("/events/{event_id}", operation_id="updateKp", response_model=KpResponse)
 async def update_kp(
     kp_service: KpServiceDep, event_id: UUID, request: UpdateKpRequest
@@ -106,7 +101,6 @@ async def update_kp(
 # --- Booth Zones ---
 
 
-@require_kp_president
 @router.get(
     "/events/{event_id}/booth-zones",
     operation_id="listBoothZones",
@@ -118,7 +112,6 @@ async def list_booth_zones(
     return await kp_service.list_booth_zones(event_id)
 
 
-@require_kp_president
 @router.post(
     "/events/{event_id}/booth-zones",
     operation_id="createBoothZone",
@@ -130,7 +123,6 @@ async def create_booth_zone(
     return await kp_service.create_booth_zone(event_id, request)
 
 
-@require_kp_president
 @router.patch(
     "/booth-zones/{booth_zone_id}",
     operation_id="updateBoothZone",
@@ -144,7 +136,6 @@ async def update_booth_zone(
     return await kp_service.update_booth_zone(booth_zone_id, request)
 
 
-@require_kp_president
 @router.delete("/booth-zones/{booth_zone_id}", operation_id="deleteBoothZone")
 async def delete_booth_zone(kp_service: KpServiceDep, booth_zone_id: UUID) -> None:
     await kp_service.delete_booth_zone(booth_zone_id)
@@ -153,7 +144,6 @@ async def delete_booth_zone(kp_service: KpServiceDep, booth_zone_id: UUID) -> No
 # --- Services ---
 
 
-@require_kp_president
 @router.get(
     "/events/{event_id}/services",
     operation_id="listServices",
@@ -165,7 +155,6 @@ async def list_services(
     return await kp_service.list_services(event_id)
 
 
-@require_kp_president
 @router.post(
     "/events/{event_id}/services",
     operation_id="createService",
@@ -177,7 +166,6 @@ async def create_service(
     return await kp_service.create_service(event_id, request)
 
 
-@require_kp_president
 @router.patch(
     "/services/{service_id}",
     operation_id="updateService",
@@ -191,7 +179,6 @@ async def update_service(
     return await kp_service.update_service(service_id, request)
 
 
-@require_kp_president
 @router.delete("/services/{service_id}", operation_id="deleteService")
 async def delete_service(kp_service: KpServiceDep, service_id: UUID) -> None:
     await kp_service.delete_service(service_id)
@@ -200,7 +187,6 @@ async def delete_service(kp_service: KpServiceDep, service_id: UUID) -> None:
 # --- Industries ---
 
 
-@require_kp_president
 @router.get(
     "/industries", operation_id="listIndustries", response_model=list[IndustryResponse]
 )
@@ -208,7 +194,6 @@ async def list_industries(kp_service: KpServiceDep) -> Sequence[KpIndustry]:
     return await kp_service.list_industries()
 
 
-@require_kp_president
 @router.post(
     "/industries", operation_id="createIndustry", response_model=IndustryResponse
 )
@@ -218,7 +203,6 @@ async def create_industry(
     return await kp_service.create_industry(request)
 
 
-@require_kp_president
 @router.delete("/industries/{industry_id}", operation_id="deleteIndustry")
 async def delete_industry(kp_service: KpServiceDep, industry_id: UUID) -> None:
     await kp_service.delete_industry(industry_id)
@@ -227,7 +211,6 @@ async def delete_industry(kp_service: KpServiceDep, industry_id: UUID) -> None:
 # --- Company Booking Flow ---
 
 
-@require_confirmed_company
 @router.get(
     "/events/{event_id}/booth-zones/available",
     operation_id="listAvailableBoothZones",
@@ -239,7 +222,6 @@ async def list_available_booth_zones(
     return await kp_service.list_booth_zones_for_company(event_id)
 
 
-@require_confirmed_company
 @router.post(
     "/events/{event_id}/bookings/register",
     operation_id="registerBooking",
@@ -251,7 +233,6 @@ async def register_booking(
     return await kp_service.register_booking(event_id, request.booth_zone_id)
 
 
-@require_confirmed_company
 @router.get(
     "/events/{event_id}/my-booking",
     operation_id="getMyBooking",
@@ -266,7 +247,6 @@ async def get_my_booking(
 # --- Bookings ---
 
 
-@require_kp_president
 @router.get(
     "/events/{event_id}/bookings",
     operation_id="listEventBookings",
@@ -306,7 +286,6 @@ async def replace_booking_upgrade_waitlist(
     )
 
 
-@require_confirmed_company
 @router.patch(
     "/bookings/{booking_id}/status",
     operation_id="updateMyBookingStatus",
@@ -315,12 +294,11 @@ async def replace_booking_upgrade_waitlist(
 async def update_my_booking_status(
     kp_service: KpServiceDep,
     booking_id: UUID,
-    request: UpdateBookingRequest,
+    request: UpdateBookingStatusRequest,
 ) -> KpEventBooking:
     return await kp_service.update_my_booking_status(booking_id, request)
 
 
-@require_kp_president
 @router.patch(
     "/bookings/{booking_id}/booth-number",
     operation_id="updateBookingBoothNumber",
@@ -329,12 +307,11 @@ async def update_my_booking_status(
 async def update_booking_booth_number(
     kp_service: KpServiceDep,
     booking_id: UUID,
-    request: UpdateBookingRequest,
+    request: UpdateBookingBoothNumberRequest,
 ) -> KpEventBooking:
     return await kp_service.update_booking_booth_number(booking_id, request)
 
 
-@require_kp_president
 @router.patch(
     "/bookings/{booking_id}/confirm",
     operation_id="confirmBooking",

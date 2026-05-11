@@ -1,4 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.models.user import Role
 from app.repositories.base import BaseRepository
@@ -9,7 +10,7 @@ class RoleRepository(BaseRepository[Role]):
         super().__init__(Role, session)
 
     async def get_or_create(self, name: str):
-        role = await self._get_by_field(Role.name, name)
+        role = await self._get_by_field(col(Role.name), name)
         if role is not None:
             return role
         return await self.create_role(name)

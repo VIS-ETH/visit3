@@ -31,6 +31,8 @@ ignore = ["E501", "E402", "E712", "F403"]
 
 [tool.pyright]
 pythonVersion = "3.12"
+typeCheckingMode = "strict"
+include = ["."]
 exclude = [
     '**/migrations',
     '**/scripts',

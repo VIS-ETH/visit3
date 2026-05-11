@@ -4,16 +4,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from app.core.config import get_settings
-from app.core.decorators import require_staff
+from app.core.auth_context import require_staff_user
 from app.core.exceptions import (
     KpBookingNotFound,
     KpEventNotFound,
     KpExportBackgroundNotFound,
     KpExportEmpty,
     KpNameTagNotFound,
-    StorageFileInvalidMimeType,
-    StorageFileTooLarge,
 )
 from app.models.kp_event import (
     KpEvent,
@@ -150,7 +147,6 @@ class ExportService:
         self.pdf_service = pdf_service
         self.csv_service = csv_service
         self.current_user = current_user
-        self.settings = get_settings()
 
     def _safe_filename_part(self, value: str) -> str:
         safe = "".join(
@@ -213,16 +209,17 @@ class ExportService:
     def _validate_background_upload(
         self, filename: str, content: bytes, content_type: str | None
     ) -> str:
-        mime_type = self.storage_service._normalize_mime_type(filename, content_type)
-        if mime_type not in NAMETAG_BACKGROUND_MIME_TYPES:
-            raise StorageFileInvalidMimeType(f"nametag_background:image:{mime_type}")
-        if len(content) > self.settings.STORAGE_IMAGE_MAX_SIZE_BYTES:
-            raise StorageFileTooLarge(f"nametag_background:size:{len(content)}")
-        if mime_type == "image/png" and not content.startswith(b"\x89PNG\r\n\x1a\n"):
-            raise StorageFileInvalidMimeType("nametag_background:not_png")
-        if mime_type == "image/jpeg" and not content.startswith(b"\xff\xd8"):
-            raise StorageFileInvalidMimeType("nametag_background:not_jpeg")
-        return mime_type
+        return self.storage_service.validate_image_file(
+            filename,
+            content,
+            content_type,
+            error_context="nametag_background",
+            allowed_mime_types=NAMETAG_BACKGROUND_MIME_TYPES,
+            required_signatures={
+                "image/png": b"\x89PNG\r\n\x1a\n",
+                "image/jpeg": b"\xff\xd8",
+            },
+        )
 
     def _background_suffix(self, mime_type: str) -> str:
         return ".jpg" if mime_type == "image/jpeg" else ".png"
@@ -276,7 +273,6 @@ class ExportService:
 
         return RenderedExport(content, rendered_filename)
 
-    @require_staff
     async def upload_nametag_background(
         self,
         event_id: UUID,
@@ -284,6 +280,7 @@ class ExportService:
         content: bytes,
         content_type: str | None,
     ) -> KpEventNametagBackground:
+        require_staff_user(self.current_user)
         event = await self.kp_repository.get_by_id(event_id)
         if event is None:
             raise KpEventNotFound(f"nametag_background:event_not_found:{event_id}")
@@ -327,16 +324,16 @@ class ExportService:
             await self.storage_service.delete_object(old_storage_key)
         return background
 
-    @require_staff
     async def get_nametag_background(
         self, event_id: UUID
     ) -> KpEventNametagBackground | None:
+        require_staff_user(self.current_user)
         return await self.kp_repository.get_nametag_background(event_id)
 
-    @require_staff
     async def list_nametag_export_targets(
         self, event_id: UUID
     ) -> NametagExportTargetsResult:
+        require_staff_user(self.current_user)
         await self._get_event_or_raise(event_id)
         bookings = await self.kp_repository.list_bookings_for_event(event_id)
         companies = [
@@ -380,10 +377,10 @@ class ExportService:
         )
         return NametagExportTargetsResult(companies=companies, people=people)
 
-    @require_staff
     async def render_event_nametags(
         self, event_id: UUID, columns: int | None = None
     ) -> RenderedExport:
+        require_staff_user(self.current_user)
         event = await self.kp_repository.get_by_id(event_id)
         if event is None:
             raise KpEventNotFound(f"nametag_export:event_not_found:{event_id}")
@@ -397,10 +394,10 @@ class ExportService:
             columns,
         )
 
-    @require_staff
     async def render_booking_nametags(
         self, booking_id: UUID, columns: int | None = None
     ) -> RenderedExport:
+        require_staff_user(self.current_user)
         booking = await self.kp_repository.get_booking_by_id(booking_id)
         if booking is None:
             raise KpBookingNotFound(f"nametag_export:booking_not_found:{booking_id}")
@@ -417,8 +414,8 @@ class ExportService:
             columns,
         )
 
-    @require_staff
     async def render_single_nametag(self, name_tag_id: UUID) -> RenderedExport:
+        require_staff_user(self.current_user)
         name_tag = await self.kp_repository.get_name_tag_by_id(name_tag_id)
         if name_tag is None:
             raise KpNameTagNotFound(f"nametag_export:not_found:{name_tag_id}")
@@ -437,16 +434,16 @@ class ExportService:
             1,
         )
 
-    @require_staff
     async def export_bookings_csv(self, event_id: UUID) -> RenderedExport:
+        require_staff_user(self.current_user)
         event, bookings = await self._list_event_bookings(event_id)
         rows = [self._booking_row(booking) for booking in bookings]
         return self._csv_export(
             rows, f"{event.name}-bookings-all.csv", BOOKING_EXPORT_FIELDS
         )
 
-    @require_staff
     async def export_bookings_by_zone_zip(self, event_id: UUID) -> RenderedExport:
+        require_staff_user(self.current_user)
         event, bookings = await self._list_event_bookings(event_id)
         zones = await self.kp_repository.list_booth_zones(event_id)
         files: list[tuple[str, bytes]] = []
@@ -467,8 +464,8 @@ class ExportService:
         )
         return RenderedExport(content, filename)
 
-    @require_staff
     async def export_waitlist_companies_csv(self, event_id: UUID) -> RenderedExport:
+        require_staff_user(self.current_user)
         event, bookings = await self._list_event_bookings(event_id)
         rows: list[dict[str, object]] = []
         for booking in bookings:
@@ -488,8 +485,8 @@ class ExportService:
             rows, f"{event.name}-waitlist-companies.csv", WAITLIST_EXPORT_FIELDS
         )
 
-    @require_staff
     async def export_booked_services_csv(self, event_id: UUID) -> RenderedExport:
+        require_staff_user(self.current_user)
         event, bookings = await self._list_event_bookings(event_id)
         rows: list[dict[str, object]] = []
         for booking in bookings:
@@ -515,8 +512,8 @@ class ExportService:
             rows, f"{event.name}-booked-services.csv", BOOKED_SERVICE_EXPORT_FIELDS
         )
 
-    @require_staff
     async def export_nametags_data_csv(self, event_id: UUID) -> RenderedExport:
+        require_staff_user(self.current_user)
         event = await self._get_event_or_raise(event_id)
         name_tags = await self.kp_repository.list_name_tags_for_event(event_id)
         rows: list[dict[str, object]] = [
@@ -534,8 +531,8 @@ class ExportService:
             rows, f"{event.name}-nametags-data.csv", NAMETAG_DATA_EXPORT_FIELDS
         )
 
-    @require_staff
     async def export_company_details_csv(self, event_id: UUID) -> RenderedExport:
+        require_staff_user(self.current_user)
         event, bookings = await self._list_event_bookings(event_id)
         rows: list[dict[str, object]] = []
         for booking in bookings:
@@ -569,8 +566,8 @@ class ExportService:
             rows, f"{event.name}-company-details.csv", COMPANY_DETAILS_EXPORT_FIELDS
         )
 
-    @require_staff
     async def export_service_requirements_csv(self, event_id: UUID) -> RenderedExport:
+        require_staff_user(self.current_user)
         event, bookings = await self._list_event_bookings(event_id)
         rows: list[dict[str, object]] = []
         for booking in bookings:
@@ -607,8 +604,8 @@ class ExportService:
             SERVICE_REQUIREMENT_EXPORT_FIELDS,
         )
 
-    @require_staff
     async def export_booth_zone_capacity_csv(self, event_id: UUID) -> RenderedExport:
+        require_staff_user(self.current_user)
         event, bookings = await self._list_event_bookings(event_id)
         zones = await self.kp_repository.list_booth_zones(event_id)
         rows: list[dict[str, object]] = []
@@ -639,8 +636,8 @@ class ExportService:
             BOOTH_ZONE_CAPACITY_EXPORT_FIELDS,
         )
 
-    @require_staff
     async def export_contacts_csv(self, event_id: UUID) -> RenderedExport:
+        require_staff_user(self.current_user)
         event, bookings = await self._list_event_bookings(event_id)
         rows: list[dict[str, object]] = []
         for booking in bookings:
@@ -677,10 +674,10 @@ class ExportService:
             rows, f"{event.name}-contacts.csv", CONTACT_EXPORT_FIELDS
         )
 
-    @require_staff
     async def export_registration_exceptions_csv(
         self, event_id: UUID
     ) -> RenderedExport:
+        require_staff_user(self.current_user)
         event = await self._get_event_or_raise(event_id)
         exceptions = await self.kp_repository.list_registration_exceptions(event_id)
         rows: list[dict[str, object]] = [

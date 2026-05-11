@@ -5,7 +5,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlmodel import col, delete, select, update
+from sqlmodel import col, select, update
 
 from app.models.company import Company, CompanyInvite, KpCompanyProfile
 from app.models.user import User
@@ -102,11 +102,12 @@ class CompanyRepository(BaseRepository[Company]):
 
     async def delete_company_with_users(self, company: Company):
         try:
-            delete_users_statement = delete(User).where(
-                col(User.company_id) == company.id
+            await self._delete_company_owned_rows(company.id)
+            await self.delete_where(
+                User,
+                col(User.company_id) == company.id,
             )
-            await self.session.execute(delete_users_statement)
-            await self.session.delete(company)
+            self.delete(company)
             await self.session.commit()
         except Exception as e:
             await self.session.rollback()
@@ -114,17 +115,28 @@ class CompanyRepository(BaseRepository[Company]):
 
     async def delete_company_keep_users(self, company: Company):
         try:
+            await self._delete_company_owned_rows(company.id)
             unassign_users_statement = (
                 update(User)
                 .where(col(User.company_id) == company.id)
                 .values(company_id=None)
             )
             await self.session.execute(unassign_users_statement)
-            await self.session.delete(company)
+            self.delete(company)
             await self.session.commit()
         except Exception as e:
             await self.session.rollback()
             raise e
+
+    async def _delete_company_owned_rows(self, company_id: UUID) -> None:
+        await self.delete_where(
+            KpCompanyProfile,
+            col(KpCompanyProfile.company_id) == company_id,
+        )
+        await self.delete_where(
+            CompanyInvite,
+            col(CompanyInvite.company_id) == company_id,
+        )
 
     async def update_company_name(self, company: Company, name: str) -> Company:
         try:
@@ -142,8 +154,7 @@ class CompanyRepository(BaseRepository[Company]):
             user.company_id = company_id
             self.session.add(user)
             await self.session.commit()
-            await self.session.refresh(user, attribute_names=["company"])
-            return user
+            return await self.load_fields(user, "company")
         except Exception as e:
             await self.session.rollback()
             raise e
@@ -158,8 +169,7 @@ class CompanyRepository(BaseRepository[Company]):
             user.company_id = None
             self.session.add(user)
             await self.session.commit()
-            await self.session.refresh(user, attribute_names=["company"])
-            return user
+            return await self.load_fields(user, "company")
         except Exception as e:
             await self.session.rollback()
             raise e

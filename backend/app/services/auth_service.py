@@ -7,7 +7,6 @@ from typing import Any, Literal
 
 import httpx
 import jwt
-import phonenumbers
 from pwdlib import PasswordHash
 
 from app.core.config import get_settings
@@ -21,7 +20,7 @@ from app.core.exceptions import (
     TokenInvalid,
 )
 from app.core.security import decode_token
-from app.core.utils import hash_str
+from app.core.utils import hash_str, normalize_phone_number
 from app.models.user import RefreshToken, Role, User
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
@@ -34,6 +33,7 @@ password_hash = PasswordHash.recommended()
 ACCESS_TOKEN_EXPIRE = timedelta(minutes=15)
 REFRESH_TOKEN_EXPIRE = timedelta(days=7)
 FORGET_PASSWORD_TOKEN_EXPIRE = timedelta(minutes=10)
+MIN_PASSWORD_LENGTH = 10
 
 
 class AuthService:
@@ -129,16 +129,14 @@ class AuthService:
         if not user.password:
             raise PasswordTooShort("register:password_required")
 
-        if len(user.password) < 10:
+        if len(user.password) < MIN_PASSWORD_LENGTH:
             raise PasswordTooShort("register:register_password_too_short")
 
         if user.phone_number:
-            phone_number = phonenumbers.parse(user.phone_number, "CH")
-            if not phonenumbers.is_valid_number(phone_number):
+            try:
+                user.phone_number = normalize_phone_number(user.phone_number)
+            except Exception:
                 raise PhoneNumberInvalid("register:phone_number_invalid")
-            user.phone_number = phonenumbers.format_number(
-                phone_number, phonenumbers.PhoneNumberFormat.E164
-            )
 
         user.password = await self.hash_password(user.password)
         user.is_admin = False
@@ -197,6 +195,9 @@ class AuthService:
         await self.mail_service.send_forget_password_mail(email, token)
 
     async def reset_password(self, token: str, new_password: str) -> bool:
+        if len(new_password) < MIN_PASSWORD_LENGTH:
+            raise PasswordTooShort("reset_password:password_too_short")
+
         hashed = hash_str(token)
         forget_token = await self.token_repository.get_forget_password_token(hashed)
 
@@ -286,7 +287,7 @@ class AuthService:
     async def map_keycloak_roles(
         self, roles: Sequence[str], vis_groups: Sequence[str]
     ) -> tuple[bool, list[Role]]:
-        result = []
+        result: list[Role] = []
         admin = False
         for role in roles:
             if role in vis_groups:

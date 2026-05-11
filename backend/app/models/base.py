@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import TIMESTAMP
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel  # pyright: ignore[reportUnknownVariableType]
 
 
 class AppBase(SQLModel):
@@ -18,6 +18,13 @@ class AppBase(SQLModel):
         nullable=True,
         sa_type=TIMESTAMP(timezone=True),
     )
+
+    @property
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None
+
+    def mark_deleted(self) -> None:
+        self.deleted_at = datetime.now(timezone.utc)
 
 
 class BaseEntity(AppBase):

@@ -40,12 +40,10 @@ class UserRepository(BaseRepository[User]):
         return result.scalars().all()
 
     async def load_user_company(self, user: User) -> User:
-        await self.session.refresh(user, attribute_names=["company"])
-        return user
+        return await self.load_fields(user, "company")
 
     async def load_user_roles(self, user: User) -> User:
-        await self.session.refresh(user, attribute_names=["roles"])
-        return user
+        return await self.load_fields(user, "roles")
 
     async def get_users(self) -> Sequence[User]:
         statement = select(User)
@@ -53,10 +51,14 @@ class UserRepository(BaseRepository[User]):
         return result.scalars().all()
 
     async def get_by_email(self, email: str) -> User | None:
-        return await self._get_by_field(User.email, normalize_email(email))
+        statement = select(User).where(col(User.email) == normalize_email(email))
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
 
     async def get_by_sub(self, sub: str) -> User | None:
-        return await self._get_by_field(User.sub, sub)
+        statement = select(User).where(col(User.sub) == sub)
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
 
     async def get_by_sub_or_email(
         self, sub: str | None, email: str | None
@@ -92,7 +94,7 @@ class UserRepository(BaseRepository[User]):
 
     async def delete_user(self, user: User):
         try:
-            await self.session.delete(user)
+            self.delete(user)
             await self.session.commit()
         except Exception as e:
             await self.session.rollback()
@@ -122,8 +124,7 @@ class UserRepository(BaseRepository[User]):
             self._validate_user(user)
             self.session.add(user)
             await self.session.commit()
-            await self.session.refresh(user, attribute_names=["company"])
-            return user
+            return await self.load_fields(user, "company")
         except Exception as e:
             await self.session.rollback()
             raise e

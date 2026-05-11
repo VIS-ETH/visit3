@@ -4,7 +4,12 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from app.core.decorators import require_admin, require_confirmed_company, require_staff
+from app.core.auth_context import (
+    require_admin_user,
+    require_assigned_company_user,
+    require_confirmed_company_user,
+    require_staff_user,
+)
 from app.core.exceptions import (
     CompanyNotFound,
     CompanyUserNotFound,
@@ -41,15 +46,15 @@ class CompanyService:
         self.mail_service = mail_service
         self.current_user = current_user
 
-    @require_staff
     async def get_company_users(self, company_id: UUID) -> Sequence[User]:
+        require_staff_user(self.current_user)
         company = await self.company_repository.get_by_id(company_id)
         if not company:
             raise CompanyNotFound(f"company_users:{company_id}")
         return await self.company_repository.get_users(company)
 
-    @require_staff
     async def get_companies_with_users(self) -> Sequence[CompanyWithUsersResult]:
+        require_staff_user(self.current_user)
         companies = await self.company_repository.get_companies_with_users()
         return [
             CompanyWithUsersResult(
@@ -71,22 +76,22 @@ class CompanyService:
             for company in companies
         ]
 
-    @require_admin
     async def delete_company_with_users(self, company_id: UUID) -> None:
+        require_admin_user(self.current_user)
         company = await self.company_repository.get_by_id(company_id)
         if not company:
             raise CompanyNotFound(f"delete_company_with_users:{company_id}")
         await self.company_repository.delete_company_with_users(company)
 
-    @require_admin
     async def delete_company_keep_users(self, company_id: UUID) -> None:
+        require_admin_user(self.current_user)
         company = await self.company_repository.get_by_id(company_id)
         if not company:
             raise CompanyNotFound(f"delete_company_keep_users:{company_id}")
         await self.company_repository.delete_company_keep_users(company)
 
-    @require_admin
     async def remove_company_user(self, company_id: UUID, user_id: UUID) -> None:
+        require_admin_user(self.current_user)
         company = await self.company_repository.get_by_id(company_id)
         if not company:
             raise CompanyNotFound(f"remove_company_user:{company_id}")
@@ -122,21 +127,19 @@ class CompanyService:
         )
         return company
 
-    @require_confirmed_company
     async def get_my_members(self) -> Sequence[User]:
-        assert self.current_user.company_id is not None
-        company = await self.company_repository.get_by_id(self.current_user.company_id)
+        company_user = require_assigned_company_user(self.current_user)
+        company = await self.company_repository.get_by_id(company_user.company_id)
         if company is None:
-            raise CompanyNotFound(f"my_members:{self.current_user.company_id}")
+            raise CompanyNotFound(f"my_members:{company_user.company_id}")
         return await self.company_repository.get_users(company)
 
-    @require_confirmed_company
     async def create_invite(self, email: str) -> CompanyInvite:
-        assert self.current_user.company_id is not None
+        company_user = require_assigned_company_user(self.current_user)
         normalized = normalize_email(email)
-        company = await self.company_repository.get_by_id(self.current_user.company_id)
+        company = await self.company_repository.get_by_id(company_user.company_id)
         if not company:
-            raise CompanyNotFound(f"create_invite:{self.current_user.company_id}")
+            raise CompanyNotFound(f"create_invite:{company_user.company_id}")
         token = secrets.token_urlsafe(32)
         expires_at = datetime.now(timezone.utc) + INVITE_EXPIRE
         invite = await self.company_repository.create_invite(
@@ -164,8 +167,8 @@ class CompanyService:
             raise CompanyNotFound(f"get_invite_info:{invite.company_id}")
         return InviteInfoResult(company_name=company.name)
 
-    @require_confirmed_company
     async def accept_invite(self, token: str) -> User:
+        require_confirmed_company_user(self.current_user)
         if not (self.current_user.email_confirmed and self.current_user.user_confirmed):
             raise NotAllowed(f"accept_invite:not_confirmed:{self.current_user.id}")
         if self.current_user.company_id:
@@ -186,20 +189,14 @@ class CompanyService:
         )
         return user
 
-    @require_confirmed_company
     async def update_company_name(self, name: str) -> Company:
-        if not self.current_user.company_id:
-            logger.warning(
-                f"Update company name failed - user has no company: {self.current_user.email}"
-            )
-            raise NotAllowed(f"update_company_name:{self.current_user.id}")
-
-        company = await self.company_repository.get_by_id(self.current_user.company_id)
+        company_user = require_assigned_company_user(self.current_user)
+        company = await self.company_repository.get_by_id(company_user.company_id)
         if not company:
             logger.warning(
-                f"Update company name failed - company not found: {self.current_user.company_id}"
+                f"Update company name failed - company not found: {company_user.company_id}"
             )
-            raise CompanyNotFound(f"update_company_name:{self.current_user.company_id}")
+            raise CompanyNotFound(f"update_company_name:{company_user.company_id}")
 
         updated_company = await self.company_repository.update_company_name(
             company, name
@@ -209,12 +206,9 @@ class CompanyService:
         )
         return updated_company
 
-    @require_confirmed_company
     async def get_my_kp_profile(self) -> KpCompanyProfileResult | None:
-        assert self.current_user.company_id is not None
-        profile = await self.company_repository.get_kp_profile(
-            self.current_user.company_id
-        )
+        company_user = require_assigned_company_user(self.current_user)
+        profile = await self.company_repository.get_kp_profile(company_user.company_id)
         if profile is None:
             return None
         return KpCompanyProfileResult(
@@ -226,7 +220,6 @@ class CompanyService:
             kp_contact_user_id=profile.kp_contact_user_id,
         )
 
-    @require_confirmed_company
     async def update_my_kp_profile(
         self,
         invoice_address: str,
@@ -234,7 +227,7 @@ class CompanyService:
         contact_email: str | None,
         kp_contact_user_id: UUID | None,
     ) -> KpCompanyProfileResult:
-        assert self.current_user.company_id is not None
+        company_user = require_assigned_company_user(self.current_user)
         if kp_contact_user_id is not None:
             user = next(
                 (
@@ -250,7 +243,7 @@ class CompanyService:
                 )
 
         profile = await self.company_repository.upsert_kp_profile(
-            company_id=self.current_user.company_id,
+            company_id=company_user.company_id,
             invoice_address=invoice_address.strip(),
             shipping_address=shipping_address.strip(),
             contact_email=contact_email,

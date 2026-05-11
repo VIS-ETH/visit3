@@ -62,6 +62,8 @@ class KpRepository(BaseRepository[KpEvent]):
     def _booking_select(self):
         return select(KpEventBooking).options(
             selectinload(rel(KpEventBooking.event)),
+            selectinload(rel(KpEventBooking.booth_zone)),
+            selectinload(rel(KpEventBooking.name_tags)),
             selectinload(rel(KpEventBooking.company)).selectinload(
                 rel(Company.kp_profile)
             ),
@@ -69,7 +71,6 @@ class KpRepository(BaseRepository[KpEvent]):
             .selectinload(rel(Company.kp_profile))
             .selectinload(rel(KpCompanyProfile.kp_contact_user)),
             selectinload(rel(KpEventBooking.company)).selectinload(rel(Company.users)),
-            selectinload(rel(KpEventBooking.booth_zone)),
             selectinload(rel(KpEventBooking.services))
             .selectinload(rel(KpEventBookingService.service))
             .selectinload(rel(KpEventService.requirements)),
@@ -79,7 +80,6 @@ class KpRepository(BaseRepository[KpEvent]):
             selectinload(rel(KpEventBooking.services))
             .selectinload(rel(KpEventBookingService.requirement_file_links))
             .selectinload(rel(KpEventBookingServiceFileLink.stored_file)),
-            selectinload(rel(KpEventBooking.name_tags)),
             selectinload(rel(KpEventBooking.upgrade_waitlist_entries)).selectinload(
                 rel(KpEventBookingUpgradeWaitlist.target_booth_zone)
             ),
@@ -342,20 +342,6 @@ class KpRepository(BaseRepository[KpEvent]):
         )
         result = await self.session.execute(statement)
         return result.scalar_one()
-
-    async def lock_booth_zone_for_update(
-        self, booth_zone_id: UUID
-    ) -> Optional[KpEventBoothZone]:
-        """Acquires a row-level lock on the zone row. Must be called within the
-        same transaction as the subsequent capacity count check and booking creation,
-        so the lock is held until commit, preventing concurrent oversubscription."""
-        statement = (
-            select(KpEventBoothZone)
-            .where(col(KpEventBoothZone.id) == booth_zone_id)
-            .with_for_update()
-        )
-        result = await self.session.execute(statement)
-        return result.scalar_one_or_none()
 
     async def create_booking(
         self,
