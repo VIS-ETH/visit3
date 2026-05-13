@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.docker
+
+.venv
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+htmlcov
+
+__pycache__
+**/__pycache__
+*.py[cod]
+
+.DS_Store
+.git

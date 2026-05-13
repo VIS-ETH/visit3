@@ -146,7 +146,6 @@ dependencies = [
     { name = "fastapi", extra = ["standard"] },
     { name = "fastapi-csrf-protect" },
     { name = "grpcio" },
-    { name = "grpcio-tools" },
     { name = "httpx" },
     { name = "phonenumbers" },
     { name = "pwdlib", extra = ["argon2"] },
@@ -155,10 +154,12 @@ dependencies = [
     { name = "pyjwt", extra = ["crypto"] },
     { name = "sqlmodel" },
     { name = "typst" },
-    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.dev-dependencies]
+codegen = [
+    { name = "grpcio-tools" },
+]
 dev = [
     { name = "pyright" },
     { name = "ruff" },
@@ -173,7 +174,6 @@ requires-dist = [
     { name = "fastapi", extras = ["standard"], specifier = "==0.125.0" },
     { name = "fastapi-csrf-protect", specifier = ">=1.0.7" },
     { name = "grpcio", specifier = ">=1.76.0" },
-    { name = "grpcio-tools", specifier = ">=1.76.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "phonenumbers", specifier = ">=9.0.24" },
     { name = "pwdlib", extras = ["argon2"], specifier = ">=0.3.0" },
@@ -182,10 +182,10 @@ requires-dist = [
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10.1" },
     { name = "sqlmodel", specifier = "==0.0.27" },
     { name = "typst", specifier = ">=0.14.8" },
-    { name = "uvicorn", extras = ["standard"] },
 ]
 
 [package.metadata.requires-dev]
+codegen = [{ name = "grpcio-tools", specifier = ">=1.76.0" }]
 dev = [
     { name = "pyright", specifier = ">=1.1.409" },
     { name = "ruff", specifier = ">=0.15.11" },
