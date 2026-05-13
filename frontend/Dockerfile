@@ -10,7 +10,7 @@ ENV UV_LINK_MODE=copy
 WORKDIR /repo
 
 COPY --from=common backend/pyproject.toml backend/uv.lock ./backend/
-RUN uv sync --frozen --no-dev --project ./backend
+RUN uv sync --frozen --no-dev --group codegen --project ./backend
 
 COPY --from=common servis ./servis
 COPY --from=common scripts/fix_imports.py ./scripts/fix_imports.py
