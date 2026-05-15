@@ -9,8 +9,12 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
 
-COPY . .
+COPY pyproject.toml uv.lock ./
 
-RUN uv sync --frozen
+RUN uv sync --frozen --no-install-project
+
+COPY alembic.ini ./
+COPY app ./app
+COPY migrations ./migrations
 
 CMD ["sh", "-c", "uv run alembic upgrade head && uv run fastapi dev --host 0.0.0.0 --port 8000"]

@@ -1,6 +1,4 @@
 .env
-.env.*
-!.env.docker
 
 .venv
 .pytest_cache
