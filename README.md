@@ -11,7 +11,7 @@ This README is mostly LLM generated.
 Prerequisites:
 
 - [Docker Engine / Docker Desktop](https://docs.docker.com/get-docker/)
-- [mise](https://mise.jdx.dev/) for Node, uv, yarn, and `prek`
+- [mise](https://mise.jdx.dev/) for Node, uv, and `prek`
 
 Install tools and Git hooks:
 
@@ -19,10 +19,12 @@ Install tools and Git hooks:
 mise install
 ```
 
+Yarn is managed by Corepack from `frontend/package.json`.
+
 Install frontend dependencies when you want to run the frontend outside Docker:
 
 ```bash
-cd frontend && yarn install
+cd frontend && corepack enable && yarn install
 ```
 
 Generate backend gRPC stubs and frontend Orval clients:
@@ -51,6 +53,7 @@ cd frontend && yarn dev
 ```
 
 The local frontend path requires `cd frontend && yarn install` first.
+If Corepack is not enabled yet, run `cd frontend && corepack enable && yarn install`.
 
 ## Common Commands
 
