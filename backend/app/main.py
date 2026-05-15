@@ -168,6 +168,14 @@ app.add_middleware(
 )
 
 
+class HealthCheckFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "/health" not in record.getMessage()
+
+
+logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
