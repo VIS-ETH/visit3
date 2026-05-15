@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql._typing import ColumnExpressionArgument
 from sqlalchemy.sql.elements import ColumnElement
 from sqlmodel import SQLModel, col, select, update
+from sqlmodel import delete as sql_delete
 
 from app.models.base import AppBase, BaseEntity
 
@@ -86,6 +87,10 @@ class BaseRepository(Generic[T]):
         instance.mark_deleted()
         self.session.add(instance)
 
+    async def hard_delete(self, instance: SQLModel) -> None:
+        """Permanently delete one model row."""
+        await self.session.delete(instance)
+
     async def delete_where(
         self, model: type[AppBase], *conditions: ColumnElement[bool]
     ) -> None:
@@ -95,4 +100,11 @@ class BaseRepository(Generic[T]):
             .where(self._not_deleted(model), *conditions)
             .values(deleted_at=datetime.now(timezone.utc))
         )
+        await self.session.execute(statement)
+
+    async def hard_delete_where(
+        self, model: type[SQLModel], *conditions: ColumnElement[bool]
+    ) -> None:
+        """Permanently delete model rows matching the conditions."""
+        statement = sql_delete(model).where(*conditions)
         await self.session.execute(statement)

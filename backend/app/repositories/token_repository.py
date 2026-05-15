@@ -3,18 +3,19 @@ from typing import TypeVar
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col, delete, select, update
+from sqlmodel import col, select, update
 
 from app.models.user import ConfirmEmailToken, ForgetPasswordToken, RefreshToken
+from app.repositories.base import BaseRepository
 
 TokenModelT = TypeVar(
     "TokenModelT", RefreshToken, ForgetPasswordToken, ConfirmEmailToken
 )
 
 
-class TokenRepository:
+class TokenRepository(BaseRepository[RefreshToken]):
     def __init__(self, session: AsyncSession):
-        self.session = session
+        super().__init__(RefreshToken, session)
 
     async def _create_token(
         self,
@@ -147,10 +148,9 @@ class TokenRepository:
         try:
             now = datetime.now(timezone.utc)
             for model in (RefreshToken, ForgetPasswordToken, ConfirmEmailToken):
-                await self.session.execute(
-                    delete(model).where(
-                        (col(model.expires_at) < now) | (col(model.is_revoked) == True)
-                    )
+                await self.hard_delete_where(
+                    model,
+                    (col(model.expires_at) < now) | (col(model.is_revoked) == True),
                 )
             await self.session.commit()
         except Exception as e:
