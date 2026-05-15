@@ -19,7 +19,7 @@ Install tools and Git hooks:
 mise install
 ```
 
-Install frontend dependencies:
+Install frontend dependencies when you want to run the frontend outside Docker:
 
 ```bash
 cd frontend && yarn install
@@ -31,19 +31,26 @@ Generate backend gRPC stubs and frontend Orval clients:
 make
 ```
 
-Start backend services:
+Start the full dev stack:
+
+```bash
+docker compose --profile frontend up --build
+```
+
+This starts FastAPI, the Vite frontend, PostgreSQL, rclone S3, Keycloak, and the Notifications API.
+
+The backend dev container mounts `backend/app`, `backend/migrations`, `backend/scripts`, and `backend/alembic.ini`, so changes in application code, migrations, and local scripts are picked up without rebuilding. The frontend dev container mounts `frontend/src`, `frontend/public`, and `frontend/scripts` for hot reload and script checks. Rebuild when changing dependency or container inputs such as `pyproject.toml`, `uv.lock`, `package.json`, `yarn.lock`, `.yarnrc.yml`, `vite.config.ts`, `tsconfig*.json`, `index.html`, or dev Dockerfiles.
+
+Open http://localhost:3000.
+
+To run only backend services and use a local frontend:
 
 ```bash
 docker compose up --build
-```
-
-Run the frontend locally:
-
-```bash
 cd frontend && yarn dev
 ```
 
-Open http://localhost:3000.
+The local frontend path requires `cd frontend && yarn install` first.
 
 ## Common Commands
 
@@ -77,7 +84,7 @@ make backend-typecheck-all
 
 ## Services
 
-Docker Compose starts the backend, PostgreSQL, MinIO, Keycloak, and the Notifications API.
+Docker Compose starts the backend, PostgreSQL, rclone S3, Keycloak, and the Notifications API. With the `frontend` profile, it also starts the Vite frontend.
 
 | Service | URL |
 |---|---|
@@ -107,21 +114,24 @@ docker compose exec backend alembic downgrade -1
 Seed local test data:
 
 ```bash
-docker compose exec backend sh -lc "cd /app && /opt/venv/bin/python scripts/seed_test_data.py"
+docker compose exec backend python scripts/seed_test_data.py
 ```
 
 ## Frontend
-
-Run locally:
-
-```bash
-cd frontend && yarn dev
-```
 
 Run in Docker:
 
 ```bash
 docker compose --profile frontend up --build
+```
+
+Only `src`, `public`, and `scripts` are mounted into the Docker frontend container. This keeps package manager artifacts container-owned and avoids host/container dependency drift, but it means config and dependency changes need a rebuild.
+
+Run locally against the Docker backend:
+
+```bash
+docker compose up --build
+cd frontend && yarn dev
 ```
 
 Use meaningful FastAPI `operation_id`s because Orval uses them for generated client function names.

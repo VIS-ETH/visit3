@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -206,6 +206,19 @@ class CompanyRepository(BaseRepository[Company]):
         try:
             invite.is_used = True
             self.session.add(invite)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def cleanup_expired_invites(self) -> None:
+        try:
+            now = datetime.now(timezone.utc)
+            await self.hard_delete_where(
+                CompanyInvite,
+                (col(CompanyInvite.expires_at) < now)
+                | (col(CompanyInvite.is_used) == True),
+            )
             await self.session.commit()
         except Exception as e:
             await self.session.rollback()

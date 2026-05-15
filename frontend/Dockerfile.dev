@@ -1,5 +1,14 @@
 FROM node:24-alpine
+
 WORKDIR /app
-COPY package.json yarn.lock ./
-RUN yarn install
+
+COPY package.json yarn.lock .yarnrc.yml ./
+
+RUN corepack enable && yarn install --immutable
+
+COPY index.html vite.config.ts tsconfig*.json ./
+COPY public public
+COPY src src
+COPY scripts scripts
+
 CMD ["yarn", "dev", "--host"]
