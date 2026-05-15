@@ -35,15 +35,15 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app/frontend
 
-COPY package.json yarn.lock ./
-RUN npm install yarn && yarn
+COPY package.json yarn.lock .yarnrc.yml ./
+RUN corepack enable && yarn install --immutable
 
-COPY tsconfig*.json vite.config.ts eslint.config.js index.html ./
+COPY tsconfig*.json vite.config.ts index.html ./
 COPY public public
 COPY src src
 
 COPY --from=code-generator /repo/visit.json ./src/orval/visit.json
-RUN ./node_modules/.bin/orval --config src/orval/orvalConfig.ts
+RUN yarn orval --config src/orval/orvalConfig.ts
 
 # Enable Vite plugin to allow handling environment variables via nginx at runtime
 # See vite.config.ts

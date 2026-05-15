@@ -26,13 +26,13 @@ services:
       context: frontend
       dockerfile: Dockerfile.dev
     env_file:
-      - frontend/.env.docker
+      - frontend/.env
     profiles: [frontend]
     ports:
       - 3000:3000
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
 
   postgres:
     image: postgres:17
