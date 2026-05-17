@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetAllCompanyUsersQueryKey,
+  getGetCurrentUserQueryKey,
   getGetUnconfirmedUsersQueryKey,
   useConfirmUser,
   useDeleteUser,
@@ -113,6 +114,7 @@ const UserManagement = () => {
   ) => {
     if (!adminStatus || !userId) return;
     setImpersonation(userId, displayName);
+    queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
     navigate("/", { replace: true });
   };
 
