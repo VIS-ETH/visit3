@@ -24,6 +24,7 @@ from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
 from app.schemas.company import (
     CompanyAssignedUserResult,
+    CompanyListResult,
     CompanyWithUsersResult,
     InviteInfoResult,
     KpCompanyProfileResult,
@@ -53,28 +54,38 @@ class CompanyService:
             raise CompanyNotFound(f"company_users:{company_id}")
         return await self.company_repository.get_users(company)
 
-    async def get_companies_with_users(self) -> Sequence[CompanyWithUsersResult]:
+    async def get_company_with_users(self, company_id: UUID) -> CompanyWithUsersResult:
         require_staff_user(self.current_user)
-        companies = await self.company_repository.get_companies_with_users()
+        company = await self.company_repository.get_company_with_users(company_id)
+        if not company:
+            raise CompanyNotFound(f"company_with_users:{company_id}")
+        return self._company_with_users_result(company)
+
+    async def get_companies(self) -> Sequence[CompanyListResult]:
+        require_staff_user(self.current_user)
+        companies = await self.company_repository.get_companies_with_user_counts()
         return [
-            CompanyWithUsersResult(
-                id=company.id,
-                name=company.name,
-                users=[
-                    CompanyAssignedUserResult(
-                        id=user.id,
-                        email=user.email,
-                        first_name=user.first_name,
-                        last_name=user.last_name,
-                        phone_number=user.phone_number,
-                        user_confirmed=user.user_confirmed,
-                        email_confirmed=user.email_confirmed,
-                    )
-                    for user in company.users
-                ],
-            )
-            for company in companies
+            CompanyListResult(id=company_id, name=name, users_count=users_count)
+            for company_id, name, users_count in companies
         ]
+
+    def _company_with_users_result(self, company: Company) -> CompanyWithUsersResult:
+        return CompanyWithUsersResult(
+            id=company.id,
+            name=company.name,
+            users=[
+                CompanyAssignedUserResult(
+                    id=user.id,
+                    email=user.email,
+                    first_name=user.first_name,
+                    last_name=user.last_name,
+                    phone_number=user.phone_number,
+                    user_confirmed=user.user_confirmed,
+                    email_confirmed=user.email_confirmed,
+                )
+                for user in company.users
+            ],
+        )
 
     async def delete_company_with_users(self, company_id: UUID) -> None:
         require_admin_user(self.current_user)

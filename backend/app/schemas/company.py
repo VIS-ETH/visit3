@@ -86,6 +86,14 @@ class CompanyBase(BaseModel):
     name: str
 
 
+class CompanyListResult(CompanyBase):
+    users_count: int
+
+
+class CompanyListResponse(CompanyListResult):
+    pass
+
+
 class CompanyWithUsersResult(CompanyBase):
     users: list[CompanyAssignedUserResult]
 

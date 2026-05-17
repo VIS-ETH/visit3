@@ -7,6 +7,8 @@ from app.core.deps import CompanyServiceDep, CsrfDep
 from app.models.company import Company
 from app.models.user import User
 from app.schemas.company import (
+    CompanyListResponse,
+    CompanyListResult,
     CompanyWithUsersResponse,
     CompanyWithUsersResult,
     CreateInviteRequest,
@@ -115,14 +117,26 @@ async def get_company_users(
 
 
 @router.get(
-    "/management",
-    operation_id="listCompaniesWithUsers",
-    response_model=list[CompanyWithUsersResponse],
+    "/{company_id}/with-users",
+    operation_id="getCompanyWithUsers",
+    response_model=CompanyWithUsersResponse,
 )
-async def list_companies_with_users(
+async def get_company_with_users(
     company_service: CompanyServiceDep,
-) -> Sequence[CompanyWithUsersResult]:
-    return await company_service.get_companies_with_users()
+    company_id: UUID,
+) -> CompanyWithUsersResult:
+    return await company_service.get_company_with_users(company_id)
+
+
+@router.get(
+    "/management/companies",
+    operation_id="listCompanies",
+    response_model=list[CompanyListResponse],
+)
+async def list_companies(
+    company_service: CompanyServiceDep,
+) -> Sequence[CompanyListResult]:
+    return await company_service.get_companies()
 
 
 @router.delete(
