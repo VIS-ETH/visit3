@@ -57,7 +57,6 @@ const CompanyManagement = () => {
   const {
     mutate: deleteCompanyKeepUsers,
     isPending: isDeletingKeepUsers,
-    isError: isDeleteKeepUsersError,
   } = useDeleteCompanyKeepUsers({
     mutation: {
       onSuccess: () => {
@@ -72,7 +71,6 @@ const CompanyManagement = () => {
   const {
     mutate: deleteCompanyWithUsers,
     isPending: isDeletingWithUsers,
-    isError: isDeleteWithUsersError,
   } = useDeleteCompanyWithUsers({
     mutation: {
       onSuccess: () => {
@@ -186,16 +184,6 @@ const CompanyManagement = () => {
             </Group>
           </Stack>
         </Modal>
-
-        {adminStatus && (isDeleteKeepUsersError || isDeleteWithUsersError) && (
-          <Alert
-            icon={<IconAlertCircle />}
-            color="red"
-            title={t("server.error")}
-          >
-            {t("company_management.delete_error")}
-          </Alert>
-        )}
 
         {isLoading ? (
           <Center py="xl">

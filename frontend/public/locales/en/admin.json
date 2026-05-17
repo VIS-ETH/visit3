@@ -2,7 +2,6 @@
   "company_management": {
     "title": "Company Management",
     "delete": "Delete Company",
-    "delete_error": "Failed to delete company",
     "user_name": "Name",
     "user_email": "Email",
     "user_phone": "Phone Number",
@@ -44,11 +43,9 @@
     "no_admins": "No Admin Users",
     "error": "Failed to load unconfirmed users",
     "confirm": "Confirm User",
-    "confirm_error": "Failed to confirm user",
     "impersonate": "Impersonate",
     "impersonating": "Impersonating",
     "delete": "Delete User",
-    "delete_error": "Failed to delete user",
     "delete_modal": {
       "title": "Delete company user",
       "message": "Are you sure you want to delete {{email}}?",

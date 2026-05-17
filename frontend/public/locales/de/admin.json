@@ -2,7 +2,6 @@
   "company_management": {
     "title": "Unternehmensverwaltung",
     "delete": "Unternehmen löschen",
-    "delete_error": "Unternehmen konnte nicht gelöscht werden",
     "user_name": "Name",
     "user_email": "E-Mail",
     "user_phone": "Telefonnummer",
@@ -44,11 +43,9 @@
     "no_admins": "Keine Admins",
     "error": "Fehler beim Laden unbestätigter Benutzer",
     "confirm": "Benutzer bestätigen",
-    "confirm_error": "Fehler beim Bestätigen des Benutzers",
     "impersonate": "Imitieren",
     "impersonating": "Wird imitiert",
     "delete": "Benutzer löschen",
-    "delete_error": "Fehler beim Löschen des Benutzers",
     "delete_modal": {
       "title": "Unternehmensbenutzer löschen",
       "message": "Möchten Sie {{email}} wirklich löschen?",
