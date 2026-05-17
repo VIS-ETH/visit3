@@ -1,12 +1,9 @@
 import {
   ActionIcon,
   Button,
-  Center,
   Group,
-  Loader,
+  Paper,
   Stack,
-  Table,
-  Text,
   TextInput,
   Title,
 } from "@mantine/core";
@@ -18,11 +15,15 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   getListIndustriesQueryKey,
+  type ListIndustriesQueryResult,
   useCreateIndustry,
   useDeleteIndustry,
   useListIndustries,
 } from "../orval/generated/kp/kp";
 import ManageEntityModal from "./ManageEntityModal";
+import DataTable, { type DataTableColumn } from "./DataTable";
+
+type IndustryRow = ListIndustriesQueryResult[number];
 
 const IndustriesTab = () => {
   const { t } = useTranslation();
@@ -66,23 +67,36 @@ const IndustriesTab = () => {
     },
   });
 
-  if (isLoading) {
-    return (
-      <Center py="md">
-        <Loader />
-      </Center>
-    );
-  }
+  const columns: DataTableColumn<IndustryRow>[] = [
+    {
+      key: "name",
+      header: t("kp.manage.industry_name"),
+      render: (industry) => industry.name,
+      searchableValue: (industry) => industry.name,
+    },
+    {
+      key: "actions",
+      header: "",
+      render: (industry) => (
+        <ActionIcon
+          color="red"
+          variant="subtle"
+          aria-label={t("kp.manage.industry_confirm_delete")}
+          onClick={() => {
+            if (confirm(t("kp.manage.industry_confirm_delete"))) {
+              remove({ industryId: industry.id });
+            }
+          }}
+        >
+          <IconTrash size={16} />
+        </ActionIcon>
+      ),
+      width: 60,
+    },
+  ];
 
   return (
-    <Stack gap="md">
-      <Group justify="space-between">
-        <Title order={4}>{t("kp.manage.industries_title")}</Title>
-        <Button leftSection={<IconPlus size={16} />} size="xs" onClick={open}>
-          {t("kp.manage.industries_add")}
-        </Button>
-      </Group>
-
+    <>
       <ManageEntityModal
         opened={opened}
         onClose={handleCloseModal}
@@ -100,39 +114,29 @@ const IndustriesTab = () => {
         />
       </ManageEntityModal>
 
-      {industries && industries.length > 0 ? (
-        <Table highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>{t("kp.manage.industry_name")}</Table.Th>
-              <Table.Th />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {industries.map((industry) => (
-              <Table.Tr key={industry.id}>
-                <Table.Td fw={500}>{industry.name}</Table.Td>
-                <Table.Td>
-                  <ActionIcon
-                    color="red"
-                    variant="subtle"
-                    onClick={() => {
-                      if (confirm(t("kp.manage.industry_confirm_delete"))) {
-                        remove({ industryId: industry.id });
-                      }
-                    }}
-                  >
-                    <IconTrash size={16} />
-                  </ActionIcon>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      ) : (
-        <Text c="dimmed">{t("kp.manage.industries_empty")}</Text>
-      )}
-    </Stack>
+      <Paper withBorder p="lg" radius="md">
+        <Stack gap="md">
+          <Group justify="space-between">
+            <Title order={4}>{t("kp.manage.industries_title")}</Title>
+            <Button
+              leftSection={<IconPlus size={16} />}
+              size="xs"
+              onClick={open}
+            >
+              {t("kp.manage.industries_add")}
+            </Button>
+          </Group>
+
+          <DataTable
+            columns={columns}
+            data={industries}
+            emptyLabel={t("kp.manage.industries_empty")}
+            getRowKey={(industry) => industry.id}
+            isLoading={isLoading}
+          />
+        </Stack>
+      </Paper>
+    </>
   );
 };
 export default IndustriesTab;

@@ -2,13 +2,10 @@ import {
   Alert,
   Badge,
   Button,
-  Card,
-  Center,
   Group,
-  Loader,
   Modal,
+  Paper,
   Stack,
-  Table,
   Text,
   TextInput,
   Title,
@@ -21,6 +18,7 @@ import type { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import BackButton from "../components/BackButton";
+import DataTable, { type DataTableColumn } from "../components/DataTable";
 import { kpSchema, type KpFormValues } from "../schemas/kpSchema";
 import {
   EVENT_STATUS_COLORS,
@@ -34,13 +32,16 @@ import { useTranslatedForm } from "../utils/translator";
 import {
   getGetLatestKpQueryKey,
   getListKpsQueryKey,
+  type ListKpsQueryResult,
   useCreateKp,
   useListKps,
 } from "../orval/generated/kp/kp";
 
-function todayAsDateInput() {
+type KpEventRow = ListKpsQueryResult[number];
+
+const todayAsDateInput = () => {
   return formatKpDateInput(new Date());
-}
+};
 
 const dateFieldNames = [
   "registrationOpen",
@@ -121,6 +122,70 @@ const KpDashboard = () => {
       },
     });
   };
+
+  const columns: DataTableColumn<KpEventRow>[] = [
+    {
+      key: "name",
+      header: t("kp.dashboard.name"),
+      render: (event) => event.name,
+      searchableValue: (event) => event.name,
+    },
+    {
+      key: "registration-window",
+      header: t("kp.dashboard.registration_window"),
+      render: (event) =>
+        `${formatKpDisplayDate(event.registration_open)} - ${formatKpDisplayDate(event.registration_end)}`,
+      searchableValue: (event) =>
+        `${formatKpDisplayDate(event.registration_open)} ${formatKpDisplayDate(event.registration_end)}`,
+    },
+    {
+      key: "event-date",
+      header: t("kp.dashboard.event_date"),
+      render: (event) => formatKpDisplayDate(event.event_date),
+      searchableValue: (event) => formatKpDisplayDate(event.event_date),
+    },
+    {
+      key: "finalization-deadline",
+      header: t("kp.dashboard.finalization_deadline"),
+      render: (event) => formatKpDisplayDate(event.finalization_deadline),
+      searchableValue: (event) =>
+        formatKpDisplayDate(event.finalization_deadline),
+    },
+    {
+      key: "nametags-deadline",
+      header: t("kp.dashboard.nametags_deadline"),
+      render: (event) => formatKpDisplayDate(event.nametags_deadline),
+      searchableValue: (event) => formatKpDisplayDate(event.nametags_deadline),
+    },
+    {
+      key: "status",
+      header: t("kp.dashboard.status_label"),
+      render: (event) => {
+        const status = getEventStatus(event);
+        return (
+          <Badge color={EVENT_STATUS_COLORS[status]} variant="light" size="sm">
+            {statusLabels[status]}
+          </Badge>
+        );
+      },
+      searchableValue: (event) => statusLabels[getEventStatus(event)],
+    },
+    {
+      key: "actions",
+      header: "",
+      render: (event) => (
+        <Button
+          size="xs"
+          variant="light"
+          component={Link}
+          to={`/kp/${event.id}`}
+        >
+          {t("kp.dashboard.manage_button")}
+        </Button>
+      ),
+      width: 90,
+    },
+  ];
 
   return (
     <Stack gap="md">
@@ -214,82 +279,22 @@ const KpDashboard = () => {
         </form>
       </Modal>
 
-      {isLoading ? (
-        <Center py="xl">
-          <Loader />
-        </Center>
-      ) : null}
-
       {isError ? (
         <Alert icon={<IconAlertCircle />} color="red" title={t("server.error")}>
           {t("kp.dashboard.error")}
         </Alert>
       ) : null}
 
-      {!isLoading && !isError ? (
-        <Card withBorder radius="md" p={0}>
-          {events && events.length > 0 ? (
-            <Table highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t("kp.dashboard.name")}</Table.Th>
-                  <Table.Th>{t("kp.dashboard.registration_window")}</Table.Th>
-                  <Table.Th>{t("kp.dashboard.event_date")}</Table.Th>
-                  <Table.Th>{t("kp.dashboard.finalization_deadline")}</Table.Th>
-                  <Table.Th>{t("kp.dashboard.nametags_deadline")}</Table.Th>
-                  <Table.Th>{t("kp.dashboard.status_label")}</Table.Th>
-                  <Table.Th />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {events.map((event) => {
-                  const status = getEventStatus(event);
-                  return (
-                    <Table.Tr key={`${event.name}-${event.event_date}`}>
-                      <Table.Td fw={500}>{event.name}</Table.Td>
-                      <Table.Td>
-                        {formatKpDisplayDate(event.registration_open)} -{" "}
-                        {formatKpDisplayDate(event.registration_end)}
-                      </Table.Td>
-                      <Table.Td>
-                        {formatKpDisplayDate(event.event_date)}
-                      </Table.Td>
-                      <Table.Td>
-                        {formatKpDisplayDate(event.finalization_deadline)}
-                      </Table.Td>
-                      <Table.Td>
-                        {formatKpDisplayDate(event.nametags_deadline)}
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge
-                          color={EVENT_STATUS_COLORS[status]}
-                          variant="light"
-                          size="sm"
-                        >
-                          {statusLabels[status]}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>
-                        <Button
-                          size="xs"
-                          variant="light"
-                          component={Link}
-                          to={`/kp/${event.id}`}
-                        >
-                          {t("kp.dashboard.manage_button")}
-                        </Button>
-                      </Table.Td>
-                    </Table.Tr>
-                  );
-                })}
-              </Table.Tbody>
-            </Table>
-          ) : (
-            <Text c="dimmed" p="md">
-              {t("kp.dashboard.no_events")}
-            </Text>
-          )}
-        </Card>
+      {!isError ? (
+        <Paper withBorder p="lg" radius="md">
+          <DataTable
+            columns={columns}
+            data={events}
+            emptyLabel={t("kp.dashboard.no_events")}
+            getRowKey={(event) => event.id}
+            isLoading={isLoading}
+          />
+        </Paper>
       ) : null}
     </Stack>
   );

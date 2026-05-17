@@ -1,4 +1,13 @@
-import { Button, Card, Group, Stack, TextInput, Title } from "@mantine/core";
+import {
+  Button,
+  Group,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ChangeEvent } from "react";
@@ -89,11 +98,20 @@ const DetailsTab = ({ eventId }: { eventId: string }) => {
   };
 
   return (
-    <Card withBorder radius="md" p="md">
+    <Paper withBorder p="lg" radius="md">
       <form onSubmit={form.onSubmit(handleSubmit)}>
-        <Stack gap="sm">
-          <Title order={4}>{t("kp.manage.edit_title")}</Title>
-          <Group grow>
+        <Stack gap="md">
+          <div>
+            <Title order={4}>{t("kp.manage.edit_title")}</Title>
+            <Text c="dimmed" size="sm">
+              {t("kp.dashboard.date_input_hint")}
+            </Text>
+          </div>
+          <SimpleGrid
+            cols={{ base: 1, md: 2 }}
+            spacing="md"
+            verticalSpacing="sm"
+          >
             <TextInput
               label={t("kp.dashboard.name")}
               disabled={isPending}
@@ -102,43 +120,34 @@ const DetailsTab = ({ eventId }: { eventId: string }) => {
             <TextInput
               label={t("kp.dashboard.registration_open")}
               placeholder={t("kp.dashboard.date_input_placeholder")}
-              description={t("kp.dashboard.date_input_hint")}
               disabled={isPending}
               {...getDateInputProps("registrationOpen")}
             />
-          </Group>
-          <Group grow>
             <TextInput
               label={t("kp.dashboard.registration_end")}
               placeholder={t("kp.dashboard.date_input_placeholder")}
-              description={t("kp.dashboard.date_input_hint")}
               disabled={isPending}
               {...getDateInputProps("registrationEnd")}
             />
             <TextInput
               label={t("kp.dashboard.finalization_deadline")}
               placeholder={t("kp.dashboard.date_input_placeholder")}
-              description={t("kp.dashboard.date_input_hint")}
               disabled={isPending}
               {...getDateInputProps("finalizationDeadline")}
             />
-          </Group>
-          <Group grow>
             <TextInput
               label={t("kp.dashboard.nametags_deadline")}
               placeholder={t("kp.dashboard.date_input_placeholder")}
-              description={t("kp.dashboard.date_input_hint")}
               disabled={isPending}
               {...getDateInputProps("nametagsDeadline")}
             />
             <TextInput
               label={t("kp.dashboard.event_date")}
               placeholder={t("kp.dashboard.date_input_placeholder")}
-              description={t("kp.dashboard.date_input_hint")}
               disabled={isPending}
               {...getDateInputProps("eventDate")}
             />
-          </Group>
+          </SimpleGrid>
           <Group justify="flex-end">
             <Button
               type="submit"
@@ -150,7 +159,7 @@ const DetailsTab = ({ eventId }: { eventId: string }) => {
           </Group>
         </Stack>
       </form>
-    </Card>
+    </Paper>
   );
 };
 export default DetailsTab;

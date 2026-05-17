@@ -53,6 +53,11 @@
     "impersonate": "Imitieren",
     "impersonating": "Wird imitiert",
     "delete": "Benutzer löschen",
+    "table_empty": "Keine Benutzer gefunden.",
+    "table_no_results": "Keine Benutzer passen zur Suche.",
+    "table_search_placeholder": "Benutzer suchen",
+    "table_rows_per_page": "Zeilen",
+    "table_page_summary": "{{first}}-{{last}} von {{total}}",
     "delete_modal": {
       "title": "Unternehmensbenutzer löschen",
       "message": "Möchten Sie {{email}} wirklich löschen?",

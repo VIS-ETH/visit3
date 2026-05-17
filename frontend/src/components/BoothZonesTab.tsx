@@ -1,14 +1,11 @@
 import {
   ActionIcon,
   Button,
-  Center,
   ColorInput,
   Group,
-  Loader,
   NumberInput,
+  Paper,
   Stack,
-  Table,
-  Text,
   TextInput,
   Textarea,
   Title,
@@ -21,6 +18,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   getListBoothZonesQueryKey,
+  type ListBoothZonesQueryResult,
   useCreateBoothZone,
   useDeleteBoothZone,
   useListBoothZones,
@@ -34,6 +32,9 @@ import {
   centsToCurrencyAmount,
   currencyAmountToCents,
 } from "../utils/price-utils";
+import DataTable, { type DataTableColumn } from "./DataTable";
+
+type BoothZoneRow = ListBoothZonesQueryResult[number];
 
 const BoothZonesTab = ({ eventId }: { eventId: string }) => {
   const { t } = useTranslation();
@@ -117,14 +118,6 @@ const BoothZonesTab = ({ eventId }: { eventId: string }) => {
     },
   });
 
-  if (isLoading) {
-    return (
-      <Center py="md">
-        <Loader />
-      </Center>
-    );
-  }
-
   const isSaving = isCreating || isUpdating;
   const isEditing = editingZoneId !== null;
 
@@ -176,19 +169,70 @@ const BoothZonesTab = ({ eventId }: { eventId: string }) => {
     });
   });
 
-  return (
-    <Stack gap="md">
-      <Group justify="space-between">
-        <Title order={4}>{t("kp.manage.booth_zones_title")}</Title>
-        <Button
-          leftSection={<IconPlus size={16} />}
-          size="xs"
-          onClick={openCreateModal}
-        >
-          {t("kp.manage.booth_zones_add")}
-        </Button>
-      </Group>
+  const columns: DataTableColumn<BoothZoneRow>[] = [
+    {
+      key: "color",
+      header: "",
+      render: (zone) => <KpBoothZoneColorSwatch color={zone.color} size={16} />,
+      searchableValue: (zone) => zone.color,
+      width: 40,
+    },
+    {
+      key: "name",
+      header: t("kp.manage.zone_name"),
+      render: (zone) => zone.name,
+      searchableValue: (zone) => zone.name,
+    },
+    {
+      key: "capacity",
+      header: t("kp.manage.zone_capacity"),
+      render: (zone) => zone.capacity,
+      searchableValue: (zone) => String(zone.capacity),
+    },
+    {
+      key: "booth-size",
+      header: t("kp.manage.zone_booth_size"),
+      render: (zone) => `${zone.booth_size} m²`,
+      searchableValue: (zone) => String(zone.booth_size),
+    },
+    {
+      key: "base-price",
+      header: t("kp.manage.zone_base_price"),
+      render: (zone) => (zone.base_price / 100).toFixed(2),
+      searchableValue: (zone) => (zone.base_price / 100).toFixed(2),
+    },
+    {
+      key: "actions",
+      header: "",
+      render: (zone) => (
+        <Group gap="xs">
+          <ActionIcon
+            variant="subtle"
+            onClick={() => openEditModal(zone)}
+            aria-label={t("kp.manage.booth_zones_edit")}
+          >
+            <IconEdit size={16} />
+          </ActionIcon>
+          <ActionIcon
+            color="red"
+            variant="subtle"
+            aria-label={t("kp.manage.zone_confirm_delete")}
+            onClick={() => {
+              if (confirm(t("kp.manage.zone_confirm_delete"))) {
+                remove({ boothZoneId: zone.id });
+              }
+            }}
+          >
+            <IconTrash size={16} />
+          </ActionIcon>
+        </Group>
+      ),
+      width: 90,
+    },
+  ];
 
+  return (
+    <>
       <ManageEntityModal
         opened={opened}
         onClose={handleCloseModal}
@@ -246,56 +290,29 @@ const BoothZonesTab = ({ eventId }: { eventId: string }) => {
         />
       </ManageEntityModal>
 
-      {zones && zones.length > 0 ? (
-        <Table highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th />
-              <Table.Th>{t("kp.manage.zone_name")}</Table.Th>
-              <Table.Th>{t("kp.manage.zone_capacity")}</Table.Th>
-              <Table.Th>{t("kp.manage.zone_booth_size")}</Table.Th>
-              <Table.Th>{t("kp.manage.zone_base_price")}</Table.Th>
-              <Table.Th />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {zones.map((zone) => (
-              <Table.Tr key={zone.id}>
-                <Table.Td>
-                  <KpBoothZoneColorSwatch color={zone.color} size={16} />
-                </Table.Td>
-                <Table.Td fw={500}>{zone.name}</Table.Td>
-                <Table.Td>{zone.capacity}</Table.Td>
-                <Table.Td>{zone.booth_size} m²</Table.Td>
-                <Table.Td>{(zone.base_price / 100).toFixed(2)}</Table.Td>
-                <Table.Td>
-                  <ActionIcon
-                    variant="subtle"
-                    onClick={() => openEditModal(zone)}
-                    aria-label={t("kp.manage.booth_zones_edit")}
-                  >
-                    <IconEdit size={16} />
-                  </ActionIcon>
-                  <ActionIcon
-                    color="red"
-                    variant="subtle"
-                    onClick={() => {
-                      if (confirm(t("kp.manage.zone_confirm_delete"))) {
-                        remove({ boothZoneId: zone.id });
-                      }
-                    }}
-                  >
-                    <IconTrash size={16} />
-                  </ActionIcon>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      ) : (
-        <Text c="dimmed">{t("kp.manage.booth_zones_empty")}</Text>
-      )}
-    </Stack>
+      <Paper withBorder p="lg" radius="md">
+        <Stack gap="md">
+          <Group justify="space-between">
+            <Title order={4}>{t("kp.manage.booth_zones_title")}</Title>
+            <Button
+              leftSection={<IconPlus size={16} />}
+              size="xs"
+              onClick={openCreateModal}
+            >
+              {t("kp.manage.booth_zones_add")}
+            </Button>
+          </Group>
+
+          <DataTable
+            columns={columns}
+            data={zones}
+            emptyLabel={t("kp.manage.booth_zones_empty")}
+            getRowKey={(zone) => zone.id}
+            isLoading={isLoading}
+          />
+        </Stack>
+      </Paper>
+    </>
   );
 };
 export default BoothZonesTab;

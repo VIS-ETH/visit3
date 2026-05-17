@@ -53,6 +53,11 @@
     "impersonate": "Impersonate",
     "impersonating": "Impersonating",
     "delete": "Delete User",
+    "table_empty": "No users found.",
+    "table_no_results": "No users match your search.",
+    "table_search_placeholder": "Search users",
+    "table_rows_per_page": "Rows",
+    "table_page_summary": "Showing {{first}}-{{last}} of {{total}}",
     "delete_modal": {
       "title": "Delete company user",
       "message": "Are you sure you want to delete {{email}}?",

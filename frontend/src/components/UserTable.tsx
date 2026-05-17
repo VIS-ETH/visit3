@@ -1,61 +1,86 @@
-import { Table, Paper } from "@mantine/core";
-import React from "react";
+import { Paper } from "@mantine/core";
+import type { ReactNode } from "react";
 import type {
   CompanyUserResponse,
   UserResponse,
 } from "../orval/generated/fastAPI.schemas";
 import { getDisplayName } from "../utils/display";
+import DataTable, { type DataTableColumn } from "./DataTable";
 
 type UserTableUser = CompanyUserResponse | UserResponse;
 
 interface UserTableProps {
   users: UserTableUser[];
-  t: (key: string) => string;
-  actionButton?: (user: UserTableUser) => React.ReactNode;
+  t: (key: string, options?: Record<string, unknown>) => string;
+  actionButton?: (user: UserTableUser) => ReactNode;
   showCompany?: boolean;
 }
 
-const UserTable: React.FC<UserTableProps> = ({
+const UserTable = ({
   users,
   t,
   actionButton,
   showCompany = true,
-}) => (
-  <Paper withBorder p="md">
-    <Table striped highlightOnHover>
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th>{t("user_management.email")}</Table.Th>
-          <Table.Th>{t("user_management.name")}</Table.Th>
-          <Table.Th>{t("user_management.phone")}</Table.Th>
-          {showCompany ? (
-            <Table.Th>{t("user_management.company")}</Table.Th>
-          ) : null}
-          {actionButton ? (
-            <Table.Th style={{ width: 100 }}>
-              {t("user_management.actions")}
-            </Table.Th>
-          ) : null}
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {users.map((user) => (
-          <Table.Tr key={user.id}>
-            <Table.Td>{user.email}</Table.Td>
-            <Table.Td>
-              {getDisplayName(user.first_name, user.last_name)}
-            </Table.Td>
-            <Table.Td>{user.phone_number ?? "-"}</Table.Td>
-            {showCompany ? (
-              <Table.Td>
-                {"company" in user ? (user.company?.name ?? "-") : "-"}
-              </Table.Td>
-            ) : null}
-            {actionButton ? <Table.Td>{actionButton(user)}</Table.Td> : null}
-          </Table.Tr>
-        ))}
-      </Table.Tbody>
-    </Table>
-  </Paper>
-);
+}: UserTableProps) => {
+  const columns: DataTableColumn<UserTableUser>[] = [
+    {
+      key: "email",
+      header: t("user_management.email"),
+      render: (user) => user.email,
+      searchableValue: (user) => user.email,
+    },
+    {
+      key: "name",
+      header: t("user_management.name"),
+      render: (user) => getDisplayName(user.first_name, user.last_name),
+      searchableValue: (user) =>
+        getDisplayName(user.first_name, user.last_name),
+    },
+    {
+      key: "phone",
+      header: t("user_management.phone"),
+      render: (user) => user.phone_number ?? "-",
+      searchableValue: (user) => user.phone_number ?? "",
+    },
+  ];
+
+  if (showCompany) {
+    columns.push({
+      key: "company",
+      header: t("user_management.company"),
+      render: (user) => ("company" in user ? (user.company?.name ?? "-") : "-"),
+      searchableValue: (user) =>
+        "company" in user ? (user.company?.name ?? "") : "",
+    });
+  }
+
+  if (actionButton) {
+    columns.push({
+      key: "actions",
+      header: t("user_management.actions"),
+      render: actionButton,
+      width: 100,
+    });
+  }
+
+  return (
+    <Paper withBorder p="lg" radius="md">
+      <DataTable
+        columns={columns}
+        data={users}
+        emptyLabel={t("user_management.table_empty")}
+        getRowKey={(user) => user.id}
+        pagination={{
+          pageSummary: (first, last, total) =>
+            t("user_management.table_page_summary", { first, last, total }),
+          rowsPerPage: t("user_management.table_rows_per_page"),
+        }}
+        search={{
+          noResults: t("user_management.table_no_results"),
+          placeholder: t("user_management.table_search_placeholder"),
+        }}
+      />
+    </Paper>
+  );
+};
 export default UserTable;

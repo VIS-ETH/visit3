@@ -13,6 +13,13 @@
   --visit-body-bg: #f7f8f9;
   --visit-header-bg: rgba(255, 255, 255, 0.97);
   --visit-navbar-bg: rgba(255, 255, 255, 0.98);
+  --visit-panel-bg: rgba(255, 255, 255, 0.98);
+  --visit-control-bg: rgba(255, 255, 255, 0.84);
+  --visit-table-row-hover-bg: color-mix(
+    in srgb,
+    var(--mantine-color-brand-5) 10%,
+    transparent
+  );
   --visit-card-shadow: 0 24px 48px -38px rgba(19, 58, 66, 0.35);
   --visit-feature-shadow: 0 22px 48px -34px rgba(18, 60, 67, 0.65);
   --visit-nav-subtle-hover-bg: color-mix(
@@ -54,6 +61,9 @@
   --visit-body-bg: #0f1318;
   --visit-header-bg: rgba(23, 27, 32, 0.96);
   --visit-navbar-bg: rgba(23, 27, 32, 0.98);
+  --visit-panel-bg: rgba(23, 27, 32, 0.98);
+  --visit-control-bg: rgba(255, 255, 255, 0.045);
+  --visit-table-row-hover-bg: rgba(255, 255, 255, 0.045);
   --visit-card-shadow: 0 24px 48px -38px rgba(0, 0, 0, 0.6);
   --visit-feature-shadow: 0 22px 48px -34px rgba(0, 0, 0, 0.55);
   --visit-nav-subtle-hover-bg: color-mix(
@@ -190,7 +200,28 @@ body {
   border: 1px solid var(--visit-border);
   border-radius: 18px;
   padding: 20px;
-  background: var(--visit-surface);
+  background: var(--visit-panel-bg);
+}
+
+.mantine-Paper-root,
+.mantine-Card-root {
+  border-color: var(--visit-border);
+  background: var(--visit-panel-bg);
+}
+
+.mantine-Paper-root .mantine-Table-tr[data-striped="odd"],
+.mantine-Card-root .mantine-Table-tr[data-striped="odd"] {
+  background: transparent;
+}
+
+.mantine-Paper-root .mantine-Table-tr:hover,
+.mantine-Card-root .mantine-Table-tr:hover {
+  background: var(--visit-table-row-hover-bg);
+}
+
+.mantine-Paper-root .mantine-Input-input,
+.mantine-Card-root .mantine-Input-input {
+  background: var(--visit-control-bg);
 }
 
 a {

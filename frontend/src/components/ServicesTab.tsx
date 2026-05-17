@@ -1,14 +1,11 @@
 import {
   ActionIcon,
   Button,
-  Center,
   Group,
-  Loader,
   NumberInput,
+  Paper,
   Stack,
   Switch,
-  Table,
-  Text,
   TextInput,
   Textarea,
   Title,
@@ -21,6 +18,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   getListServicesQueryKey,
+  type ListServicesQueryResult,
   useCreateService,
   useDeleteService,
   useListServices,
@@ -33,6 +31,9 @@ import {
   centsToCurrencyAmount,
   currencyAmountToCents,
 } from "../utils/price-utils";
+import DataTable, { type DataTableColumn } from "./DataTable";
+
+type ServiceRow = ListServicesQueryResult[number];
 
 const ServicesTab = ({ eventId }: { eventId: string }) => {
   const { t } = useTranslation();
@@ -116,14 +117,6 @@ const ServicesTab = ({ eventId }: { eventId: string }) => {
     },
   });
 
-  if (isLoading) {
-    return (
-      <Center py="md">
-        <Loader />
-      </Center>
-    );
-  }
-
   const isSaving = isCreating || isUpdating;
   const isEditing = editingServiceId !== null;
 
@@ -175,19 +168,77 @@ const ServicesTab = ({ eventId }: { eventId: string }) => {
     });
   });
 
-  return (
-    <Stack gap="md">
-      <Group justify="space-between">
-        <Title order={4}>{t("kp.manage.services_title")}</Title>
-        <Button
-          leftSection={<IconPlus size={16} />}
-          size="xs"
-          onClick={openCreateModal}
-        >
-          {t("kp.manage.services_add")}
-        </Button>
-      </Group>
+  const columns: DataTableColumn<ServiceRow>[] = [
+    {
+      key: "name",
+      header: t("kp.manage.service_name"),
+      render: (service) => service.name,
+      searchableValue: (service) => service.name,
+    },
+    {
+      key: "price",
+      header: t("kp.manage.service_price"),
+      render: (service) => (service.price / 100).toFixed(2),
+      searchableValue: (service) => (service.price / 100).toFixed(2),
+    },
+    {
+      key: "max-per-booking",
+      header: t("kp.manage.service_max_per_booking"),
+      render: (service) => service.max_quantity_per_booking,
+      searchableValue: (service) => String(service.max_quantity_per_booking),
+    },
+    {
+      key: "active",
+      header: t("kp.manage.service_active"),
+      render: (service) => (
+        <Switch
+          checked={service.is_active}
+          onChange={(e) =>
+            update({
+              serviceId: service.id,
+              data: { is_active: e.currentTarget.checked },
+            })
+          }
+          size="sm"
+        />
+      ),
+      searchableValue: (service) =>
+        service.is_active
+          ? t("kp.manage.service_active_yes")
+          : t("kp.manage.service_active_no"),
+    },
+    {
+      key: "actions",
+      header: "",
+      render: (service) => (
+        <Group gap="xs">
+          <ActionIcon
+            variant="subtle"
+            onClick={() => openEditModal(service)}
+            aria-label={t("kp.manage.services_edit")}
+          >
+            <IconEdit size={16} />
+          </ActionIcon>
+          <ActionIcon
+            color="red"
+            variant="subtle"
+            aria-label={t("kp.manage.service_confirm_delete")}
+            onClick={() => {
+              if (confirm(t("kp.manage.service_confirm_delete"))) {
+                remove({ serviceId: service.id });
+              }
+            }}
+          >
+            <IconTrash size={16} />
+          </ActionIcon>
+        </Group>
+      ),
+      width: 90,
+    },
+  ];
 
+  return (
+    <>
       <ManageEntityModal
         opened={opened}
         onClose={handleCloseModal}
@@ -243,63 +294,29 @@ const ServicesTab = ({ eventId }: { eventId: string }) => {
         </Group>
       </ManageEntityModal>
 
-      {services && services.length > 0 ? (
-        <Table highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>{t("kp.manage.service_name")}</Table.Th>
-              <Table.Th>{t("kp.manage.service_price")}</Table.Th>
-              <Table.Th>{t("kp.manage.service_max_per_booking")}</Table.Th>
-              <Table.Th>{t("kp.manage.service_active")}</Table.Th>
-              <Table.Th />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {services.map((service) => (
-              <Table.Tr key={service.id}>
-                <Table.Td fw={500}>{service.name}</Table.Td>
-                <Table.Td>{(service.price / 100).toFixed(2)}</Table.Td>
-                <Table.Td>{service.max_quantity_per_booking}</Table.Td>
-                <Table.Td>
-                  <Switch
-                    checked={service.is_active}
-                    onChange={(e) =>
-                      update({
-                        serviceId: service.id,
-                        data: { is_active: e.currentTarget.checked },
-                      })
-                    }
-                    size="sm"
-                  />
-                </Table.Td>
-                <Table.Td>
-                  <ActionIcon
-                    variant="subtle"
-                    onClick={() => openEditModal(service)}
-                    aria-label={t("kp.manage.services_edit")}
-                  >
-                    <IconEdit size={16} />
-                  </ActionIcon>
-                  <ActionIcon
-                    color="red"
-                    variant="subtle"
-                    onClick={() => {
-                      if (confirm(t("kp.manage.service_confirm_delete"))) {
-                        remove({ serviceId: service.id });
-                      }
-                    }}
-                  >
-                    <IconTrash size={16} />
-                  </ActionIcon>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      ) : (
-        <Text c="dimmed">{t("kp.manage.services_empty")}</Text>
-      )}
-    </Stack>
+      <Paper withBorder p="lg" radius="md">
+        <Stack gap="md">
+          <Group justify="space-between">
+            <Title order={4}>{t("kp.manage.services_title")}</Title>
+            <Button
+              leftSection={<IconPlus size={16} />}
+              size="xs"
+              onClick={openCreateModal}
+            >
+              {t("kp.manage.services_add")}
+            </Button>
+          </Group>
+
+          <DataTable
+            columns={columns}
+            data={services}
+            emptyLabel={t("kp.manage.services_empty")}
+            getRowKey={(service) => service.id}
+            isLoading={isLoading}
+          />
+        </Stack>
+      </Paper>
+    </>
   );
 };
 export default ServicesTab;
