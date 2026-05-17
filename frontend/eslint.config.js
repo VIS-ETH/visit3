@@ -9,6 +9,13 @@ import reactRefreshPlugin from "eslint-plugin-react-refresh";
 
 export default defineConfig([
   globalIgnores(["dist", "node_modules", "**/generated/**"]),
+  {
+    settings: {
+      react: {
+        version: "detect",
+      },
+    },
+  },
   js.configs.recommended,
   importPlugin.flatConfigs.recommended,
   ...tseslint.configs.recommended,
@@ -27,11 +34,6 @@ export default defineConfig([
         ecmaFeatures: {
           jsx: true,
         },
-      },
-    },
-    settings: {
-      react: {
-        version: "detect",
       },
     },
     rules: {
