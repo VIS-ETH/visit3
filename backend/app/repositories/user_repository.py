@@ -40,10 +40,24 @@ class UserRepository(BaseRepository[User]):
         return result.scalars().all()
 
     async def load_user_company(self, user: User) -> User:
-        return await self.load_fields(user, "company")
+        statement = (
+            select(User)
+            .where(col(User.id) == user.id)
+            .options(selectinload(rel(User.company)))
+            .execution_options(populate_existing=True)
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none() or user
 
     async def load_user_roles(self, user: User) -> User:
-        return await self.load_fields(user, "roles")
+        statement = (
+            select(User)
+            .where(col(User.id) == user.id)
+            .options(selectinload(rel(User.roles)))
+            .execution_options(populate_existing=True)
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none() or user
 
     async def get_users(self) -> Sequence[User]:
         statement = select(User)
@@ -124,7 +138,7 @@ class UserRepository(BaseRepository[User]):
             self._validate_user(user)
             self.session.add(user)
             await self.session.commit()
-            return await self.load_fields(user, "company")
+            return await self.load_user_company(user)
         except Exception as e:
             await self.session.rollback()
             raise e

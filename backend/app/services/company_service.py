@@ -117,6 +117,8 @@ class CompanyService:
         if self.current_user.company_id:
             raise NotAllowed(f"setup_company:already_in_company:{self.current_user.id}")
         normalized = name.strip()
+        if normalized == "":
+            raise NotAllowed("setup_company:empty_name")
         existing = await self.company_repository.get_by_name(normalized)
         if existing:
             raise NotAllowed(f"setup_company:name_taken:{normalized}")

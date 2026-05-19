@@ -149,12 +149,22 @@ class CompanyRepository(BaseRepository[Company]):
             await self.session.rollback()
             raise e
 
+    async def _load_user_company(self, user: User) -> User:
+        statement = (
+            select(User)
+            .where(col(User.id) == user.id)
+            .options(selectinload(rel(User.company)))
+            .execution_options(populate_existing=True)
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none() or user
+
     async def assign_user(self, user: User, company_id: UUID) -> User:
         try:
             user.company_id = company_id
             self.session.add(user)
             await self.session.commit()
-            return await self.load_fields(user, "company")
+            return await self._load_user_company(user)
         except Exception as e:
             await self.session.rollback()
             raise e
@@ -169,7 +179,7 @@ class CompanyRepository(BaseRepository[Company]):
             user.company_id = None
             self.session.add(user)
             await self.session.commit()
-            return await self.load_fields(user, "company")
+            return await self._load_user_company(user)
         except Exception as e:
             await self.session.rollback()
             raise e
