@@ -50,6 +50,8 @@ codegen = [
 ]
 
 dev = [
+    "aiosqlite>=0.22.0",
+    "greenlet>=3.3.0",
     "pyright>=1.1.409",
     "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
