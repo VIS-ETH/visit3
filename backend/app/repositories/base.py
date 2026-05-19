@@ -45,11 +45,6 @@ class BaseRepository(Generic[T]):
             setattr(instance, field_name, value)
         return instance
 
-    async def load_fields(self, instance: ModelT, *fields: str) -> ModelT:
-        """Load selected fields or relationships on an instance."""
-        await self.session.refresh(instance, attribute_names=list(fields))
-        return instance
-
     async def get_by_id(self, entity_id: UUID) -> T | None:
         """Return one active repository model row by id, or None."""
         if not issubclass(self.model, BaseEntity):
