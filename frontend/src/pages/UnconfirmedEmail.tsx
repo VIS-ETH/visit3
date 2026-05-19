@@ -1,4 +1,4 @@
-import { Button, Center, Stack, Text, Title } from "@mantine/core";
+import { Button, Center, Stack, Text } from "@mantine/core";
 import { IconMail } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router";
@@ -17,11 +17,7 @@ const UnconfirmedEmail = () => {
     if (user?.email_confirmed) navigate("/", { replace: true });
   }, [user?.email_confirmed, navigate]);
 
-  const {
-    mutate: send,
-    isPending,
-    isError,
-  } = useSendConfirmationMail({
+  const { mutate: send, isPending } = useSendConfirmationMail({
     mutation: {
       onSuccess: () => {
         setEmailSent(true);
@@ -61,10 +57,9 @@ const UnconfirmedEmail = () => {
           <Text ta="center" c="dimmed" maw={520}>
             {t("email.confirm.unconfirmed_description", { email: user.email })}
           </Text>
-          {isError && <Title c="red">{t("email.confirm.error")}</Title>}
           <Button
             size="lg"
-            disabled={isPending || isError}
+            disabled={isPending}
             onClick={() => {
               send();
             }}

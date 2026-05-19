@@ -74,11 +74,7 @@ const UserManagement = () => {
     isError: isAdminsError,
   } = useGetAllAdmins({ query: { enabled: activeTab === "admins" } });
 
-  const {
-    mutate: confirm,
-    isPending: isConfirming,
-    isError: isConfirmError,
-  } = useConfirmUser({
+  const { mutate: confirm, isPending: isConfirming } = useConfirmUser({
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({
@@ -88,11 +84,7 @@ const UserManagement = () => {
     },
   });
 
-  const {
-    mutate: deleteUser,
-    isPending: isDeleting,
-    isError: isDeleteError,
-  } = useDeleteUser({
+  const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser({
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({
@@ -184,26 +176,6 @@ const UserManagement = () => {
             </Group>
           </Stack>
         </Modal>
-
-        {isConfirmError && (
-          <Alert
-            icon={<IconAlertCircle />}
-            color="red"
-            title={t("server.error")}
-          >
-            {t("user_management.confirm_error")}
-          </Alert>
-        )}
-
-        {adminStatus && isDeleteError && (
-          <Alert
-            icon={<IconAlertCircle />}
-            color="red"
-            title={t("server.error")}
-          >
-            {t("user_management.delete_error")}
-          </Alert>
-        )}
 
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>

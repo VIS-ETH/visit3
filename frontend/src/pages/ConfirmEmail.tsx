@@ -5,7 +5,6 @@ import {
   useValidateConfirmEmailToken,
 } from "../orval/generated/user/user";
 import {
-  Alert,
   Button,
   Center,
   Group,
@@ -15,12 +14,7 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import {
-  IconAlertCircle,
-  IconMailCheck,
-  IconMailX,
-  IconArrowLeft,
-} from "@tabler/icons-react";
+import { IconMailCheck, IconMailX, IconArrowLeft } from "@tabler/icons-react";
 
 const ConfirmEmail = () => {
   const { token } = useParams();
@@ -42,7 +36,6 @@ const ConfirmEmail = () => {
     mutate: confirmEmail,
     isPending: isConfirmPending,
     isSuccess: isConfirmSuccess,
-    isError: isConfirmError,
   } = useConfirmEmail();
 
   if (token === undefined) {
@@ -136,17 +129,6 @@ const ConfirmEmail = () => {
               </Text>
             </Stack>
           </Stack>
-
-          {isConfirmError && (
-            <Alert
-              icon={<IconAlertCircle />}
-              color="red"
-              title={t("server.error")}
-              variant="light"
-            >
-              {t("email.confirm.error")}
-            </Alert>
-          )}
 
           <Group grow>
             <Button

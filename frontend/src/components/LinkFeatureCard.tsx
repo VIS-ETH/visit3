@@ -27,7 +27,6 @@ const LinkFeatureCard = ({
       radius="lg"
       p="lg"
       style={{
-        borderColor: "var(--visit-border)",
         boxShadow: "var(--visit-feature-shadow)",
       }}
     >

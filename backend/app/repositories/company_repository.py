@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlmodel import col, select, update
@@ -53,10 +54,23 @@ class CompanyRepository(BaseRepository[Company]):
         result = await self.session.execute(statement)
         return result.scalars().all()
 
-    async def get_companies_with_users(self) -> Sequence[Company]:
-        statement = select(Company).options(selectinload(rel(Company.users)))
+    async def get_companies_with_user_counts(self) -> Sequence[tuple[UUID, str, int]]:
+        statement = (
+            select(col(Company.id), col(Company.name), func.count(col(User.id)))
+            .outerjoin(User, col(User.company_id) == col(Company.id))
+            .group_by(col(Company.id), col(Company.name))
+        )
         result = await self.session.execute(statement)
-        return result.scalars().all()
+        return [(company_id, name, count) for company_id, name, count in result.all()]
+
+    async def get_company_with_users(self, company_id: UUID) -> Optional[Company]:
+        statement = (
+            select(Company)
+            .where(col(Company.id) == company_id)
+            .options(selectinload(rel(Company.users)))
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
 
     async def get_kp_profile(self, company_id: UUID) -> Optional[KpCompanyProfile]:
         statement = (

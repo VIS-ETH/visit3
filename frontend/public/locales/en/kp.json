@@ -271,6 +271,8 @@
       "service_number_non_negative": "Value must be a non-negative number.",
       "service_max_per_booking_min": "Max per booking must be at least 1.",
       "service_active": "Active",
+      "service_active_yes": "Active",
+      "service_active_no": "Inactive",
       "service_created": "Service created.",
       "service_updated": "Service updated.",
       "service_deleted": "Service deleted.",
@@ -301,10 +303,18 @@
       "industry_confirm_delete": "Delete this industry?",
       "bookings_title": "Bookings",
       "bookings_empty": "No bookings yet.",
+      "bookings_no_results": "No bookings match your search.",
+      "bookings_search_placeholder": "Search bookings",
+      "bookings_rows_per_page": "Rows",
+      "bookings_page_summary": "Showing {{first}}-{{last}} of {{total}}",
       "booking_company": "Company",
       "booking_booth_zone": "Booth Zone",
       "booking_booth_nr": "Booth Number",
-      "booking_status": "Status"
+      "booking_status": "Status",
+      "booking_actions": "Actions",
+      "booking_confirm": "Confirm booking",
+      "booking_confirm_prompt": "Confirm this booking?",
+      "booking_confirmed": "Booking confirmed."
     }
   }
 }

@@ -17,6 +17,7 @@ import UnconfirmedEmail from "./pages/UnconfirmedEmail";
 import ConfirmEmail from "./pages/ConfirmEmail";
 import UnconfirmedUser from "./pages/UnconfirmedUser";
 import CompanyManagement from "./pages/CompanyManagement";
+import CompanyUsers from "./pages/CompanyUsers";
 import CompanyProfile from "./pages/CompanyProfile";
 import CompanyJoin from "./pages/CompanyJoin";
 import SetupCompany from "./pages/SetupCompany";
@@ -98,6 +99,10 @@ function AppRoutes() {
         <Route element={<StaffRoute />}>
           <Route path="/user-management" element={<UserManagement />} />
           <Route path="/company-management" element={<CompanyManagement />} />
+          <Route
+            path="/company-management/:companyId/users"
+            element={<CompanyUsers />}
+          />
         </Route>
       </Route>
     </Routes>
