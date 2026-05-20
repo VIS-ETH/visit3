@@ -11,6 +11,7 @@ from app.core.exceptions import (
     KpBookingStatusTransitionInvalid,
     KpBoothZoneAtCapacity,
     KpBoothZoneEventMismatch,
+    KpEventNotFound,
     KpNameExists,
     KpRegistrationClosed,
     KpRequirementFileUploadNotAllowed,
@@ -31,6 +32,7 @@ from app.models.kp_event import (
 )
 from app.models.storage import StoredFile
 from app.schemas.kp import (
+    CloneKpInput,
     CreateKpInput,
     UpdateBookingInput,
     UpdateBookingStatusInput,
@@ -176,6 +178,18 @@ def make_create_kp_input(name: str = "Kontaktparty") -> CreateKpInput:
     )
 
 
+def make_clone_kp_input(name: str = "Kontaktparty Clone") -> CloneKpInput:
+    event = make_event(name=name)
+    return CloneKpInput(
+        name=event.name,
+        registration_open=event.registration_open,
+        registration_end=event.registration_end,
+        finalization_deadline=event.finalization_deadline,
+        nametags_deadline=event.nametags_deadline,
+        event_date=event.event_date,
+    )
+
+
 async def test_create_kp_rejects_duplicate_name(kp_service):
     create_input = make_create_kp_input(name="Kontaktparty")
     kp_service.kp_repo.get_by_name.return_value = make_event(name="Kontaktparty")
@@ -196,6 +210,41 @@ async def test_create_kp_delegates_to_repository(kp_service):
 
     assert result is event
     kp_service.kp_repo.create_kp.assert_awaited_once_with(create_input)
+
+
+async def test_clone_kp_rejects_missing_source(kp_service):
+    clone_input = make_clone_kp_input()
+    kp_service.kp_repo.get_by_name.return_value = None
+    kp_service.kp_repo.clone_kp.return_value = None
+
+    with pytest.raises(KpEventNotFound):
+        await kp_service.service.clone_kp(uuid4(), clone_input)
+
+    kp_service.kp_repo.clone_kp.assert_awaited_once()
+
+
+async def test_clone_kp_rejects_duplicate_name(kp_service):
+    event = make_event()
+    clone_input = make_clone_kp_input(name="Kontaktparty Clone")
+    kp_service.kp_repo.get_by_name.return_value = make_event(name=clone_input.name)
+
+    with pytest.raises(KpNameExists):
+        await kp_service.service.clone_kp(event.id, clone_input)
+
+    kp_service.kp_repo.clone_kp.assert_not_awaited()
+
+
+async def test_clone_kp_delegates_to_repository(kp_service):
+    event = make_event()
+    clone_input = make_clone_kp_input(name="Kontaktparty Clone")
+    cloned_event = make_event(name=clone_input.name)
+    kp_service.kp_repo.get_by_name.return_value = None
+    kp_service.kp_repo.clone_kp.return_value = cloned_event
+
+    result = await kp_service.service.clone_kp(event.id, clone_input)
+
+    assert result is cloned_event
+    kp_service.kp_repo.clone_kp.assert_awaited_once_with(event.id, clone_input)
 
 
 async def test_register_booking_creates_booking_when_zone_has_capacity(

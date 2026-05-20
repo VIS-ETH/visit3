@@ -19,6 +19,7 @@ from app.models.kp_event import (
     KpEventBookingServiceFileLink,
     KpEventBookingUpgradeWaitlist,
     KpEventBoothZone,
+    KpEventBoothZoneServiceLink,
     KpEventNametagBackground,
     KpEventRegistrationException,
     KpEventService,
@@ -29,6 +30,7 @@ from app.models.kp_event import (
 from app.models.storage import StoredFile
 from app.repositories.base import BaseRepository, rel
 from app.schemas.kp import (
+    CloneKpInput,
     CreateBookingInput,
     CreateBoothZoneInput,
     CreateIndustryInput,
@@ -40,6 +42,37 @@ from app.schemas.kp import (
     UpdateServiceInput,
     UpsertCompanyDetailsInput,
 )
+
+SERVICE_CLONE_FIELDS = (
+    "name",
+    "description",
+    "image_url",
+    "confirmation_description",
+    "order",
+    "price",
+    "max_quantity_per_booking",
+    "max_total_quantity",
+    "is_active",
+)
+
+SERVICE_REQUIREMENT_CLONE_FIELDS = (
+    "type",
+    "name",
+    "description",
+    "order",
+)
+
+BOOTH_ZONE_CLONE_FIELDS = (
+    "name",
+    "description",
+    "color",
+    "order",
+    "capacity",
+    "booth_size",
+    "base_price",
+)
+
+INCLUDED_SERVICE_CLONE_FIELDS = ("included_quantity",)
 
 
 class KpRepository(BaseRepository[KpEvent]):
@@ -131,6 +164,89 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.commit()
             await self.session.refresh(event)
             return event
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def clone_kp(
+        self, event_id: UUID, clone_kp_input: CloneKpInput
+    ) -> Optional[KpEvent]:
+        try:
+            statement = (
+                select(KpEvent)
+                .where(col(KpEvent.id) == event_id)
+                .options(
+                    selectinload(rel(KpEvent.services)).selectinload(
+                        rel(KpEventService.requirements)
+                    ),
+                    selectinload(rel(KpEvent.booth_zones)).selectinload(
+                        rel(KpEventBoothZone.included_services)
+                    ),
+                )
+            )
+            result = await self.session.execute(statement)
+            source_event = result.scalar_one_or_none()
+            if source_event is None:
+                return None
+
+            cloned_event = KpEvent(**clone_kp_input.model_dump())
+            self._validate_model(
+                cloned_event,
+                exclude={
+                    "booth_zones",
+                    "bookings",
+                    "services",
+                    "registration_exceptions",
+                    "nametag_background",
+                },
+            )
+            self.session.add(cloned_event)
+
+            service_id_map: dict[UUID, UUID] = {}
+            for service in source_event.services:
+                cloned_service = self._clone_model(
+                    KpEventService,
+                    service,
+                    SERVICE_CLONE_FIELDS,
+                    event_id=cloned_event.id,
+                )
+                service_id_map[service.id] = cloned_service.id
+
+                for requirement in service.requirements:
+                    self._clone_model(
+                        KpEventServiceRequirement,
+                        requirement,
+                        SERVICE_REQUIREMENT_CLONE_FIELDS,
+                        service_id=cloned_service.id,
+                    )
+
+            booth_zone_id_map: dict[UUID, UUID] = {}
+            for booth_zone in source_event.booth_zones:
+                cloned_booth_zone = self._clone_model(
+                    KpEventBoothZone,
+                    booth_zone,
+                    BOOTH_ZONE_CLONE_FIELDS,
+                    event_id=cloned_event.id,
+                )
+                booth_zone_id_map[booth_zone.id] = cloned_booth_zone.id
+
+            for booth_zone in source_event.booth_zones:
+                cloned_booth_zone_id = booth_zone_id_map[booth_zone.id]
+                for included_service in booth_zone.included_services:
+                    cloned_service_id = service_id_map.get(included_service.service_id)
+                    if cloned_service_id is None:
+                        continue
+                    self._clone_model(
+                        KpEventBoothZoneServiceLink,
+                        included_service,
+                        INCLUDED_SERVICE_CLONE_FIELDS,
+                        booth_zone_id=cloned_booth_zone_id,
+                        service_id=cloned_service_id,
+                    )
+
+            await self.session.commit()
+            await self.session.refresh(cloned_event)
+            return cloned_event
         except Exception as e:
             await self.session.rollback()
             raise e

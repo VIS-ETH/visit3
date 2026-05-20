@@ -19,13 +19,12 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import BackButton from "../components/BackButton";
 import DataTable, { type DataTableColumn } from "../components/DataTable";
-import { kpSchema, type KpFormValues } from "../schemas/kpSchema";
+import { kpSchema, toKpRequest, type KpFormValues } from "../schemas/kpSchema";
 import {
   EVENT_STATUS_COLORS,
   formatKpDateInput,
   formatKpDisplayDate,
   getEventStatus,
-  toKpIsoDate,
   type EventStatus,
 } from "../utils/kp-utils";
 import { useTranslatedForm } from "../utils/translator";
@@ -112,14 +111,7 @@ const KpDashboard = () => {
 
   const handleCreate = (values: KpFormValues) => {
     createEvent({
-      data: {
-        name: values.name.trim(),
-        registration_open: toKpIsoDate(values.registrationOpen),
-        registration_end: toKpIsoDate(values.registrationEnd),
-        finalization_deadline: toKpIsoDate(values.finalizationDeadline),
-        nametags_deadline: toKpIsoDate(values.nametagsDeadline),
-        event_date: toKpIsoDate(values.eventDate),
-      },
+      data: toKpRequest(values),
     });
   };
 

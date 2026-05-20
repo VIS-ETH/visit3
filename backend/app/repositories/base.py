@@ -45,6 +45,19 @@ class BaseRepository(Generic[T]):
             setattr(instance, field_name, value)
         return instance
 
+    def _clone_model(
+        self,
+        model: type[ModelT],
+        source: SQLModel,
+        fields: Sequence[str],
+        **overrides: Any,
+    ) -> ModelT:
+        values = source.model_dump(include=set(fields))
+        values.update(overrides)
+        cloned = model(**values)
+        self.session.add(cloned)
+        return cloned
+
     async def get_by_id(self, entity_id: UUID) -> T | None:
         """Return one active repository model row by id, or None."""
         if not issubclass(self.model, BaseEntity):
