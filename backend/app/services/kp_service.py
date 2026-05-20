@@ -92,9 +92,7 @@ class KpService:
     async def update_kp(
         self, event_id: UUID, update_kp_input: UpdateKpInput
     ) -> KpEvent:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         updates = update_kp_input.model_dump(exclude_unset=True)
         event = await self._get_event(event_id)
         new_name = updates.get("name")
@@ -109,18 +107,14 @@ class KpService:
     # --- Booth Zones ---
 
     async def list_booth_zones(self, event_id: UUID) -> Sequence[KpEventBoothZone]:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         await self._get_event(event_id)
         return await self.kp_repository.list_booth_zones(event_id)
 
     async def create_booth_zone(
         self, event_id: UUID, create_booth_zone_input: CreateBoothZoneInput
     ) -> KpEventBoothZone:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         await self._get_event(event_id)
         return await self.kp_repository.create_booth_zone(
             event_id, create_booth_zone_input
@@ -129,18 +123,14 @@ class KpService:
     async def update_booth_zone(
         self, booth_zone_id: UUID, update_booth_zone_input: UpdateBoothZoneInput
     ) -> KpEventBoothZone:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         zone = await self.kp_repository.get_booth_zone_by_id(booth_zone_id)
         if zone is None:
             raise KpBoothZoneNotFound(f"booth_zone:not_found:{booth_zone_id}")
         return await self.kp_repository.update_booth_zone(zone, update_booth_zone_input)
 
     async def delete_booth_zone(self, booth_zone_id: UUID) -> None:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         zone = await self.kp_repository.get_booth_zone_by_id(booth_zone_id)
         if zone is None:
             raise KpBoothZoneNotFound(f"booth_zone:not_found:{booth_zone_id}")
@@ -149,36 +139,28 @@ class KpService:
     # --- Services ---
 
     async def list_services(self, event_id: UUID) -> Sequence[KpEventService]:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         await self._get_event(event_id)
         return await self.kp_repository.list_services(event_id)
 
     async def create_service(
         self, event_id: UUID, create_service_input: CreateServiceInput
     ) -> KpEventService:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         await self._get_event(event_id)
         return await self.kp_repository.create_service(event_id, create_service_input)
 
     async def update_service(
         self, service_id: UUID, update_service_input: UpdateServiceInput
     ) -> KpEventService:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         service = await self.kp_repository.get_service_by_id(service_id)
         if service is None:
             raise KpServiceNotFound(f"service:not_found:{service_id}")
         return await self.kp_repository.update_service(service, update_service_input)
 
     async def delete_service(self, service_id: UUID) -> None:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         service = await self.kp_repository.get_service_by_id(service_id)
         if service is None:
             raise KpServiceNotFound(f"service:not_found:{service_id}")
@@ -187,17 +169,13 @@ class KpService:
     # --- Industries ---
 
     async def list_industries(self) -> Sequence[KpIndustry]:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         return await self.kp_repository.list_industries()
 
     async def create_industry(
         self, create_industry_input: CreateIndustryInput
     ) -> KpIndustry:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         existing = await self.kp_repository.get_industry_by_name(
             create_industry_input.name
         )
@@ -206,9 +184,7 @@ class KpService:
         return await self.kp_repository.create_industry(create_industry_input)
 
     async def delete_industry(self, industry_id: UUID) -> None:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         industry = await self.kp_repository.get_industry_by_id(industry_id)
         if industry is None:
             raise KpIndustryNotFound(f"industry:not_found:{industry_id}")
@@ -308,9 +284,7 @@ class KpService:
     # --- Bookings ---
 
     async def list_bookings_for_event(self, event_id: UUID) -> Sequence[KpEventBooking]:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         await self._get_event(event_id)
         return await self.kp_repository.list_bookings_for_event(event_id)
 
@@ -416,18 +390,14 @@ class KpService:
     async def update_booking_booth_number(
         self, booking_id: UUID, update_booking_input: UpdateBookingBoothNumberInput
     ) -> KpEventBooking:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         booking = await self._get_booking(booking_id)
         return await self.kp_repository.update_booking(
             booking, UpdateBookingInput(booth_nr=update_booking_input.booth_nr)
         )
 
     async def confirm_booking(self, booking_id: UUID) -> KpEventBooking:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         booking = await self._get_booking(booking_id)
         if booking.status != KpBookingStatus.FINALIZED:
             raise KpBookingConfirmationRequiresFinalized(
@@ -598,9 +568,7 @@ class KpService:
             await self.kp_repository.delete_stored_file(stored_file)
 
     async def create_kp(self, create_kp_input: CreateKpInput) -> KpEvent:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         existing = await self.kp_repository.get_by_name(create_kp_input.name)
         if existing is not None:
             raise KpNameExists(f"create_kp:{create_kp_input.name}")

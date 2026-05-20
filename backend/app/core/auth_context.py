@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
+from app.core.config import get_settings
 from app.core.exceptions import EmailNotConfirmed, NotAllowed, UserNotConfirmed
 from app.models.user import User
 
@@ -52,7 +53,8 @@ def require_assigned_company_user(user: User) -> AssignedCompanyUser:
     return AssignedCompanyUser(user=user, company_id=user.company_id)
 
 
-def require_kp_president_user(user: User, role: str) -> KpPresidentUser:
+def require_kp_president_user(user: User) -> KpPresidentUser:
+    role = get_settings().VISIT_KP_PRESIDENT_ROLE
     user_roles = {user_role.name for user_role in (user.roles or [])}
     if role not in user_roles and not user.is_admin:
         raise NotAllowed(f"require_role[{role}]:{user.id}")
