@@ -15,8 +15,9 @@ class PdfService:
         data: dict[str, Any],
         filename: str,
         root: str | None = None,
+        template_dir: Path = TEMPLATES_DIR,
     ) -> tuple[None | bytes, str]:
-        template_path = TEMPLATES_DIR / template_name
+        template_path = template_dir / template_name
         pdf_bytes = await asyncio.to_thread(
             typst.compile,
             str(template_path),

@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, File, Query, Response, UploadFile
 
 from app.core.deps import CsrfDep, ExportServiceDep, KpServiceDep
+from app.core.downloads import content_disposition_attachment
 from app.models.kp_event import (
     KpEvent,
     KpEventBooking,
@@ -58,12 +59,11 @@ def _zip_download(content: bytes, filename: str) -> Response:
 
 
 def _download(content: bytes, filename: str, media_type: str) -> Response:
-    safe_filename = filename.replace('"', "").replace("/", "-")
     return Response(
         content=content,
         media_type=media_type,
         headers={
-            "Content-Disposition": f'attachment; filename="{safe_filename}"',
+            "Content-Disposition": content_disposition_attachment(filename),
         },
     )
 

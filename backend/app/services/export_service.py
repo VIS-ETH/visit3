@@ -2,9 +2,11 @@ import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from shutil import copyfile
 from uuid import UUID, uuid4
 
 from app.core.auth_context import require_staff_user
+from app.core.downloads import sanitize_download_filename
 from app.core.exceptions import (
     KpBookingNotFound,
     KpEventNotFound,
@@ -28,6 +30,9 @@ from app.schemas.kp import (
 from app.services.csv_service import CsvService
 from app.services.pdf_service import PdfService
 from app.services.storage_service import StorageService
+
+TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+NAMETAG_TEMPLATE_NAME = "nametag.typ"
 
 NAMETAG_BACKGROUND_MIME_TYPES = {"image/png", "image/jpeg"}
 BOOKING_EXPORT_FIELDS = [
@@ -155,6 +160,9 @@ class ExportService:
         )
         return "-".join(part for part in safe.split("-") if part) or "export"
 
+    def _export_filename(self, filename: str) -> str:
+        return sanitize_download_filename(filename)
+
     def _bool(self, value: bool) -> str:
         return "yes" if value else "no"
 
@@ -254,18 +262,23 @@ class ExportService:
             raise KpExportEmpty("nametag_export:empty")
 
         suffix = self._background_suffix(background_mime_type)
-        with tempfile.NamedTemporaryFile(suffix=suffix) as background_file:
-            background_file.write(background_bytes)
-            background_file.flush()
+        with tempfile.TemporaryDirectory() as workspace:
+            workspace_path = Path(workspace)
+            background_path = workspace_path / f"background{suffix}"
+            template_path = workspace_path / NAMETAG_TEMPLATE_NAME
+            background_path.write_bytes(background_bytes)
+            copyfile(TEMPLATES_DIR / NAMETAG_TEMPLATE_NAME, template_path)
+
             content, rendered_filename = await self.pdf_service.render(
-                "exports/nametag.typ",
+                NAMETAG_TEMPLATE_NAME,
                 {
-                    "background_path": str(Path(background_file.name).resolve()),
+                    "background_path": background_path.name,
                     "columns": columns or 2,
                     "tags": [self._name_tag_data(name_tag) for name_tag in name_tags],
                 },
-                filename,
-                root="/",
+                self._export_filename(filename),
+                root=str(workspace_path),
+                template_dir=workspace_path,
             )
 
         if content is None:
