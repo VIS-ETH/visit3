@@ -101,6 +101,7 @@ SERVICE_REQUIREMENT_EXPORT_FIELDS = [
     "requirement",
     "requirement_type",
     "uploaded",
+    "text_value",
     "filename",
     "mime_type",
     "uploaded_at",
@@ -585,13 +586,14 @@ class ExportService:
         rows: list[dict[str, object]] = []
         for booking in bookings:
             for booking_service in booking.services:
-                files_by_requirement = {
-                    file_link.requirement_id: file_link
-                    for file_link in booking_service.requirement_file_links
+                answers_by_requirement = {
+                    answer.requirement_id: answer
+                    for answer in booking_service.requirement_file_links
                 }
                 for requirement in booking_service.service.requirements:
-                    file_link = files_by_requirement.get(requirement.id)
-                    stored_file = file_link.stored_file if file_link else None
+                    answer = answers_by_requirement.get(requirement.id)
+                    stored_file = answer.stored_file if answer else None
+                    text_value = answer.text_value if answer else None
                     rows.append(
                         {
                             "company": booking.company.name,
@@ -601,7 +603,10 @@ class ExportService:
                             "service": booking_service.service.name,
                             "requirement": requirement.name,
                             "requirement_type": requirement.type.value,
-                            "uploaded": self._bool(stored_file is not None),
+                            "uploaded": self._bool(
+                                stored_file is not None or bool(text_value)
+                            ),
+                            "text_value": text_value or "",
                             "filename": stored_file.original_filename
                             if stored_file
                             else "",

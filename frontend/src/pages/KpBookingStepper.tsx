@@ -3,36 +3,55 @@ import {
   Button,
   Card,
   Center,
+  FileButton,
   Grid,
   Group,
+  Image,
   Loader,
+  NumberInput,
   Paper,
+  SimpleGrid,
   Stack,
   Stepper,
   Text,
+  Textarea,
   Title,
 } from "@mantine/core";
 import {
   IconAlertCircle,
   IconCheck,
   IconClipboardList,
+  IconFile,
+  IconFileTypePdf,
   IconInfoCircle,
   IconMap,
   IconMapPin,
+  IconPhoto,
+  IconTrash,
+  IconUpload,
+  IconVideo,
 } from "@tabler/icons-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
+import { useListAvailableServices } from "../api/kp-services";
+import { KpEventServiceRequirementType } from "../orval/generated/fastAPI.schemas";
 import type {
   BookingResponse,
   BoothZoneWithAvailabilityResponse,
   KpResponse,
+  ServiceRequirementResponse,
+  ServiceResponse,
 } from "../orval/generated/fastAPI.schemas";
 import { useGetMyBooking } from "../orval/generated/kp/kp";
 import { getEventStatus } from "../utils/kp-utils";
-import type { BookingSummaryServiceLine } from "../components/KpBookingSummaryStep";
+import type {
+  BookingSummaryServiceLine,
+  DraftBookingService,
+} from "../components/KpBookingSummaryStep";
 import KpBookingSummaryStep from "../components/KpBookingSummaryStep";
 import KpBookingZoneSelector from "../components/KpBookingZoneSelector";
+import { formatPrice } from "../utils/price-utils";
 
 interface KpBookingStepperProps {
   event: KpResponse;
@@ -117,8 +136,195 @@ function KpBookingZoneStep({
   );
 }
 
-function KpBookingServicesStep() {
+function KpBookingServicesStep({
+  eventId,
+  selectedServices,
+  onChangeServices,
+  onValidityChange,
+}: {
+  eventId: string;
+  selectedServices: DraftBookingService[];
+  onChangeServices: (services: DraftBookingService[]) => void;
+  onValidityChange: (isValid: boolean) => void;
+}) {
   const { t } = useTranslation();
+  const { data: activeServices, isLoading } = useListAvailableServices(eventId);
+  const selectedServiceById = new Map(
+    selectedServices.map((service) => [service.serviceId, service]),
+  );
+
+  const updateQuantity = (service: ServiceResponse, quantity: number) => {
+    const nextQuantity = Math.max(
+      0,
+      Math.min(quantity, service.max_quantity_per_booking),
+    );
+    const next = selectedServices.filter((item) => item.serviceId !== service.id);
+    if (nextQuantity > 0) {
+      const current = selectedServiceById.get(service.id);
+      next.push({
+        serviceId: service.id,
+        quantity: nextQuantity,
+        requirements: current?.requirements ?? {},
+      });
+    }
+    onChangeServices(next);
+  };
+
+  const updateRequirement = (
+    serviceId: string,
+    requirementId: string,
+    value: { text?: string; file?: File | null },
+  ) => {
+    onChangeServices(
+      selectedServices.map((service) =>
+        service.serviceId === serviceId
+          ? {
+              ...service,
+              requirements: {
+                ...(service.requirements ?? {}),
+                [requirementId]: {
+                  ...(service.requirements?.[requirementId] ?? {}),
+                  ...value,
+                },
+              },
+            }
+          : service,
+      ),
+    );
+  };
+
+  const acceptForRequirement = (type: KpEventServiceRequirementType) => {
+    if (type === KpEventServiceRequirementType.image) return "image/*";
+    if (type === KpEventServiceRequirementType.pdf) return "application/pdf";
+    if (type === KpEventServiceRequirementType.video) return "video/*";
+    return undefined;
+  };
+
+  const iconForRequirement = (type: KpEventServiceRequirementType) => {
+    if (type === KpEventServiceRequirementType.image) return <IconPhoto size={16} />;
+    if (type === KpEventServiceRequirementType.pdf) {
+      return <IconFileTypePdf size={16} />;
+    }
+    if (type === KpEventServiceRequirementType.video) return <IconVideo size={16} />;
+    return <IconFile size={16} />;
+  };
+
+  const requirementUploadLabel = (type: KpEventServiceRequirementType) => {
+    if (type === KpEventServiceRequirementType.image) {
+      return t("kp.booking.requirement_upload_image");
+    }
+    if (type === KpEventServiceRequirementType.pdf) {
+      return t("kp.booking.requirement_upload_pdf");
+    }
+    if (type === KpEventServiceRequirementType.video) {
+      return t("kp.booking.requirement_upload_video");
+    }
+    return t("kp.booking.requirement_upload_file");
+  };
+
+  const requirementTypeLabel = (type: KpEventServiceRequirementType) => {
+    if (type === KpEventServiceRequirementType.text) {
+      return t("kp.booking.requirement_type_text");
+    }
+    if (type === KpEventServiceRequirementType.image) {
+      return t("kp.booking.requirement_type_image");
+    }
+    if (type === KpEventServiceRequirementType.pdf) {
+      return t("kp.booking.requirement_type_pdf");
+    }
+    if (type === KpEventServiceRequirementType.video) {
+      return t("kp.booking.requirement_type_video");
+    }
+    return t("kp.booking.requirement_type_file");
+  };
+
+  const renderRequirementField = (
+    service: ServiceResponse,
+    requirement: ServiceRequirementResponse,
+  ) => {
+    const value = selectedServiceById.get(service.id)?.requirements?.[
+      requirement.id
+    ];
+    if (requirement.type === KpEventServiceRequirementType.text) {
+      return (
+        <Textarea
+          label={requirement.name}
+          description={requirement.description}
+          minRows={3}
+          value={value?.text ?? ""}
+          onChange={(event) =>
+            updateRequirement(service.id, requirement.id, {
+              text: event.currentTarget.value,
+            })
+          }
+        />
+      );
+    }
+    return (
+      <Stack gap={4}>
+        <Text size="sm" fw={500}>
+          {requirement.name}
+        </Text>
+        <Text size="xs" c="dimmed">
+          {requirement.description}
+        </Text>
+        <Group gap="xs" wrap="nowrap">
+          <FileButton
+            accept={acceptForRequirement(requirement.type)}
+            onChange={(file) =>
+              updateRequirement(service.id, requirement.id, { file })
+            }
+          >
+            {(props) => (
+              <Button
+                {...props}
+                leftSection={<IconUpload size={16} />}
+                variant={value?.file ? "default" : "light"}
+              >
+                {value?.file
+                  ? t("kp.booking.requirement_replace_file")
+                  : requirementUploadLabel(requirement.type)}
+              </Button>
+            )}
+          </FileButton>
+          {value?.file ? (
+            <>
+              <Text size="sm" truncate="end">
+                {value.file.name}
+              </Text>
+              <Button
+                color="red"
+                leftSection={<IconTrash size={16} />}
+                onClick={() =>
+                  updateRequirement(service.id, requirement.id, { file: null })
+                }
+                variant="subtle"
+              >
+                {t("kp.booking.requirement_clear_file")}
+              </Button>
+            </>
+          ) : null}
+        </Group>
+      </Stack>
+    );
+  };
+
+  useEffect(() => {
+    const services = activeServices ?? [];
+    const isValid = selectedServices.every((selectedService) => {
+      const service = services.find((item) => item.id === selectedService.serviceId);
+      if (!service) return true;
+      return service.requirements.every((requirement) => {
+        const value = selectedService.requirements?.[requirement.id];
+        if (requirement.type === KpEventServiceRequirementType.text) {
+          return Boolean(value?.text?.trim());
+        }
+        return Boolean(value?.file);
+      });
+    });
+    onValidityChange(isValid);
+  }, [activeServices, selectedServices, onValidityChange]);
+
   return (
     <Card withBorder radius="md" p="lg" mt="xs">
       <Group gap="sm" mb="sm">
@@ -129,6 +335,95 @@ function KpBookingServicesStep() {
       <Alert icon={<IconInfoCircle />} color="orange" variant="light">
         <Text size="sm">{t("kp.booking.services_policy")}</Text>
       </Alert>
+      {isLoading ? (
+        <Center py="xl">
+          <Loader />
+        </Center>
+      ) : (activeServices ?? []).length === 0 ? (
+        <Text c="dimmed" size="sm" mt="md">
+          {t("kp.booking.services_none_available")}
+        </Text>
+      ) : (
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" mt="md">
+          {(activeServices ?? []).map((service) => {
+            const selectedService = selectedServiceById.get(service.id);
+            const quantity = selectedService?.quantity ?? 0;
+            return (
+              <Paper withBorder radius="md" p="md" key={service.id}>
+                <Stack gap="xs">
+                  {service.image_url ? (
+                    <Image
+                      alt={service.name}
+                      fit="cover"
+                      h={96}
+                      radius="sm"
+                      src={service.image_url}
+                    />
+                  ) : null}
+                  <Group justify="space-between" align="flex-start" wrap="nowrap">
+                    <div style={{ minWidth: 0 }}>
+                      <Text fw={600}>{service.name}</Text>
+                      {service.description ? (
+                        <Text c="dimmed" size="sm" mt={4}>
+                          {service.description}
+                        </Text>
+                      ) : null}
+                    </div>
+                    <Text fw={600} size="sm" ta="right">
+                      CHF {formatPrice(service.price)}
+                    </Text>
+                  </Group>
+                  <NumberInput
+                    label={t("kp.booking.service_quantity")}
+                    min={0}
+                    max={service.max_quantity_per_booking}
+                    value={quantity}
+                    onChange={(value) =>
+                      updateQuantity(
+                        service,
+                        typeof value === "number" ? value : Number(value) || 0,
+                      )
+                    }
+                  />
+                  {service.max_total_quantity > 0 ? (
+                    <Text c="dimmed" size="xs">
+                      {t("kp.booking.service_limited_total", {
+                        total: service.max_total_quantity,
+                      })}
+                    </Text>
+                  ) : null}
+                  {quantity > 0 && service.requirements.length > 0 ? (
+                    <Stack gap="sm" mt="xs">
+                      <Text size="sm" fw={600}>
+                        {t("kp.booking.service_requirements")}
+                      </Text>
+                      {service.requirements
+                        .slice()
+                        .sort((a, b) => a.order - b.order)
+                        .map((requirement) => (
+                          <Paper
+                            withBorder
+                            radius="sm"
+                            p="sm"
+                            key={requirement.id}
+                          >
+                            <Group gap="xs" mb="xs">
+                              {iconForRequirement(requirement.type)}
+                              <Text size="xs" c="dimmed">
+                                {requirementTypeLabel(requirement.type)}
+                              </Text>
+                            </Group>
+                            {renderRequirementField(service, requirement)}
+                          </Paper>
+                        ))}
+                    </Stack>
+                  ) : null}
+                </Stack>
+              </Paper>
+            );
+          })}
+        </SimpleGrid>
+      )}
     </Card>
   );
 }
@@ -141,6 +436,8 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
     useState<BoothZoneWithAvailabilityResponse | null>(null);
   const [draftAdditionalServiceLines, setDraftAdditionalServiceLines] =
     useState<BookingSummaryServiceLine[]>([]);
+  const [draftServices, setDraftServices] = useState<DraftBookingService[]>([]);
+  const [servicesStepValid, setServicesStepValid] = useState(true);
   const summaryConfirmActionRef = useRef<(() => void) | null>(null);
   const [summaryConfirmUiState, setSummaryConfirmUiState] = useState({
     visible: false,
@@ -155,6 +452,8 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
 
   useEffect(() => {
     setDraftAdditionalServiceLines([]);
+    setDraftServices([]);
+    setServicesStepValid(true);
   }, [selectedZone?.id]);
 
   const handleSummaryConfirmStateChange = useCallback(
@@ -236,6 +535,7 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
     onForward = () => setActiveStep(1);
   } else if (activeStep === 1) {
     forwardLabel = t("kp.booking.continue_to_summary");
+    forwardDisabled = !servicesStepValid;
     onForward = () => setActiveStep(2);
   } else if (activeStep === 2 && summaryConfirmUiState.visible) {
     forwardLabel = t("kp.booking.summary_confirm_register");
@@ -270,7 +570,15 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
           label={t("kp.booking.step_services")}
           icon={<IconClipboardList size={18} />}
         >
-          <KpBookingServicesStep />
+          <KpBookingServicesStep
+            eventId={event.id}
+            selectedServices={draftServices}
+            onValidityChange={setServicesStepValid}
+            onChangeServices={(services) => {
+              setDraftServices(services);
+              setDraftAdditionalServiceLines([]);
+            }}
+          />
         </Stepper.Step>
         <Stepper.Step
           label={t("kp.booking.step_summary")}
@@ -282,6 +590,7 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
             draftZone={selectedZone}
             isRegistrationOpen={isRegistrationOpen}
             draftAdditionalServiceLines={draftAdditionalServiceLines}
+            draftServices={draftServices}
             onConfirmStateChange={handleSummaryConfirmStateChange}
           />
         </Stepper.Step>

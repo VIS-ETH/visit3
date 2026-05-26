@@ -26,6 +26,7 @@ import KpJoin from "./pages/KpJoin";
 import KpBooking from "./pages/KpBooking";
 import KpBookingConfirmation from "./pages/KpBookingConfirmation";
 import KpBookingDetails from "./pages/KpBookingDetails";
+import KpServiceForm from "./pages/KpServiceForm";
 import Kp from "./pages/Kp";
 import { UserProvider } from "./context/UserContext";
 import { useCurrentUser } from "./context/useCurrentUser";
@@ -105,6 +106,11 @@ function AppRoutes() {
           <Route
             path="/kp/:id/bookings/:bookingId"
             element={<KpBookingDetails />}
+          />
+          <Route path="/kp/:id/services/new" element={<KpServiceForm />} />
+          <Route
+            path="/kp/:id/services/:serviceId"
+            element={<KpServiceForm />}
           />
         </Route>
       </Route>

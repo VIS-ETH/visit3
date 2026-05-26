@@ -12,7 +12,6 @@ from app.models.kp_event import (
     KpEventBookingUpgradeWaitlist,
     KpEventBoothZone,
     KpEventNametagBackground,
-    KpEventService,
     KpIndustry,
 )
 from app.schemas.kp import (
@@ -36,6 +35,8 @@ from app.schemas.kp import (
     ReplaceBookingUpgradeWaitlistRequest,
     RequirementFileDownloadResponse,
     RequirementFileResponse,
+    RequirementTextRequest,
+    RequirementTextResponse,
     ServiceResponse,
     UpdateBookingBoothNumberRequest,
     UpdateBookingStatusRequest,
@@ -163,7 +164,7 @@ async def delete_booth_zone(kp_service: KpServiceDep, booth_zone_id: UUID) -> No
 )
 async def list_services(
     kp_service: KpServiceDep, event_id: UUID
-) -> Sequence[KpEventService]:
+) -> list[ServiceResponse]:
     return await kp_service.list_services(event_id)
 
 
@@ -174,7 +175,7 @@ async def list_services(
 )
 async def create_service(
     kp_service: KpServiceDep, event_id: UUID, request: CreateServiceRequest
-) -> KpEventService:
+) -> ServiceResponse:
     return await kp_service.create_service(event_id, request)
 
 
@@ -187,13 +188,43 @@ async def update_service(
     kp_service: KpServiceDep,
     service_id: UUID,
     request: UpdateServiceRequest,
-) -> KpEventService:
+) -> ServiceResponse:
     return await kp_service.update_service(service_id, request)
 
 
 @router.delete("/services/{service_id}", operation_id="deleteService")
 async def delete_service(kp_service: KpServiceDep, service_id: UUID) -> None:
     await kp_service.delete_service(service_id)
+
+
+@router.post(
+    "/services/{service_id}/image",
+    operation_id="uploadServiceImage",
+    response_model=ServiceResponse,
+)
+async def upload_service_image(
+    kp_service: KpServiceDep,
+    service_id: UUID,
+    file: UploadFile = File(...),
+) -> ServiceResponse:
+    return await kp_service.upload_service_image(
+        service_id=service_id,
+        filename=file.filename or "service-image",
+        content=await file.read(),
+        content_type=file.content_type,
+    )
+
+
+@router.delete(
+    "/services/{service_id}/image",
+    operation_id="deleteServiceImage",
+    response_model=ServiceResponse,
+)
+async def delete_service_image(
+    kp_service: KpServiceDep,
+    service_id: UUID,
+) -> ServiceResponse:
+    return await kp_service.delete_service_image(service_id)
 
 
 # --- Industries ---
@@ -241,8 +272,21 @@ async def list_available_booth_zones(
 )
 async def register_booking(
     kp_service: KpServiceDep, event_id: UUID, request: RegisterBookingRequest
-) -> KpEventBooking:
-    return await kp_service.register_booking(event_id, request.booth_zone_id)
+) -> BookingResponse:
+    return await kp_service.register_booking(
+        event_id, request.booth_zone_id, request.services
+    )
+
+
+@router.get(
+    "/events/{event_id}/services/available",
+    operation_id="listAvailableServices",
+    response_model=list[ServiceResponse],
+)
+async def list_available_services(
+    kp_service: KpServiceDep, event_id: UUID
+) -> list[ServiceResponse]:
+    return await kp_service.list_available_services_for_company(event_id)
 
 
 @router.get(
@@ -252,7 +296,7 @@ async def register_booking(
 )
 async def get_my_booking(
     kp_service: KpServiceDep, event_id: UUID
-) -> KpEventBooking | None:
+) -> BookingResponse | None:
     return await kp_service.get_my_booking(event_id)
 
 
@@ -392,6 +436,22 @@ async def delete_booking_requirement_file(
     requirement_id: UUID,
 ) -> None:
     await kp_service.delete_booking_requirement_file(booking_service_id, requirement_id)
+
+
+@router.put(
+    "/booking-services/{booking_service_id}/requirements/{requirement_id}/text",
+    operation_id="upsertBookingRequirementText",
+    response_model=RequirementTextResponse,
+)
+async def upsert_booking_requirement_text(
+    kp_service: KpServiceDep,
+    booking_service_id: UUID,
+    requirement_id: UUID,
+    request: RequirementTextRequest,
+) -> RequirementTextResponse:
+    return await kp_service.upsert_booking_requirement_text(
+        booking_service_id, requirement_id, request.text_value
+    )
 
 
 @router.get(

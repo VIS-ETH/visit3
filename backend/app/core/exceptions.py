@@ -205,6 +205,26 @@ class KpServiceNotFound(AppError):
         )
 
 
+class KpServiceUnavailable(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP service is unavailable",
+            "error.kp_service_unavailable",
+            identifier,
+            400,
+        )
+
+
+class KpServiceQuantityInvalid(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP service quantity is invalid",
+            "error.kp_service_quantity_invalid",
+            identifier,
+            400,
+        )
+
+
 class KpIndustryNotFound(AppError):
     def __init__(self, identifier: str):
         super().__init__(
@@ -300,6 +320,16 @@ class KpRequirementFileUploadNotAllowed(AppError):
         super().__init__(
             "This requirement does not accept file uploads",
             "error.kp_requirement_file_upload_not_allowed",
+            identifier,
+            400,
+        )
+
+
+class KpRequirementTextAnswerNotAllowed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "This requirement does not accept text answers",
+            "error.kp_requirement_text_answer_not_allowed",
             identifier,
             400,
         )

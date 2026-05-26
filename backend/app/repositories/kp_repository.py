@@ -30,12 +30,14 @@ from app.models.kp_event import (
 from app.models.storage import StoredFile
 from app.repositories.base import BaseRepository, rel
 from app.schemas.kp import (
+    BookingServiceInput,
     CloneKpInput,
     CreateBookingInput,
     CreateBoothZoneInput,
     CreateIndustryInput,
     CreateKpInput,
     CreateServiceInput,
+    ServiceRequirementInput,
     UpdateBookingInput,
     UpdateBoothZoneInput,
     UpdateKpInput,
@@ -46,7 +48,6 @@ from app.schemas.kp import (
 SERVICE_CLONE_FIELDS = (
     "name",
     "description",
-    "image_url",
     "confirmation_description",
     "order",
     "price",
@@ -107,6 +108,9 @@ class KpRepository(BaseRepository[KpEvent]):
             selectinload(rel(KpEventBooking.services))
             .selectinload(rel(KpEventBookingService.service))
             .selectinload(rel(KpEventService.requirements)),
+            selectinload(rel(KpEventBooking.services))
+            .selectinload(rel(KpEventBookingService.service))
+            .selectinload(rel(KpEventService.image_stored_file)),
             selectinload(rel(KpEventBooking.services))
             .selectinload(rel(KpEventBookingService.requirement_file_links))
             .selectinload(rel(KpEventBookingServiceFileLink.requirement)),
@@ -310,8 +314,9 @@ class KpRepository(BaseRepository[KpEvent]):
         self, event_id: UUID, create_service_input: CreateServiceInput
     ) -> KpEventService:
         try:
+            data = create_service_input.model_dump(exclude={"requirements"})
             service = KpEventService(
-                **create_service_input.model_dump(),
+                **data,
                 event_id=event_id,
             )
             self._validate_model(
@@ -319,26 +324,82 @@ class KpRepository(BaseRepository[KpEvent]):
                 exclude={"event", "booth_zones", "booking_services", "requirements"},
             )
             self.session.add(service)
+            await self.session.flush()
+            await self._replace_service_requirements(
+                service, create_service_input.requirements
+            )
             await self.session.commit()
-            await self.session.refresh(service)
-            return service
+            return await self.get_service_by_id(service.id) or service
         except Exception as e:
             await self.session.rollback()
             raise e
+
+    async def _replace_service_requirements(
+        self,
+        service: KpEventService,
+        requirements: list[ServiceRequirementInput],
+    ) -> None:
+        statement = select(KpEventServiceRequirement).where(
+            col(KpEventServiceRequirement.service_id) == service.id
+        )
+        result = await self.session.execute(statement)
+        existing_requirements = result.scalars().all()
+        existing_by_id = {
+            requirement.id: requirement for requirement in existing_requirements
+        }
+        kept_ids: set[UUID] = set()
+
+        for requirement_input in requirements:
+            requirement = (
+                existing_by_id.get(requirement_input.id)
+                if requirement_input.id is not None
+                else None
+            )
+            data = requirement_input.model_dump(exclude={"id"})
+            if requirement is None:
+                requirement = KpEventServiceRequirement(service_id=service.id, **data)
+            else:
+                kept_ids.add(requirement.id)
+                requirement.sqlmodel_update(data)
+
+            self._validate_model(requirement, exclude={"service"})
+            self.session.add(requirement)
+
+        for requirement in existing_requirements:
+            if requirement.id not in kept_ids:
+                await self.session.delete(requirement)
 
     async def update_service(
         self, service: KpEventService, update_service_input: UpdateServiceInput
     ) -> KpEventService:
         try:
-            service.sqlmodel_update(update_service_input.model_dump(exclude_unset=True))
+            updates = update_service_input.model_dump(
+                exclude_unset=True, exclude={"requirements"}
+            )
+            service.sqlmodel_update(updates)
             self._validate_model(
                 service,
                 exclude={"event", "booth_zones", "booking_services", "requirements"},
             )
             self.session.add(service)
+            if update_service_input.requirements is not None:
+                await self._replace_service_requirements(
+                    service, update_service_input.requirements
+                )
             await self.session.commit()
-            await self.session.refresh(service)
-            return service
+            return await self.get_service_by_id(service.id) or service
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def set_service_image_stored_file_id(
+        self, service: KpEventService, stored_file_id: UUID | None
+    ) -> KpEventService:
+        try:
+            service.image_stored_file_id = stored_file_id
+            self.session.add(service)
+            await self.session.commit()
+            return await self.get_service_by_id(service.id) or service
         except Exception as e:
             await self.session.rollback()
             raise e
@@ -459,12 +520,26 @@ class KpRepository(BaseRepository[KpEvent]):
         result = await self.session.execute(statement)
         return result.scalar_one()
 
+    async def count_active_service_quantity(self, service_id: UUID) -> int:
+        statement = (
+            select(func.coalesce(func.sum(KpEventBookingService.quantity), 0))
+            .join(KpEventBooking)
+            .where(
+                col(KpEventBookingService.service_id) == service_id,
+                col(KpEventBooking.status) != KpBookingStatus.CANCELLED,
+            )
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one()
+
     async def create_booking(
         self,
         event_id: UUID,
         company_id: UUID,
         booth_zone_id: UUID,
         create_booking_input: CreateBookingInput,
+        services: Sequence[BookingServiceInput] = (),
+        included_services: Sequence[KpEventBoothZoneServiceLink] = (),
     ) -> KpEventBooking:
         try:
             booking = KpEventBooking(
@@ -475,6 +550,41 @@ class KpRepository(BaseRepository[KpEvent]):
             )
             self._validate_booking(booking)
             self.session.add(booking)
+            await self.session.flush()
+
+            booking_services_by_service_id = {
+                item.service_id: KpEventBookingService(
+                    booking_id=booking.id,
+                    service_id=item.service_id,
+                    quantity=item.quantity,
+                    included_quantity=0,
+                )
+                for item in services
+            }
+            for included_service in included_services:
+                booking_service = booking_services_by_service_id.get(
+                    included_service.service_id
+                )
+                if booking_service is None:
+                    booking_service = KpEventBookingService(
+                        booking_id=booking.id,
+                        service_id=included_service.service_id,
+                        quantity=included_service.included_quantity,
+                    )
+                    booking_services_by_service_id[included_service.service_id] = (
+                        booking_service
+                    )
+                else:
+                    booking_service.quantity += included_service.included_quantity
+                booking_service.included_quantity = included_service.included_quantity
+
+            for booking_service in booking_services_by_service_id.values():
+                self._validate_model(
+                    booking_service,
+                    exclude={"booking", "service", "requirement_file_links"},
+                )
+                self.session.add(booking_service)
+
             await self.session.commit()
             return await self.get_booking_by_id(booking.id) or booking
         except Exception as e:
@@ -589,7 +699,10 @@ class KpRepository(BaseRepository[KpEvent]):
             select(KpEventService)
             .where(col(KpEventService.event_id) == event_id)
             .order_by(col(KpEventService.order).asc(), col(KpEventService.name).asc())
-            .options(selectinload(rel(KpEventService.requirements)))
+            .options(
+                selectinload(rel(KpEventService.requirements)),
+                selectinload(rel(KpEventService.image_stored_file)),
+            )
         )
         result = await self.session.execute(statement)
         return result.scalars().all()
@@ -598,7 +711,10 @@ class KpRepository(BaseRepository[KpEvent]):
         statement = (
             select(KpEventService)
             .where(col(KpEventService.id) == service_id)
-            .options(selectinload(rel(KpEventService.requirements)))
+            .options(
+                selectinload(rel(KpEventService.requirements)),
+                selectinload(rel(KpEventService.image_stored_file)),
+            )
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
@@ -612,7 +728,10 @@ class KpRepository(BaseRepository[KpEvent]):
                 col(KpEventService.event_id) == event_id,
                 col(KpEventService.name) == name,
             )
-            .options(selectinload(rel(KpEventService.requirements)))
+            .options(
+                selectinload(rel(KpEventService.requirements)),
+                selectinload(rel(KpEventService.image_stored_file)),
+            )
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
@@ -716,6 +835,7 @@ class KpRepository(BaseRepository[KpEvent]):
                 )
             else:
                 requirement_file.stored_file_id = stored_file_id
+                requirement_file.text_value = None
 
             self._validate_model(
                 requirement_file,
@@ -727,6 +847,41 @@ class KpRepository(BaseRepository[KpEvent]):
             return (
                 await self.get_requirement_file(booking_service_id, requirement_id)
                 or requirement_file
+            )
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def upsert_requirement_text_answer(
+        self,
+        booking_service_id: UUID,
+        requirement_id: UUID,
+        text_value: str,
+    ) -> KpEventBookingServiceFileLink:
+        try:
+            requirement_answer = await self.get_requirement_file(
+                booking_service_id, requirement_id
+            )
+            if requirement_answer is None:
+                requirement_answer = KpEventBookingServiceFileLink(
+                    booking_service_id=booking_service_id,
+                    requirement_id=requirement_id,
+                    text_value=text_value,
+                )
+            else:
+                requirement_answer.stored_file_id = None
+                requirement_answer.text_value = text_value
+
+            self._validate_model(
+                requirement_answer,
+                exclude={"booking_service", "requirement", "stored_file"},
+            )
+            self.session.add(requirement_answer)
+            await self.session.commit()
+            await self.session.refresh(requirement_answer)
+            return (
+                await self.get_requirement_file(booking_service_id, requirement_id)
+                or requirement_answer
             )
         except Exception as e:
             await self.session.rollback()
@@ -801,10 +956,15 @@ class KpRepository(BaseRepository[KpEvent]):
                 KpEventNametagBackground,
                 col(KpEventNametagBackground.stored_file_id) == col(StoredFile.id),
             )
+            .outerjoin(
+                KpEventService,
+                col(KpEventService.image_stored_file_id) == col(StoredFile.id),
+            )
             .where(
                 and_(
                     col(KpEventBookingServiceFileLink.id).is_(None),
                     col(KpEventNametagBackground.id).is_(None),
+                    col(KpEventService.id).is_(None),
                     col(StoredFile.updated_at) < cutoff,
                 )
             )
