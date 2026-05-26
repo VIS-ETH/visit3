@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { parseKpDateInput } from "../utils/kp-utils";
+import { parseKpDateInput, toKpIsoDate } from "../utils/kp-utils";
 
 const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
 
@@ -114,6 +114,19 @@ export const kpSchema = z
   });
 
 export type KpFormValues = z.infer<typeof kpSchema>;
+
+export const kpRequestSchema = kpSchema.transform((values) => ({
+  name: values.name.trim(),
+  registration_open: toKpIsoDate(values.registrationOpen),
+  registration_end: toKpIsoDate(values.registrationEnd),
+  finalization_deadline: toKpIsoDate(values.finalizationDeadline),
+  nametags_deadline: toKpIsoDate(values.nametagsDeadline),
+  event_date: toKpIsoDate(values.eventDate),
+}));
+
+export function toKpRequest(values: KpFormValues) {
+  return kpRequestSchema.parse(values);
+}
 
 export const boothZoneSchema = z.object({
   name: z.string().trim().min(1, "validation.required"),

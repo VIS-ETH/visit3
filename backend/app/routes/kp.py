@@ -22,6 +22,7 @@ from app.schemas.kp import (
     BoothZoneResponse,
     BoothZoneWithAvailabilityResponse,
     BoothZoneWithAvailabilityResult,
+    CloneKpRequest,
     CreateBoothZoneRequest,
     CreateIndustryRequest,
     CreateKpRequest,
@@ -96,6 +97,17 @@ async def update_kp(
     kp_service: KpServiceDep, event_id: UUID, request: UpdateKpRequest
 ) -> KpEvent:
     return await kp_service.update_kp(event_id, request)
+
+
+@router.post(
+    "/events/{event_id}/clone",
+    operation_id="cloneKp",
+    response_model=KpResponse,
+)
+async def clone_kp(
+    kp_service: KpServiceDep, event_id: UUID, request: CloneKpRequest
+) -> KpEvent:
+    return await kp_service.clone_kp(event_id, request)
 
 
 # --- Booth Zones ---

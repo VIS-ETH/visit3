@@ -34,6 +34,14 @@ class CreateKpRequest(CreateKpInput):
     pass
 
 
+class CloneKpInput(CreateKpInput):
+    pass
+
+
+class CloneKpRequest(CloneKpInput):
+    pass
+
+
 class UpdateKpInput(BaseModel):
     name: str | None = None
     registration_open: date | None = None

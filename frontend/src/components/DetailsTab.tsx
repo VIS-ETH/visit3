@@ -12,8 +12,8 @@ import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { kpSchema, type KpFormValues } from "../schemas/kpSchema";
-import { formatKpDateInput, toKpIsoDate } from "../utils/kp-utils";
+import { kpSchema, toKpRequest, type KpFormValues } from "../schemas/kpSchema";
+import { formatKpDateInput } from "../utils/kp-utils";
 import { useTranslatedForm } from "../utils/translator";
 import {
   getGetKpByIdQueryKey,
@@ -86,14 +86,7 @@ const DetailsTab = ({ eventId }: { eventId: string }) => {
   const handleSubmit = (values: KpFormValues) => {
     update({
       eventId,
-      data: {
-        name: values.name.trim(),
-        registration_open: toKpIsoDate(values.registrationOpen),
-        registration_end: toKpIsoDate(values.registrationEnd),
-        finalization_deadline: toKpIsoDate(values.finalizationDeadline),
-        nametags_deadline: toKpIsoDate(values.nametagsDeadline),
-        event_date: toKpIsoDate(values.eventDate),
-      },
+      data: toKpRequest(values),
     });
   };
 

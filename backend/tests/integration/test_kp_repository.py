@@ -5,11 +5,15 @@ from sqlmodel import select
 from app.models.kp_event import (
     KpEventBooking,
     KpEventBookingService,
+    KpEventBoothZoneServiceLink,
+    KpEventNametagBackground,
+    KpEventRegistrationException,
     KpEventServiceRequirement,
     KpEventServiceRequirementType,
 )
 from app.models.storage import StoredFile
 from app.schemas.kp import (
+    CloneKpInput,
     CreateBoothZoneInput,
     CreateIndustryInput,
     CreateKpInput,
@@ -97,6 +101,148 @@ async def test_service_crud_loads_requirements(kp_repository, db_session):
     assert [item.id for item in services] == [service.id]
     assert updated.price == 1500
     assert updated.is_active is False
+
+
+async def test_clone_kp_copies_setup_without_bookings_exceptions_or_background(
+    kp_repository,
+    company_repository,
+    db_session,
+):
+    event = await kp_repository.create_kp(make_kp_input())
+    company = await company_repository.create_company("Acme AG")
+    zone = await kp_repository.create_booth_zone(
+        event.id,
+        CreateBoothZoneInput(
+            name="Main",
+            description="Main zone",
+            color="#112233",
+            order=10,
+            capacity=5,
+            booth_size=12.5,
+            base_price=25000,
+        ),
+    )
+    service = await kp_repository.create_service(
+        event.id,
+        CreateServiceInput(
+            name="Electricity",
+            description="Power hookup",
+            confirmation_description="Bring your adapter.",
+            order=20,
+            price=1000,
+            max_quantity_per_booking=2,
+            max_total_quantity=10,
+            is_active=False,
+        ),
+    )
+    requirement = KpEventServiceRequirement(
+        service_id=service.id,
+        type=KpEventServiceRequirementType.PDF,
+        name="Invoice",
+        description="Please upload your invoice as PDF.",
+        order=30,
+    )
+    included_service = KpEventBoothZoneServiceLink(
+        booth_zone_id=zone.id,
+        service_id=service.id,
+        included_quantity=2,
+    )
+    booking = KpEventBooking(
+        event_id=event.id,
+        company_id=company.id,
+        booth_zone_id=zone.id,
+        booking_number=1000,
+    )
+    registration_exception = KpEventRegistrationException(
+        event_id=event.id,
+        company_id=company.id,
+        allowed_until=date.today() + timedelta(days=1),
+    )
+    background_file = StoredFile(
+        storage_key="background.png",
+        original_filename="background.png",
+        mime_type="image/png",
+        size_bytes=3,
+        sha256="a" * 64,
+    )
+    db_session.add(requirement)
+    db_session.add(included_service)
+    db_session.add(booking)
+    db_session.add(registration_exception)
+    db_session.add(background_file)
+    await db_session.commit()
+    await db_session.refresh(background_file)
+    background = KpEventNametagBackground(
+        event_id=event.id,
+        stored_file_id=background_file.id,
+    )
+    db_session.add(background)
+    await db_session.commit()
+
+    clone_input = make_kp_input("Kontaktparty Clone")
+    clone_input.event_date = event.event_date + timedelta(days=30)
+    cloned = await kp_repository.clone_kp(
+        event.id,
+        CloneKpInput(**clone_input.model_dump()),
+    )
+
+    assert cloned is not None
+    assert cloned.id != event.id
+    assert cloned.name == "Kontaktparty Clone"
+    assert cloned.event_date == clone_input.event_date
+
+    cloned_zones = await kp_repository.list_booth_zones(cloned.id)
+    cloned_services = await kp_repository.list_services(cloned.id)
+
+    assert len(cloned_zones) == 1
+    assert len(cloned_services) == 1
+    cloned_zone = cloned_zones[0]
+    cloned_service = cloned_services[0]
+    assert cloned_zone.id != zone.id
+    assert cloned_zone.name == zone.name
+    assert cloned_zone.color == zone.color
+    assert cloned_zone.base_price == zone.base_price
+    assert cloned_service.id != service.id
+    assert cloned_service.name == service.name
+    assert cloned_service.is_active is False
+    assert [item.name for item in cloned_service.requirements] == ["Invoice"]
+    assert cloned_service.requirements[0].id != requirement.id
+    assert cloned_service.requirements[0].service_id == cloned_service.id
+    assert len(cloned_zone.included_services) == 1
+    assert cloned_zone.included_services[0].service_id == cloned_service.id
+    assert cloned_zone.included_services[0].included_quantity == 2
+
+    cloned_bookings = (
+        (
+            await db_session.execute(
+                select(KpEventBooking).where(KpEventBooking.event_id == cloned.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    cloned_exceptions = (
+        (
+            await db_session.execute(
+                select(KpEventRegistrationException).where(
+                    KpEventRegistrationException.event_id == cloned.id
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    cloned_background = (
+        await db_session.execute(
+            select(KpEventNametagBackground).where(
+                KpEventNametagBackground.event_id == cloned.id
+            )
+        )
+    ).scalar_one_or_none()
+
+    assert cloned_bookings == []
+    assert cloned_exceptions == []
+    assert cloned_background is None
 
 
 async def test_industry_crud_orders_by_name(kp_repository):

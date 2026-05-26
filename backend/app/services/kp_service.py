@@ -47,6 +47,7 @@ from app.models.user import User
 from app.repositories.kp_repository import KpRepository
 from app.schemas.kp import (
     BoothZoneWithAvailabilityResult,
+    CloneKpInput,
     CreateBookingInput,
     CreateBoothZoneInput,
     CreateIndustryInput,
@@ -88,6 +89,19 @@ class KpService:
 
     async def get_event_by_id(self, event_id: UUID) -> KpEvent:
         return await self._get_event(event_id)
+
+    async def clone_kp(self, event_id: UUID, clone_kp_input: CloneKpInput) -> KpEvent:
+        require_kp_president_user(
+            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
+        )
+        existing = await self.kp_repository.get_by_name(clone_kp_input.name)
+        if existing is not None:
+            raise KpNameExists(f"clone_kp:{clone_kp_input.name}")
+
+        cloned_event = await self.kp_repository.clone_kp(event_id, clone_kp_input)
+        if cloned_event is None:
+            raise KpEventNotFound(f"event:not_found:{event_id}")
+        return cloned_event
 
     async def update_kp(
         self, event_id: UUID, update_kp_input: UpdateKpInput
