@@ -121,3 +121,20 @@ async def test_download_bytes_wraps_client_errors():
 
     with pytest.raises(StorageDownloadFailed):
         await service.download_bytes("missing.txt")
+
+
+async def test_generate_download_url_sanitizes_content_disposition_filename():
+    client = Mock()
+    client.generate_presigned_url.return_value = "https://files.example/download"
+    service = make_storage_service(client)
+
+    url = await service.generate_download_url("files/report.pdf", 'Käpp/"report\r.pdf')
+
+    assert url == "https://files.example/download"
+    params = client.generate_presigned_url.call_args.kwargs["Params"]
+    assert params["Key"] == "files/report.pdf"
+    disposition = params["ResponseContentDisposition"]
+    assert 'filename="Kapp-report.pdf"' in disposition
+    assert "filename*=UTF-8''K%C3%A4pp-report.pdf" in disposition
+    assert "\r" not in disposition
+    assert "/" not in disposition

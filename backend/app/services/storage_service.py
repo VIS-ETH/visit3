@@ -11,6 +11,7 @@ from botocore.exceptions import (  # pyright: ignore[reportMissingTypeStubs]
 )
 
 from app.core.config import Settings
+from app.core.downloads import content_disposition_attachment
 from app.core.exceptions import (
     StorageDeleteFailed,
     StorageDownloadFailed,
@@ -210,7 +211,9 @@ class StorageService:
                     Params={
                         "Bucket": self.settings.SIP_S3_FILES_BUCKET,
                         "Key": key,
-                        "ResponseContentDisposition": f'attachment; filename="{filename}"',
+                        "ResponseContentDisposition": content_disposition_attachment(
+                            filename
+                        ),
                     },
                     ExpiresIn=self.settings.S3_PRESIGN_EXPIRY_SECONDS,
                 ),
