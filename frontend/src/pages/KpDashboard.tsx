@@ -16,14 +16,13 @@ import { IconAlertCircle, IconPlus } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
+import { useNavigate } from "react-router";
 import BackButton from "../components/BackButton";
 import DataTable, { type DataTableColumn } from "../components/DataTable";
 import { kpSchema, toKpRequest, type KpFormValues } from "../schemas/kpSchema";
 import {
   EVENT_STATUS_COLORS,
   formatKpDateInput,
-  formatKpDisplayDate,
   getEventStatus,
   type EventStatus,
 } from "../utils/kp-utils";
@@ -42,6 +41,15 @@ const todayAsDateInput = () => {
   return formatKpDateInput(new Date());
 };
 
+const formatTableDate = (dateString?: string) => {
+  if (!dateString) return "-";
+
+  const [year, month, day] = dateString.split("-");
+  if (!year || !month || !day) return "-";
+
+  return `${day}.${month}.${year}`;
+};
+
 const dateFieldNames = [
   "registrationOpen",
   "registrationEnd",
@@ -52,6 +60,7 @@ const dateFieldNames = [
 
 const KpDashboard = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [modalOpened, { open: openModal, close: closeModal }] =
     useDisclosure(false);
@@ -126,28 +135,27 @@ const KpDashboard = () => {
       key: "registration-window",
       header: t("kp.dashboard.registration_window"),
       render: (event) =>
-        `${formatKpDisplayDate(event.registration_open)} - ${formatKpDisplayDate(event.registration_end)}`,
+        `${formatTableDate(event.registration_open)} - ${formatTableDate(event.registration_end)}`,
       searchableValue: (event) =>
-        `${formatKpDisplayDate(event.registration_open)} ${formatKpDisplayDate(event.registration_end)}`,
+        `${formatTableDate(event.registration_open)} ${formatTableDate(event.registration_end)}`,
     },
     {
       key: "event-date",
       header: t("kp.dashboard.event_date"),
-      render: (event) => formatKpDisplayDate(event.event_date),
-      searchableValue: (event) => formatKpDisplayDate(event.event_date),
+      render: (event) => formatTableDate(event.event_date),
+      searchableValue: (event) => formatTableDate(event.event_date),
     },
     {
       key: "finalization-deadline",
       header: t("kp.dashboard.finalization_deadline"),
-      render: (event) => formatKpDisplayDate(event.finalization_deadline),
-      searchableValue: (event) =>
-        formatKpDisplayDate(event.finalization_deadline),
+      render: (event) => formatTableDate(event.finalization_deadline),
+      searchableValue: (event) => formatTableDate(event.finalization_deadline),
     },
     {
       key: "nametags-deadline",
       header: t("kp.dashboard.nametags_deadline"),
-      render: (event) => formatKpDisplayDate(event.nametags_deadline),
-      searchableValue: (event) => formatKpDisplayDate(event.nametags_deadline),
+      render: (event) => formatTableDate(event.nametags_deadline),
+      searchableValue: (event) => formatTableDate(event.nametags_deadline),
     },
     {
       key: "status",
@@ -161,21 +169,6 @@ const KpDashboard = () => {
         );
       },
       searchableValue: (event) => statusLabels[getEventStatus(event)],
-    },
-    {
-      key: "actions",
-      header: "",
-      render: (event) => (
-        <Button
-          size="xs"
-          variant="light"
-          component={Link}
-          to={`/kp/${event.id}`}
-        >
-          {t("kp.dashboard.manage_button")}
-        </Button>
-      ),
-      width: 90,
     },
   ];
 
