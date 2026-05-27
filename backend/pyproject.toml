@@ -23,6 +23,11 @@ dependencies = [
 
 [tool.ruff]
 line-length = 88
+extend-exclude = [
+    "migrations",
+    "scripts",
+    "app/generated",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
