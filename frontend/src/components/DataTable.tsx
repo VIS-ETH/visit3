@@ -38,6 +38,7 @@ type DataTableProps<T> = {
   getRowKey: (item: T) => string;
   isLoading?: boolean;
   minWidth?: number;
+  onRowClick?: (item: T) => void;
   pageSizeOptions?: number[];
   pagination?: DataTablePaginationLabels;
   search?: DataTableSearchLabels;
@@ -53,6 +54,7 @@ const DataTable = <T,>({
   getRowKey,
   isLoading = false,
   minWidth = 700,
+  onRowClick,
   pageSizeOptions = defaultPageSizeOptions,
   pagination,
   search: searchConfig,
@@ -158,7 +160,23 @@ const DataTable = <T,>({
               </Table.Thead>
               <Table.Tbody>
                 {visibleRows.map((row) => (
-                  <Table.Tr key={getRowKey(row)}>
+                  <Table.Tr
+                    key={getRowKey(row)}
+                    role={onRowClick ? "button" : undefined}
+                    tabIndex={onRowClick ? 0 : undefined}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    onKeyDown={
+                      onRowClick
+                        ? (event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              onRowClick(row);
+                            }
+                          }
+                        : undefined
+                    }
+                    style={onRowClick ? { cursor: "pointer" } : undefined}
+                  >
                     {columns.map((column) => (
                       <Table.Td key={column.key} ta={column.textAlign}>
                         {column.render(row)}

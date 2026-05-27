@@ -285,6 +285,7 @@ const KpDashboard = () => {
             emptyLabel={t("kp.dashboard.no_events")}
             getRowKey={(event) => event.id}
             isLoading={isLoading}
+            onRowClick={(event) => navigate(`/kp/${event.id}`)}
           />
         </Paper>
       ) : null}
