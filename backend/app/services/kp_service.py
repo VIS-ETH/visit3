@@ -300,6 +300,16 @@ class KpService:
         await self._get_event(event_id)
         return await self.kp_repository.list_bookings_for_event(event_id)
 
+    async def get_event_booking(
+        self, event_id: UUID, booking_id: UUID
+    ) -> KpEventBooking:
+        require_kp_president_user(self.current_user)
+        await self._get_event(event_id)
+        booking = await self._get_booking(booking_id)
+        if booking.event_id != event_id:
+            raise KpBookingNotFound(f"booking:event_mismatch:{event_id}:{booking_id}")
+        return booking
+
     async def _get_owned_booking(
         self, booking_id: UUID, company_id: UUID
     ) -> KpEventBooking:

@@ -1,15 +1,9 @@
-import { ActionIcon, Paper, Stack, Text, Title, Tooltip } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
-import { IconCheck } from "@tabler/icons-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { Paper, Stack, Title } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
 import { KpBookingStatusBadge } from "./KpBookingStatusBadge";
-import { KpBookingStatus } from "../orval/generated/fastAPI.schemas";
 import {
-  getListEventBookingsQueryKey,
   type ListEventBookingsQueryResult,
-  useConfirmBooking,
   useListEventBookings,
 } from "../orval/generated/kp/kp";
 import DataTable, { type DataTableColumn } from "./DataTable";
@@ -18,37 +12,17 @@ type BookingRow = ListEventBookingsQueryResult[number];
 
 const BookingsTab = ({ eventId }: { eventId: string }) => {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const [confirmingBookingId, setConfirmingBookingId] = useState<string | null>(
-    null,
-  );
+  const navigate = useNavigate();
   const { data: bookings, isLoading } = useListEventBookings(eventId);
-  const { mutate: confirmBooking, isPending: isConfirming } = useConfirmBooking(
-    {
-      mutation: {
-        onSuccess: async () => {
-          await queryClient.invalidateQueries({
-            queryKey: getListEventBookingsQueryKey(eventId),
-          });
-          notifications.show({
-            color: "green",
-            message: t("kp.manage.booking_confirmed"),
-          });
-        },
-        onSettled: () => {
-          setConfirmingBookingId(null);
-        },
-      },
-    },
-  );
-
-  const handleConfirmBooking = (bookingId: string) => {
-    if (!confirm(t("kp.manage.booking_confirm_prompt"))) return;
-    setConfirmingBookingId(bookingId);
-    confirmBooking({ bookingId });
-  };
 
   const columns: DataTableColumn<BookingRow>[] = [
+    {
+      key: "booking-number",
+      header: t("kp.manage.booking_number"),
+      render: (booking) => `#${booking.booking_number}`,
+      searchableValue: (booking) => String(booking.booking_number),
+      width: 110,
+    },
     {
       key: "company",
       header: t("kp.manage.booking_company"),
@@ -73,37 +47,6 @@ const BookingsTab = ({ eventId }: { eventId: string }) => {
       render: (booking) => <KpBookingStatusBadge status={booking.status} />,
       searchableValue: (booking) => booking.status,
     },
-    {
-      key: "actions",
-      header: t("kp.manage.booking_actions"),
-      render: (booking) => {
-        const canConfirm = booking.status === KpBookingStatus.FINALIZED;
-        if (!canConfirm) {
-          return (
-            <Text c="dimmed" size="sm">
-              -
-            </Text>
-          );
-        }
-
-        return (
-          <Tooltip label={t("kp.manage.booking_confirm")}>
-            <ActionIcon
-              aria-label={t("kp.manage.booking_confirm")}
-              color="green"
-              disabled={isConfirming}
-              loading={confirmingBookingId === booking.id}
-              onClick={() => handleConfirmBooking(booking.id)}
-              size="sm"
-              variant="light"
-            >
-              <IconCheck size={16} />
-            </ActionIcon>
-          </Tooltip>
-        );
-      },
-      width: 90,
-    },
   ];
 
   return (
@@ -116,6 +59,9 @@ const BookingsTab = ({ eventId }: { eventId: string }) => {
           emptyLabel={t("kp.manage.bookings_empty")}
           getRowKey={(booking) => booking.id}
           isLoading={isLoading}
+          onRowClick={(booking) =>
+            navigate(`/kp/${eventId}/bookings/${booking.id}`)
+          }
           pagination={{
             pageSummary: (first, last, total) =>
               t("kp.manage.bookings_page_summary", { first, last, total }),

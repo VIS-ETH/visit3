@@ -248,6 +248,12 @@ class BookingResponse(BookingBase):
 class BookingWithCompanyAndBoothZoneResponse(BookingBase):
     company: Company
     booth_zone: BoothZoneResponse
+    total_price: int
+    booked_services_count: int
+    booked_services_summary: str
+    nametag_count: int
+    waitlist_count: int
+    company_details_submitted: bool
 
 
 class RequirementFileResponse(BaseModel):

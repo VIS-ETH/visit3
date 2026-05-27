@@ -47,6 +47,12 @@ type DataTableProps<T> = {
 
 const defaultPageSizeOptions = [10, 25, 50];
 
+export const DataTableEmptyCell = ({ label = "-" }: { label?: ReactNode }) => (
+  <Text c="dimmed" size="sm">
+    {label}
+  </Text>
+);
+
 const DataTable = <T,>({
   columns,
   data,
