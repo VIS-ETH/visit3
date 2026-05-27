@@ -1,7 +1,5 @@
 import { MantineProvider, Center, Loader } from "@mantine/core";
 import { useEffect, useState } from "react";
-import "@mantine/core/styles.css";
-import "@mantine/notifications/styles.css";
 import { Notifications } from "@mantine/notifications";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { configOptions } from "./utils/constants";
