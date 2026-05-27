@@ -91,9 +91,7 @@ class KpService:
         return await self._get_event(event_id)
 
     async def clone_kp(self, event_id: UUID, clone_kp_input: CloneKpInput) -> KpEvent:
-        require_kp_president_user(
-            self.current_user, self.settings.VISIT_KP_PRESIDENT_ROLE
-        )
+        require_kp_president_user(self.current_user)
         existing = await self.kp_repository.get_by_name(clone_kp_input.name)
         if existing is not None:
             raise KpNameExists(f"clone_kp:{clone_kp_input.name}")

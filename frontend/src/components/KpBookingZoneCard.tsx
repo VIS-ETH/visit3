@@ -31,7 +31,7 @@ const KpBookingZoneCard = ({
         radius="md"
         p="md"
         style={{
-          borderColor: isSelected ? "var(--mantine-color-blue-5)" : undefined,
+          borderColor: isSelected ? "var(--mantine-color-brand-5)" : undefined,
           borderWidth: isSelected ? 2 : 1,
           cursor: isDisabled ? "not-allowed" : "pointer",
         }}
@@ -60,7 +60,7 @@ const KpBookingZoneCard = ({
             </div>
           </Group>
           {isSelected ? (
-            <IconCheck size={18} color="var(--mantine-color-blue-5)" />
+            <IconCheck size={18} color="var(--mantine-color-brand-5)" />
           ) : null}
         </Group>
 

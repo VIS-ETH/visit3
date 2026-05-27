@@ -88,7 +88,7 @@ function KpBookingZoneStep({
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: "var(--mantine-color-gray-0)",
+              backgroundColor: "var(--visit-muted-bg)",
             }}
           >
             <IconMap size={64} style={{ opacity: 0.3, marginBottom: 16 }} />
