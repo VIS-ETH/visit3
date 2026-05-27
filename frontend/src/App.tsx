@@ -25,6 +25,7 @@ import NotFound from "./pages/NotFound";
 import KpJoin from "./pages/KpJoin";
 import KpBooking from "./pages/KpBooking";
 import KpBookingConfirmation from "./pages/KpBookingConfirmation";
+import KpBookingDetails from "./pages/KpBookingDetails";
 import Kp from "./pages/Kp";
 import { UserProvider } from "./context/UserContext";
 import { useCurrentUser } from "./context/useCurrentUser";
@@ -100,6 +101,10 @@ function AppRoutes() {
           <Route
             path="/company-management/:companyId/users"
             element={<CompanyUsers />}
+          />
+          <Route
+            path="/kp/:id/bookings/:bookingId"
+            element={<KpBookingDetails />}
           />
         </Route>
       </Route>

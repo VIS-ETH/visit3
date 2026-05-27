@@ -8,6 +8,7 @@ import pytest
 from app.core.exceptions import (
     KpBookingAlreadyExists,
     KpBookingConfirmationRequiresFinalized,
+    KpBookingNotFound,
     KpBookingStatusTransitionInvalid,
     KpBoothZoneAtCapacity,
     KpBoothZoneEventMismatch,
@@ -501,6 +502,28 @@ async def test_replace_booking_upgrade_waitlist_rejects_current_zone(
         await service.replace_booking_upgrade_waitlist(booking.id, [current_zone.id])
 
     kp_repo.replace_booking_upgrade_waitlist_entries.assert_not_awaited()
+
+
+async def test_get_event_booking_returns_matching_booking(kp_service):
+    event = make_event()
+    booking = make_booking(event_id=event.id)
+    kp_service.kp_repo.get_by_id.return_value = event
+    kp_service.kp_repo.get_booking_by_id.return_value = booking
+
+    result = await kp_service.service.get_event_booking(event.id, booking.id)
+
+    assert result is booking
+    kp_service.kp_repo.get_booking_by_id.assert_awaited_once_with(booking.id)
+
+
+async def test_get_event_booking_rejects_booking_from_other_event(kp_service):
+    event = make_event()
+    booking = make_booking(event_id=uuid4())
+    kp_service.kp_repo.get_by_id.return_value = event
+    kp_service.kp_repo.get_booking_by_id.return_value = booking
+
+    with pytest.raises(KpBookingNotFound):
+        await kp_service.service.get_event_booking(event.id, booking.id)
 
 
 async def test_confirm_booking_requires_finalized_booking(kp_service):

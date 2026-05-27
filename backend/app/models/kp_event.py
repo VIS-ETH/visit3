@@ -1,7 +1,7 @@
 import re
 from datetime import date
 from enum import Enum
-from typing import Self
+from typing import Optional, Self
 from uuid import UUID
 
 from pydantic import field_validator, model_validator
@@ -128,7 +128,7 @@ class KpEventBooking(BaseEntity, table=True):
     upgrade_waitlist_entries: list["KpEventBookingUpgradeWaitlist"] = Relationship(
         back_populates="booking"
     )
-    company_details: "KpBookingCompanyDetails" = Relationship(
+    company_details: Optional["KpBookingCompanyDetails"] = Relationship(
         back_populates="booking",
         sa_relationship_kwargs={"uselist": False},
     )
@@ -136,6 +136,36 @@ class KpEventBooking(BaseEntity, table=True):
     @property
     def is_finalized(self) -> bool:
         return self.status == KpBookingStatus.FINALIZED
+
+    @property
+    def total_price(self) -> int:
+        return self.booth_zone.base_price + sum(
+            booking_service.charged_quantity * booking_service.service.price
+            for booking_service in self.services
+        )
+
+    @property
+    def booked_services_count(self) -> int:
+        return len(self.services)
+
+    @property
+    def booked_services_summary(self) -> str:
+        return "; ".join(
+            f"{booking_service.service.name} x{booking_service.quantity}"
+            for booking_service in self.services
+        )
+
+    @property
+    def nametag_count(self) -> int:
+        return len(self.name_tags)
+
+    @property
+    def waitlist_count(self) -> int:
+        return len(self.upgrade_waitlist_entries)
+
+    @property
+    def company_details_submitted(self) -> bool:
+        return self.company_details is not None
 
 
 class KpEventBookingUpgradeWaitlist(BaseEntity, table=True):

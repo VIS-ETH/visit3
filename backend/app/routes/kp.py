@@ -271,6 +271,17 @@ async def list_event_bookings(
 
 
 @router.get(
+    "/events/{event_id}/bookings/{booking_id}",
+    operation_id="getEventBooking",
+    response_model=BookingWithCompanyAndBoothZoneResponse,
+)
+async def get_event_booking(
+    kp_service: KpServiceDep, event_id: UUID, booking_id: UUID
+) -> KpEventBooking:
+    return await kp_service.get_event_booking(event_id, booking_id)
+
+
+@router.get(
     "/bookings/{booking_id}/upgrade-waitlist",
     operation_id="listBookingUpgradeWaitlist",
     response_model=list[BookingUpgradeWaitlistEntryResponse],
