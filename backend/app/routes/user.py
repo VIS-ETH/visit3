@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Response
 
-from app.core.deps import AuthServiceDep, CsrfDep, UserServiceDep
+from app.core.deps import AuthServiceDep, CsrfDep, CurrentUserDep, UserServiceDep
 from app.models.user import User
 from app.schemas.user import (
     CompanyUserResponse,
@@ -79,8 +79,11 @@ async def get_all_staff(user_service: UserServiceDep) -> Sequence[User]:
 
 
 @router.post("/send-confirmation-email", operation_id="sendConfirmationMail")
-async def send_confirmation_mail(user_service: UserServiceDep) -> None:
-    return await user_service.send_confirmation_mail()
+async def send_confirmation_mail(
+    auth_service: AuthServiceDep,
+    current_user: CurrentUserDep,
+) -> None:
+    return await auth_service.send_confirm_email(current_user)
 
 
 @public_router.post("/confirm-email/{token}", operation_id="confirmEmail")

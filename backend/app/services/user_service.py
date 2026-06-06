@@ -1,22 +1,17 @@
 import logging
-import secrets
 from collections.abc import Sequence
-from datetime import datetime, timezone
 from uuid import UUID
 
 from app.core.auth_context import require_admin_user, require_staff_user
 from app.core.exceptions import (
     NotAllowed,
     PhoneNumberInvalid,
-    TokenInvalid,
     UserNotFound,
 )
 from app.core.utils import hash_str, normalize_phone_number
 from app.models.user import User
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
-from app.services.auth_service import CONFIRM_EMAIL_TOKEN_EXPIRE
-from app.services.mail_service import MailService
 
 logger = logging.getLogger(__name__)
 
@@ -26,54 +21,11 @@ class UserService:
         self,
         user_repository: UserRepository,
         token_repository: TokenRepository,
-        mail_service: MailService,
         current_user: User,
     ) -> None:
         self.user_repository = user_repository
         self.token_repository = token_repository
-        self.mail_service = mail_service
         self.current_user = current_user
-
-    async def send_confirmation_mail(self) -> None:
-        if self.current_user.email_confirmed:
-            return
-
-        await self.token_repository.revoke_confirm_email_tokens(self.current_user.id)
-        raw_token = await self.create_confirm_email_token()
-
-        await self.mail_service.send_confirm_email_mail(
-            self.current_user.email, raw_token
-        )
-
-    async def create_confirm_email_token(self) -> str:
-        raw_token = secrets.token_urlsafe(32)
-        hashed_token = hash_str(raw_token)
-        expire = datetime.now(timezone.utc) + CONFIRM_EMAIL_TOKEN_EXPIRE
-        await self.token_repository.save_confirm_email_token(
-            hashed_token, self.current_user.id, expire
-        )
-        return raw_token
-
-    async def confirm_email(self, token: str) -> bool:
-        token_is_valid = await self.token_repository.validate_confirm_email_token(
-            self.current_user.id, hash_str(token)
-        )
-
-        if not token_is_valid:
-            logger.warning(
-                f"Email confirmation failed for user: {self.current_user.email}"
-            )
-            raise TokenInvalid(f"confirm_email:{self.current_user.id}")
-
-        await self.user_repository.confirm_email(self.current_user)
-        await self.token_repository.revoke_confirm_email_tokens(self.current_user.id)
-        logger.info(f"Email confirmed for user: {self.current_user.email}")
-        return True
-
-    async def validate_confirm_email_token(self, token: str) -> bool:
-        return await self.token_repository.validate_confirm_email_token(
-            self.current_user.id, hash_str(token)
-        )
 
     async def get_current_user(self) -> User:
         return await self.user_repository.load_user_roles(self.current_user)

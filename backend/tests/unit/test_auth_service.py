@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from unittest.mock import AsyncMock
+from datetime import datetime
+from unittest.mock import ANY, AsyncMock
 
 import pytest
 
@@ -115,6 +116,43 @@ async def test_register_user_skips_confirmation_mail_for_confirmed_user(auth):
     result = await auth.service.register_user(confirmed_user)
 
     assert result is confirmed_user
+    auth.token_repo.revoke_confirm_email_tokens.assert_not_awaited()
+    auth.token_repo.save_confirm_email_token.assert_not_awaited()
+    auth.mail_service.send_confirm_email_mail.assert_not_awaited()
+
+
+async def test_send_confirm_email_revokes_old_tokens_saves_new_token_and_sends_mail(
+    monkeypatch,
+    auth,
+    make_user,
+):
+    user = make_user(email="unconfirmed@example.com", email_confirmed=False)
+    monkeypatch.setattr(
+        "app.services.auth_service.secrets.token_urlsafe",
+        lambda length: "raw-confirm-token",
+    )
+
+    await auth.service.send_confirm_email(user)
+
+    auth.token_repo.revoke_confirm_email_tokens.assert_awaited_once_with(user.id)
+    auth.token_repo.save_confirm_email_token.assert_awaited_once_with(
+        hash_str("raw-confirm-token"),
+        user.id,
+        ANY,
+    )
+    expires_at = auth.token_repo.save_confirm_email_token.await_args.args[2]
+    assert isinstance(expires_at, datetime)
+    auth.mail_service.send_confirm_email_mail.assert_awaited_once_with(
+        user.email,
+        "raw-confirm-token",
+    )
+
+
+async def test_send_confirm_email_skips_confirmed_user(auth, make_user):
+    user = make_user(email="confirmed@example.com", email_confirmed=True)
+
+    await auth.service.send_confirm_email(user)
+
     auth.token_repo.revoke_confirm_email_tokens.assert_not_awaited()
     auth.token_repo.save_confirm_email_token.assert_not_awaited()
     auth.mail_service.send_confirm_email_mail.assert_not_awaited()
