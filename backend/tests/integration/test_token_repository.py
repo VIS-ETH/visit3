@@ -31,6 +31,46 @@ async def test_confirm_email_token_validation_respects_revocation(
     )
 
 
+async def test_confirm_email_token_public_lookup_respects_active_state(
+    user_repository,
+    token_repository,
+):
+    user = await user_repository.create_user(
+        user_repository.model(email="public-token@example.com", password="hash")
+    )
+    expires_at = datetime.now(timezone.utc) + timedelta(days=1)
+    await token_repository.save_confirm_email_token(
+        "active-public-token",
+        user.id,
+        expires_at,
+    )
+
+    token = await token_repository.get_confirm_email_token("active-public-token")
+
+    assert token is not None
+    assert token.user_id == user.id
+
+    await token_repository.revoke_confirm_email_tokens(user.id)
+
+    assert await token_repository.get_confirm_email_token("active-public-token") is None
+
+
+async def test_confirm_email_token_public_lookup_rejects_expired_token(
+    user_repository,
+    token_repository,
+):
+    user = await user_repository.create_user(
+        user_repository.model(email="expired-public-token@example.com", password="hash")
+    )
+    await token_repository.save_confirm_email_token(
+        "expired-public-token",
+        user.id,
+        datetime.now(timezone.utc) - timedelta(seconds=1),
+    )
+
+    assert await token_repository.get_confirm_email_token("expired-public-token") is None
+
+
 async def test_expired_forget_password_token_is_not_active(
     user_repository,
     token_repository,

@@ -20,14 +20,16 @@ const ConfirmEmail = () => {
   const { token } = useParams();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const normalizedToken = token?.trim();
+  const apiToken = normalizedToken ? encodeURIComponent(normalizedToken) : "";
 
   const {
     data: isValid,
     isPending: isValidationPending,
     isError: isValidationError,
-  } = useValidateConfirmEmailToken(token ?? "", {
+  } = useValidateConfirmEmailToken(apiToken, {
     query: {
-      enabled: token !== undefined,
+      enabled: Boolean(apiToken),
       retry: false,
     },
   });
@@ -38,7 +40,7 @@ const ConfirmEmail = () => {
     isSuccess: isConfirmSuccess,
   } = useConfirmEmail();
 
-  if (token === undefined) {
+  if (!normalizedToken) {
     navigate("/login");
     return;
   }
@@ -139,7 +141,7 @@ const ConfirmEmail = () => {
               {t("email.confirm.cancel")}
             </Button>
             <Button
-              onClick={() => confirmEmail({ token: token || "" })}
+              onClick={() => confirmEmail({ token: apiToken })}
               loading={isConfirmPending}
             >
               {t("email.confirm.confirm_button")}

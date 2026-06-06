@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Response
 
-from app.core.deps import CsrfDep, UserServiceDep
+from app.core.deps import AuthServiceDep, CsrfDep, UserServiceDep
 from app.models.user import User
 from app.schemas.user import (
     CompanyUserResponse,
@@ -16,6 +16,7 @@ from app.schemas.user import (
 
 logger = logging.getLogger(__name__)
 
+public_router = APIRouter(prefix="/user", tags=["user"])
 router = APIRouter(prefix="/user", tags=["user"], dependencies=[CsrfDep])
 
 
@@ -82,16 +83,16 @@ async def send_confirmation_mail(user_service: UserServiceDep) -> None:
     return await user_service.send_confirmation_mail()
 
 
-@router.post("/confirm-email/{token}", operation_id="confirmEmail")
-async def confirm_email(user_service: UserServiceDep, token: str) -> bool:
-    return await user_service.confirm_email(token)
+@public_router.post("/confirm-email/{token}", operation_id="confirmEmail")
+async def confirm_email(auth_service: AuthServiceDep, token: str) -> bool:
+    return await auth_service.confirm_email(token)
 
 
-@router.get("/confirm-email/{token}", operation_id="validateConfirmEmailToken")
+@public_router.get("/confirm-email/{token}", operation_id="validateConfirmEmailToken")
 async def validate_confirm_email_token(
-    user_service: UserServiceDep, token: str
+    auth_service: AuthServiceDep, token: str
 ) -> bool:
-    return await user_service.validate_confirm_email_token(token)
+    return await auth_service.validate_confirm_email_token(token)
 
 
 @router.get(

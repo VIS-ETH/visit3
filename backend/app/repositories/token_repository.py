@@ -141,6 +141,14 @@ class TokenRepository(BaseRepository[RefreshToken]):
             is not None
         )
 
+    async def get_confirm_email_token(
+        self, hashed_token: str
+    ) -> ConfirmEmailToken | None:
+        return await self._get_active_token(
+            ConfirmEmailToken,
+            hashed_token=hashed_token,
+        )
+
     async def revoke_confirm_email_tokens(self, user_id: UUID):
         await self._revoke_tokens(ConfirmEmailToken, user_id=user_id)
 

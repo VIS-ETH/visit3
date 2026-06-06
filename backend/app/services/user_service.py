@@ -1,7 +1,7 @@
 import logging
 import secrets
 from collections.abc import Sequence
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from uuid import UUID
 
 from app.core.auth_context import require_admin_user, require_staff_user
@@ -15,11 +15,10 @@ from app.core.utils import hash_str, normalize_phone_number
 from app.models.user import User
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
+from app.services.auth_service import CONFIRM_EMAIL_TOKEN_EXPIRE
 from app.services.mail_service import MailService
 
 logger = logging.getLogger(__name__)
-
-CONFIRM_EMAIL_TOKEN_EXPIRE = timedelta(days=3)
 
 
 class UserService:
