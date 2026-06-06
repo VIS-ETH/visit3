@@ -33,6 +33,7 @@ password_hash = PasswordHash.recommended()
 ACCESS_TOKEN_EXPIRE = timedelta(minutes=15)
 REFRESH_TOKEN_EXPIRE = timedelta(days=7)
 FORGET_PASSWORD_TOKEN_EXPIRE = timedelta(minutes=10)
+CONFIRM_EMAIL_TOKEN_EXPIRE = timedelta(days=3)
 MIN_PASSWORD_LENGTH = 10
 
 
@@ -122,6 +123,22 @@ class AuthService:
         )
         return raw_token
 
+    async def create_confirm_email_token(self, user: User) -> str:
+        raw_token = secrets.token_urlsafe(32)
+        hashed_token = hash_str(raw_token)
+        expire = datetime.now(timezone.utc) + CONFIRM_EMAIL_TOKEN_EXPIRE
+        await self.token_repository.save_confirm_email_token(
+            hashed_token, user.id, expire
+        )
+        return raw_token
+
+    async def send_confirm_email(self, user: User) -> None:
+        if user.email_confirmed:
+            return
+        await self.token_repository.revoke_confirm_email_tokens(user.id)
+        raw_token = await self.create_confirm_email_token(user)
+        await self.mail_service.send_confirm_email_mail(user.email, raw_token)
+
     async def register_user(self, user: User) -> User:
         if await self.user_repository.get_by_email(user.email):
             raise EmailUsed(f"register_user:{user.email}")
@@ -145,6 +162,7 @@ class AuthService:
 
         try:
             result = await self.user_repository.create_user(user)
+            await self.send_confirm_email(result)
             logger.info(f"User registered: {user.email}")
             return result
         except Exception as e:
@@ -222,6 +240,31 @@ class AuthService:
             await self.token_repository.get_forget_password_token(hash_str(token))
             is not None
         )
+
+    async def validate_confirm_email_token(self, token: str) -> bool:
+        return (
+            await self.token_repository.get_confirm_email_token(hash_str(token))
+            is not None
+        )
+
+    async def confirm_email(self, token: str) -> bool:
+        hashed = hash_str(token)
+        confirm_token = await self.token_repository.get_confirm_email_token(hashed)
+        if not confirm_token:
+            logger.warning("Email confirmation attempted with invalid/expired token")
+            raise TokenInvalid("confirm_email")
+
+        user = await self.user_repository.get_by_id(confirm_token.user_id)
+        if not user:
+            logger.warning(
+                f"Email confirmation attempted for missing user: {confirm_token.user_id}"
+            )
+            raise TokenInvalid("confirm_email:user_not_found")
+
+        await self.user_repository.confirm_email(user)
+        await self.token_repository.revoke_confirm_email_tokens(user.id)
+        logger.info(f"Email confirmed for user: {user.email}")
+        return True
 
     async def keycloak_callback(self, code: str) -> str:
         settings = get_settings()

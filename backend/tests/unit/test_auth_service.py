@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from unittest.mock import AsyncMock
+from datetime import datetime
+from unittest.mock import ANY, AsyncMock
 
 import pytest
 
@@ -11,7 +12,7 @@ from app.core.exceptions import (
     TokenInvalid,
 )
 from app.core.utils import hash_str
-from app.models.user import RefreshToken, Role, User
+from app.models.user import ConfirmEmailToken, RefreshToken, Role, User
 from app.services.auth_service import AuthService
 
 
@@ -92,6 +93,110 @@ async def test_register_user_normalizes_phone_and_saves_company_user(auth):
     assert created_user.is_admin is False
     assert created_user.is_staff is False
     assert created_user.is_company is True
+    auth.token_repo.revoke_confirm_email_tokens.assert_awaited_once_with(
+        created_user.id
+    )
+    auth.token_repo.save_confirm_email_token.assert_awaited_once()
+    auth.mail_service.send_confirm_email_mail.assert_awaited_once()
+    assert auth.mail_service.send_confirm_email_mail.await_args.args[0] == (
+        created_user.email
+    )
+
+
+async def test_register_user_skips_confirmation_mail_for_confirmed_user(auth):
+    confirmed_user = User(
+        email="new@example.com",
+        password="very-long-password",
+        email_confirmed=True,
+    )
+    auth.user_repo.get_by_email.return_value = None
+    auth.user_repo.create_user.return_value = confirmed_user
+    auth.service.hash_password = AsyncMock(return_value="hashed-password")
+
+    result = await auth.service.register_user(confirmed_user)
+
+    assert result is confirmed_user
+    auth.token_repo.revoke_confirm_email_tokens.assert_not_awaited()
+    auth.token_repo.save_confirm_email_token.assert_not_awaited()
+    auth.mail_service.send_confirm_email_mail.assert_not_awaited()
+
+
+async def test_send_confirm_email_revokes_old_tokens_saves_new_token_and_sends_mail(
+    monkeypatch,
+    auth,
+    make_user,
+):
+    user = make_user(email="unconfirmed@example.com", email_confirmed=False)
+    monkeypatch.setattr(
+        "app.services.auth_service.secrets.token_urlsafe",
+        lambda length: "raw-confirm-token",
+    )
+
+    await auth.service.send_confirm_email(user)
+
+    auth.token_repo.revoke_confirm_email_tokens.assert_awaited_once_with(user.id)
+    auth.token_repo.save_confirm_email_token.assert_awaited_once_with(
+        hash_str("raw-confirm-token"),
+        user.id,
+        ANY,
+    )
+    expires_at = auth.token_repo.save_confirm_email_token.await_args.args[2]
+    assert isinstance(expires_at, datetime)
+    auth.mail_service.send_confirm_email_mail.assert_awaited_once_with(
+        user.email,
+        "raw-confirm-token",
+    )
+
+
+async def test_send_confirm_email_skips_confirmed_user(auth, make_user):
+    user = make_user(email="confirmed@example.com", email_confirmed=True)
+
+    await auth.service.send_confirm_email(user)
+
+    auth.token_repo.revoke_confirm_email_tokens.assert_not_awaited()
+    auth.token_repo.save_confirm_email_token.assert_not_awaited()
+    auth.mail_service.send_confirm_email_mail.assert_not_awaited()
+
+
+async def test_confirm_email_confirms_token_user_without_current_user(auth, make_user):
+    user = make_user(email="confirm@example.com", email_confirmed=False)
+    token = ConfirmEmailToken(
+        user_id=user.id,
+        token=hash_str("raw-confirm-token"),
+        expires_at=user.created_at,
+    )
+    auth.token_repo.get_confirm_email_token.return_value = token
+    auth.user_repo.get_by_id.return_value = user
+
+    result = await auth.service.confirm_email("raw-confirm-token")
+
+    assert result is True
+    auth.token_repo.get_confirm_email_token.assert_awaited_once_with(
+        hash_str("raw-confirm-token")
+    )
+    auth.user_repo.get_by_id.assert_awaited_once_with(user.id)
+    auth.user_repo.confirm_email.assert_awaited_once_with(user)
+    auth.token_repo.revoke_confirm_email_tokens.assert_awaited_once_with(user.id)
+
+
+async def test_confirm_email_raises_for_invalid_public_token(auth):
+    auth.token_repo.get_confirm_email_token.return_value = None
+
+    with pytest.raises(TokenInvalid):
+        await auth.service.confirm_email("bad-token")
+
+    auth.user_repo.confirm_email.assert_not_awaited()
+
+
+async def test_validate_confirm_email_token_uses_public_token_lookup(auth):
+    auth.token_repo.get_confirm_email_token.return_value = object()
+
+    result = await auth.service.validate_confirm_email_token("raw-token")
+
+    assert result is True
+    auth.token_repo.get_confirm_email_token.assert_awaited_once_with(
+        hash_str("raw-token")
+    )
 
 
 async def test_login_user_rejects_invalid_credentials(auth):

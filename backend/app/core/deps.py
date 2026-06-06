@@ -187,10 +187,9 @@ MailServiceDep = Annotated[MailService, Depends(get_mail_service)]
 async def get_user_service(
     user_repository: UserRepositoryDep,
     token_repository: TokenRepositoryDep,
-    mail_service: MailServiceDep,
     current_user: CurrentUserDep,
 ):
-    return UserService(user_repository, token_repository, mail_service, current_user)
+    return UserService(user_repository, token_repository, current_user)
 
 
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
