@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
-from unittest.mock import ANY, AsyncMock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -12,7 +11,13 @@ from app.core.exceptions import (
     TokenInvalid,
 )
 from app.core.utils import hash_str
-from app.models.user import ConfirmEmailToken, RefreshToken, Role, User
+from app.models.user import (
+    ConfirmEmailToken,
+    RefreshToken,
+    ResetPasswordToken,
+    Role,
+    User,
+)
 from app.services.auth_service import AuthService
 
 
@@ -96,7 +101,7 @@ async def test_register_user_normalizes_phone_and_saves_company_user(auth):
     auth.token_repo.revoke_confirm_email_tokens.assert_awaited_once_with(
         created_user.id
     )
-    auth.token_repo.save_confirm_email_token.assert_awaited_once()
+    auth.token_repo.create_confirm_email_token.assert_awaited_once()
     auth.mail_service.send_confirm_email_mail.assert_awaited_once()
     assert auth.mail_service.send_confirm_email_mail.await_args.args[0] == (
         created_user.email
@@ -117,34 +122,25 @@ async def test_register_user_skips_confirmation_mail_for_confirmed_user(auth):
 
     assert result is confirmed_user
     auth.token_repo.revoke_confirm_email_tokens.assert_not_awaited()
-    auth.token_repo.save_confirm_email_token.assert_not_awaited()
+    auth.token_repo.create_confirm_email_token.assert_not_awaited()
     auth.mail_service.send_confirm_email_mail.assert_not_awaited()
 
 
 async def test_send_confirm_email_revokes_old_tokens_saves_new_token_and_sends_mail(
-    monkeypatch,
     auth,
     make_user,
 ):
     user = make_user(email="unconfirmed@example.com", email_confirmed=False)
-    monkeypatch.setattr(
-        "app.services.auth_service.secrets.token_urlsafe",
-        lambda length: "raw-confirm-token",
-    )
+    auth.token_repo.create_confirm_email_token.return_value = "confirm-token"
 
     await auth.service.send_confirm_email(user)
 
     auth.token_repo.revoke_confirm_email_tokens.assert_awaited_once_with(user.id)
-    auth.token_repo.save_confirm_email_token.assert_awaited_once_with(
-        hash_str("raw-confirm-token"),
-        user.id,
-        ANY,
-    )
-    expires_at = auth.token_repo.save_confirm_email_token.await_args.args[2]
-    assert isinstance(expires_at, datetime)
+    auth.token_repo.create_confirm_email_token.assert_awaited_once()
+    assert auth.token_repo.create_confirm_email_token.await_args.args[0] == user.id
     auth.mail_service.send_confirm_email_mail.assert_awaited_once_with(
         user.email,
-        "raw-confirm-token",
+        "confirm-token",
     )
 
 
@@ -154,7 +150,7 @@ async def test_send_confirm_email_skips_confirmed_user(auth, make_user):
     await auth.service.send_confirm_email(user)
 
     auth.token_repo.revoke_confirm_email_tokens.assert_not_awaited()
-    auth.token_repo.save_confirm_email_token.assert_not_awaited()
+    auth.token_repo.create_confirm_email_token.assert_not_awaited()
     auth.mail_service.send_confirm_email_mail.assert_not_awaited()
 
 
@@ -162,17 +158,17 @@ async def test_confirm_email_confirms_token_user_without_current_user(auth, make
     user = make_user(email="confirm@example.com", email_confirmed=False)
     token = ConfirmEmailToken(
         user_id=user.id,
-        token=hash_str("raw-confirm-token"),
+        token=hash_str("confirm-token"),
         expires_at=user.created_at,
     )
     auth.token_repo.get_confirm_email_token.return_value = token
     auth.user_repo.get_by_id.return_value = user
 
-    result = await auth.service.confirm_email("raw-confirm-token")
+    result = await auth.service.confirm_email("confirm-token")
 
     assert result is True
     auth.token_repo.get_confirm_email_token.assert_awaited_once_with(
-        hash_str("raw-confirm-token")
+        "confirm-token"
     )
     auth.user_repo.get_by_id.assert_awaited_once_with(user.id)
     auth.user_repo.confirm_email.assert_awaited_once_with(user)
@@ -191,11 +187,11 @@ async def test_confirm_email_raises_for_invalid_public_token(auth):
 async def test_validate_confirm_email_token_uses_public_token_lookup(auth):
     auth.token_repo.get_confirm_email_token.return_value = object()
 
-    result = await auth.service.validate_confirm_email_token("raw-token")
+    result = await auth.service.validate_confirm_email_token("confirm-token")
 
     assert result is True
     auth.token_repo.get_confirm_email_token.assert_awaited_once_with(
-        hash_str("raw-token")
+        "confirm-token"
     )
 
 
@@ -239,8 +235,7 @@ async def test_refresh_user_rotates_refresh_token(auth, make_user):
 
     assert result == ("new-access", "new-refresh")
     auth.token_repo.revoke_refresh_token.assert_awaited_once_with(
-        user.id,
-        hash_str("old-refresh-token"),
+        user.id, "old-refresh-token"
     )
 
 
@@ -253,7 +248,7 @@ async def test_refresh_user_rejects_missing_token(auth, refresh_token):
 
 
 async def test_reset_password_rejects_invalid_token(auth):
-    auth.token_repo.get_forget_password_token.return_value = None
+    auth.token_repo.get_reset_password_token.return_value = None
 
     with pytest.raises(TokenInvalid):
         await auth.service.reset_password("bad-token", "new-long-password")
@@ -263,12 +258,12 @@ async def test_reset_password_rejects_invalid_token(auth):
 
 async def test_reset_password_updates_password_and_revokes_tokens(auth, make_user):
     user = make_user()
-    forget_token = RefreshToken(
+    reset_token = ResetPasswordToken(
         user_id=user.id,
         token=hash_str("reset-token"),
         expires_at=user.created_at,
     )
-    auth.token_repo.get_forget_password_token.return_value = forget_token
+    auth.token_repo.get_reset_password_token.return_value = reset_token
     auth.service.hash_password = AsyncMock(return_value="new-hash")
 
     result = await auth.service.reset_password("reset-token", "new-long-password")
@@ -276,8 +271,8 @@ async def test_reset_password_updates_password_and_revokes_tokens(auth, make_use
     assert result is True
     auth.user_repo.update_password.assert_awaited_once_with(user.id, "new-hash")
     auth.token_repo.revoke_all_refresh_tokens.assert_awaited_once_with(user.id)
-    auth.token_repo.revoke_forget_password_token.assert_awaited_once_with(
-        hash_str("reset-token")
+    auth.token_repo.revoke_reset_password_token.assert_awaited_once_with(
+        "reset-token"
     )
 
 
@@ -295,16 +290,16 @@ async def test_map_keycloak_roles_filters_roles_and_marks_admin(auth):
     assert roles == [active_role, admin_role]
 
 
-async def test_forget_password_returns_silently_for_unknown_email(auth):
+async def test_request_password_reset_returns_silently_for_unknown_email(auth):
     auth.user_repo.get_by_email.return_value = None
 
-    await auth.service.forget_password("missing@example.com")
+    await auth.service.request_password_reset("missing@example.com")
 
-    auth.token_repo.save_forget_password_token.assert_not_awaited()
-    auth.mail_service.send_forget_password_mail.assert_not_awaited()
+    auth.token_repo.create_reset_password_token.assert_not_awaited()
+    auth.mail_service.send_reset_password_mail.assert_not_awaited()
 
 
-async def test_forget_password_rejects_oauth_only_user(
+async def test_request_password_reset_rejects_oauth_only_user(
     auth,
     make_user,
 ):
@@ -314,23 +309,23 @@ async def test_forget_password_rejects_oauth_only_user(
     )
 
     with pytest.raises(NotAllowed):
-        await auth.service.forget_password("oauth@example.com")
+        await auth.service.request_password_reset("oauth@example.com")
 
-    auth.mail_service.send_forget_password_mail.assert_not_awaited()
+    auth.mail_service.send_reset_password_mail.assert_not_awaited()
 
 
-async def test_forget_password_sends_reset_mail_for_password_user(
+async def test_request_password_reset_sends_reset_mail_for_password_user(
     auth,
     make_user,
 ):
     password_user = make_user(email="user@example.com")
     auth.user_repo.get_by_email.return_value = password_user
-    auth.service.create_forget_password_token = AsyncMock(return_value="reset-token")
+    auth.service.create_reset_password_token = AsyncMock(return_value="reset-token")
 
-    await auth.service.forget_password("user@example.com")
+    await auth.service.request_password_reset("user@example.com")
 
-    auth.service.create_forget_password_token.assert_awaited_once_with(password_user)
-    auth.mail_service.send_forget_password_mail.assert_awaited_once_with(
+    auth.service.create_reset_password_token.assert_awaited_once_with(password_user)
+    auth.mail_service.send_reset_password_mail.assert_awaited_once_with(
         "user@example.com",
         "reset-token",
     )

@@ -8,7 +8,7 @@ from app.core.exceptions import (
     PhoneNumberInvalid,
     UserNotFound,
 )
-from app.core.utils import hash_str, normalize_phone_number
+from app.core.utils import normalize_phone_number
 from app.models.user import User
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
@@ -57,7 +57,7 @@ class UserService:
     async def logout_user(self, refresh_token: str | None) -> None:
         if refresh_token:
             await self.token_repository.revoke_refresh_token(
-                self.current_user.id, hash_str(refresh_token)
+                self.current_user.id, refresh_token
             )
 
     async def get_unconfirmed_users(self) -> Sequence[User]:

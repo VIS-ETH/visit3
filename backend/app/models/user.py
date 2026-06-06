@@ -64,7 +64,7 @@ class RefreshToken(BaseToken, table=True):
     pass
 
 
-class ForgetPasswordToken(BaseToken, table=True):
+class ResetPasswordToken(BaseToken, table=True):
     pass
 
 

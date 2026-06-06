@@ -72,8 +72,8 @@ class MailService:
 
         return mail
 
-    async def send_forget_password_mail(self, email: str, token: str) -> None:
-        logger.info(f"Preparing forget-password mail for: {email}")
+    async def send_reset_password_mail(self, email: str, token: str) -> None:
+        logger.info(f"Preparing reset-password mail for: {email}")
         request = self.construct_mail(
             [email],
             "VISIT Reset Password",

@@ -15,14 +15,14 @@ from app.core.exceptions import (
     Unauthenticated,
 )
 from app.models.user import User
+from app.repositories.token_repository import REFRESH_TOKEN_EXPIRE
 from app.schemas.user import (
-    ForgetPasswordRequest,
+    PasswordResetRequest,
     RegisterUserRequest,
     ResetPasswordRequest,
     Token,
     UserResponse,
 )
-from app.services.auth_service import REFRESH_TOKEN_EXPIRE
 
 logger = logging.getLogger(__name__)
 
@@ -92,12 +92,12 @@ async def refresh_user(
         raise Unauthenticated(e.identifier)
 
 
-@router.post("/forget-password", operation_id="forgetPassword")
-async def forget_password(
-    auth_service: AuthServiceDep, request: ForgetPasswordRequest
+@router.post("/reset-password", operation_id="requestPasswordReset")
+async def request_password_reset(
+    auth_service: AuthServiceDep, request: PasswordResetRequest
 ) -> None:
     try:
-        return await auth_service.forget_password(request.email)
+        return await auth_service.request_password_reset(request.email)
     except Exception:
         raise HTTPException(status_code=500, detail="gRPC call failed")
 

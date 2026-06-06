@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import secrets
 from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
@@ -20,7 +19,7 @@ from app.core.exceptions import (
     TokenInvalid,
 )
 from app.core.security import decode_token
-from app.core.utils import hash_str, normalize_phone_number
+from app.core.utils import normalize_phone_number
 from app.models.user import RefreshToken, Role, User
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
@@ -31,9 +30,6 @@ logger = logging.getLogger(__name__)
 
 password_hash = PasswordHash.recommended()
 ACCESS_TOKEN_EXPIRE = timedelta(minutes=15)
-REFRESH_TOKEN_EXPIRE = timedelta(days=7)
-FORGET_PASSWORD_TOKEN_EXPIRE = timedelta(minutes=10)
-CONFIRM_EMAIL_TOKEN_EXPIRE = timedelta(days=3)
 MIN_PASSWORD_LENGTH = 10
 
 
@@ -73,26 +69,15 @@ class AuthService:
         return jwt.encode(to_encode, get_settings().SECRET_KEY, algorithm="HS256")
 
     async def create_refresh_token(self, user: User) -> str:
-        raw_token = secrets.token_urlsafe(64)
-        hashed_token = hash_str(raw_token)
-        token = await self.token_repository.create_refresh_token(
-            user.id,
-            hashed_token,
-            datetime.now(timezone.utc) + REFRESH_TOKEN_EXPIRE,
-        )
-
-        if not token:
-            raise Exception
-
-        return raw_token
+        return await self.token_repository.create_refresh_token(user.id)
 
     async def create_tokens(self, user: User) -> tuple[str, str]:
         access_token = await self.create_access_token(user)
         refresh_token = await self.create_refresh_token(user)
         return (access_token, refresh_token)
 
-    async def get_active_refresh_token(self, raw_token: str) -> RefreshToken | None:
-        return await self.token_repository.get_active_refresh_token(hash_str(raw_token))
+    async def get_active_refresh_token(self, token: str) -> RefreshToken | None:
+        return await self.token_repository.get_active_refresh_token(token)
 
     async def verify_and_update_password(self, user: User, plain_password: str) -> bool:
         if user.password is None:
@@ -114,30 +99,18 @@ class AuthService:
     async def hash_password(self, password: str) -> str:
         return await asyncio.to_thread(password_hash.hash, password)
 
-    async def create_forget_password_token(self, user: User) -> str:
-        raw_token = secrets.token_urlsafe(32)
-        hashed_token = hash_str(raw_token)
-        expire = datetime.now(timezone.utc) + FORGET_PASSWORD_TOKEN_EXPIRE
-        await self.token_repository.save_forget_password_token(
-            hashed_token, user.id, expire
-        )
-        return raw_token
+    async def create_reset_password_token(self, user: User) -> str:
+        return await self.token_repository.create_reset_password_token(user.id)
 
     async def create_confirm_email_token(self, user: User) -> str:
-        raw_token = secrets.token_urlsafe(32)
-        hashed_token = hash_str(raw_token)
-        expire = datetime.now(timezone.utc) + CONFIRM_EMAIL_TOKEN_EXPIRE
-        await self.token_repository.save_confirm_email_token(
-            hashed_token, user.id, expire
-        )
-        return raw_token
+        return await self.token_repository.create_confirm_email_token(user.id)
 
     async def send_confirm_email(self, user: User) -> None:
         if user.email_confirmed:
             return
         await self.token_repository.revoke_confirm_email_tokens(user.id)
-        raw_token = await self.create_confirm_email_token(user)
-        await self.mail_service.send_confirm_email_mail(user.email, raw_token)
+        token = await self.create_confirm_email_token(user)
+        await self.mail_service.send_confirm_email_mail(user.email, token)
 
     async def register_user(self, user: User) -> User:
         if await self.user_repository.get_by_email(user.email):
@@ -192,43 +165,44 @@ class AuthService:
             raise TokenInvalid(f"refresh:{token.user_id}")
 
         await self.token_repository.revoke_refresh_token(
-            user.id, hash_str(refresh_token)
+            user.id, refresh_token
         )
 
         return await self.create_tokens(user)
 
-    async def forget_password(self, email: str) -> None:
+    async def request_password_reset(self, email: str) -> None:
         user = await self.user_repository.get_by_email(email)
 
         if not user:
-            logger.debug(f"Forget password request for non-existent user: {email}")
+            logger.debug(
+                f"Password reset requested for non-existent user: {email}"
+            )
             return
 
         if not user.password:
-            logger.warning(f"Forget password requested for OAuth-only user: {email}")
-            raise NotAllowed(f"forget_password:{user.id}")
+            logger.warning(f"Password reset requested for OAuth-only user: {email}")
+            raise NotAllowed(f"request_password_reset:{user.id}")
 
-        token = await self.create_forget_password_token(user)
+        token = await self.create_reset_password_token(user)
         logger.info(f"Password reset token created for user: {email}")
-        await self.mail_service.send_forget_password_mail(email, token)
+        await self.mail_service.send_reset_password_mail(email, token)
 
     async def reset_password(self, token: str, new_password: str) -> bool:
         if len(new_password) < MIN_PASSWORD_LENGTH:
             raise PasswordTooShort("reset_password:password_too_short")
 
-        hashed = hash_str(token)
-        forget_token = await self.token_repository.get_forget_password_token(hashed)
+        reset_token = await self.token_repository.get_reset_password_token(token)
 
-        if not forget_token:
+        if not reset_token:
             logger.warning("Password reset attempted with invalid/expired token")
             raise TokenInvalid("reset_password")
 
         try:
             await self.user_repository.update_password(
-                forget_token.user_id, await self.hash_password(new_password)
+                reset_token.user_id, await self.hash_password(new_password)
             )
-            await self.token_repository.revoke_all_refresh_tokens(forget_token.user_id)
-            await self.token_repository.revoke_forget_password_token(hashed)
+            await self.token_repository.revoke_all_refresh_tokens(reset_token.user_id)
+            await self.token_repository.revoke_reset_password_token(token)
             logger.info("Password reset successful")
             return True
         except Exception as e:
@@ -237,19 +211,18 @@ class AuthService:
 
     async def validate_reset_token(self, token: str) -> bool:
         return (
-            await self.token_repository.get_forget_password_token(hash_str(token))
+            await self.token_repository.get_reset_password_token(token)
             is not None
         )
 
     async def validate_confirm_email_token(self, token: str) -> bool:
         return (
-            await self.token_repository.get_confirm_email_token(hash_str(token))
+            await self.token_repository.get_confirm_email_token(token)
             is not None
         )
 
     async def confirm_email(self, token: str) -> bool:
-        hashed = hash_str(token)
-        confirm_token = await self.token_repository.get_confirm_email_token(hashed)
+        confirm_token = await self.token_repository.get_confirm_email_token(token)
         if not confirm_token:
             logger.warning("Email confirmation attempted with invalid/expired token")
             raise TokenInvalid("confirm_email")
