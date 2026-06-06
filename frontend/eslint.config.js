@@ -22,7 +22,7 @@ export default defineConfig([
   importPlugin.flatConfigs.typescript,
   reactPlugin.configs.flat.recommended,
   reactPlugin.configs.flat["jsx-runtime"],
-  reactHooksPlugin.configs["recommended-latest"],
+  reactHooksPlugin.configs.flat["recommended-latest"],
   reactRefreshPlugin.configs.vite,
   {
     files: ["**/*.{ts,tsx,js,jsx}"],
@@ -55,6 +55,8 @@ export default defineConfig([
       "react/no-children-prop": "warn",
       "react/prop-types": "warn",
       "react/no-unescaped-entities": "warn",
+      "react-hooks/purity": "off",
+      "react-hooks/set-state-in-effect": "off",
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
       "no-var": "error",
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
