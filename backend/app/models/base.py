@@ -1,22 +1,25 @@
 from datetime import datetime, timezone
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import TIMESTAMP
 from sqlmodel import Field, SQLModel  # pyright: ignore[reportUnknownVariableType]
 
+TIMESTAMPTZ = cast(type[Any], TIMESTAMP(timezone=True))
+
 
 class AppBase(SQLModel):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
-        sa_type=TIMESTAMP(timezone=True),
+        sa_type=TIMESTAMPTZ,
         sa_column_kwargs={"server_default": func.now()},
     )
     deleted_at: datetime | None = Field(
         default=None,
         nullable=True,
-        sa_type=TIMESTAMP(timezone=True),
+        sa_type=TIMESTAMPTZ,
     )
 
     @property
@@ -32,7 +35,7 @@ class BaseEntity(AppBase):
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
-        sa_type=TIMESTAMP(timezone=True),
+        sa_type=TIMESTAMPTZ,
         sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
     )
 
@@ -50,6 +53,6 @@ class BaseToken(BaseEntity):
     expires_at: datetime = Field(
         ...,
         nullable=False,
-        sa_type=TIMESTAMP(timezone=True),
+        sa_type=TIMESTAMPTZ,
         index=True,
     )
