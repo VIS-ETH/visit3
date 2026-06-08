@@ -166,7 +166,7 @@ class ServiceResponse(BaseModel):
     event_id: UUID
     name: str
     description: str
-    image_url: str | None
+    image_url: str | None = None
     confirmation_description: str | None
     order: int
     price: int
@@ -283,6 +283,7 @@ class BookingResponse(BookingBase):
 class BookingWithCompanyAndBoothZoneResponse(BookingBase):
     company: Company
     booth_zone: BoothZoneResponse
+    services: list[BookingServiceResponse] = Field(default_factory=lambda: [])
     total_price: int
     booked_services_count: int
     booked_services_summary: str
@@ -311,6 +312,10 @@ class RequirementTextResponse(BaseModel):
 
 class RequirementFileDownloadResponse(BaseModel):
     url: str
+
+
+class BookingRequirementFileMapResponse(BaseModel):
+    files: dict[UUID, RequirementFileResponse]
 
 
 class ExportBackgroundResponse(BaseModel):

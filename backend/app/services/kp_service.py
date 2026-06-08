@@ -8,6 +8,7 @@ from app.core.auth_context import (
     require_assigned_company_user,
     require_confirmed_company_user,
     require_kp_president_user,
+    require_staff_user,
 )
 from app.core.config import get_settings
 from app.core.exceptions import (
@@ -49,6 +50,7 @@ from app.models.kp_event import (
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
 from app.schemas.kp import (
+    BookingRequirementFileMapResponse,
     BookingResponse,
     BookingServiceInput,
     BookingServiceResponse,
@@ -60,9 +62,11 @@ from app.schemas.kp import (
     CreateIndustryInput,
     CreateKpInput,
     CreateServiceInput,
+    RequirementFileResponse,
     RequirementTextResponse,
     ServiceRequirementResponse,
     ServiceResponse,
+    StoredFileResponse,
     UpdateBookingBoothNumberInput,
     UpdateBookingInput,
     UpdateBookingStatusInput,
@@ -550,13 +554,19 @@ class KpService:
     async def _get_owned_booking_service(
         self, booking_service_id: UUID, company_id: UUID
     ) -> KpEventBookingService:
+        booking_service = await self._get_booking_service(booking_service_id)
+        if booking_service.booking.company_id != company_id:
+            raise KpBookingNotOwned(f"booking_service:not_owned:{booking_service_id}")
+        return booking_service
+
+    async def _get_booking_service(
+        self, booking_service_id: UUID
+    ) -> KpEventBookingService:
         booking_service = await self.kp_repository.get_booking_service_by_id(
             booking_service_id
         )
         if booking_service is None:
             raise KpBookingNotFound(f"booking_service:not_found:{booking_service_id}")
-        if booking_service.booking.company_id != company_id:
-            raise KpBookingNotOwned(f"booking_service:not_owned:{booking_service_id}")
         return booking_service
 
     def _ensure_company_status_transition(
@@ -841,6 +851,60 @@ class KpService:
             requirement_file.stored_file.storage_key,
             requirement_file.stored_file.original_filename,
         )
+
+    async def get_staff_booking_requirement_file(
+        self, booking_service_id: UUID, requirement_id: UUID
+    ) -> KpEventBookingServiceFileLink | None:
+        require_staff_user(self.current_user)
+        booking_service = await self._get_booking_service(booking_service_id)
+        await self._get_requirement_for_booking_service(booking_service, requirement_id)
+        requirement_file = await self.kp_repository.get_requirement_file(
+            booking_service.id, requirement_id
+        )
+        if requirement_file is None or requirement_file.stored_file is None:
+            return None
+        return requirement_file
+
+    async def get_staff_booking_requirement_file_download_url(
+        self, booking_service_id: UUID, requirement_id: UUID
+    ) -> str:
+        requirement_file = await self.get_staff_booking_requirement_file(
+            booking_service_id, requirement_id
+        )
+        if requirement_file is None or requirement_file.stored_file is None:
+            raise KpServiceRequirementNotFound(
+                f"staff_booking_requirement_file:not_found:{booking_service_id}:{requirement_id}"
+            )
+        return await self.storage_service.generate_download_url(
+            requirement_file.stored_file.storage_key,
+            requirement_file.stored_file.original_filename,
+        )
+
+    async def list_staff_booking_requirement_files(
+        self, event_id: UUID, booking_id: UUID
+    ) -> BookingRequirementFileMapResponse:
+        require_staff_user(self.current_user)
+        await self._get_event(event_id)
+        booking = await self._get_booking(booking_id)
+        if booking.event_id != event_id:
+            raise KpBookingNotFound(
+                f"staff_booking_requirement_files:event_mismatch:{event_id}:{booking_id}"
+            )
+
+        files: dict[UUID, RequirementFileResponse] = {}
+        for booking_service in booking.services:
+            for requirement_file in booking_service.requirement_file_links:
+                if requirement_file.stored_file is None:
+                    continue
+                files[requirement_file.requirement_id] = RequirementFileResponse(
+                    id=requirement_file.id,
+                    booking_service_id=requirement_file.booking_service_id,
+                    requirement_id=requirement_file.requirement_id,
+                    stored_file=StoredFileResponse.model_validate(
+                        requirement_file.stored_file, from_attributes=True
+                    ),
+                )
+        return BookingRequirementFileMapResponse(files=files)
 
     async def cleanup_orphaned_stored_files(self) -> None:
         orphaned_files = await self.kp_repository.list_orphaned_stored_files(

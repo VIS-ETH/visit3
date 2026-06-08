@@ -21,6 +21,7 @@ from app.core.exceptions import (
     KpServiceRequirementNotFound,
     KpServiceUnavailable,
     KpWaitlistSameZone,
+    NotAllowed,
 )
 from app.models.kp_event import (
     KpBookingStatus,
@@ -1134,6 +1135,115 @@ async def test_get_booking_requirement_file_download_url_rejects_missing_file(
         )
 
     storage_service.generate_download_url.assert_not_awaited()
+
+
+async def test_staff_get_booking_requirement_file_download_url(
+    kp_repo,
+    storage_service,
+    staff_user,
+):
+    booking = make_booking()
+    booking_service = make_booking_service(booking=booking)
+    requirement = make_requirement(service_id=booking_service.service_id)
+    stored_file = make_stored_file("uploads/file.pdf")
+    requirement_file = make_requirement_file(
+        booking_service=booking_service,
+        requirement=requirement,
+        stored_file=stored_file,
+    )
+    service = KpService(kp_repo, storage_service, staff_user)
+    kp_repo.get_booking_service_by_id.return_value = booking_service
+    kp_repo.get_service_requirement_by_id.return_value = requirement
+    kp_repo.get_requirement_file.return_value = requirement_file
+    storage_service.generate_download_url.return_value = "https://files.example/file"
+
+    result = await service.get_staff_booking_requirement_file_download_url(
+        booking_service.id,
+        requirement.id,
+    )
+
+    assert result == "https://files.example/file"
+    storage_service.generate_download_url.assert_awaited_once_with(
+        "uploads/file.pdf",
+        stored_file.original_filename,
+    )
+
+
+async def test_staff_get_booking_requirement_file_rejects_company_user(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    service = KpService(kp_repo, storage_service, make_user(company_id=uuid4()))
+
+    with pytest.raises(NotAllowed):
+        await service.get_staff_booking_requirement_file(uuid4(), uuid4())
+
+    kp_repo.get_booking_service_by_id.assert_not_awaited()
+
+
+async def test_staff_get_booking_requirement_file_download_url_rejects_missing_file(
+    kp_repo,
+    storage_service,
+    staff_user,
+):
+    booking = make_booking()
+    booking_service = make_booking_service(booking=booking)
+    requirement = make_requirement(service_id=booking_service.service_id)
+    service = KpService(kp_repo, storage_service, staff_user)
+    kp_repo.get_booking_service_by_id.return_value = booking_service
+    kp_repo.get_service_requirement_by_id.return_value = requirement
+    kp_repo.get_requirement_file.return_value = None
+
+    with pytest.raises(KpServiceRequirementNotFound):
+        await service.get_staff_booking_requirement_file_download_url(
+            booking_service.id,
+            requirement.id,
+        )
+
+    storage_service.generate_download_url.assert_not_awaited()
+
+
+async def test_list_staff_booking_requirement_files_returns_file_map(
+    kp_repo,
+    storage_service,
+    staff_user,
+):
+    event_id = uuid4()
+    booking = make_booking(event_id=event_id)
+    booking_service = make_booking_service(booking=booking)
+    requirement = make_requirement(service_id=booking_service.service_id)
+    stored_file = make_stored_file("uploads/file.pdf")
+    requirement_file = make_requirement_file(
+        booking_service=booking_service,
+        requirement=requirement,
+        stored_file=stored_file,
+    )
+    booking_service.requirement_file_links = [requirement_file]
+    booking.services = [booking_service]
+    service = KpService(kp_repo, storage_service, staff_user)
+    kp_repo.get_by_id.return_value = make_event(event_id=event_id)
+    kp_repo.get_booking_by_id.return_value = booking
+
+    result = await service.list_staff_booking_requirement_files(event_id, booking.id)
+
+    assert list(result.files) == [requirement.id]
+    assert result.files[requirement.id].stored_file.original_filename == "old.pdf"
+
+
+async def test_list_staff_booking_requirement_files_rejects_event_mismatch(
+    kp_repo,
+    storage_service,
+    staff_user,
+):
+    event_id = uuid4()
+    booking = make_booking(event_id=uuid4())
+    service = KpService(kp_repo, storage_service, staff_user)
+    kp_repo.get_by_id.return_value = make_event(event_id=event_id)
+    kp_repo.get_booking_by_id.return_value = booking
+
+    with pytest.raises(KpBookingNotFound):
+        await service.list_staff_booking_requirement_files(event_id, booking.id)
 
 
 async def test_cleanup_orphaned_stored_files_deletes_storage_and_rows(kp_service):

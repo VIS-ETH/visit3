@@ -15,6 +15,7 @@ from app.models.kp_event import (
     KpIndustry,
 )
 from app.schemas.kp import (
+    BookingRequirementFileMapResponse,
     BookingResponse,
     BookingUpgradeWaitlistEntryResponse,
     BookingWithCompanyAndBoothZoneResponse,
@@ -467,6 +468,49 @@ async def get_booking_requirement_file_download_url(
         booking_service_id, requirement_id
     )
     return RequirementFileDownloadResponse(url=url)
+
+
+@router.get(
+    "/staff/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
+    operation_id="getStaffBookingRequirementFile",
+    response_model=RequirementFileResponse | None,
+)
+async def get_staff_booking_requirement_file(
+    kp_service: KpServiceDep,
+    booking_service_id: UUID,
+    requirement_id: UUID,
+) -> KpEventBookingServiceFileLink | None:
+    return await kp_service.get_staff_booking_requirement_file(
+        booking_service_id, requirement_id
+    )
+
+
+@router.get(
+    "/staff/booking-services/{booking_service_id}/requirements/{requirement_id}/file/download",
+    operation_id="getStaffBookingRequirementFileDownloadUrl",
+)
+async def get_staff_booking_requirement_file_download_url(
+    kp_service: KpServiceDep,
+    booking_service_id: UUID,
+    requirement_id: UUID,
+) -> RequirementFileDownloadResponse:
+    url = await kp_service.get_staff_booking_requirement_file_download_url(
+        booking_service_id, requirement_id
+    )
+    return RequirementFileDownloadResponse(url=url)
+
+
+@router.get(
+    "/staff/events/{event_id}/bookings/{booking_id}/requirement-files",
+    operation_id="listStaffBookingRequirementFiles",
+    response_model=BookingRequirementFileMapResponse,
+)
+async def list_staff_booking_requirement_files(
+    kp_service: KpServiceDep,
+    event_id: UUID,
+    booking_id: UUID,
+) -> BookingRequirementFileMapResponse:
+    return await kp_service.list_staff_booking_requirement_files(event_id, booking_id)
 
 
 # --- Exports ---
