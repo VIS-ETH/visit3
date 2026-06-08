@@ -9,7 +9,6 @@ from app.core.exceptions import (
     PhoneNumberInvalid,
     UserNotFound,
 )
-from app.core.utils import hash_str
 from app.services.user_service import UserService
 
 
@@ -64,8 +63,7 @@ async def test_logout_user_revokes_refresh_token(user_service, unconfirmed_user)
     await user_service.service.logout_user("refresh-token")
 
     user_service.token_repo.revoke_refresh_token.assert_awaited_once_with(
-        unconfirmed_user.id,
-        hash_str("refresh-token"),
+        unconfirmed_user.id, "refresh-token"
     )
 
 

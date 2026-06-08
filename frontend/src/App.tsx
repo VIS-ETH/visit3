@@ -9,7 +9,7 @@ import { Navigate, Outlet, Route, Routes } from "react-router";
 import RootLayout from "./pages/root";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import ForgetPassword from "./pages/ForgetPassword";
+import RequestPasswordReset from "./pages/RequestPasswordReset";
 import ResetPassword from "./pages/ResetPassword";
 import UnconfirmedEmail from "./pages/UnconfirmedEmail";
 import ConfirmEmail from "./pages/ConfirmEmail";
@@ -69,7 +69,7 @@ function AppRoutes() {
       <Route element={<RootLayout navbarHidden={true} />}>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/forget-password" element={<ForgetPassword />} />
+        <Route path="/reset-password" element={<RequestPasswordReset />} />
         <Route path="/reset/:token" element={<ResetPassword />} />
         <Route path="/not-allowed" element={<NotAllowed />} />
         <Route path="*" element={<NotFound />} />

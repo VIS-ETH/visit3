@@ -96,11 +96,11 @@ class TokenData(BaseModel):
     username: str | None = None
 
 
-class ForgetPasswordInput(BaseModel):
+class PasswordResetInput(BaseModel):
     email: EmailStr
 
 
-class ForgetPasswordRequest(ForgetPasswordInput):
+class PasswordResetRequest(PasswordResetInput):
     pass
 
 

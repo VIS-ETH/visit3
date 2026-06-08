@@ -4,33 +4,33 @@ import { notifications } from "@mantine/notifications";
 import { IconMailSearch } from "@tabler/icons-react";
 import { useDocumentTitle } from "@mantine/hooks";
 import { useTranslatedForm } from "../utils/translator";
-import { forgetPasswordSchema } from "../schemas/forgetPasswordSchema";
+import { passwordResetRequestSchema } from "../schemas/passwordResetRequestSchema";
 import { useTranslation } from "react-i18next";
-import { useForgetPassword } from "../orval/generated/auth/auth";
+import { useRequestPasswordReset } from "../orval/generated/auth/auth";
 import AuthCardLayout from "../components/AuthCardLayout";
 import AuthButton from "../components/AuthButton";
 
-const ForgetPassword = () => {
+const RequestPasswordReset = () => {
   const { t } = useTranslation();
-  useDocumentTitle(t("forget_password.title"));
+  useDocumentTitle(t("password_reset_request.title"));
   const [emailSent, setEmailSent] = useState(false);
 
-  const { mutate: forgotPassword, isPending } = useForgetPassword({
+  const { mutate: requestPasswordReset, isPending } = useRequestPasswordReset({
     mutation: {
       onSuccess: () => {
         setEmailSent(true);
         notifications.show({
           color: "green",
-          title: t("forget_password.title"),
-          message: t("forget_password.sent"),
+          title: t("password_reset_request.title"),
+          message: t("password_reset_request.sent"),
           autoClose: 4000,
         });
       },
     },
   });
 
-  const form = useTranslatedForm<typeof forgetPasswordSchema>(
-    forgetPasswordSchema,
+  const form = useTranslatedForm<typeof passwordResetRequestSchema>(
+    passwordResetRequestSchema,
     {
       initialValues: {
         email: "",
@@ -40,14 +40,14 @@ const ForgetPassword = () => {
 
   return (
     <AuthCardLayout
-      title={t("forget_password.title")}
+      title={t("password_reset_request.title")}
       subtitle={t("welcome")}
       maxWidth={620}
       backTo="/login"
     >
       <form
         onSubmit={form.onSubmit((values) => {
-          forgotPassword({
+          requestPasswordReset({
             data: { email: values.email },
           });
         })}
@@ -66,7 +66,7 @@ const ForgetPassword = () => {
             loading={isPending}
             disabled={isPending || emailSent}
           >
-            {t("forget_password.submit")}
+            {t("password_reset_request.submit")}
           </AuthButton>
         </Stack>
       </form>
@@ -74,4 +74,4 @@ const ForgetPassword = () => {
   );
 };
 
-export default ForgetPassword;
+export default RequestPasswordReset;

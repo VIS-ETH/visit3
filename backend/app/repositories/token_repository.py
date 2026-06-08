@@ -1,21 +1,30 @@
-from datetime import datetime, timezone
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import TypeVar
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select, update
 
-from app.models.user import ConfirmEmailToken, ForgetPasswordToken, RefreshToken
+from app.core.utils import hash_str
+from app.models.user import ConfirmEmailToken, RefreshToken, ResetPasswordToken
 from app.repositories.base import BaseRepository
 
 TokenModelT = TypeVar(
-    "TokenModelT", RefreshToken, ForgetPasswordToken, ConfirmEmailToken
+    "TokenModelT", RefreshToken, ResetPasswordToken, ConfirmEmailToken
 )
+
+REFRESH_TOKEN_EXPIRE = timedelta(days=7)
+RESET_PASSWORD_TOKEN_EXPIRE = timedelta(minutes=10)
+CONFIRM_EMAIL_TOKEN_EXPIRE = timedelta(days=3)
 
 
 class TokenRepository(BaseRepository[RefreshToken]):
     def __init__(self, session: AsyncSession):
         super().__init__(RefreshToken, session)
+
+    def _create_token_value(self, length: int) -> str:
+        return secrets.token_urlsafe(length)
 
     async def _create_token(
         self,
@@ -34,6 +43,23 @@ class TokenRepository(BaseRepository[RefreshToken]):
         except Exception as e:
             await self.session.rollback()
             raise e
+
+    async def _issue_token(
+        self,
+        model: type[TokenModelT],
+        *,
+        user_id: UUID,
+        expires_at: datetime,
+        length: int,
+    ) -> str:
+        token = self._create_token_value(length)
+        await self._create_token(
+            model,
+            user_id=user_id,
+            hashed_token=hash_str(token),
+            expires_at=expires_at,
+        )
+        return token
 
     async def _get_active_token(
         self,
@@ -75,78 +101,68 @@ class TokenRepository(BaseRepository[RefreshToken]):
             raise e
 
     async def create_refresh_token(
-        self, user_id: UUID, hashed_token: str, expires_at: datetime
-    ) -> RefreshToken:
-        return await self._create_token(
+        self, user_id: UUID
+    ) -> str:
+        return await self._issue_token(
             RefreshToken,
             user_id=user_id,
-            hashed_token=hashed_token,
-            expires_at=expires_at,
+            expires_at=datetime.now(timezone.utc) + REFRESH_TOKEN_EXPIRE,
+            length=64,
         )
 
-    async def get_active_refresh_token(self, hashed_token: str) -> RefreshToken | None:
+    async def get_active_refresh_token(self, token: str) -> RefreshToken | None:
         return await self._get_active_token(
             RefreshToken,
-            hashed_token=hashed_token,
+            hashed_token=hash_str(token),
         )
 
-    async def revoke_refresh_token(self, user_id: UUID, hashed_token: str):
+    async def revoke_refresh_token(self, user_id: UUID, token: str):
         await self._revoke_tokens(
-            RefreshToken, user_id=user_id, hashed_token=hashed_token
+            RefreshToken, user_id=user_id, hashed_token=hash_str(token)
         )
 
     async def revoke_all_refresh_tokens(self, user_id: UUID):
         await self._revoke_tokens(RefreshToken, user_id=user_id)
 
-    async def save_forget_password_token(
-        self, hashed_token: str, user_id: UUID, expires_at: datetime
-    ) -> ForgetPasswordToken:
-        return await self._create_token(
-            ForgetPasswordToken,
+    async def create_reset_password_token(
+        self, user_id: UUID
+    ) -> str:
+        return await self._issue_token(
+            ResetPasswordToken,
             user_id=user_id,
-            hashed_token=hashed_token,
-            expires_at=expires_at,
+            expires_at=datetime.now(timezone.utc) + RESET_PASSWORD_TOKEN_EXPIRE,
+            length=32,
         )
 
-    async def get_forget_password_token(
-        self, hashed_token: str
-    ) -> ForgetPasswordToken | None:
+    async def get_reset_password_token(
+        self, token: str
+    ) -> ResetPasswordToken | None:
         return await self._get_active_token(
-            ForgetPasswordToken,
-            hashed_token=hashed_token,
+            ResetPasswordToken,
+            hashed_token=hash_str(token),
         )
 
-    async def revoke_forget_password_token(self, hashed_token: str):
-        await self._revoke_tokens(ForgetPasswordToken, hashed_token=hashed_token)
+    async def revoke_reset_password_token(self, token: str):
+        await self._revoke_tokens(
+            ResetPasswordToken, hashed_token=hash_str(token)
+        )
 
-    async def save_confirm_email_token(
-        self, hashed_token: str, user_id: UUID, expires_at: datetime
-    ) -> ConfirmEmailToken:
-        return await self._create_token(
+    async def create_confirm_email_token(
+        self, user_id: UUID
+    ) -> str:
+        return await self._issue_token(
             ConfirmEmailToken,
             user_id=user_id,
-            hashed_token=hashed_token,
-            expires_at=expires_at,
-        )
-
-    async def validate_confirm_email_token(
-        self, user_id: UUID, hashed_token: str
-    ) -> bool:
-        return (
-            await self._get_active_token(
-                ConfirmEmailToken,
-                user_id=user_id,
-                hashed_token=hashed_token,
-            )
-            is not None
+            expires_at=datetime.now(timezone.utc) + CONFIRM_EMAIL_TOKEN_EXPIRE,
+            length=32,
         )
 
     async def get_confirm_email_token(
-        self, hashed_token: str
+        self, token: str
     ) -> ConfirmEmailToken | None:
         return await self._get_active_token(
             ConfirmEmailToken,
-            hashed_token=hashed_token,
+            hashed_token=hash_str(token),
         )
 
     async def revoke_confirm_email_tokens(self, user_id: UUID):
@@ -155,7 +171,7 @@ class TokenRepository(BaseRepository[RefreshToken]):
     async def cleanup_expired(self):
         try:
             now = datetime.now(timezone.utc)
-            for model in (RefreshToken, ForgetPasswordToken, ConfirmEmailToken):
+            for model in (RefreshToken, ResetPasswordToken, ConfirmEmailToken):
                 await self.hard_delete_where(
                     model,
                     (col(model.expires_at) < now) | (col(model.is_revoked) == True),

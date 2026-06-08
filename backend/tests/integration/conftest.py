@@ -25,8 +25,8 @@ from app.models.kp_event import (
 from app.models.storage import StoredFile
 from app.models.user import (
     ConfirmEmailToken,
-    ForgetPasswordToken,
     RefreshToken,
+    ResetPasswordToken,
     Role,
     User,
     UserRole,
@@ -45,7 +45,7 @@ INTEGRATION_TABLES = [
     Role.__table__,
     UserRole.__table__,
     RefreshToken.__table__,
-    ForgetPasswordToken.__table__,
+    ResetPasswordToken.__table__,
     ConfirmEmailToken.__table__,
     CompanyInvite.__table__,
     KpCompanyProfile.__table__,

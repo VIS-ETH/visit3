@@ -100,10 +100,10 @@ const Login = () => {
         </AuthButton>
         <AuthButton
           component={NavLink}
-          to="/forget-password"
+          to="/reset-password"
           intent="secondary"
         >
-          {t("forget_password.login")}
+          {t("password_reset_request.login")}
         </AuthButton>
       </Stack>
 
