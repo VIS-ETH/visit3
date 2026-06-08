@@ -300,11 +300,10 @@ class ExportService:
             raise KpEventNotFound(f"nametag_background:event_not_found:{event_id}")
         mime_type = self._validate_background_upload(filename, content, content_type)
         existing_background = await self.kp_repository.get_nametag_background(event_id)
-        old_storage_key = (
-            existing_background.stored_file.storage_key
-            if existing_background is not None
-            else None
+        old_stored_file = (
+            existing_background.stored_file if existing_background is not None else None
         )
+        old_storage_key = old_stored_file.storage_key if old_stored_file else None
         suffix = self._background_suffix(mime_type)
         storage_key = (
             f"kp/events/{event_id}/exports/nametag-background/{uuid4()}{suffix}"
@@ -323,9 +322,7 @@ class ExportService:
                 size_bytes=stored_object.size_bytes,
                 sha256=stored_object.sha256,
                 etag=stored_object.etag,
-                stored_file=existing_background.stored_file
-                if existing_background is not None
-                else None,
+                stored_file=None,
             )
             background = await self.kp_repository.upsert_nametag_background(
                 event_id=event_id,
@@ -336,6 +333,8 @@ class ExportService:
             raise
         if old_storage_key is not None and old_storage_key != stored_object.key:
             await self.storage_service.delete_object(old_storage_key)
+        if old_stored_file is not None:
+            await self.kp_repository.delete_stored_file(old_stored_file)
         return background
 
     async def get_nametag_background(

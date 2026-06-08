@@ -243,10 +243,10 @@ class KpService:
         )
         old_stored_file = service.image_stored_file
         await self.kp_repository.delete_service(service)
-        if old_stored_file is not None:
-            await self.kp_repository.delete_stored_file(old_stored_file)
         if old_storage_key is not None:
             await self.storage_service.delete_object(old_storage_key)
+        if old_stored_file is not None:
+            await self.kp_repository.delete_stored_file(old_stored_file)
 
     async def upload_service_image(
         self,
@@ -265,10 +265,10 @@ class KpService:
             content_type,
             error_context=f"service_image:{service_id}",
         )
-        existing_stored_file = service.image_stored_file
+        old_stored_file = service.image_stored_file
         old_storage_key = (
-            existing_stored_file.storage_key
-            if existing_stored_file is not None
+            old_stored_file.storage_key
+            if old_stored_file is not None
             else None
         )
         suffix = Path(filename).suffix
@@ -287,7 +287,7 @@ class KpService:
                 size_bytes=stored_object.size_bytes,
                 sha256=stored_object.sha256,
                 etag=stored_object.etag,
-                stored_file=existing_stored_file,
+                stored_file=None,
             )
             updated = await self.kp_repository.set_service_image_stored_file_id(
                 service, stored_file.id
@@ -297,6 +297,8 @@ class KpService:
             raise
         if old_storage_key is not None and old_storage_key != stored_object.key:
             await self.storage_service.delete_object(old_storage_key)
+        if old_stored_file is not None:
+            await self.kp_repository.delete_stored_file(old_stored_file)
         return await self._build_service_response(updated)
 
     async def delete_service_image(self, service_id: UUID) -> ServiceResponse:
@@ -311,8 +313,8 @@ class KpService:
         updated = await self.kp_repository.set_service_image_stored_file_id(
             service, None
         )
-        await self.kp_repository.delete_stored_file(stored_file)
         await self.storage_service.delete_object(storage_key)
+        await self.kp_repository.delete_stored_file(stored_file)
         return await self._build_service_response(updated)
 
     # --- Industries ---
@@ -671,7 +673,7 @@ class KpService:
         filename: str,
         content: bytes,
         content_type: str | None,
-    ) -> None:
+    ) -> str:
         if requirement.type == KpEventServiceRequirementType.TEXT:
             raise KpRequirementFileUploadNotAllowed(
                 f"booking_requirement:not_file_upload:{requirement.id}"
@@ -679,24 +681,21 @@ class KpService:
 
         error_context = f"booking_requirement:{requirement.type.value}:{requirement.id}"
         if requirement.type == KpEventServiceRequirementType.IMAGE:
-            self.storage_service.validate_image_file(
+            return self.storage_service.validate_image_file(
                 filename, content, content_type, error_context=error_context
             )
-            return
 
         if requirement.type == KpEventServiceRequirementType.PDF:
-            self.storage_service.validate_pdf_file(
+            return self.storage_service.validate_pdf_file(
                 filename, content, content_type, error_context=error_context
             )
-            return
 
         if requirement.type == KpEventServiceRequirementType.VIDEO:
-            self.storage_service.validate_video_file(
+            return self.storage_service.validate_video_file(
                 filename, content, content_type, error_context=error_context
             )
-            return
 
-        self.storage_service.validate_generic_file(
+        return self.storage_service.validate_generic_file(
             filename, content, content_type, error_context=error_context
         )
 
@@ -715,22 +714,23 @@ class KpService:
         requirement = await self._get_requirement_for_booking_service(
             booking_service, requirement_id
         )
-        self._validate_requirement_upload(requirement, filename, content, content_type)
+        mime_type = self._validate_requirement_upload(
+            requirement, filename, content, content_type
+        )
         suffix = Path(filename).suffix
         storage_key = f"kp/booking-services/{booking_service.id}/requirements/{requirement.id}/{uuid4()}{suffix}"
         existing_file = await self.kp_repository.get_requirement_file(
             booking_service.id, requirement.id
         )
-        old_storage_key = (
-            existing_file.stored_file.storage_key
-            if existing_file is not None and existing_file.stored_file is not None
-            else None
+        old_stored_file = (
+            existing_file.stored_file if existing_file is not None else None
         )
+        old_storage_key = old_stored_file.storage_key if old_stored_file else None
         stored_object = await self.storage_service.upload_bytes(
             key=storage_key,
             content=content,
             filename=filename,
-            content_type=content_type,
+            content_type=mime_type,
         )
         try:
             stored_file = await self.kp_repository.upsert_stored_file(
@@ -740,9 +740,7 @@ class KpService:
                 size_bytes=stored_object.size_bytes,
                 sha256=stored_object.sha256,
                 etag=stored_object.etag,
-                stored_file=existing_file.stored_file
-                if existing_file is not None and existing_file.stored_file is not None
-                else None,
+                stored_file=None,
             )
             requirement_file = await self.kp_repository.upsert_requirement_file_link(
                 booking_service_id=booking_service.id,
@@ -754,6 +752,8 @@ class KpService:
             raise
         if old_storage_key is not None and old_storage_key != stored_object.key:
             await self.storage_service.delete_object(old_storage_key)
+        if old_stored_file is not None:
+            await self.kp_repository.delete_stored_file(old_stored_file)
         return requirement_file
 
     async def get_booking_requirement_file(

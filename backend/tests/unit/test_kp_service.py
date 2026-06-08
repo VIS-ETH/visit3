@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import date, timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import ANY, AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -686,6 +686,31 @@ async def test_confirm_booking_sets_confirmed_status(kp_service):
     assert args[1].status == KpBookingStatus.CONFIRMED
 
 
+async def test_delete_service_image_keeps_stored_file_row_when_storage_delete_fails(
+    kp_repo,
+    storage_service,
+    admin_user,
+):
+    event_id = uuid4()
+    stored_file = make_stored_file("services/image.png")
+    service_model = make_service(event_id=event_id)
+    service_model.image_stored_file_id = stored_file.id
+    service_model.image_stored_file = stored_file
+    kp_repo.get_service_by_id.return_value = service_model
+    kp_repo.set_service_image_stored_file_id.return_value = service_model
+    storage_service.delete_object.side_effect = RuntimeError("s3 failed")
+    service = KpService(kp_repo, storage_service, admin_user)
+
+    with pytest.raises(RuntimeError):
+        await service.delete_service_image(service_model.id)
+
+    kp_repo.set_service_image_stored_file_id.assert_awaited_once_with(
+        service_model, None
+    )
+    storage_service.delete_object.assert_awaited_once_with("services/image.png")
+    kp_repo.delete_stored_file.assert_not_awaited()
+
+
 async def test_upload_booking_requirement_file_rejects_text_requirement(
     kp_repo,
     storage_service,
@@ -852,6 +877,7 @@ async def test_upload_booking_requirement_file_replaces_existing_text_answer(
     kp_repo.get_booking_service_by_id.return_value = booking_service
     kp_repo.get_service_requirement_by_id.return_value = requirement
     kp_repo.get_requirement_file.return_value = existing_text
+    storage_service.validate_pdf_file.return_value = "application/pdf"
     storage_service.upload_bytes.return_value = stored_object
     kp_repo.upsert_stored_file.return_value = stored_file
     kp_repo.upsert_requirement_file_link.return_value = requirement_file
@@ -903,6 +929,7 @@ async def test_upload_booking_requirement_file_routes_pdf_validation_and_saves_l
     kp_repo.get_booking_service_by_id.return_value = booking_service
     kp_repo.get_service_requirement_by_id.return_value = requirement
     kp_repo.get_requirement_file.return_value = None
+    storage_service.validate_pdf_file.return_value = "application/pdf"
     storage_service.upload_bytes.return_value = stored_object
     kp_repo.upsert_stored_file.return_value = stored_file
     kp_repo.upsert_requirement_file_link.return_value = requirement_file
@@ -922,6 +949,17 @@ async def test_upload_booking_requirement_file_routes_pdf_validation_and_saves_l
         "application/pdf",
         error_context=f"booking_requirement:pdf:{requirement.id}",
     )
+    storage_service.upload_bytes.assert_awaited_once_with(
+        key=ANY,
+        content=b"content",
+        filename="document.pdf",
+        content_type="application/pdf",
+    )
+    upload_key = storage_service.upload_bytes.await_args.kwargs["key"]
+    assert upload_key.startswith(
+        f"kp/booking-services/{booking_service.id}/requirements/{requirement.id}/"
+    )
+    assert upload_key.endswith(".pdf")
     kp_repo.upsert_requirement_file_link.assert_awaited_once_with(
         booking_service_id=booking_service.id,
         requirement_id=requirement.id,
@@ -949,6 +987,7 @@ async def test_upload_booking_requirement_file_deletes_new_upload_when_db_write_
     kp_repo.get_booking_service_by_id.return_value = booking_service
     kp_repo.get_service_requirement_by_id.return_value = requirement
     kp_repo.get_requirement_file.return_value = None
+    storage_service.validate_pdf_file.return_value = "application/pdf"
     storage_service.upload_bytes.return_value = stored_object
     kp_repo.upsert_stored_file.side_effect = RuntimeError("db failed")
 
@@ -996,6 +1035,7 @@ async def test_upload_booking_requirement_file_deletes_replaced_old_file(
     kp_repo.get_booking_service_by_id.return_value = booking_service
     kp_repo.get_service_requirement_by_id.return_value = requirement
     kp_repo.get_requirement_file.return_value = existing_file
+    storage_service.validate_pdf_file.return_value = "application/pdf"
     storage_service.upload_bytes.return_value = stored_object
     kp_repo.upsert_stored_file.return_value = updated_file
     kp_repo.upsert_requirement_file_link.return_value = requirement_file
@@ -1010,6 +1050,67 @@ async def test_upload_booking_requirement_file_deletes_replaced_old_file(
 
     assert result is requirement_file
     storage_service.delete_object.assert_awaited_once_with("old/key.pdf")
+    kp_repo.upsert_stored_file.assert_awaited_once_with(
+        storage_key="new/key.pdf",
+        original_filename="document.pdf",
+        mime_type="application/pdf",
+        size_bytes=7,
+        sha256="b" * 64,
+        etag="new-etag",
+        stored_file=None,
+    )
+    kp_repo.delete_stored_file.assert_awaited_once_with(old_file)
+
+
+async def test_upload_booking_requirement_file_keeps_old_row_when_old_delete_fails(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(company_id=company_id)
+    booking_service = make_booking_service(booking=booking)
+    requirement = make_requirement(service_id=booking_service.service_id)
+    old_file = make_stored_file("old/key.pdf")
+    existing_file = make_requirement_file(
+        booking_service=booking_service,
+        requirement=requirement,
+        stored_file=old_file,
+    )
+    stored_object = StoredObject(
+        key="new/key.pdf",
+        etag="new-etag",
+        mime_type="application/pdf",
+        size_bytes=7,
+        sha256="b" * 64,
+    )
+    updated_file = make_stored_file("new/key.pdf")
+    requirement_file = make_requirement_file(
+        booking_service=booking_service,
+        requirement=requirement,
+        stored_file=updated_file,
+    )
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_service_by_id.return_value = booking_service
+    kp_repo.get_service_requirement_by_id.return_value = requirement
+    kp_repo.get_requirement_file.return_value = existing_file
+    storage_service.validate_pdf_file.return_value = "application/pdf"
+    storage_service.upload_bytes.return_value = stored_object
+    storage_service.delete_object.side_effect = RuntimeError("s3 failed")
+    kp_repo.upsert_stored_file.return_value = updated_file
+    kp_repo.upsert_requirement_file_link.return_value = requirement_file
+
+    with pytest.raises(RuntimeError):
+        await service.upload_booking_requirement_file(
+            booking_service.id,
+            requirement.id,
+            "document.pdf",
+            b"content",
+            "application/pdf",
+        )
+
+    storage_service.delete_object.assert_awaited_once_with("old/key.pdf")
+    kp_repo.delete_stored_file.assert_not_awaited()
 
 
 async def test_get_booking_requirement_file_download_url_rejects_missing_file(
