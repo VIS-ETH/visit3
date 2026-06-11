@@ -29,6 +29,7 @@
     "kp_booking_not_owned": "This KP booking does not belong to your company.",
     "kp_booking_status_transition_invalid": "The requested booking status change is not allowed.",
     "kp_booking_confirmation_requires_finalized": "Only finalized bookings can be confirmed.",
+    "kp_booking_confirmed_readonly": "Confirmed bookings can no longer be changed.",
     "kp_name_tag_not_found": "The selected name tag could not be found.",
     "kp_export_background_not_found": "The name tag export background could not be found.",
     "kp_export_empty": "No name tags are available for this export.",

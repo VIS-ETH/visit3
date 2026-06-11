@@ -195,6 +195,16 @@ class KpBookingConfirmationRequiresFinalized(AppError):
         )
 
 
+class KpBookingConfirmedReadonly(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Confirmed KP bookings can no longer be changed by the company",
+            "error.kp_booking_confirmed_readonly",
+            identifier,
+            403,
+        )
+
+
 class KpServiceNotFound(AppError):
     def __init__(self, identifier: str):
         super().__init__(

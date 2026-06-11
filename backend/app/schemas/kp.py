@@ -248,6 +248,10 @@ class RegisterBookingRequest(BaseModel):
     services: list[BookingServiceInput] = Field(default_factory=lambda: [])
 
 
+class AddBookingServicesRequest(BaseModel):
+    services: list[BookingServiceInput] = Field(default_factory=lambda: [])
+
+
 class BookingServiceResponse(BaseModel):
     id: UUID
     booking_id: UUID

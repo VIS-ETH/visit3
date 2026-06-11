@@ -14,6 +14,7 @@ from app.core.config import get_settings
 from app.core.exceptions import (
     KpBookingAlreadyExists,
     KpBookingConfirmationRequiresFinalized,
+    KpBookingConfirmedReadonly,
     KpBookingNotFound,
     KpBookingNotOwned,
     KpBookingStatusTransitionInvalid,
@@ -381,7 +382,9 @@ class KpService:
         self,
         event_id: UUID,
         services: Sequence[BookingServiceInput],
+        existing_quantities: dict[UUID, int] | None = None,
     ) -> list[BookingServiceInput]:
+        existing_quantities = existing_quantities or {}
         service_quantities: dict[UUID, int] = {}
         for booking_service in services:
             service_quantities[booking_service.service_id] = (
@@ -400,9 +403,11 @@ class KpService:
                 raise KpServiceUnavailable(
                     f"register_booking:service_unavailable:{service_id}"
                 )
-            if quantity > service.max_quantity_per_booking:
+            total_booking_quantity = existing_quantities.get(service_id, 0) + quantity
+            if total_booking_quantity > service.max_quantity_per_booking:
                 raise KpServiceQuantityInvalid(
-                    f"register_booking:service_max_per_booking:{service_id}:{quantity}"
+                    "booking_service:service_max_per_booking:"
+                    f"{service_id}:{total_booking_quantity}"
                 )
             if service.max_total_quantity > 0:
                 booked_quantity = await self.kp_repository.count_active_service_quantity(
@@ -416,6 +421,14 @@ class KpService:
                 BookingServiceInput(service_id=service_id, quantity=quantity)
             )
         return validated_services
+
+    def _ensure_booking_editable_by_company(
+        self, booking: KpEventBooking, context: str
+    ) -> None:
+        if booking.status in {KpBookingStatus.CONFIRMED, KpBookingStatus.CANCELLED}:
+            raise KpBookingConfirmedReadonly(
+                f"{context}:readonly:{booking.id}:{booking.status}"
+            )
 
     async def _build_booking_response(
         self, booking: KpEventBooking
@@ -507,6 +520,30 @@ class KpService:
             included_services=locked_zone.included_services,
         )
         return await self._build_booking_response(booking)
+
+    async def add_booking_services(
+        self,
+        booking_id: UUID,
+        services: Sequence[BookingServiceInput],
+    ) -> BookingResponse:
+        company_user = require_assigned_company_user(self.current_user)
+        booking = await self._get_owned_booking(booking_id, company_user.company_id)
+        self._ensure_booking_editable_by_company(booking, "add_booking_services")
+
+        existing_quantities = {
+            booking_service.service_id: booking_service.quantity
+            for booking_service in booking.services
+        }
+        validated_services = await self._validate_booking_services(
+            booking.event_id,
+            services,
+            existing_quantities=existing_quantities,
+        )
+        updated = await self.kp_repository.add_booking_services(
+            booking,
+            validated_services,
+        )
+        return await self._build_booking_response(updated)
 
     async def get_my_booking(self, event_id: UUID) -> Optional[BookingResponse]:
         company_user = require_assigned_company_user(self.current_user)
@@ -721,6 +758,9 @@ class KpService:
         booking_service = await self._get_owned_booking_service(
             booking_service_id, company_user.company_id
         )
+        self._ensure_booking_editable_by_company(
+            booking_service.booking, "upload_booking_requirement_file"
+        )
         requirement = await self._get_requirement_for_booking_service(
             booking_service, requirement_id
         )
@@ -788,6 +828,9 @@ class KpService:
         booking_service = await self._get_owned_booking_service(
             booking_service_id, company_user.company_id
         )
+        self._ensure_booking_editable_by_company(
+            booking_service.booking, "upsert_booking_requirement_text"
+        )
         requirement = await self._get_requirement_for_booking_service(
             booking_service, requirement_id
         )
@@ -822,6 +865,9 @@ class KpService:
         company_user = require_assigned_company_user(self.current_user)
         booking_service = await self._get_owned_booking_service(
             booking_service_id, company_user.company_id
+        )
+        self._ensure_booking_editable_by_company(
+            booking_service.booking, "delete_booking_requirement_file"
         )
         await self._get_requirement_for_booking_service(booking_service, requirement_id)
         requirement_file = await self.kp_repository.get_requirement_file(

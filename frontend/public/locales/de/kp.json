@@ -65,7 +65,7 @@
       "no_booking_title": "Noch keine Buchung",
       "no_booking_description": "Registrieren Sie sich für eine Standzone, um an dieser Kontaktparty teilzunehmen.",
       "start_booking": "Buchung starten",
-      "manage_booking": "Zusammenfassung ansehen"
+      "manage_booking": "Buchung verwalten"
     },
     "booking": {
       "title": "Standbuchung",
@@ -163,6 +163,35 @@
       "confirmation_just_booked_body": "Vielen Dank für Ihre Standbuchung bei {{eventName}}. Bitte gehen Sie als Nächstes im KP-Bereich und in Ihrem Firmenprofil die weiteren Schritte durch, um Ihre Buchungsangaben zu vervollständigen, etwaige Anforderungen zu erfüllen und Ihre Standinformationen bis zur Veranstaltung aktuell zu halten.",
       "confirmation_help_footer_prompt": "Brauchen Sie Hilfe bei Ihrer Buchung?",
       "confirmation_help_contact_us": "Kontaktieren Sie uns"
+    },
+    "booking_manage": {
+      "title": "Buchung #{{bookingNumber}} verwalten",
+      "view_summary": "Zusammenfassung",
+      "services_page_title": "Services und Anforderungen",
+      "services_page_subtitle": "{{eventName}} · Buchung #{{bookingNumber}}",
+      "services_page_description": "Buchen Sie optionale Services hinzu und aktualisieren Sie die benoetigten Dateien oder Texte.",
+      "summary_page_title": "Buchungsuebersicht",
+      "summary_page_description": "Pruefen Sie Standzone, Status, Preis und Buchungsnummer.",
+      "manage_services": "Services verwalten",
+      "readonly_notice": "Diese Buchung ist bestaetigt oder storniert und kann hier nicht mehr geaendert werden.",
+      "add_services_title": "Services hinzubuchen",
+      "add_services_description": "Gebuchte Services koennen nicht entfernt werden, aber Sie koennen weitere hinzubuchen, solange die Buchung bearbeitbar ist.",
+      "add_services_submit": "Ausgewaehlte Services hinzufuegen",
+      "current_quantity": "Aktuell gebucht: {{quantity}}",
+      "services_added": "Services hinzugefuegt.",
+      "requirements_title": "Serviceanforderungen",
+      "requirements_description": "Reichen Sie die benoetigten Dateien und Texte fuer Ihre gebuchten Services ein oder ersetzen Sie sie.",
+      "no_services": "Derzeit sind keine Services gebucht.",
+      "checking_file": "Hochgeladene Datei wird geprueft",
+      "no_file": "Keine Datei hochgeladen",
+      "upload_file": "Datei hochladen",
+      "replace_file": "Datei ersetzen",
+      "download_file": "Herunterladen",
+      "delete_file": "Loeschen",
+      "save_requirement": "Speichern",
+      "text_placeholder": "Geben Sie die angeforderten Informationen ein",
+      "requirement_saved": "Anforderung gespeichert.",
+      "requirement_deleted": "Datei geloescht."
     },
     "join": {
       "title": "KP beitreten",

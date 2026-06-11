@@ -29,6 +29,7 @@
     "kp_booking_not_owned": "Diese KP-Buchung gehört nicht zu Ihrem Unternehmen.",
     "kp_booking_status_transition_invalid": "Der angeforderte Buchungsstatuswechsel ist nicht erlaubt.",
     "kp_booking_confirmation_requires_finalized": "Nur finalisierte Buchungen können bestätigt werden.",
+    "kp_booking_confirmed_readonly": "Bestätigte Buchungen können nicht mehr geändert werden.",
     "kp_name_tag_not_found": "Das ausgewählte Namensschild wurde nicht gefunden.",
     "kp_export_background_not_found": "Der Hintergrund für den Namensschild-Export wurde nicht gefunden.",
     "kp_export_empty": "Für diesen Export sind keine Namensschilder verfügbar.",

@@ -65,7 +65,7 @@
       "no_booking_title": "No Booking Yet",
       "no_booking_description": "Register for a booth zone to participate in this Kontaktparty.",
       "start_booking": "Start Booking",
-      "manage_booking": "View Summary"
+      "manage_booking": "Manage booking"
     },
     "booking": {
       "title": "Booth Booking",
@@ -163,6 +163,35 @@
       "confirmation_just_booked_body": "Thank you for booking a booth at {{eventName}}. Please follow the next steps in the KP area and your company profile to complete your booking details, satisfy any requirements, and keep your booth information up to date before the event.",
       "confirmation_help_footer_prompt": "Need help with your booking?",
       "confirmation_help_contact_us": "Contact us"
+    },
+    "booking_manage": {
+      "title": "Manage Booking #{{bookingNumber}}",
+      "view_summary": "View summary",
+      "services_page_title": "Services and requirements",
+      "services_page_subtitle": "{{eventName}} · Booking #{{bookingNumber}}",
+      "services_page_description": "Add optional services and update the files or text they require.",
+      "summary_page_title": "Booking summary",
+      "summary_page_description": "Review booth zone, status, pricing, and booking number.",
+      "manage_services": "Manage services",
+      "readonly_notice": "This booking is confirmed or cancelled and can no longer be changed here.",
+      "add_services_title": "Add services",
+      "add_services_description": "Booked services cannot be removed, but you can add more while the booking is still editable.",
+      "add_services_submit": "Add selected services",
+      "current_quantity": "Currently booked: {{quantity}}",
+      "services_added": "Services added.",
+      "requirements_title": "Service requirements",
+      "requirements_description": "Submit or replace the files and text required for your booked services.",
+      "no_services": "No services are currently booked.",
+      "checking_file": "Checking uploaded file",
+      "no_file": "No file uploaded",
+      "upload_file": "Upload file",
+      "replace_file": "Replace file",
+      "download_file": "Download",
+      "delete_file": "Delete",
+      "save_requirement": "Save",
+      "text_placeholder": "Enter the requested information",
+      "requirement_saved": "Requirement saved.",
+      "requirement_deleted": "File deleted."
     },
     "join": {
       "title": "Join KP",

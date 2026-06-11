@@ -242,7 +242,7 @@ const KpCompanyView = () => {
                 variant="light"
                 leftSection={<IconTicket size={18} />}
                 onClick={() =>
-                  navigate(`/kp/${eventId}/booking/${myBooking.id}`)
+                  navigate(`/kp/${eventId}/booking/${myBooking.id}/manage`)
                 }
               >
                 {t("kp.company_view.manage_booking")}

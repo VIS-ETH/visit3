@@ -604,6 +604,50 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
+    async def add_booking_services(
+        self,
+        booking: KpEventBooking,
+        services: Sequence[BookingServiceInput],
+    ) -> KpEventBooking:
+        try:
+            service_ids = [item.service_id for item in services]
+            existing_by_service_id: dict[UUID, KpEventBookingService] = {}
+            if service_ids:
+                statement = select(KpEventBookingService).where(
+                    col(KpEventBookingService.booking_id) == booking.id,
+                    col(KpEventBookingService.service_id).in_(service_ids),
+                )
+                result = await self.session.execute(statement)
+                existing_by_service_id = {
+                    booking_service.service_id: booking_service
+                    for booking_service in result.scalars().all()
+                }
+
+            for item in services:
+                booking_service = existing_by_service_id.get(item.service_id)
+                if booking_service is None:
+                    booking_service = KpEventBookingService(
+                        booking_id=booking.id,
+                        service_id=item.service_id,
+                        quantity=item.quantity,
+                        included_quantity=0,
+                    )
+                    existing_by_service_id[item.service_id] = booking_service
+                else:
+                    booking_service.quantity += item.quantity
+
+                self._validate_model(
+                    booking_service,
+                    exclude={"booking", "service", "requirement_file_links"},
+                )
+                self.session.add(booking_service)
+
+            await self.session.commit()
+            return await self.get_booking_by_id(booking.id) or booking
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
     async def list_booking_upgrade_waitlist_entries(
         self, booking_id: UUID
     ) -> Sequence[KpEventBookingUpgradeWaitlist]:

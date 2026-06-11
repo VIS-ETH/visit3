@@ -15,6 +15,7 @@ from app.models.kp_event import (
     KpIndustry,
 )
 from app.schemas.kp import (
+    AddBookingServicesRequest,
     BookingRequirementFileMapResponse,
     BookingResponse,
     BookingUpgradeWaitlistEntryResponse,
@@ -299,6 +300,19 @@ async def get_my_booking(
     kp_service: KpServiceDep, event_id: UUID
 ) -> BookingResponse | None:
     return await kp_service.get_my_booking(event_id)
+
+
+@router.post(
+    "/bookings/{booking_id}/services",
+    operation_id="addBookingServices",
+    response_model=BookingResponse,
+)
+async def add_booking_services(
+    kp_service: KpServiceDep,
+    booking_id: UUID,
+    request: AddBookingServicesRequest,
+) -> BookingResponse:
+    return await kp_service.add_booking_services(booking_id, request.services)
 
 
 # --- Bookings ---
