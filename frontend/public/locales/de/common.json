@@ -1,6 +1,8 @@
 {
   "common": {
     "or": "oder",
+    "yes": "Ja",
+    "no": "Nein",
     "cancel": "Abbrechen",
     "currency": "CHF"
   },

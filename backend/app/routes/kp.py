@@ -7,7 +7,6 @@ from app.core.deps import CsrfDep, ExportServiceDep, KpServiceDep
 from app.core.downloads import content_disposition_attachment
 from app.models.kp_event import (
     KpEvent,
-    KpEventBooking,
     KpEventBookingServiceFileLink,
     KpEventBookingUpgradeWaitlist,
     KpEventBoothZone,
@@ -325,7 +324,7 @@ async def add_booking_services(
 )
 async def list_event_bookings(
     kp_service: KpServiceDep, event_id: UUID
-) -> Sequence[KpEventBooking]:
+) -> list[BookingWithCompanyAndBoothZoneResponse]:
     return await kp_service.list_bookings_for_event(event_id)
 
 
@@ -336,7 +335,7 @@ async def list_event_bookings(
 )
 async def get_event_booking(
     kp_service: KpServiceDep, event_id: UUID, booking_id: UUID
-) -> KpEventBooking:
+) -> BookingWithCompanyAndBoothZoneResponse:
     return await kp_service.get_event_booking(event_id, booking_id)
 
 
@@ -377,7 +376,7 @@ async def update_my_booking_status(
     kp_service: KpServiceDep,
     booking_id: UUID,
     request: UpdateBookingStatusRequest,
-) -> KpEventBooking:
+) -> BookingWithCompanyAndBoothZoneResponse:
     return await kp_service.update_my_booking_status(booking_id, request)
 
 
@@ -390,7 +389,7 @@ async def update_booking_booth_number(
     kp_service: KpServiceDep,
     booking_id: UUID,
     request: UpdateBookingBoothNumberRequest,
-) -> KpEventBooking:
+) -> BookingWithCompanyAndBoothZoneResponse:
     return await kp_service.update_booking_booth_number(booking_id, request)
 
 
@@ -402,7 +401,7 @@ async def update_booking_booth_number(
 async def confirm_booking(
     kp_service: KpServiceDep,
     booking_id: UUID,
-) -> KpEventBooking:
+) -> BookingWithCompanyAndBoothZoneResponse:
     return await kp_service.confirm_booking(booking_id)
 
 
@@ -466,6 +465,21 @@ async def upsert_booking_requirement_text(
 ) -> RequirementTextResponse:
     return await kp_service.upsert_booking_requirement_text(
         booking_service_id, requirement_id, request.text_value
+    )
+
+
+@router.get(
+    "/booking-services/{booking_service_id}/requirements/{requirement_id}/text",
+    operation_id="getBookingRequirementText",
+    response_model=RequirementTextResponse | None,
+)
+async def get_booking_requirement_text(
+    kp_service: KpServiceDep,
+    booking_service_id: UUID,
+    requirement_id: UUID,
+) -> RequirementTextResponse | None:
+    return await kp_service.get_booking_requirement_text(
+        booking_service_id, requirement_id
     )
 
 

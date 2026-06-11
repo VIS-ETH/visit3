@@ -261,6 +261,13 @@ class BookingServiceResponse(BaseModel):
     service: ServiceResponse
 
 
+class BookingAdditionalServiceChargeResponse(BaseModel):
+    name: str
+    quantity: int
+    charged_quantity: int
+    line_total_cents: int
+
+
 class BoothZoneWithAvailabilityResult(BoothZoneResponse):
     available_spots: int
 
@@ -282,12 +289,19 @@ class BookingBase(BaseModel):
 class BookingResponse(BookingBase):
     booth_zone: BoothZoneResponse | None = None
     services: list[BookingServiceResponse] = Field(default_factory=lambda: [])
+    additional_service_charges: list[BookingAdditionalServiceChargeResponse] = Field(
+        default_factory=lambda: []
+    )
+    total_price: int = 0
 
 
 class BookingWithCompanyAndBoothZoneResponse(BookingBase):
     company: Company
     booth_zone: BoothZoneResponse
     services: list[BookingServiceResponse] = Field(default_factory=lambda: [])
+    additional_service_charges: list[BookingAdditionalServiceChargeResponse] = Field(
+        default_factory=lambda: []
+    )
     total_price: int
     booked_services_count: int
     booked_services_summary: str

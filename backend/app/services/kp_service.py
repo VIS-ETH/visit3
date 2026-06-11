@@ -51,10 +51,12 @@ from app.models.kp_event import (
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
 from app.schemas.kp import (
+    BookingAdditionalServiceChargeResponse,
     BookingRequirementFileMapResponse,
     BookingResponse,
     BookingServiceInput,
     BookingServiceResponse,
+    BookingWithCompanyAndBoothZoneResponse,
     BoothZoneResponse,
     BoothZoneWithAvailabilityResult,
     CloneKpInput,
@@ -433,17 +435,9 @@ class KpService:
     async def _build_booking_response(
         self, booking: KpEventBooking
     ) -> BookingResponse:
-        services = [
-            BookingServiceResponse(
-                id=booking_service.id,
-                booking_id=booking_service.booking_id,
-                service_id=booking_service.service_id,
-                quantity=booking_service.quantity,
-                included_quantity=booking_service.included_quantity,
-                service=await self._build_service_response(booking_service.service),
-            )
-            for booking_service in booking.services
-        ]
+        services, additional_service_charges = await self._build_booking_services(
+            booking
+        )
         booth_zone_model = getattr(booking, "booth_zone", None)
         booth_zone = (
             BoothZoneResponse.model_validate(booth_zone_model, from_attributes=True)
@@ -460,6 +454,75 @@ class KpService:
             status=booking.status,
             booth_zone=booth_zone,
             services=services,
+            additional_service_charges=additional_service_charges,
+            total_price=self._booking_total_price(booking),
+        )
+
+    def _booking_total_price(self, booking: KpEventBooking) -> int:
+        booth_zone = getattr(booking, "booth_zone", None)
+        base_price = booth_zone.base_price if booth_zone is not None else 0
+        return base_price + sum(
+            booking_service.charged_quantity * booking_service.service.price
+            for booking_service in booking.services
+        )
+
+    async def _build_booking_services(
+        self, booking: KpEventBooking
+    ) -> tuple[
+        list[BookingServiceResponse],
+        list[BookingAdditionalServiceChargeResponse],
+    ]:
+        service_responses = [
+            BookingServiceResponse(
+                id=booking_service.id,
+                booking_id=booking_service.booking_id,
+                service_id=booking_service.service_id,
+                quantity=booking_service.quantity,
+                included_quantity=booking_service.included_quantity,
+                service=await self._build_service_response(booking_service.service),
+            )
+            for booking_service in booking.services
+        ]
+        additional_service_charges = [
+            BookingAdditionalServiceChargeResponse(
+                name=booking_service.service.name,
+                quantity=booking_service.quantity,
+                charged_quantity=booking_service.charged_quantity,
+                line_total_cents=booking_service.charged_quantity
+                * booking_service.service.price,
+            )
+            for booking_service in booking.services
+            if booking_service.charged_quantity > 0
+        ]
+        return service_responses, additional_service_charges
+
+    async def _build_staff_booking_response(
+        self, booking: KpEventBooking
+    ) -> BookingWithCompanyAndBoothZoneResponse:
+        services, additional_service_charges = await self._build_booking_services(
+            booking
+        )
+        booth_zone = BoothZoneResponse.model_validate(
+            booking.booth_zone, from_attributes=True
+        )
+        return BookingWithCompanyAndBoothZoneResponse(
+            id=booking.id,
+            booking_number=booking.booking_number or 0,
+            event_id=booking.event_id,
+            company_id=booking.company_id,
+            booth_zone_id=booking.booth_zone_id,
+            booth_nr=booking.booth_nr,
+            status=booking.status,
+            company=booking.company,
+            booth_zone=booth_zone,
+            services=services,
+            additional_service_charges=additional_service_charges,
+            total_price=self._booking_total_price(booking),
+            booked_services_count=booking.booked_services_count,
+            booked_services_summary=booking.booked_services_summary,
+            nametag_count=booking.nametag_count,
+            waitlist_count=booking.waitlist_count,
+            company_details_submitted=booking.company_details_submitted,
         )
 
     async def register_booking(
@@ -557,20 +620,25 @@ class KpService:
 
     # --- Bookings ---
 
-    async def list_bookings_for_event(self, event_id: UUID) -> Sequence[KpEventBooking]:
+    async def list_bookings_for_event(
+        self, event_id: UUID
+    ) -> list[BookingWithCompanyAndBoothZoneResponse]:
         require_kp_president_user(self.current_user)
         await self._get_event(event_id)
-        return await self.kp_repository.list_bookings_for_event(event_id)
+        bookings = await self.kp_repository.list_bookings_for_event(event_id)
+        return [
+            await self._build_staff_booking_response(booking) for booking in bookings
+        ]
 
     async def get_event_booking(
         self, event_id: UUID, booking_id: UUID
-    ) -> KpEventBooking:
+    ) -> BookingWithCompanyAndBoothZoneResponse:
         require_kp_president_user(self.current_user)
         await self._get_event(event_id)
         booking = await self._get_booking(booking_id)
         if booking.event_id != event_id:
             raise KpBookingNotFound(f"booking:event_mismatch:{event_id}:{booking_id}")
-        return booking
+        return await self._build_staff_booking_response(booking)
 
     async def _get_owned_booking(
         self, booking_id: UUID, company_id: UUID
@@ -669,33 +737,38 @@ class KpService:
 
     async def update_my_booking_status(
         self, booking_id: UUID, update_booking_input: UpdateBookingStatusInput
-    ) -> KpEventBooking:
+    ) -> BookingWithCompanyAndBoothZoneResponse:
         company_user = require_assigned_company_user(self.current_user)
         booking = await self._get_owned_booking(booking_id, company_user.company_id)
         self._ensure_company_status_transition(booking, update_booking_input.status)
-        return await self.kp_repository.update_booking(
+        updated = await self.kp_repository.update_booking(
             booking, UpdateBookingInput(status=update_booking_input.status)
         )
+        return await self._build_staff_booking_response(updated)
 
     async def update_booking_booth_number(
         self, booking_id: UUID, update_booking_input: UpdateBookingBoothNumberInput
-    ) -> KpEventBooking:
+    ) -> BookingWithCompanyAndBoothZoneResponse:
         require_kp_president_user(self.current_user)
         booking = await self._get_booking(booking_id)
-        return await self.kp_repository.update_booking(
+        updated = await self.kp_repository.update_booking(
             booking, UpdateBookingInput(booth_nr=update_booking_input.booth_nr)
         )
+        return await self._build_staff_booking_response(updated)
 
-    async def confirm_booking(self, booking_id: UUID) -> KpEventBooking:
+    async def confirm_booking(
+        self, booking_id: UUID
+    ) -> BookingWithCompanyAndBoothZoneResponse:
         require_kp_president_user(self.current_user)
         booking = await self._get_booking(booking_id)
         if booking.status != KpBookingStatus.FINALIZED:
             raise KpBookingConfirmationRequiresFinalized(
                 f"booking_confirm:not_finalized:{booking_id}:{booking.status}"
             )
-        return await self.kp_repository.update_booking(
+        updated = await self.kp_repository.update_booking(
             booking, UpdateBookingInput(status=KpBookingStatus.CONFIRMED)
         )
+        return await self._build_staff_booking_response(updated)
 
     async def _get_requirement_for_booking_service(
         self, booking_service: KpEventBookingService, requirement_id: UUID
@@ -820,6 +893,32 @@ class KpService:
         if requirement_file is None or requirement_file.stored_file is None:
             return None
         return requirement_file
+
+    async def get_booking_requirement_text(
+        self, booking_service_id: UUID, requirement_id: UUID
+    ) -> RequirementTextResponse | None:
+        company_user = require_assigned_company_user(self.current_user)
+        booking_service = await self._get_owned_booking_service(
+            booking_service_id, company_user.company_id
+        )
+        requirement = await self._get_requirement_for_booking_service(
+            booking_service, requirement_id
+        )
+        if requirement.type != KpEventServiceRequirementType.TEXT:
+            raise KpRequirementTextAnswerNotAllowed(
+                f"booking_requirement:not_text:{requirement.id}"
+            )
+        requirement_answer = await self.kp_repository.get_requirement_file(
+            booking_service.id, requirement.id
+        )
+        if requirement_answer is None or requirement_answer.text_value is None:
+            return None
+        return RequirementTextResponse(
+            id=requirement_answer.id,
+            booking_service_id=requirement_answer.booking_service_id,
+            requirement_id=requirement_answer.requirement_id,
+            text_value=requirement_answer.text_value,
+        )
 
     async def upsert_booking_requirement_text(
         self, booking_service_id: UUID, requirement_id: UUID, text_value: str
