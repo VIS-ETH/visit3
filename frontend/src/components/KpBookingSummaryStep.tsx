@@ -15,16 +15,31 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
-import type { BoothZoneWithAvailabilityResponse } from "../orval/generated/fastAPI.schemas";
+import { useListAvailableServices } from "../api/kp-services";
+import type {
+  BoothZoneWithAvailabilityResponse,
+  RegisterBookingRequest,
+} from "../orval/generated/fastAPI.schemas";
 import {
   getGetMyBookingQueryKey,
   getListAvailableBoothZonesQueryKey,
   useRegisterBooking,
+  useUpsertBookingRequirementText,
+  useUploadBookingRequirementFile,
 } from "../orval/generated/kp/kp";
 import { formatPrice } from "../utils/price-utils";
 import SummaryPriceBreakdown from "./SummaryPriceBreakdown";
 
 export type BookingSummaryServiceLine = { label: string; amount: number };
+export type DraftBookingRequirementValue = {
+  text?: string;
+  file?: File | null;
+};
+export type DraftBookingService = {
+  serviceId: string;
+  quantity: number;
+  requirements?: Record<string, DraftBookingRequirementValue>;
+};
 
 interface KpBookingSummaryStepProps {
   eventId: string;
@@ -32,6 +47,7 @@ interface KpBookingSummaryStepProps {
   draftZone: BoothZoneWithAvailabilityResponse | null;
   isRegistrationOpen: boolean;
   draftAdditionalServiceLines?: BookingSummaryServiceLine[];
+  draftServices?: DraftBookingService[];
   onConfirmStateChange?: (
     state: {
       onConfirm: () => void;
@@ -47,6 +63,7 @@ const KpBookingSummaryStep = ({
   draftZone,
   isRegistrationOpen,
   draftAdditionalServiceLines = [],
+  draftServices = [],
   onConfirmStateChange,
 }: KpBookingSummaryStepProps) => {
   const { t } = useTranslation();
@@ -57,6 +74,21 @@ const KpBookingSummaryStep = ({
   const [consentHighlight, setConsentHighlight] = useState(false);
   const agbCheckboxRef = useRef<HTMLInputElement>(null);
   const bindingCheckboxRef = useRef<HTMLInputElement>(null);
+  const { data: services } = useListAvailableServices(eventId);
+  const serviceById = new Map(
+    (services ?? []).map((service) => [service.id, service]),
+  );
+  const selectedServiceLines = draftServices.map((item) => {
+    const service = serviceById.get(item.serviceId);
+    return {
+      label: service?.name ?? item.serviceId,
+      amount: (service?.price ?? 0) * item.quantity,
+    };
+  });
+  const additionalLines =
+    draftAdditionalServiceLines.length > 0
+      ? draftAdditionalServiceLines
+      : selectedServiceLines;
 
   useEffect(() => {
     setAgbAccepted(false);
@@ -70,24 +102,26 @@ const KpBookingSummaryStep = ({
     }
   }, [agbAccepted, bindingAccepted]);
 
-  const { mutate: register, isPending: isRegistering } = useRegisterBooking({
-    mutation: {
-      onSuccess: async (booking) => {
-        queryClient.invalidateQueries({
-          queryKey: getGetMyBookingQueryKey(eventId),
-        });
-        queryClient.invalidateQueries({
-          queryKey: getListAvailableBoothZonesQueryKey(eventId),
-        });
-        navigate(`/kp/${eventId}/booking/${booking.id}`, {
-          state: { fromBookingProcess: true },
-        });
-      },
-    },
-  });
+  const { mutateAsync: register, isPending: isRegistering } =
+    useRegisterBooking();
+  const {
+    mutateAsync: uploadBookingRequirementFile,
+    isPending: isUploadingRequirements,
+  } = useUploadBookingRequirementFile();
+  const {
+    mutateAsync: upsertBookingRequirementText,
+    isPending: isSavingRequirementText,
+  } = useUpsertBookingRequirementText();
 
-  const handleConfirmBookingClick = useCallback(() => {
-    if (!draftZone || isRegistering) return;
+  const handleConfirmBookingClick = useCallback(async () => {
+    if (
+      !draftZone ||
+      isRegistering ||
+      isUploadingRequirements ||
+      isSavingRequirementText
+    ) {
+      return;
+    }
     if (draftZone.available_spots <= 0) {
       notifications.show({
         color: "red",
@@ -107,18 +141,64 @@ const KpBookingSummaryStep = ({
       });
       return;
     }
-    register({
-      eventId,
-      data: { booth_zone_id: draftZone.id },
+    const data = {
+      booth_zone_id: draftZone.id,
+      services: draftServices.map((service) => ({
+        service_id: service.serviceId,
+        quantity: service.quantity,
+      })),
+    } satisfies RegisterBookingRequest & {
+      services: { service_id: string; quantity: number }[];
+    };
+    const booking = await register({ eventId, data });
+    for (const draftService of draftServices) {
+      const bookingService = booking.services?.find(
+        (item) => item.service_id === draftService.serviceId,
+      );
+      if (!bookingService) continue;
+      for (const [requirementId, value] of Object.entries(
+        draftService.requirements ?? {},
+      )) {
+        if (value.text?.trim()) {
+          await upsertBookingRequirementText({
+            bookingServiceId: bookingService.id,
+            requirementId,
+            data: { text_value: value.text.trim() },
+          });
+          continue;
+        }
+        if (!value.file) continue;
+        await uploadBookingRequirementFile({
+          bookingServiceId: bookingService.id,
+          requirementId,
+          data: { file: value.file },
+        });
+      }
+    }
+    queryClient.invalidateQueries({
+      queryKey: getGetMyBookingQueryKey(eventId),
+    });
+    queryClient.invalidateQueries({
+      queryKey: getListAvailableBoothZonesQueryKey(eventId),
+    });
+    navigate(`/kp/${eventId}/booking/${booking.id}`, {
+      state: { fromBookingProcess: true },
     });
   }, [
     draftZone,
     isRegistering,
+    isUploadingRequirements,
+    isSavingRequirementText,
     t,
     register,
     eventId,
     agbAccepted,
     bindingAccepted,
+    draftServices,
+    uploadBookingRequirementFile,
+    upsertBookingRequirementText,
+    queryClient,
+    navigate,
   ]);
 
   useEffect(() => {
@@ -129,8 +209,8 @@ const KpBookingSummaryStep = ({
     }
     onConfirmStateChange({
       onConfirm: handleConfirmBookingClick,
-      disabled: isRegistering,
-      loading: isRegistering,
+      disabled: isRegistering || isUploadingRequirements || isSavingRequirementText,
+      loading: isRegistering || isUploadingRequirements || isSavingRequirementText,
     });
     return () => onConfirmStateChange(null);
   }, [
@@ -139,6 +219,8 @@ const KpBookingSummaryStep = ({
     isRegistrationOpen,
     handleConfirmBookingClick,
     isRegistering,
+    isUploadingRequirements,
+    isSavingRequirementText,
   ]);
 
   const requiredLabel = (i18nKey: string, showError: boolean) => (
@@ -211,7 +293,7 @@ const KpBookingSummaryStep = ({
         </Group>
         <SummaryPriceBreakdown
           basePrice={draftZone.base_price}
-          additionalLines={draftAdditionalServiceLines}
+          additionalLines={additionalLines}
         />
       </Stack>
       {!isRegistrationOpen ? (

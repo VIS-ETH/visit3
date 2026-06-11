@@ -7,6 +7,7 @@ from app.models.company import Company
 from app.models.kp_event import (
     KpBookingStatus,
     KpCompanyLanguage,
+    KpEventServiceRequirementType,
 )
 
 
@@ -111,16 +112,24 @@ class BoothZoneResponse(BaseModel):
 # --- Services ---
 
 
+class ServiceRequirementInput(BaseModel):
+    id: UUID | None = None
+    type: KpEventServiceRequirementType
+    name: str = Field(min_length=2, max_length=100)
+    description: str = Field(min_length=20)
+    order: int = Field(default=100, ge=0)
+
+
 class CreateServiceInput(BaseModel):
     name: str = Field(min_length=1)
     description: str = ""
-    image_url: str | None = None
     confirmation_description: str | None = None
     order: int = Field(default=100, ge=0)
     price: int = Field(default=0, ge=0)
     max_quantity_per_booking: int = Field(default=1, ge=1)
     max_total_quantity: int = Field(default=0, ge=0)
     is_active: bool = True
+    requirements: list[ServiceRequirementInput] = []
 
 
 class CreateServiceRequest(CreateServiceInput):
@@ -130,17 +139,26 @@ class CreateServiceRequest(CreateServiceInput):
 class UpdateServiceInput(BaseModel):
     name: str | None = None
     description: str | None = None
-    image_url: str | None = None
     confirmation_description: str | None = None
     order: int | None = Field(default=None, ge=0)
     price: int | None = Field(default=None, ge=0)
     max_quantity_per_booking: int | None = Field(default=None, ge=1)
     max_total_quantity: int | None = Field(default=None, ge=0)
     is_active: bool | None = None
+    requirements: list[ServiceRequirementInput] | None = None
 
 
 class UpdateServiceRequest(UpdateServiceInput):
     pass
+
+
+class ServiceRequirementResponse(BaseModel):
+    id: UUID
+    service_id: UUID
+    type: KpEventServiceRequirementType
+    name: str
+    description: str
+    order: int
 
 
 class ServiceResponse(BaseModel):
@@ -148,13 +166,14 @@ class ServiceResponse(BaseModel):
     event_id: UUID
     name: str
     description: str
-    image_url: str | None
+    image_url: str | None = None
     confirmation_description: str | None
     order: int
     price: int
     max_quantity_per_booking: int
     max_total_quantity: int
     is_active: bool
+    requirements: list[ServiceRequirementResponse]
 
 
 # --- Industries ---
@@ -201,6 +220,11 @@ class UpdateBookingBoothNumberRequest(UpdateBookingBoothNumberInput):
     pass
 
 
+class BookingServiceInput(BaseModel):
+    service_id: UUID
+    quantity: int = Field(ge=1)
+
+
 class UpsertCompanyDetailsInput(BaseModel):
     profile: str | None = None
     brand_name: str | None = None
@@ -221,6 +245,27 @@ class ReplaceBookingUpgradeWaitlistRequest(BaseModel):
 
 class RegisterBookingRequest(BaseModel):
     booth_zone_id: UUID
+    services: list[BookingServiceInput] = Field(default_factory=lambda: [])
+
+
+class AddBookingServicesRequest(BaseModel):
+    services: list[BookingServiceInput] = Field(default_factory=lambda: [])
+
+
+class BookingServiceResponse(BaseModel):
+    id: UUID
+    booking_id: UUID
+    service_id: UUID
+    quantity: int
+    included_quantity: int
+    service: ServiceResponse
+
+
+class BookingAdditionalServiceChargeResponse(BaseModel):
+    name: str
+    quantity: int
+    charged_quantity: int
+    line_total_cents: int
 
 
 class BoothZoneWithAvailabilityResult(BoothZoneResponse):
@@ -243,11 +288,20 @@ class BookingBase(BaseModel):
 
 class BookingResponse(BookingBase):
     booth_zone: BoothZoneResponse | None = None
+    services: list[BookingServiceResponse] = Field(default_factory=lambda: [])
+    additional_service_charges: list[BookingAdditionalServiceChargeResponse] = Field(
+        default_factory=lambda: []
+    )
+    total_price: int = 0
 
 
 class BookingWithCompanyAndBoothZoneResponse(BookingBase):
     company: Company
     booth_zone: BoothZoneResponse
+    services: list[BookingServiceResponse] = Field(default_factory=lambda: [])
+    additional_service_charges: list[BookingAdditionalServiceChargeResponse] = Field(
+        default_factory=lambda: []
+    )
     total_price: int
     booked_services_count: int
     booked_services_summary: str
@@ -263,8 +317,23 @@ class RequirementFileResponse(BaseModel):
     stored_file: StoredFileResponse
 
 
+class RequirementTextRequest(BaseModel):
+    text_value: str = Field(min_length=1)
+
+
+class RequirementTextResponse(BaseModel):
+    id: UUID
+    booking_service_id: UUID
+    requirement_id: UUID
+    text_value: str
+
+
 class RequirementFileDownloadResponse(BaseModel):
     url: str
+
+
+class BookingRequirementFileMapResponse(BaseModel):
+    files: dict[UUID, RequirementFileResponse]
 
 
 class ExportBackgroundResponse(BaseModel):

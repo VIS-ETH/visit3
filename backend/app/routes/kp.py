@@ -7,15 +7,15 @@ from app.core.deps import CsrfDep, ExportServiceDep, KpServiceDep
 from app.core.downloads import content_disposition_attachment
 from app.models.kp_event import (
     KpEvent,
-    KpEventBooking,
     KpEventBookingServiceFileLink,
     KpEventBookingUpgradeWaitlist,
     KpEventBoothZone,
     KpEventNametagBackground,
-    KpEventService,
     KpIndustry,
 )
 from app.schemas.kp import (
+    AddBookingServicesRequest,
+    BookingRequirementFileMapResponse,
     BookingResponse,
     BookingUpgradeWaitlistEntryResponse,
     BookingWithCompanyAndBoothZoneResponse,
@@ -36,6 +36,8 @@ from app.schemas.kp import (
     ReplaceBookingUpgradeWaitlistRequest,
     RequirementFileDownloadResponse,
     RequirementFileResponse,
+    RequirementTextRequest,
+    RequirementTextResponse,
     ServiceResponse,
     UpdateBookingBoothNumberRequest,
     UpdateBookingStatusRequest,
@@ -163,7 +165,7 @@ async def delete_booth_zone(kp_service: KpServiceDep, booth_zone_id: UUID) -> No
 )
 async def list_services(
     kp_service: KpServiceDep, event_id: UUID
-) -> Sequence[KpEventService]:
+) -> list[ServiceResponse]:
     return await kp_service.list_services(event_id)
 
 
@@ -174,7 +176,7 @@ async def list_services(
 )
 async def create_service(
     kp_service: KpServiceDep, event_id: UUID, request: CreateServiceRequest
-) -> KpEventService:
+) -> ServiceResponse:
     return await kp_service.create_service(event_id, request)
 
 
@@ -187,13 +189,43 @@ async def update_service(
     kp_service: KpServiceDep,
     service_id: UUID,
     request: UpdateServiceRequest,
-) -> KpEventService:
+) -> ServiceResponse:
     return await kp_service.update_service(service_id, request)
 
 
 @router.delete("/services/{service_id}", operation_id="deleteService")
 async def delete_service(kp_service: KpServiceDep, service_id: UUID) -> None:
     await kp_service.delete_service(service_id)
+
+
+@router.post(
+    "/services/{service_id}/image",
+    operation_id="uploadServiceImage",
+    response_model=ServiceResponse,
+)
+async def upload_service_image(
+    kp_service: KpServiceDep,
+    service_id: UUID,
+    file: UploadFile = File(...),
+) -> ServiceResponse:
+    return await kp_service.upload_service_image(
+        service_id=service_id,
+        filename=file.filename or "service-image",
+        content=await file.read(),
+        content_type=file.content_type,
+    )
+
+
+@router.delete(
+    "/services/{service_id}/image",
+    operation_id="deleteServiceImage",
+    response_model=ServiceResponse,
+)
+async def delete_service_image(
+    kp_service: KpServiceDep,
+    service_id: UUID,
+) -> ServiceResponse:
+    return await kp_service.delete_service_image(service_id)
 
 
 # --- Industries ---
@@ -241,8 +273,21 @@ async def list_available_booth_zones(
 )
 async def register_booking(
     kp_service: KpServiceDep, event_id: UUID, request: RegisterBookingRequest
-) -> KpEventBooking:
-    return await kp_service.register_booking(event_id, request.booth_zone_id)
+) -> BookingResponse:
+    return await kp_service.register_booking(
+        event_id, request.booth_zone_id, request.services
+    )
+
+
+@router.get(
+    "/events/{event_id}/services/available",
+    operation_id="listAvailableServices",
+    response_model=list[ServiceResponse],
+)
+async def list_available_services(
+    kp_service: KpServiceDep, event_id: UUID
+) -> list[ServiceResponse]:
+    return await kp_service.list_available_services_for_company(event_id)
 
 
 @router.get(
@@ -252,8 +297,21 @@ async def register_booking(
 )
 async def get_my_booking(
     kp_service: KpServiceDep, event_id: UUID
-) -> KpEventBooking | None:
+) -> BookingResponse | None:
     return await kp_service.get_my_booking(event_id)
+
+
+@router.post(
+    "/bookings/{booking_id}/services",
+    operation_id="addBookingServices",
+    response_model=BookingResponse,
+)
+async def add_booking_services(
+    kp_service: KpServiceDep,
+    booking_id: UUID,
+    request: AddBookingServicesRequest,
+) -> BookingResponse:
+    return await kp_service.add_booking_services(booking_id, request.services)
 
 
 # --- Bookings ---
@@ -266,7 +324,7 @@ async def get_my_booking(
 )
 async def list_event_bookings(
     kp_service: KpServiceDep, event_id: UUID
-) -> Sequence[KpEventBooking]:
+) -> list[BookingWithCompanyAndBoothZoneResponse]:
     return await kp_service.list_bookings_for_event(event_id)
 
 
@@ -277,7 +335,7 @@ async def list_event_bookings(
 )
 async def get_event_booking(
     kp_service: KpServiceDep, event_id: UUID, booking_id: UUID
-) -> KpEventBooking:
+) -> BookingWithCompanyAndBoothZoneResponse:
     return await kp_service.get_event_booking(event_id, booking_id)
 
 
@@ -318,7 +376,7 @@ async def update_my_booking_status(
     kp_service: KpServiceDep,
     booking_id: UUID,
     request: UpdateBookingStatusRequest,
-) -> KpEventBooking:
+) -> BookingWithCompanyAndBoothZoneResponse:
     return await kp_service.update_my_booking_status(booking_id, request)
 
 
@@ -331,7 +389,7 @@ async def update_booking_booth_number(
     kp_service: KpServiceDep,
     booking_id: UUID,
     request: UpdateBookingBoothNumberRequest,
-) -> KpEventBooking:
+) -> BookingWithCompanyAndBoothZoneResponse:
     return await kp_service.update_booking_booth_number(booking_id, request)
 
 
@@ -343,7 +401,7 @@ async def update_booking_booth_number(
 async def confirm_booking(
     kp_service: KpServiceDep,
     booking_id: UUID,
-) -> KpEventBooking:
+) -> BookingWithCompanyAndBoothZoneResponse:
     return await kp_service.confirm_booking(booking_id)
 
 
@@ -394,6 +452,37 @@ async def delete_booking_requirement_file(
     await kp_service.delete_booking_requirement_file(booking_service_id, requirement_id)
 
 
+@router.put(
+    "/booking-services/{booking_service_id}/requirements/{requirement_id}/text",
+    operation_id="upsertBookingRequirementText",
+    response_model=RequirementTextResponse,
+)
+async def upsert_booking_requirement_text(
+    kp_service: KpServiceDep,
+    booking_service_id: UUID,
+    requirement_id: UUID,
+    request: RequirementTextRequest,
+) -> RequirementTextResponse:
+    return await kp_service.upsert_booking_requirement_text(
+        booking_service_id, requirement_id, request.text_value
+    )
+
+
+@router.get(
+    "/booking-services/{booking_service_id}/requirements/{requirement_id}/text",
+    operation_id="getBookingRequirementText",
+    response_model=RequirementTextResponse | None,
+)
+async def get_booking_requirement_text(
+    kp_service: KpServiceDep,
+    booking_service_id: UUID,
+    requirement_id: UUID,
+) -> RequirementTextResponse | None:
+    return await kp_service.get_booking_requirement_text(
+        booking_service_id, requirement_id
+    )
+
+
 @router.get(
     "/booking-services/{booking_service_id}/requirements/{requirement_id}/file/download",
     operation_id="getBookingRequirementFileDownloadUrl",
@@ -407,6 +496,49 @@ async def get_booking_requirement_file_download_url(
         booking_service_id, requirement_id
     )
     return RequirementFileDownloadResponse(url=url)
+
+
+@router.get(
+    "/staff/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
+    operation_id="getStaffBookingRequirementFile",
+    response_model=RequirementFileResponse | None,
+)
+async def get_staff_booking_requirement_file(
+    kp_service: KpServiceDep,
+    booking_service_id: UUID,
+    requirement_id: UUID,
+) -> KpEventBookingServiceFileLink | None:
+    return await kp_service.get_staff_booking_requirement_file(
+        booking_service_id, requirement_id
+    )
+
+
+@router.get(
+    "/staff/booking-services/{booking_service_id}/requirements/{requirement_id}/file/download",
+    operation_id="getStaffBookingRequirementFileDownloadUrl",
+)
+async def get_staff_booking_requirement_file_download_url(
+    kp_service: KpServiceDep,
+    booking_service_id: UUID,
+    requirement_id: UUID,
+) -> RequirementFileDownloadResponse:
+    url = await kp_service.get_staff_booking_requirement_file_download_url(
+        booking_service_id, requirement_id
+    )
+    return RequirementFileDownloadResponse(url=url)
+
+
+@router.get(
+    "/staff/events/{event_id}/bookings/{booking_id}/requirement-files",
+    operation_id="listStaffBookingRequirementFiles",
+    response_model=BookingRequirementFileMapResponse,
+)
+async def list_staff_booking_requirement_files(
+    kp_service: KpServiceDep,
+    event_id: UUID,
+    booking_id: UUID,
+) -> BookingRequirementFileMapResponse:
+    return await kp_service.list_staff_booking_requirement_files(event_id, booking_id)
 
 
 # --- Exports ---

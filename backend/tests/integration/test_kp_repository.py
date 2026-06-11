@@ -1,10 +1,13 @@
 from datetime import date, timedelta
 
+import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
 from app.models.kp_event import (
     KpEventBooking,
     KpEventBookingService,
+    KpEventBookingServiceFileLink,
     KpEventBoothZoneServiceLink,
     KpEventNametagBackground,
     KpEventRegistrationException,
@@ -18,6 +21,7 @@ from app.schemas.kp import (
     CreateIndustryInput,
     CreateKpInput,
     CreateServiceInput,
+    ServiceRequirementInput,
     UpdateBoothZoneInput,
     UpdateServiceInput,
 )
@@ -33,6 +37,50 @@ def make_kp_input(name: str = "Kontaktparty") -> CreateKpInput:
         nametags_deadline=today - timedelta(days=3),
         event_date=today + timedelta(days=10),
     )
+
+
+async def create_requirement_answer_context(
+    kp_repository,
+    company_repository,
+    db_session,
+    *,
+    requirement_type: KpEventServiceRequirementType = KpEventServiceRequirementType.PDF,
+) -> tuple[KpEventBookingService, KpEventServiceRequirement]:
+    event = await kp_repository.create_kp(make_kp_input())
+    company = await company_repository.create_company("Acme AG")
+    zone = await kp_repository.create_booth_zone(
+        event.id,
+        CreateBoothZoneInput(name="Main"),
+    )
+    service = await kp_repository.create_service(
+        event.id,
+        CreateServiceInput(name="Electricity"),
+    )
+    booking = KpEventBooking(
+        event_id=event.id,
+        company_id=company.id,
+        booth_zone_id=zone.id,
+        booking_number=1000,
+    )
+    requirement = KpEventServiceRequirement(
+        service_id=service.id,
+        type=requirement_type,
+        name="Invoice",
+        description="Please upload your invoice as PDF.",
+    )
+    db_session.add(booking)
+    db_session.add(requirement)
+    await db_session.commit()
+    await db_session.refresh(booking)
+    await db_session.refresh(requirement)
+    booking_service = KpEventBookingService(
+        booking_id=booking.id,
+        service_id=service.id,
+    )
+    db_session.add(booking_service)
+    await db_session.commit()
+    await db_session.refresh(booking_service)
+    return booking_service, requirement
 
 
 async def test_create_and_list_kps_orders_latest_first(kp_repository):
@@ -76,31 +124,50 @@ async def test_service_crud_loads_requirements(kp_repository, db_session):
     event = await kp_repository.create_kp(make_kp_input())
     service = await kp_repository.create_service(
         event.id,
-        CreateServiceInput(name="Electricity", order=20, price=1000),
+        CreateServiceInput(
+            name="Electricity",
+            order=20,
+            price=1000,
+            requirements=[
+                ServiceRequirementInput(
+                    type=KpEventServiceRequirementType.PDF,
+                    name="Invoice",
+                    description="Please upload your invoice as PDF.",
+                )
+            ],
+        ),
     )
-    requirement = KpEventServiceRequirement(
-        service_id=service.id,
-        type=KpEventServiceRequirementType.PDF,
-        name="Invoice",
-        description="Please upload your invoice as PDF.",
-    )
-    db_session.add(requirement)
-    await db_session.commit()
     db_session.expunge(service)
 
     services = await kp_repository.list_services(event.id)
     loaded = await kp_repository.get_service_by_name(event.id, "Electricity")
     assert loaded is not None
     assert [item.name for item in loaded.requirements] == ["Invoice"]
+    requirement = loaded.requirements[0]
 
     updated = await kp_repository.update_service(
         loaded,
-        UpdateServiceInput(price=1500, is_active=False),
+        UpdateServiceInput(
+            price=1500,
+            is_active=False,
+            requirements=[
+                ServiceRequirementInput(
+                    id=requirement.id,
+                    type=KpEventServiceRequirementType.IMAGE,
+                    name="Logo",
+                    description="Please upload your company logo.",
+                    order=10,
+                )
+            ],
+        ),
     )
 
     assert [item.id for item in services] == [service.id]
     assert updated.price == 1500
     assert updated.is_active is False
+    assert [(item.name, item.type, item.order) for item in updated.requirements] == [
+        ("Logo", KpEventServiceRequirementType.IMAGE, 10)
+    ]
 
 
 async def test_clone_kp_copies_setup_without_bookings_exceptions_or_background(
@@ -178,6 +245,7 @@ async def test_clone_kp_copies_setup_without_bookings_exceptions_or_background(
     )
     db_session.add(background)
     await db_session.commit()
+    db_session.expunge_all()
 
     clone_input = make_kp_input("Kontaktparty Clone")
     clone_input.event_date = event.event_date + timedelta(days=30)
@@ -355,6 +423,120 @@ async def test_requirement_file_link_upsert_replaces_stored_file(
 
     assert updated.id == created.id
     assert updated.stored_file.storage_key == "new.pdf"
+
+
+async def test_requirement_text_answer_upsert_replaces_file_answer(
+    kp_repository,
+    company_repository,
+    db_session,
+):
+    booking_service, requirement = await create_requirement_answer_context(
+        kp_repository,
+        company_repository,
+        db_session,
+        requirement_type=KpEventServiceRequirementType.TEXT,
+    )
+    stored_file = await kp_repository.upsert_stored_file(
+        storage_key="old.txt",
+        original_filename="old.txt",
+        mime_type="text/plain",
+        size_bytes=3,
+        sha256="a" * 64,
+        etag="old",
+    )
+    created = await kp_repository.upsert_requirement_file_link(
+        booking_service.id,
+        requirement.id,
+        stored_file.id,
+    )
+
+    updated = await kp_repository.upsert_requirement_text_answer(
+        booking_service.id,
+        requirement.id,
+        "Use this slogan.",
+    )
+
+    assert updated.id == created.id
+    assert updated.text_value == "Use this slogan."
+    assert updated.stored_file_id is None
+    assert updated.stored_file is None
+
+
+async def test_requirement_file_link_upsert_replaces_text_answer(
+    kp_repository,
+    company_repository,
+    db_session,
+):
+    booking_service, requirement = await create_requirement_answer_context(
+        kp_repository,
+        company_repository,
+        db_session,
+    )
+    created = await kp_repository.upsert_requirement_text_answer(
+        booking_service.id,
+        requirement.id,
+        "Initial notes.",
+    )
+    stored_file = await kp_repository.upsert_stored_file(
+        storage_key="new.pdf",
+        original_filename="new.pdf",
+        mime_type="application/pdf",
+        size_bytes=3,
+        sha256="b" * 64,
+        etag="new",
+    )
+
+    updated = await kp_repository.upsert_requirement_file_link(
+        booking_service.id,
+        requirement.id,
+        stored_file.id,
+    )
+
+    assert updated.id == created.id
+    assert updated.text_value is None
+    assert updated.stored_file_id == stored_file.id
+    assert updated.stored_file.storage_key == "new.pdf"
+
+
+@pytest.mark.parametrize(
+    ("with_file", "text_value"),
+    [
+        (False, None),
+        (True, "Both values are not allowed."),
+    ],
+)
+async def test_requirement_answer_requires_exactly_one_text_or_file(
+    kp_repository,
+    company_repository,
+    db_session,
+    with_file,
+    text_value,
+):
+    booking_service, requirement = await create_requirement_answer_context(
+        kp_repository,
+        company_repository,
+        db_session,
+    )
+    stored_file = None
+    if with_file:
+        stored_file = await kp_repository.upsert_stored_file(
+            storage_key="invalid.pdf",
+            original_filename="invalid.pdf",
+            mime_type="application/pdf",
+            size_bytes=3,
+            sha256="c" * 64,
+            etag="invalid",
+        )
+    answer = KpEventBookingServiceFileLink(
+        booking_service_id=booking_service.id,
+        requirement_id=requirement.id,
+        stored_file_id=stored_file.id if stored_file else None,
+        text_value=text_value,
+    )
+    db_session.add(answer)
+
+    with pytest.raises(IntegrityError):
+        await db_session.commit()
 
 
 async def test_nametag_background_upsert_and_orphaned_files(

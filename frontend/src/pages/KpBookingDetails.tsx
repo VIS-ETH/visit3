@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   Center,
+  Divider,
   Group,
   Loader,
   Paper,
@@ -12,17 +13,24 @@ import {
   Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconAlertCircle } from "@tabler/icons-react";
+import { IconAlertCircle, IconDownload } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
 import BackButton from "../components/BackButton";
 import { KpBookingStatusBadge } from "../components/KpBookingStatusBadge";
-import { KpBookingStatus } from "../orval/generated/fastAPI.schemas";
+import {
+  KpBookingStatus,
+  KpEventServiceRequirementType,
+  type RequirementFileResponse,
+  type ServiceRequirementResponse,
+} from "../orval/generated/fastAPI.schemas";
 import {
   getGetEventBookingQueryKey,
   getListEventBookingsQueryKey,
+  getStaffBookingRequirementFileDownloadUrl,
+  useListStaffBookingRequirementFiles,
   useConfirmBooking,
   useGetEventBooking,
 } from "../orval/generated/kp/kp";
@@ -41,6 +49,83 @@ const DetailField = ({ label, value }: { label: string; value: ReactNode }) => (
   </Stack>
 );
 
+const StaffRequirementRow = ({
+  bookingServiceId,
+  isChecking,
+  requirementFile,
+  requirement,
+}: {
+  bookingServiceId: string;
+  isChecking: boolean;
+  requirementFile?: RequirementFileResponse;
+  requirement: ServiceRequirementResponse;
+}) => {
+  const { t } = useTranslation();
+  const [isDownloading, setIsDownloading] = useState(false);
+  const isTextRequirement = requirement.type === KpEventServiceRequirementType.text;
+  const requirementTypeLabels: Record<KpEventServiceRequirementType, string> = {
+    [KpEventServiceRequirementType.text]: t("kp.booking.requirement_type_text"),
+    [KpEventServiceRequirementType.file]: t("kp.booking.requirement_type_file"),
+    [KpEventServiceRequirementType.image]: t("kp.booking.requirement_type_image"),
+    [KpEventServiceRequirementType.pdf]: t("kp.booking.requirement_type_pdf"),
+    [KpEventServiceRequirementType.video]: t("kp.booking.requirement_type_video"),
+  };
+
+  const handleDownload = async () => {
+    if (!requirementFile) return;
+    setIsDownloading(true);
+    try {
+      const response = await getStaffBookingRequirementFileDownloadUrl(
+        bookingServiceId,
+        requirement.id,
+      );
+      window.open(response.url, "_blank", "noopener,noreferrer");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  if (isTextRequirement) {
+    return null;
+  }
+
+  return (
+    <Group justify="space-between" align="center" wrap="nowrap">
+      <Stack gap={2}>
+        <Group gap="xs">
+          <Text fw={500} size="sm">
+            {requirement.name}
+          </Text>
+          <Badge variant="light" size="sm">
+            {requirementTypeLabels[requirement.type]}
+          </Badge>
+        </Group>
+        <Text c="dimmed" size="xs">
+          {requirementFile?.stored_file.original_filename ??
+            t("kp.manage.booking_requirement_missing")}
+        </Text>
+      </Stack>
+      {requirementFile ? (
+        <Button
+          leftSection={<IconDownload size={16} />}
+          loading={isDownloading}
+          onClick={handleDownload}
+          size="xs"
+          variant="light"
+        >
+          {t("kp.manage.booking_requirement_download")}
+        </Button>
+      ) : (
+        <Badge color={isChecking ? "gray" : "yellow"} variant="light">
+          {isChecking
+            ? t("kp.manage.booking_requirement_checking")
+            : t("kp.manage.booking_requirement_missing_badge")}
+        </Badge>
+      )}
+    </Group>
+  );
+};
+
 const KpBookingDetails = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -53,6 +138,10 @@ const KpBookingDetails = () => {
   } = useGetEventBooking(id ?? "", bookingId ?? "", {
     query: { enabled: Boolean(id && bookingId) },
   });
+  const { data: requirementFiles, isLoading: isRequirementFilesLoading } =
+    useListStaffBookingRequirementFiles(id ?? "", bookingId ?? "", {
+      query: { enabled: Boolean(id && bookingId) },
+    });
   const { mutate: confirmBooking, isPending: isConfirming } = useConfirmBooking(
     {
       mutation: {
@@ -113,6 +202,8 @@ const KpBookingDetails = () => {
       </Stack>
     );
   }
+
+  const bookingServices = booking.services ?? [];
 
   return (
     <Stack gap="md">
@@ -201,10 +292,51 @@ const KpBookingDetails = () => {
       </Paper>
 
       <Paper withBorder p="lg" radius="md">
-        <Stack gap="sm">
+        <Stack gap="md">
           <Title order={4}>{t("kp.manage.booking_services")}</Title>
-          {booking.booked_services_count > 0 ? (
-            <Text>{booking.booked_services_summary}</Text>
+          {bookingServices.length > 0 ? (
+            <Stack gap="md">
+              {bookingServices.map((bookingService, index) => (
+                <Stack gap="sm" key={bookingService.id}>
+                  {index > 0 ? <Divider /> : null}
+                  <Group justify="space-between" align="flex-start">
+                    <Stack gap={2}>
+                      <Text fw={600}>{bookingService.service.name}</Text>
+                      {bookingService.service.description ? (
+                        <Text c="dimmed" size="sm">
+                          {bookingService.service.description}
+                        </Text>
+                      ) : null}
+                    </Stack>
+                    <Badge variant="light">
+                      {t("kp.manage.booking_service_quantity", {
+                        quantity: bookingService.quantity,
+                      })}
+                    </Badge>
+                  </Group>
+
+                  {bookingService.service.requirements.some(
+                    (requirement) =>
+                      requirement.type !== KpEventServiceRequirementType.text,
+                  ) ? (
+                    <Stack gap="xs">
+                      <Text c="dimmed" fw={500} size="sm">
+                        {t("kp.manage.booking_service_requirements")}
+                      </Text>
+                      {bookingService.service.requirements.map((requirement) => (
+                        <StaffRequirementRow
+                          bookingServiceId={bookingService.id}
+                          isChecking={isRequirementFilesLoading}
+                          key={requirement.id}
+                          requirementFile={requirementFiles?.files[requirement.id]}
+                          requirement={requirement}
+                        />
+                      ))}
+                    </Stack>
+                  ) : null}
+                </Stack>
+              ))}
+            </Stack>
           ) : (
             <Text c="dimmed">{t("kp.manage.booking_services_empty")}</Text>
           )}

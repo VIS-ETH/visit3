@@ -7,23 +7,13 @@ import { formatPrice } from "../utils/price-utils";
 import type { BookingSummaryServiceLine } from "./KpBookingSummaryStep";
 import SummaryPriceBreakdown from "./SummaryPriceBreakdown";
 
-type BookingAdditionalServiceCharge = {
-  name: string;
-  quantity: number;
-  line_total_cents: number;
-};
-
 function bookingToAdditionalServiceLines(
   booking: BookingResponse,
 ): BookingSummaryServiceLine[] {
-  const charges = (
-    booking as BookingResponse & {
-      additional_service_charges?: BookingAdditionalServiceCharge[];
-    }
-  ).additional_service_charges;
-  return (charges ?? []).map((c) => ({
-    label: c.quantity > 1 ? `${c.name} × ${c.quantity}` : c.name,
-    amount: c.line_total_cents,
+  return (booking.additional_service_charges ?? []).map((charge) => ({
+    label:
+      charge.quantity > 1 ? `${charge.name} × ${charge.quantity}` : charge.name,
+    amount: charge.line_total_cents,
   }));
 }
 

@@ -8,11 +8,13 @@ from app.core.auth_context import (
     require_assigned_company_user,
     require_confirmed_company_user,
     require_kp_president_user,
+    require_staff_user,
 )
 from app.core.config import get_settings
 from app.core.exceptions import (
     KpBookingAlreadyExists,
     KpBookingConfirmationRequiresFinalized,
+    KpBookingConfirmedReadonly,
     KpBookingNotFound,
     KpBookingNotOwned,
     KpBookingStatusTransitionInvalid,
@@ -26,8 +28,11 @@ from app.core.exceptions import (
     KpRegistrationClosed,
     KpRequirementBookingServiceMismatch,
     KpRequirementFileUploadNotAllowed,
+    KpRequirementTextAnswerNotAllowed,
     KpServiceNotFound,
+    KpServiceQuantityInvalid,
     KpServiceRequirementNotFound,
+    KpServiceUnavailable,
     KpWaitlistSameZone,
 )
 from app.models.kp_event import (
@@ -46,6 +51,13 @@ from app.models.kp_event import (
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
 from app.schemas.kp import (
+    BookingAdditionalServiceChargeResponse,
+    BookingRequirementFileMapResponse,
+    BookingResponse,
+    BookingServiceInput,
+    BookingServiceResponse,
+    BookingWithCompanyAndBoothZoneResponse,
+    BoothZoneResponse,
     BoothZoneWithAvailabilityResult,
     CloneKpInput,
     CreateBookingInput,
@@ -53,6 +65,11 @@ from app.schemas.kp import (
     CreateIndustryInput,
     CreateKpInput,
     CreateServiceInput,
+    RequirementFileResponse,
+    RequirementTextResponse,
+    ServiceRequirementResponse,
+    ServiceResponse,
+    StoredFileResponse,
     UpdateBookingBoothNumberInput,
     UpdateBookingInput,
     UpdateBookingStatusInput,
@@ -150,33 +167,162 @@ class KpService:
 
     # --- Services ---
 
-    async def list_services(self, event_id: UUID) -> Sequence[KpEventService]:
+    async def _service_image_url(self, service: KpEventService) -> str | None:
+        stored_file = service.image_stored_file
+        if stored_file is None:
+            return None
+        return await self.storage_service.generate_download_url(
+            stored_file.storage_key, stored_file.original_filename
+        )
+
+    async def _build_service_response(
+        self, service: KpEventService
+    ) -> ServiceResponse:
+        return ServiceResponse(
+            id=service.id,
+            event_id=service.event_id,
+            name=service.name,
+            description=service.description,
+            image_url=await self._service_image_url(service),
+            confirmation_description=service.confirmation_description,
+            order=service.order,
+            price=service.price,
+            max_quantity_per_booking=service.max_quantity_per_booking,
+            max_total_quantity=service.max_total_quantity,
+            is_active=service.is_active,
+            requirements=[
+                ServiceRequirementResponse.model_validate(
+                    requirement, from_attributes=True
+                )
+                for requirement in service.requirements
+            ],
+        )
+
+    async def list_services(self, event_id: UUID) -> list[ServiceResponse]:
         require_kp_president_user(self.current_user)
         await self._get_event(event_id)
-        return await self.kp_repository.list_services(event_id)
+        services = await self.kp_repository.list_services(event_id)
+        return [await self._build_service_response(service) for service in services]
+
+    async def list_available_services_for_company(
+        self, event_id: UUID
+    ) -> list[ServiceResponse]:
+        require_confirmed_company_user(self.current_user)
+        await self._get_event(event_id)
+        services = await self.kp_repository.list_services(event_id)
+        return [
+            await self._build_service_response(service)
+            for service in services
+            if service.is_active
+        ]
 
     async def create_service(
         self, event_id: UUID, create_service_input: CreateServiceInput
-    ) -> KpEventService:
+    ) -> ServiceResponse:
         require_kp_president_user(self.current_user)
         await self._get_event(event_id)
-        return await self.kp_repository.create_service(event_id, create_service_input)
+        service = await self.kp_repository.create_service(
+            event_id, create_service_input
+        )
+        return await self._build_service_response(service)
 
     async def update_service(
         self, service_id: UUID, update_service_input: UpdateServiceInput
-    ) -> KpEventService:
+    ) -> ServiceResponse:
         require_kp_president_user(self.current_user)
         service = await self.kp_repository.get_service_by_id(service_id)
         if service is None:
             raise KpServiceNotFound(f"service:not_found:{service_id}")
-        return await self.kp_repository.update_service(service, update_service_input)
+        updated = await self.kp_repository.update_service(
+            service, update_service_input
+        )
+        return await self._build_service_response(updated)
 
     async def delete_service(self, service_id: UUID) -> None:
         require_kp_president_user(self.current_user)
         service = await self.kp_repository.get_service_by_id(service_id)
         if service is None:
             raise KpServiceNotFound(f"service:not_found:{service_id}")
+        old_storage_key = (
+            service.image_stored_file.storage_key
+            if service.image_stored_file is not None
+            else None
+        )
+        old_stored_file = service.image_stored_file
         await self.kp_repository.delete_service(service)
+        if old_storage_key is not None:
+            await self.storage_service.delete_object(old_storage_key)
+        if old_stored_file is not None:
+            await self.kp_repository.delete_stored_file(old_stored_file)
+
+    async def upload_service_image(
+        self,
+        service_id: UUID,
+        filename: str,
+        content: bytes,
+        content_type: str | None,
+    ) -> ServiceResponse:
+        require_kp_president_user(self.current_user)
+        service = await self.kp_repository.get_service_by_id(service_id)
+        if service is None:
+            raise KpServiceNotFound(f"service:not_found:{service_id}")
+        mime_type = self.storage_service.validate_image_file(
+            filename,
+            content,
+            content_type,
+            error_context=f"service_image:{service_id}",
+        )
+        old_stored_file = service.image_stored_file
+        old_storage_key = (
+            old_stored_file.storage_key
+            if old_stored_file is not None
+            else None
+        )
+        suffix = Path(filename).suffix
+        storage_key = f"kp/services/{service_id}/image/{uuid4()}{suffix}"
+        stored_object = await self.storage_service.upload_bytes(
+            key=storage_key,
+            content=content,
+            filename=filename,
+            content_type=mime_type,
+        )
+        try:
+            stored_file = await self.kp_repository.upsert_stored_file(
+                storage_key=stored_object.key,
+                original_filename=filename,
+                mime_type=stored_object.mime_type,
+                size_bytes=stored_object.size_bytes,
+                sha256=stored_object.sha256,
+                etag=stored_object.etag,
+                stored_file=None,
+            )
+            updated = await self.kp_repository.set_service_image_stored_file_id(
+                service, stored_file.id
+            )
+        except Exception:
+            await self.storage_service.delete_object(stored_object.key)
+            raise
+        if old_storage_key is not None and old_storage_key != stored_object.key:
+            await self.storage_service.delete_object(old_storage_key)
+        if old_stored_file is not None:
+            await self.kp_repository.delete_stored_file(old_stored_file)
+        return await self._build_service_response(updated)
+
+    async def delete_service_image(self, service_id: UUID) -> ServiceResponse:
+        require_kp_president_user(self.current_user)
+        service = await self.kp_repository.get_service_by_id(service_id)
+        if service is None:
+            raise KpServiceNotFound(f"service:not_found:{service_id}")
+        stored_file = service.image_stored_file
+        if stored_file is None:
+            return await self._build_service_response(service)
+        storage_key = stored_file.storage_key
+        updated = await self.kp_repository.set_service_image_stored_file_id(
+            service, None
+        )
+        await self.storage_service.delete_object(storage_key)
+        await self.kp_repository.delete_stored_file(stored_file)
+        return await self._build_service_response(updated)
 
     # --- Industries ---
 
@@ -234,9 +380,157 @@ class KpService:
             )
         return result
 
+    async def _validate_booking_services(
+        self,
+        event_id: UUID,
+        services: Sequence[BookingServiceInput],
+        existing_quantities: dict[UUID, int] | None = None,
+    ) -> list[BookingServiceInput]:
+        existing_quantities = existing_quantities or {}
+        service_quantities: dict[UUID, int] = {}
+        for booking_service in services:
+            service_quantities[booking_service.service_id] = (
+                service_quantities.get(booking_service.service_id, 0)
+                + booking_service.quantity
+            )
+
+        validated_services: list[BookingServiceInput] = []
+        for service_id, quantity in service_quantities.items():
+            service = await self.kp_repository.get_service_by_id(service_id)
+            if service is None:
+                raise KpServiceNotFound(
+                    f"register_booking:service_not_found:{service_id}"
+                )
+            if service.event_id != event_id or not service.is_active:
+                raise KpServiceUnavailable(
+                    f"register_booking:service_unavailable:{service_id}"
+                )
+            total_booking_quantity = existing_quantities.get(service_id, 0) + quantity
+            if total_booking_quantity > service.max_quantity_per_booking:
+                raise KpServiceQuantityInvalid(
+                    "booking_service:service_max_per_booking:"
+                    f"{service_id}:{total_booking_quantity}"
+                )
+            if service.max_total_quantity > 0:
+                booked_quantity = await self.kp_repository.count_active_service_quantity(
+                    service_id
+                )
+                if booked_quantity + quantity > service.max_total_quantity:
+                    raise KpServiceQuantityInvalid(
+                        f"register_booking:service_max_total:{service_id}:{quantity}"
+                    )
+            validated_services.append(
+                BookingServiceInput(service_id=service_id, quantity=quantity)
+            )
+        return validated_services
+
+    def _ensure_booking_editable_by_company(
+        self, booking: KpEventBooking, context: str
+    ) -> None:
+        if booking.status in {KpBookingStatus.CONFIRMED, KpBookingStatus.CANCELLED}:
+            raise KpBookingConfirmedReadonly(
+                f"{context}:readonly:{booking.id}:{booking.status}"
+            )
+
+    async def _build_booking_response(
+        self, booking: KpEventBooking
+    ) -> BookingResponse:
+        services, additional_service_charges = await self._build_booking_services(
+            booking
+        )
+        booth_zone_model = getattr(booking, "booth_zone", None)
+        booth_zone = (
+            BoothZoneResponse.model_validate(booth_zone_model, from_attributes=True)
+            if booth_zone_model is not None
+            else None
+        )
+        return BookingResponse(
+            id=booking.id,
+            booking_number=booking.booking_number or 0,
+            event_id=booking.event_id,
+            company_id=booking.company_id,
+            booth_zone_id=booking.booth_zone_id,
+            booth_nr=booking.booth_nr,
+            status=booking.status,
+            booth_zone=booth_zone,
+            services=services,
+            additional_service_charges=additional_service_charges,
+            total_price=self._booking_total_price(booking),
+        )
+
+    def _booking_total_price(self, booking: KpEventBooking) -> int:
+        booth_zone = getattr(booking, "booth_zone", None)
+        base_price = booth_zone.base_price if booth_zone is not None else 0
+        return base_price + sum(
+            booking_service.charged_quantity * booking_service.service.price
+            for booking_service in booking.services
+        )
+
+    async def _build_booking_services(
+        self, booking: KpEventBooking
+    ) -> tuple[
+        list[BookingServiceResponse],
+        list[BookingAdditionalServiceChargeResponse],
+    ]:
+        service_responses = [
+            BookingServiceResponse(
+                id=booking_service.id,
+                booking_id=booking_service.booking_id,
+                service_id=booking_service.service_id,
+                quantity=booking_service.quantity,
+                included_quantity=booking_service.included_quantity,
+                service=await self._build_service_response(booking_service.service),
+            )
+            for booking_service in booking.services
+        ]
+        additional_service_charges = [
+            BookingAdditionalServiceChargeResponse(
+                name=booking_service.service.name,
+                quantity=booking_service.quantity,
+                charged_quantity=booking_service.charged_quantity,
+                line_total_cents=booking_service.charged_quantity
+                * booking_service.service.price,
+            )
+            for booking_service in booking.services
+            if booking_service.charged_quantity > 0
+        ]
+        return service_responses, additional_service_charges
+
+    async def _build_staff_booking_response(
+        self, booking: KpEventBooking
+    ) -> BookingWithCompanyAndBoothZoneResponse:
+        services, additional_service_charges = await self._build_booking_services(
+            booking
+        )
+        booth_zone = BoothZoneResponse.model_validate(
+            booking.booth_zone, from_attributes=True
+        )
+        return BookingWithCompanyAndBoothZoneResponse(
+            id=booking.id,
+            booking_number=booking.booking_number or 0,
+            event_id=booking.event_id,
+            company_id=booking.company_id,
+            booth_zone_id=booking.booth_zone_id,
+            booth_nr=booking.booth_nr,
+            status=booking.status,
+            company=booking.company,
+            booth_zone=booth_zone,
+            services=services,
+            additional_service_charges=additional_service_charges,
+            total_price=self._booking_total_price(booking),
+            booked_services_count=booking.booked_services_count,
+            booked_services_summary=booking.booked_services_summary,
+            nametag_count=booking.nametag_count,
+            waitlist_count=booking.waitlist_count,
+            company_details_submitted=booking.company_details_submitted,
+        )
+
     async def register_booking(
-        self, event_id: UUID, booth_zone_id: UUID
-    ) -> KpEventBooking:
+        self,
+        event_id: UUID,
+        booth_zone_id: UUID,
+        services: Sequence[BookingServiceInput] = (),
+    ) -> BookingResponse:
         company_user = require_assigned_company_user(self.current_user)
         event = await self._get_event(event_id)
         await self._ensure_registration_open(event, company_user.company_id)
@@ -279,36 +573,72 @@ class KpService:
         if count >= locked_zone.capacity:
             raise KpBoothZoneAtCapacity(f"register_booking:at_capacity:{booth_zone_id}")
 
-        return await self.kp_repository.create_booking(
+        validated_services = await self._validate_booking_services(event_id, services)
+        booking = await self.kp_repository.create_booking(
             event_id=event_id,
             company_id=company_user.company_id,
             booth_zone_id=booth_zone_id,
             create_booking_input=CreateBookingInput(status=KpBookingStatus.REGISTERED),
+            services=validated_services,
+            included_services=locked_zone.included_services,
         )
+        return await self._build_booking_response(booking)
 
-    async def get_my_booking(self, event_id: UUID) -> Optional[KpEventBooking]:
+    async def add_booking_services(
+        self,
+        booking_id: UUID,
+        services: Sequence[BookingServiceInput],
+    ) -> BookingResponse:
+        company_user = require_assigned_company_user(self.current_user)
+        booking = await self._get_owned_booking(booking_id, company_user.company_id)
+        self._ensure_booking_editable_by_company(booking, "add_booking_services")
+
+        existing_quantities = {
+            booking_service.service_id: booking_service.quantity
+            for booking_service in booking.services
+        }
+        validated_services = await self._validate_booking_services(
+            booking.event_id,
+            services,
+            existing_quantities=existing_quantities,
+        )
+        updated = await self.kp_repository.add_booking_services(
+            booking,
+            validated_services,
+        )
+        return await self._build_booking_response(updated)
+
+    async def get_my_booking(self, event_id: UUID) -> Optional[BookingResponse]:
         company_user = require_assigned_company_user(self.current_user)
         await self._get_event(event_id)
-        return await self.kp_repository.get_company_active_booking_for_event(
+        booking = await self.kp_repository.get_company_active_booking_for_event(
             event_id, company_user.company_id
         )
+        if booking is None:
+            return None
+        return await self._build_booking_response(booking)
 
     # --- Bookings ---
 
-    async def list_bookings_for_event(self, event_id: UUID) -> Sequence[KpEventBooking]:
+    async def list_bookings_for_event(
+        self, event_id: UUID
+    ) -> list[BookingWithCompanyAndBoothZoneResponse]:
         require_kp_president_user(self.current_user)
         await self._get_event(event_id)
-        return await self.kp_repository.list_bookings_for_event(event_id)
+        bookings = await self.kp_repository.list_bookings_for_event(event_id)
+        return [
+            await self._build_staff_booking_response(booking) for booking in bookings
+        ]
 
     async def get_event_booking(
         self, event_id: UUID, booking_id: UUID
-    ) -> KpEventBooking:
+    ) -> BookingWithCompanyAndBoothZoneResponse:
         require_kp_president_user(self.current_user)
         await self._get_event(event_id)
         booking = await self._get_booking(booking_id)
         if booking.event_id != event_id:
             raise KpBookingNotFound(f"booking:event_mismatch:{event_id}:{booking_id}")
-        return booking
+        return await self._build_staff_booking_response(booking)
 
     async def _get_owned_booking(
         self, booking_id: UUID, company_id: UUID
@@ -329,13 +659,19 @@ class KpService:
     async def _get_owned_booking_service(
         self, booking_service_id: UUID, company_id: UUID
     ) -> KpEventBookingService:
+        booking_service = await self._get_booking_service(booking_service_id)
+        if booking_service.booking.company_id != company_id:
+            raise KpBookingNotOwned(f"booking_service:not_owned:{booking_service_id}")
+        return booking_service
+
+    async def _get_booking_service(
+        self, booking_service_id: UUID
+    ) -> KpEventBookingService:
         booking_service = await self.kp_repository.get_booking_service_by_id(
             booking_service_id
         )
         if booking_service is None:
             raise KpBookingNotFound(f"booking_service:not_found:{booking_service_id}")
-        if booking_service.booking.company_id != company_id:
-            raise KpBookingNotOwned(f"booking_service:not_owned:{booking_service_id}")
         return booking_service
 
     def _ensure_company_status_transition(
@@ -401,33 +737,38 @@ class KpService:
 
     async def update_my_booking_status(
         self, booking_id: UUID, update_booking_input: UpdateBookingStatusInput
-    ) -> KpEventBooking:
+    ) -> BookingWithCompanyAndBoothZoneResponse:
         company_user = require_assigned_company_user(self.current_user)
         booking = await self._get_owned_booking(booking_id, company_user.company_id)
         self._ensure_company_status_transition(booking, update_booking_input.status)
-        return await self.kp_repository.update_booking(
+        updated = await self.kp_repository.update_booking(
             booking, UpdateBookingInput(status=update_booking_input.status)
         )
+        return await self._build_staff_booking_response(updated)
 
     async def update_booking_booth_number(
         self, booking_id: UUID, update_booking_input: UpdateBookingBoothNumberInput
-    ) -> KpEventBooking:
+    ) -> BookingWithCompanyAndBoothZoneResponse:
         require_kp_president_user(self.current_user)
         booking = await self._get_booking(booking_id)
-        return await self.kp_repository.update_booking(
+        updated = await self.kp_repository.update_booking(
             booking, UpdateBookingInput(booth_nr=update_booking_input.booth_nr)
         )
+        return await self._build_staff_booking_response(updated)
 
-    async def confirm_booking(self, booking_id: UUID) -> KpEventBooking:
+    async def confirm_booking(
+        self, booking_id: UUID
+    ) -> BookingWithCompanyAndBoothZoneResponse:
         require_kp_president_user(self.current_user)
         booking = await self._get_booking(booking_id)
         if booking.status != KpBookingStatus.FINALIZED:
             raise KpBookingConfirmationRequiresFinalized(
                 f"booking_confirm:not_finalized:{booking_id}:{booking.status}"
             )
-        return await self.kp_repository.update_booking(
+        updated = await self.kp_repository.update_booking(
             booking, UpdateBookingInput(status=KpBookingStatus.CONFIRMED)
         )
+        return await self._build_staff_booking_response(updated)
 
     async def _get_requirement_for_booking_service(
         self, booking_service: KpEventBookingService, requirement_id: UUID
@@ -452,7 +793,7 @@ class KpService:
         filename: str,
         content: bytes,
         content_type: str | None,
-    ) -> None:
+    ) -> str:
         if requirement.type == KpEventServiceRequirementType.TEXT:
             raise KpRequirementFileUploadNotAllowed(
                 f"booking_requirement:not_file_upload:{requirement.id}"
@@ -460,24 +801,21 @@ class KpService:
 
         error_context = f"booking_requirement:{requirement.type.value}:{requirement.id}"
         if requirement.type == KpEventServiceRequirementType.IMAGE:
-            self.storage_service.validate_image_file(
+            return self.storage_service.validate_image_file(
                 filename, content, content_type, error_context=error_context
             )
-            return
 
         if requirement.type == KpEventServiceRequirementType.PDF:
-            self.storage_service.validate_pdf_file(
+            return self.storage_service.validate_pdf_file(
                 filename, content, content_type, error_context=error_context
             )
-            return
 
         if requirement.type == KpEventServiceRequirementType.VIDEO:
-            self.storage_service.validate_video_file(
+            return self.storage_service.validate_video_file(
                 filename, content, content_type, error_context=error_context
             )
-            return
 
-        self.storage_service.validate_generic_file(
+        return self.storage_service.validate_generic_file(
             filename, content, content_type, error_context=error_context
         )
 
@@ -493,23 +831,29 @@ class KpService:
         booking_service = await self._get_owned_booking_service(
             booking_service_id, company_user.company_id
         )
+        self._ensure_booking_editable_by_company(
+            booking_service.booking, "upload_booking_requirement_file"
+        )
         requirement = await self._get_requirement_for_booking_service(
             booking_service, requirement_id
         )
-        self._validate_requirement_upload(requirement, filename, content, content_type)
+        mime_type = self._validate_requirement_upload(
+            requirement, filename, content, content_type
+        )
         suffix = Path(filename).suffix
         storage_key = f"kp/booking-services/{booking_service.id}/requirements/{requirement.id}/{uuid4()}{suffix}"
         existing_file = await self.kp_repository.get_requirement_file(
             booking_service.id, requirement.id
         )
-        old_storage_key = (
-            existing_file.stored_file.storage_key if existing_file is not None else None
+        old_stored_file = (
+            existing_file.stored_file if existing_file is not None else None
         )
+        old_storage_key = old_stored_file.storage_key if old_stored_file else None
         stored_object = await self.storage_service.upload_bytes(
             key=storage_key,
             content=content,
             filename=filename,
-            content_type=content_type,
+            content_type=mime_type,
         )
         try:
             stored_file = await self.kp_repository.upsert_stored_file(
@@ -519,9 +863,7 @@ class KpService:
                 size_bytes=stored_object.size_bytes,
                 sha256=stored_object.sha256,
                 etag=stored_object.etag,
-                stored_file=existing_file.stored_file
-                if existing_file is not None
-                else None,
+                stored_file=None,
             )
             requirement_file = await self.kp_repository.upsert_requirement_file_link(
                 booking_service_id=booking_service.id,
@@ -533,6 +875,8 @@ class KpService:
             raise
         if old_storage_key is not None and old_storage_key != stored_object.key:
             await self.storage_service.delete_object(old_storage_key)
+        if old_stored_file is not None:
+            await self.kp_repository.delete_stored_file(old_stored_file)
         return requirement_file
 
     async def get_booking_requirement_file(
@@ -543,8 +887,75 @@ class KpService:
             booking_service_id, company_user.company_id
         )
         await self._get_requirement_for_booking_service(booking_service, requirement_id)
-        return await self.kp_repository.get_requirement_file(
+        requirement_file = await self.kp_repository.get_requirement_file(
             booking_service.id, requirement_id
+        )
+        if requirement_file is None or requirement_file.stored_file is None:
+            return None
+        return requirement_file
+
+    async def get_booking_requirement_text(
+        self, booking_service_id: UUID, requirement_id: UUID
+    ) -> RequirementTextResponse | None:
+        company_user = require_assigned_company_user(self.current_user)
+        booking_service = await self._get_owned_booking_service(
+            booking_service_id, company_user.company_id
+        )
+        requirement = await self._get_requirement_for_booking_service(
+            booking_service, requirement_id
+        )
+        if requirement.type != KpEventServiceRequirementType.TEXT:
+            raise KpRequirementTextAnswerNotAllowed(
+                f"booking_requirement:not_text:{requirement.id}"
+            )
+        requirement_answer = await self.kp_repository.get_requirement_file(
+            booking_service.id, requirement.id
+        )
+        if requirement_answer is None or requirement_answer.text_value is None:
+            return None
+        return RequirementTextResponse(
+            id=requirement_answer.id,
+            booking_service_id=requirement_answer.booking_service_id,
+            requirement_id=requirement_answer.requirement_id,
+            text_value=requirement_answer.text_value,
+        )
+
+    async def upsert_booking_requirement_text(
+        self, booking_service_id: UUID, requirement_id: UUID, text_value: str
+    ) -> RequirementTextResponse:
+        company_user = require_assigned_company_user(self.current_user)
+        booking_service = await self._get_owned_booking_service(
+            booking_service_id, company_user.company_id
+        )
+        self._ensure_booking_editable_by_company(
+            booking_service.booking, "upsert_booking_requirement_text"
+        )
+        requirement = await self._get_requirement_for_booking_service(
+            booking_service, requirement_id
+        )
+        if requirement.type != KpEventServiceRequirementType.TEXT:
+            raise KpRequirementTextAnswerNotAllowed(
+                f"booking_requirement:not_text:{requirement.id}"
+            )
+
+        answer = text_value.strip()
+        old_answer = await self.kp_repository.get_requirement_file(
+            booking_service.id, requirement.id
+        )
+        old_stored_file = old_answer.stored_file if old_answer is not None else None
+        requirement_answer = await self.kp_repository.upsert_requirement_text_answer(
+            booking_service_id=booking_service.id,
+            requirement_id=requirement.id,
+            text_value=answer,
+        )
+        if old_stored_file is not None:
+            await self.storage_service.delete_object(old_stored_file.storage_key)
+            await self.kp_repository.delete_stored_file(old_stored_file)
+        return RequirementTextResponse(
+            id=requirement_answer.id,
+            booking_service_id=requirement_answer.booking_service_id,
+            requirement_id=requirement_answer.requirement_id,
+            text_value=requirement_answer.text_value or "",
         )
 
     async def delete_booking_requirement_file(
@@ -554,11 +965,16 @@ class KpService:
         booking_service = await self._get_owned_booking_service(
             booking_service_id, company_user.company_id
         )
+        self._ensure_booking_editable_by_company(
+            booking_service.booking, "delete_booking_requirement_file"
+        )
         await self._get_requirement_for_booking_service(booking_service, requirement_id)
         requirement_file = await self.kp_repository.get_requirement_file(
             booking_service.id, requirement_id
         )
         if requirement_file is None:
+            return
+        if requirement_file.stored_file is None:
             return
         await self.storage_service.delete_object(
             requirement_file.stored_file.storage_key
@@ -572,7 +988,7 @@ class KpService:
         requirement_file = await self.get_booking_requirement_file(
             booking_service_id, requirement_id
         )
-        if requirement_file is None:
+        if requirement_file is None or requirement_file.stored_file is None:
             raise KpServiceRequirementNotFound(
                 f"booking_requirement_file:not_found:{booking_service_id}:{requirement_id}"
             )
@@ -580,6 +996,60 @@ class KpService:
             requirement_file.stored_file.storage_key,
             requirement_file.stored_file.original_filename,
         )
+
+    async def get_staff_booking_requirement_file(
+        self, booking_service_id: UUID, requirement_id: UUID
+    ) -> KpEventBookingServiceFileLink | None:
+        require_staff_user(self.current_user)
+        booking_service = await self._get_booking_service(booking_service_id)
+        await self._get_requirement_for_booking_service(booking_service, requirement_id)
+        requirement_file = await self.kp_repository.get_requirement_file(
+            booking_service.id, requirement_id
+        )
+        if requirement_file is None or requirement_file.stored_file is None:
+            return None
+        return requirement_file
+
+    async def get_staff_booking_requirement_file_download_url(
+        self, booking_service_id: UUID, requirement_id: UUID
+    ) -> str:
+        requirement_file = await self.get_staff_booking_requirement_file(
+            booking_service_id, requirement_id
+        )
+        if requirement_file is None or requirement_file.stored_file is None:
+            raise KpServiceRequirementNotFound(
+                f"staff_booking_requirement_file:not_found:{booking_service_id}:{requirement_id}"
+            )
+        return await self.storage_service.generate_download_url(
+            requirement_file.stored_file.storage_key,
+            requirement_file.stored_file.original_filename,
+        )
+
+    async def list_staff_booking_requirement_files(
+        self, event_id: UUID, booking_id: UUID
+    ) -> BookingRequirementFileMapResponse:
+        require_staff_user(self.current_user)
+        await self._get_event(event_id)
+        booking = await self._get_booking(booking_id)
+        if booking.event_id != event_id:
+            raise KpBookingNotFound(
+                f"staff_booking_requirement_files:event_mismatch:{event_id}:{booking_id}"
+            )
+
+        files: dict[UUID, RequirementFileResponse] = {}
+        for booking_service in booking.services:
+            for requirement_file in booking_service.requirement_file_links:
+                if requirement_file.stored_file is None:
+                    continue
+                files[requirement_file.requirement_id] = RequirementFileResponse(
+                    id=requirement_file.id,
+                    booking_service_id=requirement_file.booking_service_id,
+                    requirement_id=requirement_file.requirement_id,
+                    stored_file=StoredFileResponse.model_validate(
+                        requirement_file.stored_file, from_attributes=True
+                    ),
+                )
+        return BookingRequirementFileMapResponse(files=files)
 
     async def cleanup_orphaned_stored_files(self) -> None:
         orphaned_files = await self.kp_repository.list_orphaned_stored_files(

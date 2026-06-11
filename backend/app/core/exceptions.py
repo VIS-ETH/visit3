@@ -195,6 +195,16 @@ class KpBookingConfirmationRequiresFinalized(AppError):
         )
 
 
+class KpBookingConfirmedReadonly(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Confirmed KP bookings can no longer be changed by the company",
+            "error.kp_booking_confirmed_readonly",
+            identifier,
+            403,
+        )
+
+
 class KpServiceNotFound(AppError):
     def __init__(self, identifier: str):
         super().__init__(
@@ -202,6 +212,26 @@ class KpServiceNotFound(AppError):
             "error.kp_service_not_found",
             identifier,
             404,
+        )
+
+
+class KpServiceUnavailable(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP service is unavailable",
+            "error.kp_service_unavailable",
+            identifier,
+            400,
+        )
+
+
+class KpServiceQuantityInvalid(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP service quantity is invalid",
+            "error.kp_service_quantity_invalid",
+            identifier,
+            400,
         )
 
 
@@ -300,6 +330,16 @@ class KpRequirementFileUploadNotAllowed(AppError):
         super().__init__(
             "This requirement does not accept file uploads",
             "error.kp_requirement_file_upload_not_allowed",
+            identifier,
+            400,
+        )
+
+
+class KpRequirementTextAnswerNotAllowed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "This requirement does not accept text answers",
+            "error.kp_requirement_text_answer_not_allowed",
             identifier,
             400,
         )

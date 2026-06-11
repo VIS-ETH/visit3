@@ -1,6 +1,8 @@
 {
   "common": {
     "or": "or",
+    "yes": "Yes",
+    "no": "No",
     "cancel": "Cancel",
     "currency": "CHF"
   },
@@ -29,10 +31,13 @@
     "kp_booking_not_owned": "This KP booking does not belong to your company.",
     "kp_booking_status_transition_invalid": "The requested booking status change is not allowed.",
     "kp_booking_confirmation_requires_finalized": "Only finalized bookings can be confirmed.",
+    "kp_booking_confirmed_readonly": "Confirmed bookings can no longer be changed.",
     "kp_name_tag_not_found": "The selected name tag could not be found.",
     "kp_export_background_not_found": "The name tag export background could not be found.",
     "kp_export_empty": "No name tags are available for this export.",
     "kp_service_not_found": "The selected service could not be found.",
+    "kp_service_unavailable": "The selected service is no longer available.",
+    "kp_service_quantity_invalid": "The selected service quantity is not available.",
     "kp_industry_not_found": "The selected industry could not be found.",
     "kp_industry_name_exists": "An industry with this name already exists.",
     "kp_service_requirement_not_found": "The selected service requirement could not be found.",
@@ -49,6 +54,7 @@
     "kp_booth_zone_at_capacity": "The selected booth zone has no remaining spots.",
     "kp_booking_already_exists": "Your company already has an active booking for this event.",
     "kp_requirement_file_upload_not_allowed": "This requirement does not accept file uploads.",
+    "kp_requirement_text_answer_not_allowed": "This requirement does not accept text answers.",
     "validation_failed": "Some fields are invalid.",
     "invite_not_found": "This invite is invalid or has already been used.",
     "invite_expired": "This invite has expired."

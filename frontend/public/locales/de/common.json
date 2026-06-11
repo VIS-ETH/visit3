@@ -1,6 +1,8 @@
 {
   "common": {
     "or": "oder",
+    "yes": "Ja",
+    "no": "Nein",
     "cancel": "Abbrechen",
     "currency": "CHF"
   },
@@ -29,10 +31,13 @@
     "kp_booking_not_owned": "Diese KP-Buchung gehört nicht zu Ihrem Unternehmen.",
     "kp_booking_status_transition_invalid": "Der angeforderte Buchungsstatuswechsel ist nicht erlaubt.",
     "kp_booking_confirmation_requires_finalized": "Nur finalisierte Buchungen können bestätigt werden.",
+    "kp_booking_confirmed_readonly": "Bestätigte Buchungen können nicht mehr geändert werden.",
     "kp_name_tag_not_found": "Das ausgewählte Namensschild wurde nicht gefunden.",
     "kp_export_background_not_found": "Der Hintergrund für den Namensschild-Export wurde nicht gefunden.",
     "kp_export_empty": "Für diesen Export sind keine Namensschilder verfügbar.",
     "kp_service_not_found": "Der ausgewählte Service wurde nicht gefunden.",
+    "kp_service_unavailable": "Der ausgewählte Service ist nicht mehr verfügbar.",
+    "kp_service_quantity_invalid": "Die ausgewählte Service-Anzahl ist nicht verfügbar.",
     "kp_industry_not_found": "Die ausgewählte Branche wurde nicht gefunden.",
     "kp_industry_name_exists": "Eine Branche mit diesem Namen existiert bereits.",
     "kp_service_requirement_not_found": "Die ausgewählte Serviceanforderung wurde nicht gefunden.",
@@ -49,6 +54,7 @@
     "kp_booth_zone_at_capacity": "Die ausgewählte Standzone hat keine verfügbaren Plätze mehr.",
     "kp_booking_already_exists": "Ihr Unternehmen hat bereits eine aktive Buchung für dieses Event.",
     "kp_requirement_file_upload_not_allowed": "Diese Anforderung erlaubt keinen Datei-Upload.",
+    "kp_requirement_text_answer_not_allowed": "Diese Anforderung erlaubt keine Textantwort.",
     "validation_failed": "Einige Felder sind ungültig.",
     "invite_not_found": "Diese Einladung ist ungültig oder wurde bereits verwendet.",
     "invite_expired": "Diese Einladung ist abgelaufen."

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isOptionalImageSource } from "../utils/image-source";
 import { parseKpDateInput, toKpIsoDate } from "../utils/kp-utils";
 
 const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
@@ -146,10 +147,26 @@ export type BoothZoneFormValues = z.infer<typeof boothZoneSchema>;
 export const serviceSchema = z.object({
   name: z.string().trim().min(1, "validation.required"),
   description: z.string(),
+  imageUrl: z
+    .string()
+    .trim()
+    .refine(isOptionalImageSource, "kp.manage.service_image_url_invalid"),
   price: z.number().min(0, "kp.manage.service_number_non_negative"),
   maxPerBooking: z.number().min(1, "kp.manage.service_max_per_booking_min"),
   maxTotal: z.number().min(0, "kp.manage.service_number_non_negative"),
   isActive: z.boolean(),
+  requirements: z.array(
+    z.object({
+      id: z.string().optional(),
+      type: z.string().min(1, "validation.required"),
+      name: z.string().trim().min(2, "validation.required"),
+      description: z
+        .string()
+        .trim()
+        .min(20, "kp.manage.requirement_description_min"),
+      order: z.number().min(0, "kp.manage.service_number_non_negative"),
+    }),
+  ),
 });
 
 export type ServiceFormValues = z.infer<typeof serviceSchema>;

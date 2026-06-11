@@ -266,7 +266,9 @@ class KpEventService(BaseEntity, table=True):
 
     name: str = Field(min_length=1)
     description: str
-    image_url: str | None = None
+    image_stored_file_id: UUID | None = Field(
+        default=None, foreign_key="storedfile.id", unique=True
+    )
     # description of the service that will be shown to the company after they have booked the service.
     # e.g. "Please send us the parcels to the following address: ..."
     confirmation_description: str | None = None
@@ -282,6 +284,7 @@ class KpEventService(BaseEntity, table=True):
     is_active: bool = Field(default=True)
 
     event: "KpEvent" = Relationship(back_populates="services")
+    image_stored_file: StoredFile | None = Relationship()
     booth_zones: list["KpEventBoothZoneServiceLink"] = Relationship(
         back_populates="service"
     )
@@ -290,6 +293,7 @@ class KpEventService(BaseEntity, table=True):
     )
     requirements: list["KpEventServiceRequirement"] = Relationship(
         back_populates="service",
+        sa_relationship_kwargs={"order_by": "KpEventServiceRequirement.order"},
     )
 
 
@@ -318,17 +322,26 @@ class KpEventBookingService(BaseEntity, table=True):
 
 
 class KpEventBookingServiceFileLink(BaseEntity, table=True):
-    __table_args__ = (UniqueConstraint("booking_service_id", "requirement_id"),)
+    __table_args__ = (
+        UniqueConstraint("booking_service_id", "requirement_id"),
+        CheckConstraint(
+            "(stored_file_id IS NULL) <> (text_value IS NULL)",
+            name="kpeventbookingservicefilelink_exactly_one_answer",
+        ),
+    )
 
     booking_service_id: UUID = Field(foreign_key="kpeventbookingservice.id")
     requirement_id: UUID = Field(foreign_key="kpeventservicerequirement.id")
-    stored_file_id: UUID = Field(foreign_key="storedfile.id", unique=True)
+    stored_file_id: UUID | None = Field(
+        default=None, foreign_key="storedfile.id", unique=True
+    )
+    text_value: str | None = Field(default=None)
 
     booking_service: "KpEventBookingService" = Relationship(
         back_populates="requirement_file_links"
     )
     requirement: "KpEventServiceRequirement" = Relationship()
-    stored_file: StoredFile = Relationship()
+    stored_file: StoredFile | None = Relationship()
 
 
 class KpEventNametagBackground(BaseEntity, table=True):
