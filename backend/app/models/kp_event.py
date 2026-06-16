@@ -1,14 +1,13 @@
 import re
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 from typing import Optional, Self
 from uuid import UUID
 
 from pydantic import field_validator, model_validator
-from sqlalchemy import CheckConstraint, Column, Integer
+from sqlalchemy import JSON, CheckConstraint, Column, Index, Integer, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import Sequence as SQLSequence
-from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import (
     Field,  # pyright: ignore[reportUnknownVariableType]
     Relationship,
@@ -48,15 +47,32 @@ class KpEvent(BaseEntity, table=True):
     nametags_deadline: date  # deadline for submitting nametags. after this date, no nametags can be changed.
     event_date: date
 
+    advertisement_service_id: UUID | None = Field(
+        default=None, foreign_key="kpeventservice.id"
+    )
+
     booth_zones: list["KpEventBoothZone"] = Relationship(back_populates="event")
     bookings: list["KpEventBooking"] = Relationship(back_populates="event")
-    services: list["KpEventService"] = Relationship(back_populates="event")
+    services: list["KpEventService"] = Relationship(
+        back_populates="event",
+        sa_relationship_kwargs={"foreign_keys": "KpEventService.event_id"},
+    )
+    advertisement_service: Optional["KpEventService"] = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "KpEvent.advertisement_service_id"},
+    )
     registration_exceptions: list["KpEventRegistrationException"] = Relationship(
         back_populates="event"
     )
     nametag_background: "KpEventNametagBackground" = Relationship(
         back_populates="event",
         sa_relationship_kwargs={"uselist": False},
+    )
+    booklet_assets: Optional["KpEventBookletAssets"] = Relationship(
+        back_populates="event",
+        sa_relationship_kwargs={"uselist": False},
+    )
+    booklet_export_tasks: list["KpEventBookletExportTask"] = Relationship(
+        back_populates="event",
     )
 
     def is_registration_open(self) -> bool:
@@ -98,6 +114,13 @@ class KpEventBooking(BaseEntity, table=True):
         UniqueConstraint(
             "event_id", "booth_zone_id", "booth_nr"
         ),  # each booking within a zone must have a unique booth number
+        Index(
+            "ix_kpeventbooking_active_company",
+            "event_id",
+            "company_id",
+            unique=True,
+            postgresql_where=text("status != 'CANCELLED'"),
+        ),
     )
 
     event_id: UUID = Field(foreign_key="kpevent.id")
@@ -246,6 +269,7 @@ class KpEventServiceRequirementType(Enum):
     FILE = "file"
     IMAGE = "image"
     PDF = "pdf"
+    PDF_SINGLE_PAGE = "pdf_single_page"
     VIDEO = "video"
 
 
@@ -283,7 +307,10 @@ class KpEventService(BaseEntity, table=True):
     # if false, service is no longer available for booking. already booked services are not affected.
     is_active: bool = Field(default=True)
 
-    event: "KpEvent" = Relationship(back_populates="services")
+    event: "KpEvent" = Relationship(
+        back_populates="services",
+        sa_relationship_kwargs={"foreign_keys": "KpEventService.event_id"},
+    )
     image_stored_file: StoredFile | None = Relationship()
     booth_zones: list["KpEventBoothZoneServiceLink"] = Relationship(
         back_populates="service"
@@ -352,6 +379,62 @@ class KpEventNametagBackground(BaseEntity, table=True):
     stored_file: StoredFile = Relationship()
 
 
+class KpEventBookletAssets(BaseEntity, table=True):
+    event_id: UUID = Field(foreign_key="kpevent.id", unique=True)
+
+    intro_page_stored_file_id: UUID | None = Field(
+        default=None, foreign_key="storedfile.id", unique=True
+    )
+    blank_page_stored_file_id: UUID | None = Field(
+        default=None, foreign_key="storedfile.id", unique=True
+    )
+    missing_advertisement_stored_file_id: UUID | None = Field(
+        default=None, foreign_key="storedfile.id", unique=True
+    )
+
+    event: KpEvent = Relationship(back_populates="booklet_assets")
+    intro_page_stored_file: StoredFile | None = Relationship(
+        sa_relationship_kwargs={
+            "foreign_keys": "KpEventBookletAssets.intro_page_stored_file_id",
+        },
+    )
+    blank_page_stored_file: StoredFile | None = Relationship(
+        sa_relationship_kwargs={
+            "foreign_keys": "KpEventBookletAssets.blank_page_stored_file_id",
+        },
+    )
+    missing_advertisement_stored_file: StoredFile | None = Relationship(
+        sa_relationship_kwargs={
+            "foreign_keys": "KpEventBookletAssets.missing_advertisement_stored_file_id",
+        },
+    )
+
+
+class KpEventBookletExportTaskStatus(str, Enum):
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class KpEventBookletExportTask(BaseEntity, table=True):
+    event_id: UUID = Field(foreign_key="kpevent.id", index=True)
+
+    status: KpEventBookletExportTaskStatus = Field(
+        default=KpEventBookletExportTaskStatus.PENDING,
+        index=True,
+    )
+    output_stored_file_id: UUID | None = Field(
+        default=None, foreign_key="storedfile.id", unique=True
+    )
+    error: str | None = Field(default=None)
+    started_at: datetime | None = Field(default=None)
+    finished_at: datetime | None = Field(default=None)
+
+    event: KpEvent = Relationship(back_populates="booklet_export_tasks")
+    output_stored_file: StoredFile | None = Relationship()
+
+
 class KpCompanyLanguage(str, Enum):
     ENGLISH = "ENGLISH"
     GERMAN = "GERMAN"
@@ -382,9 +465,13 @@ class KpBookingCompanyDetails(BaseEntity, table=True):
     address: str = Field(default="")
     contact_person: str = Field(default="")
     places_of_work: str = Field(default="")
+    website: str = Field(default="")
 
     employees_count: int | None = Field(default=None, ge=0)
     employees_count_switzerland: int | None = Field(default=None, ge=0)
+    vacancies_worldwide: int | None = Field(default=None, ge=0)
+    vacancies_switzerland: int | None = Field(default=None, ge=0)
+    annual_revenue_chf_millions: int | None = Field(default=None, ge=0)
 
     offer_internship: bool = Field(default=False)
     offer_part_time: bool = Field(default=False)
@@ -393,12 +480,17 @@ class KpBookingCompanyDetails(BaseEntity, table=True):
     languages: list[KpCompanyLanguage] = Field(
         default_factory=list,
         sa_column=Column(
-            ARRAY(_kp_company_language_pg_enum),
+            JSON,
             nullable=False,
         ),
     )
 
+    logo_stored_file_id: UUID | None = Field(
+        default=None, foreign_key="storedfile.id", unique=True
+    )
+
     booking: "KpEventBooking" = Relationship(back_populates="company_details")
+    logo_stored_file: StoredFile | None = Relationship()
     industry_links: list["KpBookingCompanyDetailsIndustryLink"] = Relationship(
         back_populates="booking_company_details",
     )

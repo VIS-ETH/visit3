@@ -107,6 +107,9 @@ const requirementTypeLabel = (
   if (type === KpEventServiceRequirementType.pdf) {
     return t("kp.booking.requirement_type_pdf");
   }
+  if (type === KpEventServiceRequirementType.pdf_single_page) {
+    return t("kp.booking.requirement_type_pdf_single_page");
+  }
   if (type === KpEventServiceRequirementType.video) {
     return t("kp.booking.requirement_type_video");
   }
@@ -116,6 +119,7 @@ const requirementTypeLabel = (
 const acceptForRequirement = (type: KpEventServiceRequirementType) => {
   if (type === KpEventServiceRequirementType.image) return "image/*";
   if (type === KpEventServiceRequirementType.pdf) return "application/pdf";
+  if (type === KpEventServiceRequirementType.pdf_single_page) return "application/pdf";
   if (type === KpEventServiceRequirementType.video) return "video/*";
   return undefined;
 };
@@ -209,11 +213,18 @@ const RequirementEditor = ({
   ]);
 
   const handleDownload = async () => {
-    const response = await getBookingRequirementFileDownloadUrl(
-      bookingServiceId,
-      requirement.id,
-    );
-    window.location.assign(response.url);
+    try {
+      const response = await getBookingRequirementFileDownloadUrl(
+        bookingServiceId,
+        requirement.id,
+      );
+      window.location.assign(response.url);
+    } catch {
+      notifications.show({
+        color: "red",
+        message: t("kp.booking_manage.requirement_download_error"),
+      });
+    }
   };
 
   return (
@@ -502,17 +513,24 @@ const AddServicesForm = ({
       quantity: item.quantity,
     }));
     if (!payload.length) return;
-    await addServices({
-      bookingId,
-      data: { services: payload },
-    });
-    setQuantities({});
-    setConfirmOpen(false);
-    onAdded();
-    notifications.show({
-      color: "green",
-      message: t("kp.booking_manage.services_added"),
-    });
+    try {
+      await addServices({
+        bookingId,
+        data: { services: payload },
+      });
+      setQuantities({});
+      setConfirmOpen(false);
+      onAdded();
+      notifications.show({
+        color: "green",
+        message: t("kp.booking_manage.services_added"),
+      });
+    } catch {
+      notifications.show({
+        color: "red",
+        message: t("kp.booking_manage.services_add_error"),
+      });
+    }
   };
 
   return (
@@ -676,6 +694,8 @@ const KpBookingManage = () => {
   >({});
   const [requirementCompletion, setRequirementCompletion] =
     useState<RequirementCompletion>({});
+  const [isSavingRequirementsBatch, setIsSavingRequirementsBatch] =
+    useState(false);
   const { id = "", bookingId = "" } = useParams<{
     id: string;
     bookingId: string;
@@ -730,7 +750,8 @@ const KpBookingManage = () => {
   const isSavingRequirements =
     isUploadingRequirementFile ||
     isSavingRequirementText ||
-    isDeletingRequirementFile;
+    isDeletingRequirementFile ||
+    isSavingRequirementsBatch;
 
   const refreshBooking = () => {
     void queryClient.invalidateQueries({
@@ -782,50 +803,56 @@ const KpBookingManage = () => {
   };
 
   const handleSaveRequirementChanges = async () => {
+    if (isSavingRequirementsBatch) return;
+    setIsSavingRequirementsBatch(true);
     const failedChanges: Record<string, PendingRequirementChange> = {};
     let savedCount = 0;
 
-    for (const change of pendingRequirementChangeList) {
-      const key = requirementChangeKey(change.bookingServiceId, change.requirementId);
-      try {
-        if (change.kind === "text") {
-          await saveRequirementText({
-            bookingServiceId: change.bookingServiceId,
-            requirementId: change.requirementId,
-            data: { text_value: change.text },
-          });
+    try {
+      for (const change of pendingRequirementChangeList) {
+        const key = requirementChangeKey(change.bookingServiceId, change.requirementId);
+        try {
+          if (change.kind === "text") {
+            await saveRequirementText({
+              bookingServiceId: change.bookingServiceId,
+              requirementId: change.requirementId,
+              data: { text_value: change.text },
+            });
+            await queryClient.invalidateQueries({
+              queryKey: getGetBookingRequirementTextQueryKey(
+                change.bookingServiceId,
+                change.requirementId,
+              ),
+            });
+            savedCount += 1;
+            continue;
+          }
+
+          if (change.kind === "file") {
+            await uploadRequirementFile({
+              bookingServiceId: change.bookingServiceId,
+              requirementId: change.requirementId,
+              data: { file: change.file },
+            });
+          } else {
+            await deleteRequirementFile({
+              bookingServiceId: change.bookingServiceId,
+              requirementId: change.requirementId,
+            });
+          }
           await queryClient.invalidateQueries({
-            queryKey: getGetBookingRequirementTextQueryKey(
+            queryKey: getGetBookingRequirementFileQueryKey(
               change.bookingServiceId,
               change.requirementId,
             ),
           });
           savedCount += 1;
-          continue;
+        } catch {
+          failedChanges[key] = change;
         }
-
-        if (change.kind === "file") {
-          await uploadRequirementFile({
-            bookingServiceId: change.bookingServiceId,
-            requirementId: change.requirementId,
-            data: { file: change.file },
-          });
-        } else {
-          await deleteRequirementFile({
-            bookingServiceId: change.bookingServiceId,
-            requirementId: change.requirementId,
-          });
-        }
-        await queryClient.invalidateQueries({
-          queryKey: getGetBookingRequirementFileQueryKey(
-            change.bookingServiceId,
-            change.requirementId,
-          ),
-        });
-        savedCount += 1;
-      } catch {
-        failedChanges[key] = change;
       }
+    } finally {
+      setIsSavingRequirementsBatch(false);
     }
 
     setPendingRequirementChanges(failedChanges);
@@ -991,7 +1018,7 @@ const KpBookingManage = () => {
 
       {!isEditable ? (
         <Alert icon={<IconAlertCircle />} color="yellow">
-          {t("kp.booking_manage.readonly_notice")}
+          {t("kp.booking_manage.readonly_notice_services")}
         </Alert>
       ) : null}
 
@@ -1065,7 +1092,7 @@ const KpBookingManage = () => {
               <BookedServiceCard
                 bookingService={bookingService}
                 completion={requirementCompletion}
-                editable={isEditable}
+                editable={isEditable && !isSavingRequirements}
                 key={bookingService.id}
                 onRequirementCompletionChange={handleRequirementCompletionChange}
                 onRequirementChange={handleRequirementChange}

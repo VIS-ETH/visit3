@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import io
 import mimetypes
 from dataclasses import dataclass
 from typing import Any, cast
@@ -9,6 +10,17 @@ from botocore.exceptions import (  # pyright: ignore[reportMissingTypeStubs]
     BotoCoreError,
     ClientError,
 )
+from pypdf import PdfReader
+from pypdf.errors import PdfReadError
+
+
+def _count_pdf_pages(content: bytes) -> int:
+    try:
+        reader = PdfReader(io.BytesIO(content), strict=False)
+        return len(reader.pages)
+    except (PdfReadError, ValueError, OSError):
+        return 0
+
 
 from app.core.config import Settings
 from app.core.downloads import content_disposition_attachment
@@ -17,6 +29,7 @@ from app.core.exceptions import (
     StorageDownloadFailed,
     StorageFileInvalidMimeType,
     StorageFileTooLarge,
+    StoragePdfNotSinglePage,
     StorageUploadFailed,
 )
 
@@ -114,6 +127,22 @@ class StorageService:
             error_context=error_context,
             allowed_mime_types={"application/pdf"},
         )
+
+    def validate_single_page_pdf_file(
+        self,
+        filename: str,
+        content: bytes,
+        content_type: str | None,
+        *,
+        error_context: str,
+    ) -> str:
+        mime_type = self.validate_pdf_file(
+            filename, content, content_type, error_context=error_context
+        )
+        page_count = _count_pdf_pages(content)
+        if page_count != 1:
+            raise StoragePdfNotSinglePage(f"{error_context}:pages:{page_count}")
+        return mime_type
 
     def validate_video_file(
         self,

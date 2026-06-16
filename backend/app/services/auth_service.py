@@ -164,9 +164,7 @@ class AuthService:
         if not user:
             raise TokenInvalid(f"refresh:{token.user_id}")
 
-        await self.token_repository.revoke_refresh_token(
-            user.id, refresh_token
-        )
+        await self.token_repository.revoke_refresh_token(user.id, refresh_token)
 
         return await self.create_tokens(user)
 
@@ -174,9 +172,7 @@ class AuthService:
         user = await self.user_repository.get_by_email(email)
 
         if not user:
-            logger.debug(
-                f"Password reset requested for non-existent user: {email}"
-            )
+            logger.debug(f"Password reset requested for non-existent user: {email}")
             return
 
         if not user.password:
@@ -210,16 +206,10 @@ class AuthService:
             raise e
 
     async def validate_reset_token(self, token: str) -> bool:
-        return (
-            await self.token_repository.get_reset_password_token(token)
-            is not None
-        )
+        return await self.token_repository.get_reset_password_token(token) is not None
 
     async def validate_confirm_email_token(self, token: str) -> bool:
-        return (
-            await self.token_repository.get_confirm_email_token(token)
-            is not None
-        )
+        return await self.token_repository.get_confirm_email_token(token) is not None
 
     async def confirm_email(self, token: str) -> bool:
         confirm_token = await self.token_repository.get_confirm_email_token(token)

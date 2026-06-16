@@ -8,11 +8,15 @@ from sqlmodel import SQLModel
 from app.core.deleted_filter import register_deleted_filter
 from app.models.company import Company, CompanyInvite, KpCompanyProfile
 from app.models.kp_event import (
+    KpBookingCompanyDetails,
+    KpBookingCompanyDetailsIndustryLink,
     KpEvent,
     KpEventBooking,
     KpEventBookingService,
     KpEventBookingServiceFileLink,
     KpEventBookingUpgradeWaitlist,
+    KpEventBookletAssets,
+    KpEventBookletExportTask,
     KpEventBoothZone,
     KpEventBoothZoneServiceLink,
     KpEventNametagBackground,
@@ -62,6 +66,10 @@ INTEGRATION_TABLES = [
     KpEventRegistrationException.__table__,
     KpIndustry.__table__,
     NameTag.__table__,
+    KpEventBookletAssets.__table__,
+    KpEventBookletExportTask.__table__,
+    KpBookingCompanyDetails.__table__,
+    KpBookingCompanyDetailsIndustryLink.__table__,
     StoredFile.__table__,
 ]
 

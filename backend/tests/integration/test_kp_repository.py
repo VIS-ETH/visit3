@@ -313,6 +313,43 @@ async def test_clone_kp_copies_setup_without_bookings_exceptions_or_background(
     assert cloned_background is None
 
 
+async def test_clone_kp_carries_advertisement_service_id_through_service_remap(
+    kp_repository,
+    db_session,
+):
+    event = await kp_repository.create_kp(make_kp_input())
+    service = await kp_repository.create_service(
+        event.id,
+        CreateServiceInput(
+            name="Booklet ad",
+            description="Single-page advertisement",
+            requirements=[
+                ServiceRequirementInput(
+                    type=KpEventServiceRequirementType.PDF_SINGLE_PAGE,
+                    name="Ad PDF",
+                    description="Single-page PDF for the booklet placement.",
+                )
+            ],
+        ),
+    )
+    await kp_repository.set_advertisement_service_id(event, service.id)
+    db_session.expunge_all()
+
+    clone_input = make_kp_input("Kontaktparty Ad Clone")
+    cloned = await kp_repository.clone_kp(
+        event.id,
+        CloneKpInput(**clone_input.model_dump()),
+    )
+
+    assert cloned is not None
+    assert cloned.advertisement_service_id is not None
+    assert cloned.advertisement_service_id != service.id
+
+    cloned_services = await kp_repository.list_services(cloned.id)
+    assert len(cloned_services) == 1
+    assert cloned.advertisement_service_id == cloned_services[0].id
+
+
 async def test_industry_crud_orders_by_name(kp_repository):
     zeta = await kp_repository.create_industry(CreateIndustryInput(name="Zeta"))
     alpha = await kp_repository.create_industry(CreateIndustryInput(name="Alpha"))

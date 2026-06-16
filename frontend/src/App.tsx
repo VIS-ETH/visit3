@@ -27,6 +27,7 @@ import KpBooking from "./pages/KpBooking";
 import KpBookingConfirmation from "./pages/KpBookingConfirmation";
 import KpBookingManage from "./pages/KpBookingManage";
 import KpBookingManageOverview from "./pages/KpBookingManageOverview";
+import KpBookingBookletDetails from "./pages/KpBookingBookletDetails";
 import KpBookingDetails from "./pages/KpBookingDetails";
 import KpServiceForm from "./pages/KpServiceForm";
 import Kp from "./pages/Kp";
@@ -94,6 +95,10 @@ function AppRoutes() {
           <Route
             path="/kp/:id/booking/:bookingId/manage/services"
             element={<KpBookingManage />}
+          />
+          <Route
+            path="/kp/:id/booking/:bookingId/manage/booklet-details"
+            element={<KpBookingBookletDetails />}
           />
         </Route>
         <Route element={<CompanyRoute />}>

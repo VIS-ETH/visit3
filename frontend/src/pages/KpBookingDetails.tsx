@@ -22,7 +22,9 @@ import BackButton from "../components/BackButton";
 import { KpBookingStatusBadge } from "../components/KpBookingStatusBadge";
 import {
   KpBookingStatus,
+  KpCompanyLanguage,
   KpEventServiceRequirementType,
+  type KpCompanyLanguage as KpCompanyLanguageType,
   type RequirementFileResponse,
   type ServiceRequirementResponse,
 } from "../orval/generated/fastAPI.schemas";
@@ -49,6 +51,19 @@ const DetailField = ({ label, value }: { label: string; value: ReactNode }) => (
   </Stack>
 );
 
+const getLanguageLabelKey = (language: KpCompanyLanguageType) => {
+  switch (language) {
+    case KpCompanyLanguage.ENGLISH:
+      return "kp.booking_booklet_details.language_ENGLISH";
+    case KpCompanyLanguage.GERMAN:
+      return "kp.booking_booklet_details.language_GERMAN";
+    case KpCompanyLanguage.FRENCH:
+      return "kp.booking_booklet_details.language_FRENCH";
+    case KpCompanyLanguage.ITALIAN:
+      return "kp.booking_booklet_details.language_ITALIAN";
+  }
+};
+
 const StaffRequirementRow = ({
   bookingServiceId,
   isChecking,
@@ -68,6 +83,7 @@ const StaffRequirementRow = ({
     [KpEventServiceRequirementType.file]: t("kp.booking.requirement_type_file"),
     [KpEventServiceRequirementType.image]: t("kp.booking.requirement_type_image"),
     [KpEventServiceRequirementType.pdf]: t("kp.booking.requirement_type_pdf"),
+    [KpEventServiceRequirementType.pdf_single_page]: t("kp.booking.requirement_type_pdf_single_page"),
     [KpEventServiceRequirementType.video]: t("kp.booking.requirement_type_video"),
   };
 
@@ -80,6 +96,11 @@ const StaffRequirementRow = ({
         requirement.id,
       );
       window.open(response.url, "_blank", "noopener,noreferrer");
+    } catch {
+      notifications.show({
+        color: "red",
+        message: t("kp.booking.requirement_download_error"),
+      });
     } finally {
       setIsDownloading(false);
     }
@@ -159,6 +180,12 @@ const KpBookingDetails = () => {
             message: t("kp.manage.booking_confirmed"),
           });
         },
+        onError: () => {
+          notifications.show({
+            color: "red",
+            message: t("kp.manage.booking_confirm_error"),
+          });
+        },
       },
     },
   );
@@ -204,6 +231,14 @@ const KpBookingDetails = () => {
   }
 
   const bookingServices = booking.services ?? [];
+  const companyDetails = booking.company_details;
+  const yesNo = (value: boolean) => (value ? t("common.yes") : t("common.no"));
+  const languageLabels =
+    companyDetails?.languages.map((language) =>
+      t(getLanguageLabelKey(language)),
+    ) ?? [];
+  const industryLabels =
+    companyDetails?.industries?.map((industry) => industry.name) ?? [];
 
   return (
     <Stack gap="md">
@@ -290,6 +325,78 @@ const KpBookingDetails = () => {
           </SimpleGrid>
         </Stack>
       </Paper>
+
+      {companyDetails ? (
+        <Paper withBorder p="lg" radius="md">
+          <Stack gap="lg">
+            <Title order={4}>{t("kp.manage.booking_booklet_details_title")}</Title>
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
+              <DetailField
+                label={t("kp.booking_booklet_details.brand_name")}
+                value={companyDetails.brand_name}
+              />
+              <DetailField
+                label={t("kp.booking_booklet_details.contact_person")}
+                value={companyDetails.contact_person}
+              />
+              <DetailField
+                label={t("kp.booking_booklet_details.employees_count")}
+                value={companyDetails.employees_count ?? "-"}
+              />
+              <DetailField
+                label={t("kp.booking_booklet_details.employees_count_switzerland")}
+                value={companyDetails.employees_count_switzerland ?? "-"}
+              />
+              <DetailField
+                label={t("kp.booking_booklet_details.languages")}
+                value={languageLabels.length > 0 ? languageLabels.join(", ") : "-"}
+              />
+              <DetailField
+                label={t("kp.booking_booklet_details.industries")}
+                value={industryLabels.length > 0 ? industryLabels.join(", ") : "-"}
+              />
+              <DetailField
+                label={t("kp.booking_booklet_details.offer_internship")}
+                value={yesNo(companyDetails.offer_internship)}
+              />
+              <DetailField
+                label={t("kp.booking_booklet_details.offer_part_time")}
+                value={yesNo(companyDetails.offer_part_time)}
+              />
+              <DetailField
+                label={t("kp.booking_booklet_details.offer_thesis")}
+                value={yesNo(companyDetails.offer_thesis)}
+              />
+            </SimpleGrid>
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+              <DetailField
+                label={t("kp.booking_booklet_details.address")}
+                value={
+                  <Text fw={500} style={{ whiteSpace: "pre-wrap" }}>
+                    {companyDetails.address}
+                  </Text>
+                }
+              />
+              <DetailField
+                label={t("kp.booking_booklet_details.places_of_work")}
+                value={
+                  <Text fw={500} style={{ whiteSpace: "pre-wrap" }}>
+                    {companyDetails.places_of_work}
+                  </Text>
+                }
+              />
+            </SimpleGrid>
+            <DetailField
+              label={t("kp.booking_booklet_details.profile")}
+              value={
+                <Text fw={500} style={{ whiteSpace: "pre-wrap" }}>
+                  {companyDetails.profile}
+                </Text>
+              }
+            />
+          </Stack>
+        </Paper>
+      ) : null}
 
       <Paper withBorder p="lg" radius="md">
         <Stack gap="md">

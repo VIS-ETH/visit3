@@ -146,6 +146,10 @@ const KpServiceForm = () => {
       label: t("kp.manage.requirement_type_pdf"),
     },
     {
+      value: KpEventServiceRequirementType.pdf_single_page,
+      label: t("kp.manage.requirement_type_pdf_single_page"),
+    },
+    {
       value: KpEventServiceRequirementType.video,
       label: t("kp.manage.requirement_type_video"),
     },
