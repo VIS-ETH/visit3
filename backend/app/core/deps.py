@@ -20,6 +20,7 @@ from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
+from app.services.booklet_service import BookletService
 from app.services.company_service import CompanyService
 from app.services.csv_service import CsvService
 from app.services.export_service import ExportService
@@ -263,3 +264,15 @@ async def get_export_service(
 
 
 ExportServiceDep = Annotated[ExportService, Depends(get_export_service)]
+
+
+async def get_booklet_service(
+    kp_repository: KpRepositoryDep,
+    storage_service: StorageServiceDep,
+    pdf_service: PdfServiceDep,
+    current_user: CurrentUserDep,
+):
+    return BookletService(kp_repository, storage_service, pdf_service, current_user)
+
+
+BookletServiceDep = Annotated[BookletService, Depends(get_booklet_service)]

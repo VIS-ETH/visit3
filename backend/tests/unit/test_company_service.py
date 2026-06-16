@@ -311,6 +311,199 @@ async def test_update_my_kp_profile_rejects_contact_user_outside_company(
     company_repo.upsert_kp_profile.assert_not_awaited()
 
 
+async def test_get_company_users_requires_staff_and_company_exists(
+    company_repo,
+    mail_service,
+    staff_user,
+    make_user,
+):
+    company_id = uuid4()
+    company_repo.get_by_id.return_value = object()
+    expected_user = make_user(company_id=company_id)
+    company_repo.get_users.return_value = [expected_user]
+    service = CompanyService(company_repo, mail_service, staff_user)
+
+    result = await service.get_company_users(company_id)
+
+    assert result == [expected_user]
+    company_repo.get_by_id.assert_awaited_once_with(company_id)
+
+
+async def test_get_company_users_raises_when_company_missing(
+    company_repo,
+    mail_service,
+    staff_user,
+):
+    company_repo.get_by_id.return_value = None
+    service = CompanyService(company_repo, mail_service, staff_user)
+
+    with pytest.raises(CompanyNotFound):
+        await service.get_company_users(uuid4())
+
+
+async def test_get_company_with_users_returns_mapped_result(
+    company_repo,
+    mail_service,
+    staff_user,
+    make_company,
+    make_user,
+):
+    company = make_company(name="VIS")
+    company.users = [make_user(company_id=company.id)]
+    company_repo.get_company_with_users.return_value = company
+    service = CompanyService(company_repo, mail_service, staff_user)
+
+    result = await service.get_company_with_users(company.id)
+
+    assert result.id == company.id
+    assert result.name == "VIS"
+    assert len(result.users) == 1
+
+
+async def test_get_companies_maps_repository_result(
+    company_repo,
+    mail_service,
+    staff_user,
+):
+    company_repo.get_companies_with_user_counts.return_value = [
+        (uuid4(), "Acme", 3),
+        (uuid4(), "VIS", 5),
+    ]
+    service = CompanyService(company_repo, mail_service, staff_user)
+
+    result = await service.get_companies()
+
+    assert len(result) == 2
+    assert result[0].name == "Acme"
+    assert result[0].users_count == 3
+
+
+async def test_delete_company_with_users_requires_admin(
+    company_repo,
+    mail_service,
+    admin_user,
+    make_company,
+):
+    company = make_company()
+    company_repo.get_by_id.return_value = company
+    service = CompanyService(company_repo, mail_service, admin_user)
+
+    await service.delete_company_with_users(company.id)
+
+    company_repo.delete_company_with_users.assert_awaited_once_with(company)
+
+
+async def test_delete_company_keep_users_delegates_to_repository(
+    company_repo,
+    mail_service,
+    admin_user,
+    make_company,
+):
+    company = make_company()
+    company_repo.get_by_id.return_value = company
+    service = CompanyService(company_repo, mail_service, admin_user)
+
+    await service.delete_company_keep_users(company.id)
+
+    company_repo.delete_company_keep_users.assert_awaited_once_with(company)
+
+
+async def test_remove_company_user_requires_same_company(
+    company_repo,
+    mail_service,
+    admin_user,
+    make_user,
+    make_company,
+):
+    company = make_company()
+    user = make_user(company_id=company.id)
+    company_repo.get_by_id.return_value = company
+    company_repo.get_company_user_by_id.return_value = user
+    service = CompanyService(company_repo, mail_service, admin_user)
+
+    await service.remove_company_user(company.id, user.id)
+
+    company_repo.remove_user_from_company.assert_awaited_once_with(user, company)
+
+
+async def test_remove_company_user_raises_when_user_not_in_company(
+    company_repo,
+    mail_service,
+    admin_user,
+    make_user,
+    make_company,
+):
+    company = make_company()
+    other_company_id = uuid4()
+    user = make_user(company_id=other_company_id)
+    company_repo.get_by_id.return_value = company
+    company_repo.get_company_user_by_id.return_value = user
+    service = CompanyService(company_repo, mail_service, admin_user)
+
+    with pytest.raises(CompanyUserNotFound):
+        await service.remove_company_user(company.id, user.id)
+
+
+async def test_get_my_members_returns_company_users(
+    company_repo,
+    mail_service,
+    make_user,
+    make_company,
+):
+    company = make_company()
+    user = make_user(company_id=company.id)
+    company_repo.get_by_id.return_value = company
+    company_repo.get_users.return_value = [user]
+    service = CompanyService(company_repo, mail_service, user)
+
+    result = await service.get_my_members()
+
+    assert result == [user]
+
+
+async def test_get_my_members_raises_when_company_missing(
+    company_repo,
+    mail_service,
+    make_user,
+):
+    user = make_user(company_id=uuid4())
+    company_repo.get_by_id.return_value = None
+    service = CompanyService(company_repo, mail_service, user)
+
+    with pytest.raises(CompanyNotFound):
+        await service.get_my_members()
+
+
+async def test_get_invite_info_rejects_expired_invite(
+    company_repo,
+    mail_service,
+    company_user,
+):
+    invite = make_invite(
+        expires_at=datetime.now(timezone.utc) - timedelta(seconds=1)
+    )
+    company_repo.get_invite_by_token.return_value = invite
+    service = CompanyService(company_repo, mail_service, company_user)
+
+    with pytest.raises(InviteExpired):
+        await service.get_invite_info("invite-token")
+
+
+async def test_get_my_kp_profile_returns_none_when_missing(
+    company_repo,
+    mail_service,
+    make_user,
+):
+    company_id = uuid4()
+    user = make_user(company_id=company_id)
+    company_repo.get_kp_profile.return_value = None
+    service = CompanyService(company_repo, mail_service, user)
+
+    result = await service.get_my_kp_profile()
+
+    assert result is None
+
+
 async def test_update_my_kp_profile_strips_addresses_and_returns_result(
     company_repo,
     mail_service,

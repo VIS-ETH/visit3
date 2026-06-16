@@ -4,15 +4,26 @@ from unittest.mock import Mock
 
 import pytest
 from botocore.exceptions import ClientError
+from pypdf import PdfWriter
 
 from app.core.config import get_settings
 from app.core.exceptions import (
     StorageDownloadFailed,
     StorageFileInvalidMimeType,
     StorageFileTooLarge,
+    StoragePdfNotSinglePage,
     StorageUploadFailed,
 )
 from app.services.storage_service import StorageService
+
+
+def _build_pdf(page_count: int) -> bytes:
+    writer = PdfWriter()
+    for _ in range(page_count):
+        writer.add_blank_page(width=72, height=72)
+    buffer = BytesIO()
+    writer.write(buffer)
+    return buffer.getvalue()
 
 
 def make_storage_service(client=None) -> StorageService:
@@ -57,6 +68,59 @@ def test_validate_file_rejects_oversized_content():
             "application/octet-stream",
             max_size_bytes=3,
             error_context="upload",
+        )
+
+
+def test_validate_single_page_pdf_accepts_single_page():
+    service = make_storage_service()
+
+    pdf_bytes = _build_pdf(1)
+
+    mime_type = service.validate_single_page_pdf_file(
+        "ad.pdf",
+        pdf_bytes,
+        "application/pdf",
+        error_context="advertisement",
+    )
+
+    assert mime_type == "application/pdf"
+
+
+def test_validate_single_page_pdf_rejects_multi_page():
+    service = make_storage_service()
+
+    pdf_bytes = _build_pdf(2)
+
+    with pytest.raises(StoragePdfNotSinglePage):
+        service.validate_single_page_pdf_file(
+            "ad.pdf",
+            pdf_bytes,
+            "application/pdf",
+            error_context="advertisement",
+        )
+
+
+def test_validate_single_page_pdf_rejects_corrupt_pdf():
+    service = make_storage_service()
+
+    with pytest.raises(StoragePdfNotSinglePage):
+        service.validate_single_page_pdf_file(
+            "ad.pdf",
+            b"not a real pdf",
+            "application/pdf",
+            error_context="advertisement",
+        )
+
+
+def test_validate_single_page_pdf_rejects_wrong_mime():
+    service = make_storage_service()
+
+    with pytest.raises(StorageFileInvalidMimeType):
+        service.validate_single_page_pdf_file(
+            "ad.txt",
+            b"text",
+            "text/plain",
+            error_context="advertisement",
         )
 
 

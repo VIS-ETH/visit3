@@ -3,7 +3,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, File, Query, Response, UploadFile
 
-from app.core.deps import CsrfDep, ExportServiceDep, KpServiceDep
+from app.core.deps import (
+    BookletServiceDep,
+    CsrfDep,
+    ExportServiceDep,
+    KpServiceDep,
+)
 from app.core.downloads import content_disposition_attachment
 from app.models.kp_event import (
     KpEvent,
@@ -19,10 +24,13 @@ from app.schemas.kp import (
     BookingResponse,
     BookingUpgradeWaitlistEntryResponse,
     BookingWithCompanyAndBoothZoneResponse,
+    BookletAssetsResponse,
+    BookletExportTaskResponse,
     BoothZoneResponse,
     BoothZoneWithAvailabilityResponse,
     BoothZoneWithAvailabilityResult,
     CloneKpRequest,
+    CompanyDetailsResponse,
     CreateBoothZoneRequest,
     CreateIndustryRequest,
     CreateKpRequest,
@@ -39,11 +47,14 @@ from app.schemas.kp import (
     RequirementTextRequest,
     RequirementTextResponse,
     ServiceResponse,
+    SetAdvertisementServiceRequest,
+    StoredFileResponse,
     UpdateBookingBoothNumberRequest,
     UpdateBookingStatusRequest,
     UpdateBoothZoneRequest,
     UpdateKpRequest,
     UpdateServiceRequest,
+    UpsertCompanyDetailsRequest,
 )
 
 router = APIRouter(prefix="/kp", tags=["kp"], dependencies=[CsrfDep])
@@ -110,6 +121,19 @@ async def clone_kp(
     kp_service: KpServiceDep, event_id: UUID, request: CloneKpRequest
 ) -> KpEvent:
     return await kp_service.clone_kp(event_id, request)
+
+
+@router.put(
+    "/events/{event_id}/advertisement-service",
+    operation_id="setAdvertisementService",
+    response_model=KpResponse,
+)
+async def set_advertisement_service(
+    kp_service: KpServiceDep,
+    event_id: UUID,
+    request: SetAdvertisementServiceRequest,
+) -> KpEvent:
+    return await kp_service.set_advertisement_service(event_id, request.service_id)
 
 
 # --- Booth Zones ---
@@ -365,6 +389,31 @@ async def replace_booking_upgrade_waitlist(
         booking_id=booking_id,
         target_booth_zone_ids=request.target_booth_zone_ids,
     )
+
+
+@router.get(
+    "/bookings/{booking_id}/company-details",
+    operation_id="getBookingCompanyDetails",
+    response_model=CompanyDetailsResponse | None,
+)
+async def get_booking_company_details(
+    kp_service: KpServiceDep,
+    booking_id: UUID,
+) -> CompanyDetailsResponse | None:
+    return await kp_service.get_booking_company_details(booking_id)
+
+
+@router.put(
+    "/bookings/{booking_id}/company-details",
+    operation_id="upsertBookingCompanyDetails",
+    response_model=CompanyDetailsResponse,
+)
+async def upsert_booking_company_details(
+    kp_service: KpServiceDep,
+    booking_id: UUID,
+    request: UpsertCompanyDetailsRequest,
+) -> CompanyDetailsResponse:
+    return await kp_service.upsert_booking_company_details(booking_id, request)
 
 
 @router.patch(
@@ -742,3 +791,129 @@ async def download_event_registration_exceptions_csv(
 ) -> Response:
     export = await export_service.export_registration_exceptions_csv(event_id)
     return _csv_download(export.content, export.filename)
+
+
+# --- Booklet ---
+
+
+@router.get(
+    "/events/{event_id}/booklet/assets",
+    operation_id="getBookletAssets",
+    response_model=BookletAssetsResponse,
+)
+async def get_booklet_assets(
+    booklet_service: BookletServiceDep,
+    event_id: UUID,
+) -> BookletAssetsResponse:
+    return await booklet_service.get_assets(event_id)
+
+
+@router.put(
+    "/events/{event_id}/booklet/assets/{asset_type}/file",
+    operation_id="uploadBookletAsset",
+    response_model=BookletAssetsResponse,
+)
+async def upload_booklet_asset(
+    booklet_service: BookletServiceDep,
+    event_id: UUID,
+    asset_type: str,
+    file: UploadFile = File(...),
+) -> BookletAssetsResponse:
+    return await booklet_service.upload_asset(
+        event_id=event_id,
+        asset_type_value=asset_type,
+        filename=file.filename or "asset.pdf",
+        content=await file.read(),
+        content_type=file.content_type,
+    )
+
+
+@router.delete(
+    "/events/{event_id}/booklet/assets/{asset_type}/file",
+    operation_id="deleteBookletAsset",
+    response_model=BookletAssetsResponse,
+)
+async def delete_booklet_asset(
+    booklet_service: BookletServiceDep,
+    event_id: UUID,
+    asset_type: str,
+) -> BookletAssetsResponse:
+    return await booklet_service.delete_asset(event_id, asset_type)
+
+
+@router.post(
+    "/events/{event_id}/booklet/exports",
+    operation_id="createBookletExportTask",
+    response_model=BookletExportTaskResponse,
+)
+async def create_booklet_export_task(
+    booklet_service: BookletServiceDep,
+    event_id: UUID,
+) -> BookletExportTaskResponse:
+    return await booklet_service.create_export_task(event_id)
+
+
+@router.get(
+    "/events/{event_id}/booklet/exports",
+    operation_id="listBookletExportTasks",
+    response_model=list[BookletExportTaskResponse],
+)
+async def list_booklet_export_tasks(
+    booklet_service: BookletServiceDep,
+    event_id: UUID,
+) -> list[BookletExportTaskResponse]:
+    return await booklet_service.list_export_tasks(event_id)
+
+
+@router.get(
+    "/booklet/exports/{task_id}",
+    operation_id="getBookletExportTask",
+    response_model=BookletExportTaskResponse,
+)
+async def get_booklet_export_task(
+    booklet_service: BookletServiceDep,
+    task_id: UUID,
+) -> BookletExportTaskResponse:
+    return await booklet_service.get_export_task(task_id)
+
+
+@router.get(
+    "/booklet/exports/{task_id}/download",
+    operation_id="getBookletExportTaskDownloadUrl",
+    response_model=RequirementFileDownloadResponse,
+)
+async def get_booklet_export_task_download_url(
+    booklet_service: BookletServiceDep,
+    task_id: UUID,
+) -> RequirementFileDownloadResponse:
+    url = await booklet_service.get_export_task_download_url(task_id)
+    return RequirementFileDownloadResponse(url=url)
+
+
+@router.put(
+    "/bookings/{booking_id}/logo",
+    operation_id="uploadBookingLogo",
+    response_model=StoredFileResponse,
+)
+async def upload_booking_logo(
+    booklet_service: BookletServiceDep,
+    booking_id: UUID,
+    file: UploadFile = File(...),
+) -> StoredFileResponse:
+    return await booklet_service.upload_company_logo(
+        booking_id=booking_id,
+        filename=file.filename or "logo",
+        content=await file.read(),
+        content_type=file.content_type,
+    )
+
+
+@router.delete(
+    "/bookings/{booking_id}/logo",
+    operation_id="deleteBookingLogo",
+)
+async def delete_booking_logo(
+    booklet_service: BookletServiceDep,
+    booking_id: UUID,
+) -> None:
+    await booklet_service.delete_company_logo(booking_id)

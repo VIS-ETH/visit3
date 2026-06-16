@@ -1,5 +1,6 @@
 import {
   Alert,
+  Badge,
   Button,
   Card,
   Center,
@@ -10,7 +11,12 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { IconAlertCircle, IconChevronRight, IconListDetails } from "@tabler/icons-react";
+import {
+  IconAlertCircle,
+  IconBuildingStore,
+  IconChevronRight,
+  IconListDetails,
+} from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
@@ -85,6 +91,38 @@ const KpBookingManageOverview = () => {
       <KpBookingRecap booking={booking} />
 
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+        <Card withBorder radius="md" p="lg">
+          <Stack gap="sm">
+            <Group justify="space-between" align="flex-start">
+              <IconBuildingStore size={22} />
+              <Badge
+                color={booking.company_details ? "green" : "gray"}
+                variant="light"
+              >
+                {booking.company_details
+                  ? t("kp.manage.booking_details_submitted")
+                  : t("kp.manage.booking_details_missing")}
+              </Badge>
+            </Group>
+            <div>
+              <Title order={4}>{t("kp.booking_manage.booklet_details_page_title")}</Title>
+              <Text c="dimmed" size="sm">
+                {t("kp.booking_manage.booklet_details_page_description")}
+              </Text>
+            </div>
+            <Button
+              variant="light"
+              onClick={() =>
+                navigate(
+                  `/kp/${eventId}/booking/${booking.id}/manage/booklet-details`,
+                )
+              }
+            >
+              {t("kp.booking_manage.manage_booklet_details")}
+            </Button>
+          </Stack>
+        </Card>
+
         <Card withBorder radius="md" p="lg">
           <Stack gap="sm">
             <Group justify="space-between" align="flex-start">

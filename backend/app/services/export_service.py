@@ -90,6 +90,7 @@ COMPANY_DETAILS_EXPORT_FIELDS = [
     "offer_part_time",
     "offer_thesis",
     "languages",
+    "industries",
     "profile",
 ]
 SERVICE_REQUIREMENT_EXPORT_FIELDS = [
@@ -172,6 +173,14 @@ class ExportService:
 
     def _languages(self, languages: Sequence[str]) -> str:
         return ", ".join(str(language) for language in languages)
+
+    def _industries(self, booking: KpEventBooking) -> str:
+        details = booking.company_details
+        if details is None:
+            return ""
+        return ", ".join(
+            link.industry.name for link in details.industry_links if link.industry
+        )
 
     async def _get_event_or_raise(self, event_id: UUID) -> KpEvent:
         event = await self.kp_repository.get_by_id(event_id)
@@ -572,6 +581,7 @@ class ExportService:
                     else "",
                     "offer_thesis": self._bool(details.offer_thesis) if details else "",
                     "languages": self._languages(details.languages) if details else "",
+                    "industries": self._industries(booking),
                     "profile": details.profile if details else "",
                 }
             )

@@ -18,6 +18,9 @@ from app.models.kp_event import (
     KpEventBookingService,
     KpEventBookingServiceFileLink,
     KpEventBookingUpgradeWaitlist,
+    KpEventBookletAssets,
+    KpEventBookletExportTask,
+    KpEventBookletExportTaskStatus,
     KpEventBoothZone,
     KpEventBoothZoneServiceLink,
     KpEventNametagBackground,
@@ -123,6 +126,9 @@ class KpRepository(BaseRepository[KpEvent]):
             selectinload(rel(KpEventBooking.company_details))
             .selectinload(rel(KpBookingCompanyDetails.industry_links))
             .selectinload(rel(KpBookingCompanyDetailsIndustryLink.industry)),
+            selectinload(rel(KpEventBooking.company_details)).selectinload(
+                rel(KpBookingCompanyDetails.logo_stored_file)
+            ),
         )
 
     async def get_by_name(self, name: str) -> Optional[KpEvent]:
@@ -246,6 +252,15 @@ class KpRepository(BaseRepository[KpEvent]):
                         INCLUDED_SERVICE_CLONE_FIELDS,
                         booth_zone_id=cloned_booth_zone_id,
                         service_id=cloned_service_id,
+                    )
+
+            if source_event.advertisement_service_id is not None:
+                cloned_advertisement_service_id = service_id_map.get(
+                    source_event.advertisement_service_id
+                )
+                if cloned_advertisement_service_id is not None:
+                    cloned_event.advertisement_service_id = (
+                        cloned_advertisement_service_id
                     )
 
             await self.session.commit()
@@ -532,6 +547,63 @@ class KpRepository(BaseRepository[KpEvent]):
         result = await self.session.execute(statement)
         return result.scalar_one()
 
+    async def _validate_services_for_booking(
+        self,
+        event_id: UUID,
+        services: Sequence[BookingServiceInput],
+        existing_services: Sequence[KpEventBookingService] = (),
+    ) -> list[BookingServiceInput]:
+        """Lock services and validate quantities inside the current transaction."""
+        from app.core.exceptions import (
+            KpServiceQuantityInvalid,
+            KpServiceUnavailable,
+        )
+
+        existing_quantities = {
+            booking_service.service_id: booking_service.quantity
+            for booking_service in existing_services
+        }
+        service_quantities: dict[UUID, int] = {}
+        for booking_service in services:
+            service_quantities[booking_service.service_id] = (
+                service_quantities.get(booking_service.service_id, 0)
+                + booking_service.quantity
+            )
+
+        validated_services: list[BookingServiceInput] = []
+        for service_id, quantity in service_quantities.items():
+            statement = (
+                select(KpEventService)
+                .where(col(KpEventService.id) == service_id)
+                .with_for_update()
+            )
+            result = await self.session.execute(statement)
+            service = result.scalar_one_or_none()
+            if service is None:
+                raise KpServiceUnavailable(
+                    f"create_booking:service_not_found:{service_id}"
+                )
+            if service.event_id != event_id or not service.is_active:
+                raise KpServiceUnavailable(
+                    f"create_booking:service_unavailable:{service_id}"
+                )
+            total_booking_quantity = existing_quantities.get(service_id, 0) + quantity
+            if total_booking_quantity > service.max_quantity_per_booking:
+                raise KpServiceQuantityInvalid(
+                    "create_booking:service_max_per_booking:"
+                    f"{service_id}:{total_booking_quantity}"
+                )
+            if service.max_total_quantity > 0:
+                booked_quantity = await self.count_active_service_quantity(service_id)
+                if booked_quantity + quantity > service.max_total_quantity:
+                    raise KpServiceQuantityInvalid(
+                        f"create_booking:service_max_total:{service_id}:{quantity}"
+                    )
+            validated_services.append(
+                BookingServiceInput(service_id=service_id, quantity=quantity)
+            )
+        return validated_services
+
     async def create_booking(
         self,
         event_id: UUID,
@@ -542,6 +614,8 @@ class KpRepository(BaseRepository[KpEvent]):
         included_services: Sequence[KpEventBoothZoneServiceLink] = (),
     ) -> KpEventBooking:
         try:
+            await self._validate_services_for_booking(event_id, services)
+
             booking = KpEventBooking(
                 **create_booking_input.model_dump(),
                 event_id=event_id,
@@ -610,6 +684,10 @@ class KpRepository(BaseRepository[KpEvent]):
         services: Sequence[BookingServiceInput],
     ) -> KpEventBooking:
         try:
+            await self._validate_services_for_booking(
+                booking.event_id, services, booking.services
+            )
+
             service_ids = [item.service_id for item in services]
             existing_by_service_id: dict[UUID, KpEventBookingService] = {}
             if service_ids:
@@ -931,6 +1009,19 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
+    async def set_advertisement_service_id(
+        self, event: KpEvent, service_id: UUID | None
+    ) -> KpEvent:
+        try:
+            event.advertisement_service_id = service_id
+            self.session.add(event)
+            await self.session.commit()
+            await self.session.refresh(event)
+            return event
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
     async def get_nametag_background(
         self, event_id: UUID
     ) -> Optional[KpEventNametagBackground]:
@@ -951,7 +1042,13 @@ class KpRepository(BaseRepository[KpEvent]):
         stored_file_id: UUID,
     ) -> KpEventNametagBackground:
         try:
-            background = await self.get_nametag_background(event_id)
+            statement = (
+                select(KpEventNametagBackground)
+                .where(col(KpEventNametagBackground.event_id) == event_id)
+                .with_for_update()
+            )
+            result = await self.session.execute(statement)
+            background = result.scalar_one_or_none()
             if background is None:
                 background = KpEventNametagBackground(
                     event_id=event_id,
@@ -1004,11 +1101,38 @@ class KpRepository(BaseRepository[KpEvent]):
                 KpEventService,
                 col(KpEventService.image_stored_file_id) == col(StoredFile.id),
             )
+            .outerjoin(
+                KpEventBookletAssets,
+                (
+                    col(KpEventBookletAssets.intro_page_stored_file_id)
+                    == col(StoredFile.id)
+                )
+                | (
+                    col(KpEventBookletAssets.blank_page_stored_file_id)
+                    == col(StoredFile.id)
+                )
+                | (
+                    col(KpEventBookletAssets.missing_advertisement_stored_file_id)
+                    == col(StoredFile.id)
+                ),
+            )
+            .outerjoin(
+                KpEventBookletExportTask,
+                col(KpEventBookletExportTask.output_stored_file_id)
+                == col(StoredFile.id),
+            )
+            .outerjoin(
+                KpBookingCompanyDetails,
+                col(KpBookingCompanyDetails.logo_stored_file_id) == col(StoredFile.id),
+            )
             .where(
                 and_(
                     col(KpEventBookingServiceFileLink.id).is_(None),
                     col(KpEventNametagBackground.id).is_(None),
                     col(KpEventService.id).is_(None),
+                    col(KpEventBookletAssets.id).is_(None),
+                    col(KpEventBookletExportTask.id).is_(None),
+                    col(KpBookingCompanyDetails.id).is_(None),
                     col(StoredFile.updated_at) < cutoff,
                 )
             )
@@ -1025,6 +1149,15 @@ class KpRepository(BaseRepository[KpEvent]):
         statement = select(KpIndustry).where(col(KpIndustry.id) == industry_id)
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
+
+    async def list_industries_by_ids(
+        self, industry_ids: Sequence[UUID]
+    ) -> Sequence[KpIndustry]:
+        if not industry_ids:
+            return []
+        statement = select(KpIndustry).where(col(KpIndustry.id).in_(industry_ids))
+        result = await self.session.execute(statement)
+        return result.scalars().all()
 
     async def get_industry_by_name(self, name: str) -> Optional[KpIndustry]:
         statement = select(KpIndustry).where(col(KpIndustry.name) == name)
@@ -1115,27 +1248,270 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
+    async def get_company_details_by_booking_id(
+        self, booking_id: UUID
+    ) -> Optional[KpBookingCompanyDetails]:
+        statement = (
+            select(KpBookingCompanyDetails)
+            .where(col(KpBookingCompanyDetails.booking_id) == booking_id)
+            .options(
+                selectinload(rel(KpBookingCompanyDetails.industry_links)).selectinload(
+                    rel(KpBookingCompanyDetailsIndustryLink.industry)
+                ),
+                selectinload(rel(KpBookingCompanyDetails.logo_stored_file)),
+            )
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
     async def upsert_company_details(
-        self, booking_id: UUID, upsert_company_details_input: UpsertCompanyDetailsInput
+        self,
+        booking_id: UUID,
+        upsert_company_details_input: UpsertCompanyDetailsInput,
+        industry_ids: Sequence[UUID],
     ) -> KpBookingCompanyDetails:
         try:
-            statement = select(KpBookingCompanyDetails).where(
-                col(KpBookingCompanyDetails.booking_id) == booking_id
-            )
-            result = await self.session.execute(statement)
-            company_details = result.scalar_one_or_none()
+            company_details = await self.get_company_details_by_booking_id(booking_id)
 
             if company_details is None:
                 company_details = KpBookingCompanyDetails(booking_id=booking_id)
 
             company_details.sqlmodel_update(
-                upsert_company_details_input.model_dump(exclude_unset=True)
+                upsert_company_details_input.model_dump(
+                    exclude={"industry_ids"}, exclude_unset=True
+                )
             )
 
             self.session.add(company_details)
+            await self.session.flush()
+
+            existing_links_statement = select(
+                KpBookingCompanyDetailsIndustryLink
+            ).where(
+                col(KpBookingCompanyDetailsIndustryLink.booking_company_details_id)
+                == company_details.id
+            )
+            existing_links = (
+                await self.session.execute(existing_links_statement)
+            ).scalars()
+            for link in existing_links:
+                await self.session.delete(link)
+
+            for industry_id in industry_ids:
+                self.session.add(
+                    KpBookingCompanyDetailsIndustryLink(
+                        booking_company_details_id=company_details.id,
+                        industry_id=industry_id,
+                    )
+                )
+
             await self.session.commit()
-            await self.session.refresh(company_details)
-            return company_details
+            return (
+                await self.get_company_details_by_booking_id(booking_id)
+                or company_details
+            )
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    # --- Booklet Assets ---
+
+    async def get_booklet_assets(
+        self, event_id: UUID
+    ) -> Optional[KpEventBookletAssets]:
+        statement = (
+            select(KpEventBookletAssets)
+            .where(col(KpEventBookletAssets.event_id) == event_id)
+            .options(
+                selectinload(rel(KpEventBookletAssets.intro_page_stored_file)),
+                selectinload(rel(KpEventBookletAssets.blank_page_stored_file)),
+                selectinload(
+                    rel(KpEventBookletAssets.missing_advertisement_stored_file)
+                ),
+            )
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def upsert_booklet_asset_file(
+        self,
+        event_id: UUID,
+        field_name: str,
+        stored_file_id: UUID | None,
+    ) -> KpEventBookletAssets:
+        try:
+            statement = (
+                select(KpEventBookletAssets)
+                .where(col(KpEventBookletAssets.event_id) == event_id)
+                .with_for_update()
+            )
+            result = await self.session.execute(statement)
+            assets = result.scalar_one_or_none()
+            if assets is None:
+                assets = KpEventBookletAssets(event_id=event_id)
+            setattr(assets, field_name, stored_file_id)
+            self.session.add(assets)
+            await self.session.commit()
+            return await self.get_booklet_assets(event_id) or assets
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def set_company_details_logo_stored_file_id(
+        self,
+        details: KpBookingCompanyDetails,
+        stored_file_id: UUID | None,
+    ) -> KpBookingCompanyDetails:
+        try:
+            statement = (
+                select(KpBookingCompanyDetails)
+                .where(col(KpBookingCompanyDetails.id) == details.id)
+                .with_for_update()
+            )
+            result = await self.session.execute(statement)
+            locked_details = result.scalar_one()
+            locked_details.logo_stored_file_id = stored_file_id
+            self.session.add(locked_details)
+            await self.session.commit()
+            return (
+                await self.get_company_details_by_booking_id(details.booking_id)
+                or locked_details
+            )
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    # --- Booklet Export Tasks ---
+
+    async def create_booklet_export_task(
+        self, event_id: UUID
+    ) -> KpEventBookletExportTask:
+        try:
+            task = KpEventBookletExportTask(event_id=event_id)
+            self.session.add(task)
+            await self.session.commit()
+            return await self.get_booklet_export_task(task.id) or task
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def get_booklet_export_task(
+        self, task_id: UUID
+    ) -> Optional[KpEventBookletExportTask]:
+        statement = (
+            select(KpEventBookletExportTask)
+            .where(col(KpEventBookletExportTask.id) == task_id)
+            .options(
+                selectinload(rel(KpEventBookletExportTask.output_stored_file)),
+            )
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def list_booklet_export_tasks(
+        self, event_id: UUID, limit: int = 20
+    ) -> Sequence[KpEventBookletExportTask]:
+        statement = (
+            select(KpEventBookletExportTask)
+            .where(col(KpEventBookletExportTask.event_id) == event_id)
+            .options(
+                selectinload(rel(KpEventBookletExportTask.output_stored_file)),
+            )
+            .order_by(col(KpEventBookletExportTask.created_at).desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().all()
+
+    async def claim_next_pending_booklet_export_task(
+        self,
+    ) -> Optional[KpEventBookletExportTask]:
+        """
+        Atomically picks the oldest PENDING task and flips it to RUNNING.
+        Uses FOR UPDATE SKIP LOCKED so multiple workers don't collide.
+        Returns None if no PENDING tasks remain.
+        """
+        try:
+            statement = (
+                select(KpEventBookletExportTask)
+                .where(
+                    col(KpEventBookletExportTask.status)
+                    == KpEventBookletExportTaskStatus.PENDING
+                )
+                .order_by(col(KpEventBookletExportTask.created_at).asc())
+                .limit(1)
+                .with_for_update(skip_locked=True)
+            )
+            result = await self.session.execute(statement)
+            task = result.scalar_one_or_none()
+            if task is None:
+                await self.session.commit()
+                return None
+            task.status = KpEventBookletExportTaskStatus.RUNNING
+            task.started_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            self.session.add(task)
+            await self.session.commit()
+            return await self.get_booklet_export_task(task.id)
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def mark_orphan_running_booklet_export_tasks_as_failed(
+        self, max_age_seconds: float = 300
+    ) -> int:
+        """Called on app startup: mark RUNNING tasks older than max_age_seconds as failed."""
+        try:
+            cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+                seconds=max_age_seconds
+            )
+            statement = select(KpEventBookletExportTask).where(
+                col(KpEventBookletExportTask.status)
+                == KpEventBookletExportTaskStatus.RUNNING,
+                col(KpEventBookletExportTask.started_at) < cutoff,
+            )
+            result = await self.session.execute(statement)
+            tasks = result.scalars().all()
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            for task in tasks:
+                task.status = KpEventBookletExportTaskStatus.FAILED
+                task.error = "abandoned:process_restart"
+                task.finished_at = now
+                self.session.add(task)
+            await self.session.commit()
+            return len(tasks)
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def complete_booklet_export_task(
+        self,
+        task: KpEventBookletExportTask,
+        output_stored_file_id: UUID,
+    ) -> KpEventBookletExportTask:
+        try:
+            task.status = KpEventBookletExportTaskStatus.COMPLETED
+            task.output_stored_file_id = output_stored_file_id
+            task.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            task.error = None
+            self.session.add(task)
+            await self.session.commit()
+            return await self.get_booklet_export_task(task.id) or task
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def fail_booklet_export_task(
+        self,
+        task: KpEventBookletExportTask,
+        error: str,
+    ) -> KpEventBookletExportTask:
+        try:
+            task.status = KpEventBookletExportTaskStatus.FAILED
+            task.error = error
+            task.finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            self.session.add(task)
+            await self.session.commit()
+            return await self.get_booklet_export_task(task.id) or task
         except Exception as e:
             await self.session.rollback()
             raise e

@@ -325,6 +325,56 @@ class StorageFileInvalidMimeType(AppError):
         )
 
 
+class KpBookletAssetInvalidType(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Unknown booklet asset type",
+            "error.kp_booklet_asset_invalid_type",
+            identifier,
+            400,
+        )
+
+
+class KpBookletExportTaskNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Booklet export task not found",
+            "error.kp_booklet_export_task_not_found",
+            identifier,
+            404,
+        )
+
+
+class KpBookletExportTaskNotReady(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Booklet export task has no downloadable output yet",
+            "error.kp_booklet_export_task_not_ready",
+            identifier,
+            409,
+        )
+
+
+class KpAdvertisementServiceInvalid(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The selected service is not a valid advertisement service",
+            "error.kp_advertisement_service_invalid",
+            identifier,
+            400,
+        )
+
+
+class StoragePdfNotSinglePage(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "PDF must contain exactly one page",
+            "error.storage_pdf_not_single_page",
+            identifier,
+            400,
+        )
+
+
 class KpRequirementFileUploadNotAllowed(AppError):
     def __init__(self, identifier: str):
         super().__init__(

@@ -100,9 +100,7 @@ class TokenRepository(BaseRepository[RefreshToken]):
             await self.session.rollback()
             raise e
 
-    async def create_refresh_token(
-        self, user_id: UUID
-    ) -> str:
+    async def create_refresh_token(self, user_id: UUID) -> str:
         return await self._issue_token(
             RefreshToken,
             user_id=user_id,
@@ -124,9 +122,7 @@ class TokenRepository(BaseRepository[RefreshToken]):
     async def revoke_all_refresh_tokens(self, user_id: UUID):
         await self._revoke_tokens(RefreshToken, user_id=user_id)
 
-    async def create_reset_password_token(
-        self, user_id: UUID
-    ) -> str:
+    async def create_reset_password_token(self, user_id: UUID) -> str:
         return await self._issue_token(
             ResetPasswordToken,
             user_id=user_id,
@@ -134,22 +130,16 @@ class TokenRepository(BaseRepository[RefreshToken]):
             length=32,
         )
 
-    async def get_reset_password_token(
-        self, token: str
-    ) -> ResetPasswordToken | None:
+    async def get_reset_password_token(self, token: str) -> ResetPasswordToken | None:
         return await self._get_active_token(
             ResetPasswordToken,
             hashed_token=hash_str(token),
         )
 
     async def revoke_reset_password_token(self, token: str):
-        await self._revoke_tokens(
-            ResetPasswordToken, hashed_token=hash_str(token)
-        )
+        await self._revoke_tokens(ResetPasswordToken, hashed_token=hash_str(token))
 
-    async def create_confirm_email_token(
-        self, user_id: UUID
-    ) -> str:
+    async def create_confirm_email_token(self, user_id: UUID) -> str:
         return await self._issue_token(
             ConfirmEmailToken,
             user_id=user_id,
@@ -157,9 +147,7 @@ class TokenRepository(BaseRepository[RefreshToken]):
             length=32,
         )
 
-    async def get_confirm_email_token(
-        self, token: str
-    ) -> ConfirmEmailToken | None:
+    async def get_confirm_email_token(self, token: str) -> ConfirmEmailToken | None:
         return await self._get_active_token(
             ConfirmEmailToken,
             hashed_token=hash_str(token),

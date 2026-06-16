@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { KpCompanyLanguage } from "../orval/generated/fastAPI.schemas";
 import { isOptionalImageSource } from "../utils/image-source";
 import { parseKpDateInput, toKpIsoDate } from "../utils/kp-utils";
 
@@ -170,3 +171,38 @@ export const serviceSchema = z.object({
 });
 
 export type ServiceFormValues = z.infer<typeof serviceSchema>;
+
+export const bookingCompanyDetailsSchema = z.object({
+  brandName: z.string().trim().min(1, "validation.required"),
+  profile: z.string().trim().min(1, "validation.required"),
+  address: z.string().trim().min(1, "validation.required"),
+  contactPerson: z.string().trim().min(1, "validation.required"),
+  placesOfWork: z.string().trim().min(1, "validation.required"),
+  website: z
+    .string()
+    .trim()
+    .refine(
+      (value) => !value || URL.canParse(value),
+      "validation.invalid_url",
+    ),
+  employeesCount: z.number().min(0, "validation.number_non_negative"),
+  employeesCountSwitzerland: z
+    .number()
+    .min(0, "validation.number_non_negative"),
+  vacanciesWorldwide: z.number().min(0, "validation.number_non_negative"),
+  vacanciesSwitzerland: z
+    .number()
+    .min(0, "validation.number_non_negative"),
+  annualRevenueChfMillions: z
+    .number()
+    .min(0, "validation.number_non_negative"),
+  offerInternship: z.boolean(),
+  offerPartTime: z.boolean(),
+  offerThesis: z.boolean(),
+  languages: z.array(z.nativeEnum(KpCompanyLanguage)),
+  industryIds: z.array(z.string()),
+});
+
+export type BookingCompanyDetailsFormValues = z.infer<
+  typeof bookingCompanyDetailsSchema
+>;

@@ -31,6 +31,7 @@ import BoothZonesTab from "../components/BoothZonesTab";
 import DetailsTab from "../components/DetailsTab";
 import IndustriesTab from "../components/IndustriesTab";
 import ServicesTab from "../components/ServicesTab";
+import BookletTab from "../components/BookletTab";
 import ExportsTab from "../components/ExportsTab";
 import { useTranslatedForm } from "../utils/translator";
 
@@ -45,6 +46,7 @@ const KP_MANAGE_TAB_VALUES = [
   "booth_zones",
   "bookings",
   "industries",
+  "booklet",
 ] as const;
 
 type KpManageTabValue = (typeof KP_MANAGE_TAB_VALUES)[number];
@@ -305,6 +307,7 @@ const KpManage = () => {
           <Tabs.Tab value="industries">
             {t("kp.manage.tab_industries")}
           </Tabs.Tab>
+          <Tabs.Tab value="booklet">{t("kp.manage.tab_booklet")}</Tabs.Tab>
         </Tabs.List>
 
         <Tabs.Panel value="details" pt="md">
@@ -324,6 +327,9 @@ const KpManage = () => {
         </Tabs.Panel>
         <Tabs.Panel value="industries" pt="md">
           <IndustriesTab />
+        </Tabs.Panel>
+        <Tabs.Panel value="booklet" pt="md">
+          <BookletTab eventId={id} />
         </Tabs.Panel>
       </Tabs>
     </Stack>

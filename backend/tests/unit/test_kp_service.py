@@ -6,18 +6,23 @@ from uuid import uuid4
 import pytest
 
 from app.core.exceptions import (
+    EmailNotConfirmed,
+    KpAdvertisementServiceInvalid,
     KpBookingAlreadyExists,
     KpBookingConfirmationRequiresFinalized,
     KpBookingConfirmedReadonly,
     KpBookingNotFound,
+    KpBookingNotOwned,
     KpBookingStatusTransitionInvalid,
     KpBoothZoneAtCapacity,
     KpBoothZoneEventMismatch,
     KpEventNotFound,
+    KpIndustryNotFound,
     KpNameExists,
     KpRegistrationClosed,
     KpRequirementFileUploadNotAllowed,
     KpRequirementTextAnswerNotAllowed,
+    KpServiceNotFound,
     KpServiceQuantityInvalid,
     KpServiceRequirementNotFound,
     KpServiceUnavailable,
@@ -26,7 +31,10 @@ from app.core.exceptions import (
 )
 from app.models.company import Company
 from app.models.kp_event import (
+    KpBookingCompanyDetails,
+    KpBookingCompanyDetailsIndustryLink,
     KpBookingStatus,
+    KpCompanyLanguage,
     KpEvent,
     KpEventBooking,
     KpEventBookingService,
@@ -37,6 +45,7 @@ from app.models.kp_event import (
     KpEventService,
     KpEventServiceRequirement,
     KpEventServiceRequirementType,
+    KpIndustry,
 )
 from app.models.storage import StoredFile
 from app.schemas.kp import (
@@ -45,6 +54,7 @@ from app.schemas.kp import (
     CreateKpInput,
     UpdateBookingInput,
     UpdateBookingStatusInput,
+    UpsertCompanyDetailsInput,
 )
 from app.services.kp_service import KpService
 from app.services.storage_service import StoredObject
@@ -361,9 +371,8 @@ async def test_register_booking_creates_selected_services(
     kp_repo.get_by_id.return_value = event
     kp_repo.get_booth_zone_by_id.return_value = zone
     kp_repo.get_company_active_booking_for_event.return_value = None
-    kp_repo.lock_model_by_id.side_effect = [event, zone]
+    kp_repo.lock_model_by_id.side_effect = [event, zone, extra_service]
     kp_repo.count_active_bookings_for_zone.return_value = 0
-    kp_repo.get_service_by_id.return_value = extra_service
     kp_repo.count_active_service_quantity.return_value = 1
     kp_repo.create_booking.return_value = booking
     selected_services = [
@@ -390,9 +399,8 @@ async def test_register_booking_rejects_inactive_service(
     kp_repo.get_by_id.return_value = event
     kp_repo.get_booth_zone_by_id.return_value = zone
     kp_repo.get_company_active_booking_for_event.return_value = None
-    kp_repo.lock_model_by_id.side_effect = [event, zone]
+    kp_repo.lock_model_by_id.side_effect = [event, zone, inactive_service]
     kp_repo.count_active_bookings_for_zone.return_value = 0
-    kp_repo.get_service_by_id.return_value = inactive_service
 
     with pytest.raises(KpServiceUnavailable):
         await service.register_booking(
@@ -416,9 +424,8 @@ async def test_register_booking_rejects_service_quantity_over_booking_limit(
     kp_repo.get_by_id.return_value = event
     kp_repo.get_booth_zone_by_id.return_value = zone
     kp_repo.get_company_active_booking_for_event.return_value = None
-    kp_repo.lock_model_by_id.side_effect = [event, zone]
+    kp_repo.lock_model_by_id.side_effect = [event, zone, extra_service]
     kp_repo.count_active_bookings_for_zone.return_value = 0
-    kp_repo.get_service_by_id.return_value = extra_service
 
     with pytest.raises(KpServiceQuantityInvalid):
         await service.register_booking(
@@ -476,7 +483,7 @@ async def test_add_booking_services_increments_existing_booking(
     updated_booking.services = [booking_service]
     service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
     kp_repo.get_booking_by_id.return_value = booking
-    kp_repo.get_service_by_id.return_value = extra_service
+    kp_repo.lock_model_by_id.return_value = extra_service
     kp_repo.count_active_service_quantity.return_value = 1
     kp_repo.add_booking_services.return_value = updated_booking
 
@@ -516,7 +523,7 @@ async def test_add_booking_services_collapses_duplicate_increment_inputs(
     updated_booking.services = [booking_service]
     service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
     kp_repo.get_booking_by_id.return_value = booking
-    kp_repo.get_service_by_id.return_value = extra_service
+    kp_repo.lock_model_by_id.return_value = extra_service
     kp_repo.add_booking_services.return_value = updated_booking
 
     await service.add_booking_services(
@@ -553,6 +560,330 @@ async def test_add_booking_services_rejects_confirmed_booking(
     kp_repo.add_booking_services.assert_not_awaited()
 
 
+async def test_upsert_booking_company_details_saves_portrait_details(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(company_id=company_id)
+    industry = KpIndustry(id=uuid4(), name="Robotics")
+    details = KpBookingCompanyDetails(
+        booking_id=booking.id,
+        profile="We build autonomous systems.",
+        brand_name="Acme Robotics",
+        address="Technoparkstrasse 1",
+        contact_person="Ada Lovelace",
+        places_of_work="Zurich, Lausanne",
+        employees_count=1200,
+        employees_count_switzerland=200,
+        offer_internship=True,
+        offer_part_time=False,
+        offer_thesis=True,
+        languages=[KpCompanyLanguage.ENGLISH, KpCompanyLanguage.GERMAN],
+    )
+    details.industry_links = [
+        KpBookingCompanyDetailsIndustryLink(
+            booking_company_details_id=details.id,
+            industry_id=industry.id,
+            industry=industry,
+        )
+    ]
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.list_industries_by_ids.return_value = [industry]
+    kp_repo.upsert_company_details.return_value = details
+
+    input_data = UpsertCompanyDetailsInput(
+        profile="We build autonomous systems.",
+        brand_name="Acme Robotics",
+        address="Technoparkstrasse 1",
+        contact_person="Ada Lovelace",
+        places_of_work="Zurich, Lausanne",
+        employees_count=1200,
+        employees_count_switzerland=200,
+        offer_internship=True,
+        offer_part_time=False,
+        offer_thesis=True,
+        languages=[KpCompanyLanguage.ENGLISH, KpCompanyLanguage.GERMAN],
+        industry_ids=[industry.id],
+    )
+
+    result = await service.upsert_booking_company_details(booking.id, input_data)
+
+    assert result.booking_id == booking.id
+    assert result.brand_name == "Acme Robotics"
+    assert result.industry_ids == [industry.id]
+    assert result.industries[0].name == "Robotics"
+    kp_repo.upsert_company_details.assert_awaited_once_with(
+        booking.id,
+        input_data,
+        [industry.id],
+    )
+
+
+async def test_upsert_booking_company_details_rejects_confirmed_booking(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(company_id=company_id, status=KpBookingStatus.CONFIRMED)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+
+    with pytest.raises(KpBookingConfirmedReadonly):
+        await service.upsert_booking_company_details(
+            booking.id,
+            UpsertCompanyDetailsInput(brand_name="Acme Robotics"),
+        )
+
+    kp_repo.list_industries_by_ids.assert_not_awaited()
+    kp_repo.upsert_company_details.assert_not_awaited()
+
+
+async def test_get_booking_company_details_returns_none_when_missing(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(company_id=company_id)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.get_company_details_by_booking_id.return_value = None
+
+    result = await service.get_booking_company_details(booking.id)
+
+    assert result is None
+    kp_repo.get_company_details_by_booking_id.assert_awaited_once_with(booking.id)
+
+
+def _make_company_details(*, booking_id, industries=()):
+    details = KpBookingCompanyDetails(
+        booking_id=booking_id,
+        profile="We do things.",
+        brand_name="Acme",
+        address="Somewhere",
+        contact_person="Ada",
+        places_of_work="Zurich",
+        employees_count=10,
+        employees_count_switzerland=5,
+        offer_internship=True,
+        offer_part_time=False,
+        offer_thesis=False,
+        languages=[KpCompanyLanguage.ENGLISH],
+    )
+    details.industry_links = [
+        KpBookingCompanyDetailsIndustryLink(
+            booking_company_details_id=details.id,
+            industry_id=industry.id,
+            industry=industry,
+        )
+        for industry in industries
+    ]
+    return details
+
+
+async def test_get_booking_company_details_returns_details_with_industry_names(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(company_id=company_id)
+    industry_a = KpIndustry(id=uuid4(), name="Robotics")
+    industry_b = KpIndustry(id=uuid4(), name="Finance")
+    details = _make_company_details(
+        booking_id=booking.id, industries=(industry_a, industry_b)
+    )
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.get_company_details_by_booking_id.return_value = details
+
+    result = await service.get_booking_company_details(booking.id)
+
+    assert result is not None
+    assert [industry.name for industry in result.industries] == ["Robotics", "Finance"]
+    assert result.industry_ids == [industry_a.id, industry_b.id]
+
+
+async def test_get_booking_company_details_rejects_booking_of_other_company(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    other_company_id = uuid4()
+    booking = make_booking(company_id=other_company_id)
+    service = KpService(kp_repo, storage_service, make_user(company_id=uuid4()))
+    kp_repo.get_booking_by_id.return_value = booking
+
+    with pytest.raises(KpBookingNotOwned):
+        await service.get_booking_company_details(booking.id)
+
+    kp_repo.get_company_details_by_booking_id.assert_not_awaited()
+
+
+async def test_get_booking_company_details_rejects_missing_booking(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    service = KpService(kp_repo, storage_service, make_user(company_id=uuid4()))
+    kp_repo.get_booking_by_id.return_value = None
+
+    with pytest.raises(KpBookingNotFound):
+        await service.get_booking_company_details(uuid4())
+
+    kp_repo.get_company_details_by_booking_id.assert_not_awaited()
+
+
+async def test_upsert_booking_company_details_rejects_unknown_industry(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(company_id=company_id)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    industry_id = uuid4()
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.list_industries_by_ids.return_value = []
+
+    with pytest.raises(KpIndustryNotFound):
+        await service.upsert_booking_company_details(
+            booking.id,
+            UpsertCompanyDetailsInput(industry_ids=[industry_id]),
+        )
+
+    kp_repo.upsert_company_details.assert_not_awaited()
+
+
+async def test_upsert_booking_company_details_deduplicates_industry_ids(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(company_id=company_id)
+    industry = KpIndustry(id=uuid4(), name="Robotics")
+    details = _make_company_details(booking_id=booking.id, industries=(industry,))
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.list_industries_by_ids.return_value = [industry]
+    kp_repo.upsert_company_details.return_value = details
+
+    await service.upsert_booking_company_details(
+        booking.id,
+        UpsertCompanyDetailsInput(industry_ids=[industry.id, industry.id]),
+    )
+
+    kp_repo.list_industries_by_ids.assert_awaited_once_with([industry.id])
+    kp_repo.upsert_company_details.assert_awaited_once()
+    _, _, persisted_ids = kp_repo.upsert_company_details.await_args.args
+    assert persisted_ids == [industry.id]
+
+
+async def test_upsert_booking_company_details_accepts_empty_industry_ids(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(company_id=company_id)
+    details = _make_company_details(booking_id=booking.id)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.list_industries_by_ids.return_value = []
+    kp_repo.upsert_company_details.return_value = details
+
+    result = await service.upsert_booking_company_details(
+        booking.id,
+        UpsertCompanyDetailsInput(brand_name="Acme"),
+    )
+
+    assert result.industries == []
+    assert result.industry_ids == []
+    kp_repo.list_industries_by_ids.assert_awaited_once_with([])
+
+
+async def test_upsert_booking_company_details_allows_finalized_booking(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(company_id=company_id, status=KpBookingStatus.FINALIZED)
+    details = _make_company_details(booking_id=booking.id)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.list_industries_by_ids.return_value = []
+    kp_repo.upsert_company_details.return_value = details
+
+    result = await service.upsert_booking_company_details(
+        booking.id,
+        UpsertCompanyDetailsInput(brand_name="Acme"),
+    )
+
+    assert result.brand_name == "Acme"
+    kp_repo.upsert_company_details.assert_awaited_once()
+
+
+async def test_upsert_booking_company_details_rejects_cancelled_booking(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(company_id=company_id, status=KpBookingStatus.CANCELLED)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+
+    with pytest.raises(KpBookingConfirmedReadonly):
+        await service.upsert_booking_company_details(
+            booking.id,
+            UpsertCompanyDetailsInput(brand_name="Acme"),
+        )
+
+    kp_repo.upsert_company_details.assert_not_awaited()
+
+
+async def test_upsert_booking_company_details_rejects_booking_of_other_company(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    other_company_id = uuid4()
+    booking = make_booking(company_id=other_company_id)
+    service = KpService(kp_repo, storage_service, make_user(company_id=uuid4()))
+    kp_repo.get_booking_by_id.return_value = booking
+
+    with pytest.raises(KpBookingNotOwned):
+        await service.upsert_booking_company_details(
+            booking.id,
+            UpsertCompanyDetailsInput(brand_name="Acme"),
+        )
+
+    kp_repo.upsert_company_details.assert_not_awaited()
+
+
+async def test_upsert_booking_company_details_rejects_missing_booking(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    service = KpService(kp_repo, storage_service, make_user(company_id=uuid4()))
+    kp_repo.get_booking_by_id.return_value = None
+
+    with pytest.raises(KpBookingNotFound):
+        await service.upsert_booking_company_details(
+            uuid4(),
+            UpsertCompanyDetailsInput(brand_name="Acme"),
+        )
+
+    kp_repo.upsert_company_details.assert_not_awaited()
+
+
 async def test_add_booking_services_counts_existing_quantity_against_limit(
     kp_repo,
     storage_service,
@@ -573,7 +904,7 @@ async def test_add_booking_services_counts_existing_quantity_against_limit(
     booking.services = [booking_service]
     service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
     kp_repo.get_booking_by_id.return_value = booking
-    kp_repo.get_service_by_id.return_value = service_model
+    kp_repo.lock_model_by_id.return_value = service_model
 
     with pytest.raises(KpServiceQuantityInvalid):
         await service.add_booking_services(
@@ -1538,3 +1869,146 @@ async def test_cleanup_orphaned_stored_files_deletes_storage_and_rows(kp_service
     kp_service.storage_service.delete_object.assert_any_await("orphan/two.pdf")
     kp_service.kp_repo.delete_stored_file.assert_any_await(orphaned[0])
     kp_service.kp_repo.delete_stored_file.assert_any_await(orphaned[1])
+
+
+def _make_ad_service(event_id):
+    service = make_service(
+        event_id=event_id,
+        max_quantity_per_booking=1,
+    )
+    requirement = make_requirement(
+        service_id=service.id,
+        requirement_type=KpEventServiceRequirementType.PDF_SINGLE_PAGE,
+    )
+    service.requirements = [requirement]
+    return service
+
+
+async def test_set_advertisement_service_clears_when_service_id_none(kp_service):
+    event = make_event()
+    kp_service.kp_repo.get_by_id.return_value = event
+    kp_service.kp_repo.set_advertisement_service_id.return_value = event
+
+    result = await kp_service.service.set_advertisement_service(event.id, None)
+
+    assert result is event
+    kp_service.kp_repo.set_advertisement_service_id.assert_awaited_once_with(
+        event, None
+    )
+    kp_service.kp_repo.get_service_by_id.assert_not_awaited()
+
+
+async def test_set_advertisement_service_rejects_missing_service(kp_service):
+    event = make_event()
+    kp_service.kp_repo.get_by_id.return_value = event
+    kp_service.kp_repo.get_service_by_id.return_value = None
+
+    with pytest.raises(KpServiceNotFound):
+        await kp_service.service.set_advertisement_service(event.id, uuid4())
+
+    kp_service.kp_repo.set_advertisement_service_id.assert_not_awaited()
+
+
+async def test_set_advertisement_service_rejects_service_from_other_event(kp_service):
+    event = make_event()
+    other_service = _make_ad_service(uuid4())
+    kp_service.kp_repo.get_by_id.return_value = event
+    kp_service.kp_repo.get_service_by_id.return_value = other_service
+
+    with pytest.raises(KpAdvertisementServiceInvalid):
+        await kp_service.service.set_advertisement_service(event.id, other_service.id)
+
+    kp_service.kp_repo.set_advertisement_service_id.assert_not_awaited()
+
+
+async def test_set_advertisement_service_rejects_service_without_single_page_requirement(
+    kp_service,
+):
+    event = make_event()
+    service = make_service(event_id=event.id, max_quantity_per_booking=1)
+    service.requirements = [
+        make_requirement(
+            service_id=service.id,
+            requirement_type=KpEventServiceRequirementType.PDF,
+        )
+    ]
+    kp_service.kp_repo.get_by_id.return_value = event
+    kp_service.kp_repo.get_service_by_id.return_value = service
+
+    with pytest.raises(KpAdvertisementServiceInvalid):
+        await kp_service.service.set_advertisement_service(event.id, service.id)
+
+
+async def test_set_advertisement_service_rejects_service_with_extra_requirements(
+    kp_service,
+):
+    event = make_event()
+    service = make_service(event_id=event.id, max_quantity_per_booking=1)
+    service.requirements = [
+        make_requirement(
+            service_id=service.id,
+            requirement_type=KpEventServiceRequirementType.PDF_SINGLE_PAGE,
+        ),
+        make_requirement(
+            service_id=service.id,
+            requirement_type=KpEventServiceRequirementType.TEXT,
+        ),
+    ]
+    kp_service.kp_repo.get_by_id.return_value = event
+    kp_service.kp_repo.get_service_by_id.return_value = service
+
+    with pytest.raises(KpAdvertisementServiceInvalid):
+        await kp_service.service.set_advertisement_service(event.id, service.id)
+
+
+async def test_set_advertisement_service_rejects_service_with_max_quantity_above_one(
+    kp_service,
+):
+    event = make_event()
+    service = _make_ad_service(event.id)
+    service.max_quantity_per_booking = 5
+    kp_service.kp_repo.get_by_id.return_value = event
+    kp_service.kp_repo.get_service_by_id.return_value = service
+
+    with pytest.raises(KpAdvertisementServiceInvalid):
+        await kp_service.service.set_advertisement_service(event.id, service.id)
+
+
+async def test_set_advertisement_service_persists_valid_service(kp_service):
+    event = make_event()
+    service = _make_ad_service(event.id)
+    kp_service.kp_repo.get_by_id.return_value = event
+    kp_service.kp_repo.get_service_by_id.return_value = service
+    kp_service.kp_repo.set_advertisement_service_id.return_value = event
+
+    result = await kp_service.service.set_advertisement_service(event.id, service.id)
+
+    assert result is event
+    kp_service.kp_repo.set_advertisement_service_id.assert_awaited_once_with(
+        event, service.id
+    )
+
+
+async def test_list_industries_allows_confirmed_company_user(
+    kp_repo, storage_service, make_user, make_company
+):
+    company = make_company()
+    user = make_user(company_id=company.id)
+    service = KpService(kp_repo, storage_service, user)
+    industry = KpIndustry(id=uuid4(), name="Tech")
+    kp_repo.list_industries.return_value = [industry]
+
+    result = await service.list_industries()
+
+    assert list(result) == [industry]
+
+
+async def test_list_industries_rejects_unconfirmed_user(
+    kp_repo, storage_service, unconfirmed_user
+):
+    service = KpService(kp_repo, storage_service, unconfirmed_user)
+
+    with pytest.raises(EmailNotConfirmed):
+        await service.list_industries()
+
+    kp_repo.list_industries.assert_not_called()

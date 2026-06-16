@@ -7,6 +7,7 @@ from app.models.company import Company
 from app.models.kp_event import (
     KpBookingStatus,
     KpCompanyLanguage,
+    KpEventBookletExportTaskStatus,
     KpEventServiceRequirementType,
 )
 
@@ -64,6 +65,11 @@ class KpResponse(BaseModel):
     finalization_deadline: date
     nametags_deadline: date
     event_date: date
+    advertisement_service_id: UUID | None = None
+
+
+class SetAdvertisementServiceRequest(BaseModel):
+    service_id: UUID | None = None
 
 
 # --- Booth Zones ---
@@ -231,12 +237,44 @@ class UpsertCompanyDetailsInput(BaseModel):
     address: str | None = None
     contact_person: str | None = None
     places_of_work: str | None = None
+    website: str | None = None
     employees_count: int | None = Field(default=None, ge=0)
     employees_count_switzerland: int | None = Field(default=None, ge=0)
+    vacancies_worldwide: int | None = Field(default=None, ge=0)
+    vacancies_switzerland: int | None = Field(default=None, ge=0)
+    annual_revenue_chf_millions: int | None = Field(default=None, ge=0)
     offer_internship: bool | None = None
     offer_part_time: bool | None = None
     offer_thesis: bool | None = None
     languages: list[KpCompanyLanguage] | None = None
+    industry_ids: list[UUID] | None = None
+
+
+class UpsertCompanyDetailsRequest(UpsertCompanyDetailsInput):
+    pass
+
+
+class CompanyDetailsResponse(BaseModel):
+    id: UUID
+    booking_id: UUID
+    profile: str
+    brand_name: str
+    address: str
+    contact_person: str
+    places_of_work: str
+    website: str
+    employees_count: int | None
+    employees_count_switzerland: int | None
+    vacancies_worldwide: int | None
+    vacancies_switzerland: int | None
+    annual_revenue_chf_millions: int | None
+    offer_internship: bool
+    offer_part_time: bool
+    offer_thesis: bool
+    languages: list[KpCompanyLanguage]
+    industries: list[IndustryResponse] = Field(default_factory=lambda: [])
+    industry_ids: list[UUID] = Field(default_factory=lambda: [])
+    logo_url: str | None = None
 
 
 class ReplaceBookingUpgradeWaitlistRequest(BaseModel):
@@ -293,6 +331,7 @@ class BookingResponse(BookingBase):
         default_factory=lambda: []
     )
     total_price: int = 0
+    company_details: CompanyDetailsResponse | None = None
 
 
 class BookingWithCompanyAndBoothZoneResponse(BookingBase):
@@ -308,6 +347,7 @@ class BookingWithCompanyAndBoothZoneResponse(BookingBase):
     nametag_count: int
     waitlist_count: int
     company_details_submitted: bool
+    company_details: CompanyDetailsResponse | None = None
 
 
 class RequirementFileResponse(BaseModel):
@@ -385,3 +425,25 @@ class BookingUpgradeWaitlistEntryResponse(BaseModel):
     target_booth_zone_id: UUID
     priority_rank: int | None
     target_booth_zone: BoothZoneResponse
+
+
+# --- Booklet ---
+
+
+class BookletAssetsResponse(BaseModel):
+    id: UUID
+    event_id: UUID
+    intro_page: StoredFileResponse | None = None
+    blank_page: StoredFileResponse | None = None
+    missing_advertisement: StoredFileResponse | None = None
+
+
+class BookletExportTaskResponse(BaseModel):
+    id: UUID
+    event_id: UUID
+    status: KpEventBookletExportTaskStatus
+    error: str | None
+    started_at: datetime | None
+    finished_at: datetime | None
+    created_at: datetime
+    output_file: StoredFileResponse | None = None

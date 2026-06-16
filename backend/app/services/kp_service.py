@@ -12,6 +12,7 @@ from app.core.auth_context import (
 )
 from app.core.config import get_settings
 from app.core.exceptions import (
+    KpAdvertisementServiceInvalid,
     KpBookingAlreadyExists,
     KpBookingConfirmationRequiresFinalized,
     KpBookingConfirmedReadonly,
@@ -36,6 +37,7 @@ from app.core.exceptions import (
     KpWaitlistSameZone,
 )
 from app.models.kp_event import (
+    KpBookingCompanyDetails,
     KpBookingStatus,
     KpEvent,
     KpEventBooking,
@@ -60,11 +62,13 @@ from app.schemas.kp import (
     BoothZoneResponse,
     BoothZoneWithAvailabilityResult,
     CloneKpInput,
+    CompanyDetailsResponse,
     CreateBookingInput,
     CreateBoothZoneInput,
     CreateIndustryInput,
     CreateKpInput,
     CreateServiceInput,
+    IndustryResponse,
     RequirementFileResponse,
     RequirementTextResponse,
     ServiceRequirementResponse,
@@ -76,6 +80,7 @@ from app.schemas.kp import (
     UpdateBoothZoneInput,
     UpdateKpInput,
     UpdateServiceInput,
+    UpsertCompanyDetailsInput,
 )
 from app.services.storage_service import StorageService
 
@@ -133,6 +138,44 @@ class KpService:
             event=event, update_kp_input=update_kp_input
         )
 
+    async def set_advertisement_service(
+        self, event_id: UUID, service_id: UUID | None
+    ) -> KpEvent:
+        require_kp_president_user(self.current_user)
+        event = await self._get_event(event_id)
+        if service_id is None:
+            return await self.kp_repository.set_advertisement_service_id(event, None)
+        service = await self.kp_repository.get_service_by_id(service_id)
+        if service is None:
+            raise KpServiceNotFound(f"advertisement_service:not_found:{service_id}")
+        self._validate_advertisement_service(event_id, service)
+        return await self.kp_repository.set_advertisement_service_id(event, service_id)
+
+    def _validate_advertisement_service(
+        self, event_id: UUID, service: KpEventService
+    ) -> None:
+        if service.event_id != event_id:
+            raise KpAdvertisementServiceInvalid(
+                f"advertisement_service:event_mismatch:{service.id}"
+            )
+        pdf_requirements = [
+            requirement
+            for requirement in service.requirements
+            if requirement.type == KpEventServiceRequirementType.PDF_SINGLE_PAGE
+        ]
+        if len(pdf_requirements) != 1:
+            raise KpAdvertisementServiceInvalid(
+                f"advertisement_service:requirement_count:{service.id}:{len(pdf_requirements)}"
+            )
+        if len(service.requirements) != 1:
+            raise KpAdvertisementServiceInvalid(
+                f"advertisement_service:extra_requirements:{service.id}"
+            )
+        if service.max_quantity_per_booking != 1:
+            raise KpAdvertisementServiceInvalid(
+                f"advertisement_service:max_quantity:{service.id}"
+            )
+
     # --- Booth Zones ---
 
     async def list_booth_zones(self, event_id: UUID) -> Sequence[KpEventBoothZone]:
@@ -175,9 +218,7 @@ class KpService:
             stored_file.storage_key, stored_file.original_filename
         )
 
-    async def _build_service_response(
-        self, service: KpEventService
-    ) -> ServiceResponse:
+    async def _build_service_response(self, service: KpEventService) -> ServiceResponse:
         return ServiceResponse(
             id=service.id,
             event_id=service.event_id,
@@ -233,9 +274,7 @@ class KpService:
         service = await self.kp_repository.get_service_by_id(service_id)
         if service is None:
             raise KpServiceNotFound(f"service:not_found:{service_id}")
-        updated = await self.kp_repository.update_service(
-            service, update_service_input
-        )
+        updated = await self.kp_repository.update_service(service, update_service_input)
         return await self._build_service_response(updated)
 
     async def delete_service(self, service_id: UUID) -> None:
@@ -274,9 +313,7 @@ class KpService:
         )
         old_stored_file = service.image_stored_file
         old_storage_key = (
-            old_stored_file.storage_key
-            if old_stored_file is not None
-            else None
+            old_stored_file.storage_key if old_stored_file is not None else None
         )
         suffix = Path(filename).suffix
         storage_key = f"kp/services/{service_id}/image/{uuid4()}{suffix}"
@@ -327,7 +364,10 @@ class KpService:
     # --- Industries ---
 
     async def list_industries(self) -> Sequence[KpIndustry]:
-        require_kp_president_user(self.current_user)
+        if self.current_user.is_staff or self.current_user.is_admin:
+            pass
+        else:
+            require_confirmed_company_user(self.current_user)
         return await self.kp_repository.list_industries()
 
     async def create_industry(
@@ -396,7 +436,9 @@ class KpService:
 
         validated_services: list[BookingServiceInput] = []
         for service_id, quantity in service_quantities.items():
-            service = await self.kp_repository.get_service_by_id(service_id)
+            service = await self.kp_repository.lock_model_by_id(
+                KpEventService, service_id
+            )
             if service is None:
                 raise KpServiceNotFound(
                     f"register_booking:service_not_found:{service_id}"
@@ -412,8 +454,8 @@ class KpService:
                     f"{service_id}:{total_booking_quantity}"
                 )
             if service.max_total_quantity > 0:
-                booked_quantity = await self.kp_repository.count_active_service_quantity(
-                    service_id
+                booked_quantity = (
+                    await self.kp_repository.count_active_service_quantity(service_id)
                 )
                 if booked_quantity + quantity > service.max_total_quantity:
                     raise KpServiceQuantityInvalid(
@@ -432,9 +474,51 @@ class KpService:
                 f"{context}:readonly:{booking.id}:{booking.status}"
             )
 
-    async def _build_booking_response(
+    async def _company_details_to_response(
+        self, details: KpBookingCompanyDetails
+    ) -> CompanyDetailsResponse:
+        industries = [
+            IndustryResponse.model_validate(link.industry, from_attributes=True)
+            for link in details.industry_links
+        ]
+        logo_url: str | None = None
+        if details.logo_stored_file is not None:
+            logo_url = await self.storage_service.generate_download_url(
+                details.logo_stored_file.storage_key,
+                details.logo_stored_file.original_filename,
+            )
+        return CompanyDetailsResponse(
+            id=details.id,
+            booking_id=details.booking_id,
+            profile=details.profile,
+            brand_name=details.brand_name,
+            address=details.address,
+            contact_person=details.contact_person,
+            places_of_work=details.places_of_work,
+            website=details.website,
+            employees_count=details.employees_count,
+            employees_count_switzerland=details.employees_count_switzerland,
+            vacancies_worldwide=details.vacancies_worldwide,
+            vacancies_switzerland=details.vacancies_switzerland,
+            annual_revenue_chf_millions=details.annual_revenue_chf_millions,
+            offer_internship=details.offer_internship,
+            offer_part_time=details.offer_part_time,
+            offer_thesis=details.offer_thesis,
+            languages=details.languages,
+            industries=industries,
+            industry_ids=[industry.id for industry in industries],
+            logo_url=logo_url,
+        )
+
+    async def _build_company_details_response(
         self, booking: KpEventBooking
-    ) -> BookingResponse:
+    ) -> CompanyDetailsResponse | None:
+        details = booking.company_details
+        if details is None:
+            return None
+        return await self._company_details_to_response(details)
+
+    async def _build_booking_response(self, booking: KpEventBooking) -> BookingResponse:
         services, additional_service_charges = await self._build_booking_services(
             booking
         )
@@ -456,6 +540,7 @@ class KpService:
             services=services,
             additional_service_charges=additional_service_charges,
             total_price=self._booking_total_price(booking),
+            company_details=await self._build_company_details_response(booking),
         )
 
     def _booking_total_price(self, booking: KpEventBooking) -> int:
@@ -523,6 +608,7 @@ class KpService:
             nametag_count=booking.nametag_count,
             waitlist_count=booking.waitlist_count,
             company_details_submitted=booking.company_details_submitted,
+            company_details=await self._build_company_details_response(booking),
         )
 
     async def register_booking(
@@ -735,6 +821,49 @@ class KpService:
             target_booth_zone_ids=unique_target_ids,
         )
 
+    async def get_booking_company_details(
+        self, booking_id: UUID
+    ) -> CompanyDetailsResponse | None:
+        company_user = require_assigned_company_user(self.current_user)
+        booking = await self._get_owned_booking(booking_id, company_user.company_id)
+        details = await self.kp_repository.get_company_details_by_booking_id(booking.id)
+        if details is None:
+            return None
+        return await self._company_details_to_response(details)
+
+    async def upsert_booking_company_details(
+        self,
+        booking_id: UUID,
+        upsert_company_details_input: UpsertCompanyDetailsInput,
+    ) -> CompanyDetailsResponse:
+        company_user = require_assigned_company_user(self.current_user)
+        booking = await self._get_owned_booking(booking_id, company_user.company_id)
+        self._ensure_booking_editable_by_company(
+            booking, "upsert_booking_company_details"
+        )
+
+        industry_ids = list(
+            dict.fromkeys(upsert_company_details_input.industry_ids or [])
+        )
+        industries = await self.kp_repository.list_industries_by_ids(industry_ids)
+        if len(industries) != len(industry_ids):
+            found_ids = {industry.id for industry in industries}
+            missing_ids = [
+                industry_id
+                for industry_id in industry_ids
+                if industry_id not in found_ids
+            ]
+            raise KpIndustryNotFound(
+                f"booking_company_details:industry_not_found:{missing_ids[0]}"
+            )
+
+        details = await self.kp_repository.upsert_company_details(
+            booking.id,
+            upsert_company_details_input,
+            industry_ids,
+        )
+        return await self._company_details_to_response(details)
+
     async def update_my_booking_status(
         self, booking_id: UUID, update_booking_input: UpdateBookingStatusInput
     ) -> BookingWithCompanyAndBoothZoneResponse:
@@ -807,6 +936,11 @@ class KpService:
 
         if requirement.type == KpEventServiceRequirementType.PDF:
             return self.storage_service.validate_pdf_file(
+                filename, content, content_type, error_context=error_context
+            )
+
+        if requirement.type == KpEventServiceRequirementType.PDF_SINGLE_PAGE:
+            return self.storage_service.validate_single_page_pdf_file(
                 filename, content, content_type, error_context=error_context
             )
 
