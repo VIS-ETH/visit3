@@ -13,7 +13,6 @@ from app.core.exceptions import (
     KpExportEmpty,
     KpNameTagNotFound,
 )
-from app.models.kp_event import KpEventNametagBackground
 from app.services.export_service import ExportService, RenderedExport
 
 
@@ -181,11 +180,6 @@ async def test_get_background_bytes_raises_when_missing(export_service):
 
 @pytest.mark.asyncio
 async def test_render_nametags_pdf_raises_when_empty(export_service):
-    background = MagicMock(spec=KpEventNametagBackground)
-    background.stored_file.mime_type = "image/png"
-    export_service.storage_service.download_bytes.return_value = b"png"
-    export_service.pdf_service.render.return_value = (b"pdf", "nametags.pdf")
-
     with pytest.raises(KpExportEmpty):
         await export_service.service._render_nametags_pdf(
             b"png", "image/png", [], "nametags.pdf", 2
@@ -194,10 +188,10 @@ async def test_render_nametags_pdf_raises_when_empty(export_service):
 
 @pytest.mark.asyncio
 async def test_render_nametags_pdf_returns_rendered_export(export_service):
-    background = MagicMock(spec=KpEventNametagBackground)
-    background.stored_file.mime_type = "image/png"
-    export_service.storage_service.download_bytes.return_value = b"png"
-    export_service.pdf_service.render.return_value = (b"pdf", "nametags.pdf")
+    export_service.pdf_service.render_with_workspace.return_value = (
+        b"pdf",
+        "nametags.pdf",
+    )
 
     name_tag = MagicMock()
     name_tag.first_name = "Ada"

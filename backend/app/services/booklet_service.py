@@ -1,9 +1,7 @@
 import logging
-import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from shutil import copyfile
 from typing import Literal
 from uuid import UUID, uuid4
 
@@ -19,7 +17,6 @@ from app.core.exceptions import (
     KpBookletAssetInvalidType,
     KpBookletExportTaskNotFound,
     KpBookletExportTaskNotReady,
-    KpEventNotFound,
     KpExportEmpty,
 )
 from app.models.kp_event import (
@@ -39,12 +36,16 @@ from app.schemas.kp import (
     BookletExportTaskResponse,
     StoredFileResponse,
 )
+from app.services.attachment_utils import (
+    delete_attached_file,
+    upload_and_replace_attached_file,
+)
+from app.services.kp_helpers import get_event_or_raise
 from app.services.pdf_service import PdfService
 from app.services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
 
-TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 BOOKLET_TEMPLATE_NAME = "booklet.typ"
 
 BookletAssetType = Literal["intro_page", "blank_page", "missing_advertisement"]
@@ -83,10 +84,7 @@ class BookletService:
     # --- Helpers ---
 
     async def _get_event_or_raise(self, event_id: UUID) -> KpEvent:
-        event = await self.kp_repository.get_by_id(event_id)
-        if event is None:
-            raise KpEventNotFound(f"booklet:event_not_found:{event_id}")
-        return event
+        return await get_event_or_raise(self.kp_repository, event_id, context="booklet")
 
     def _stored_file_to_response(self, stored_file: StoredFile) -> StoredFileResponse:
         return StoredFileResponse(
@@ -177,36 +175,21 @@ class BookletService:
             if existing_assets is not None
             else None
         )
-        old_storage_key = old_stored_file.storage_key if old_stored_file else None
 
         suffix = Path(filename).suffix or ".pdf"
         storage_key = f"kp/events/{event_id}/booklet/{asset_type}/{uuid4()}{suffix}"
-        stored_object = await self.storage_service.upload_bytes(
-            key=storage_key,
-            content=content,
+        await upload_and_replace_attached_file(
+            storage_service=self.storage_service,
+            kp_repository=self.kp_repository,
             filename=filename,
+            content=content,
             content_type=mime_type,
-        )
-        try:
-            stored_file = await self.kp_repository.upsert_stored_file(
-                storage_key=stored_object.key,
-                original_filename=filename,
-                mime_type=stored_object.mime_type,
-                size_bytes=stored_object.size_bytes,
-                sha256=stored_object.sha256,
-                etag=stored_object.etag,
-                stored_file=None,
-            )
-            await self.kp_repository.upsert_booklet_asset_file(
+            storage_key=storage_key,
+            old_stored_file=old_stored_file,
+            attach=lambda stored_file: self.kp_repository.upsert_booklet_asset_file(
                 event_id, ASSET_FIELD_NAMES[asset_type], stored_file.id
-            )
-        except Exception:
-            await self.storage_service.delete_object(stored_object.key)
-            raise
-        if old_storage_key is not None and old_storage_key != stored_object.key:
-            await self.storage_service.delete_object(old_storage_key)
-        if old_stored_file is not None:
-            await self.kp_repository.delete_stored_file(old_stored_file)
+            ),
+        )
         assets = await self.kp_repository.get_booklet_assets(event_id)
         return self._assets_to_response(event_id, assets)
 
@@ -222,11 +205,14 @@ class BookletService:
         old_stored_file = getattr(existing, f"{asset_type}_stored_file")
         if old_stored_file is None:
             return self._assets_to_response(event_id, existing)
-        await self.kp_repository.upsert_booklet_asset_file(
-            event_id, ASSET_FIELD_NAMES[asset_type], None
+        await delete_attached_file(
+            storage_service=self.storage_service,
+            kp_repository=self.kp_repository,
+            old_stored_file=old_stored_file,
+            detach=lambda: self.kp_repository.upsert_booklet_asset_file(
+                event_id, ASSET_FIELD_NAMES[asset_type], None
+            ),
         )
-        await self.storage_service.delete_object(old_stored_file.storage_key)
-        await self.kp_repository.delete_stored_file(old_stored_file)
         assets = await self.kp_repository.get_booklet_assets(event_id)
         return self._assets_to_response(event_id, assets)
 
@@ -268,36 +254,21 @@ class BookletService:
             error_context=f"company_logo:{booking_id}",
         )
         old_stored_file = details.logo_stored_file
-        old_storage_key = old_stored_file.storage_key if old_stored_file else None
 
         suffix = Path(filename).suffix or ".png"
         storage_key = f"kp/bookings/{booking_id}/logo/{uuid4()}{suffix}"
-        stored_object = await self.storage_service.upload_bytes(
-            key=storage_key,
-            content=content,
+        stored_file, _ = await upload_and_replace_attached_file(
+            storage_service=self.storage_service,
+            kp_repository=self.kp_repository,
             filename=filename,
+            content=content,
             content_type=mime_type,
-        )
-        try:
-            stored_file = await self.kp_repository.upsert_stored_file(
-                storage_key=stored_object.key,
-                original_filename=filename,
-                mime_type=stored_object.mime_type,
-                size_bytes=stored_object.size_bytes,
-                sha256=stored_object.sha256,
-                etag=stored_object.etag,
-                stored_file=None,
-            )
-            await self.kp_repository.set_company_details_logo_stored_file_id(
+            storage_key=storage_key,
+            old_stored_file=old_stored_file,
+            attach=lambda stored_file: self.kp_repository.set_company_details_logo_stored_file_id(
                 details, stored_file.id
-            )
-        except Exception:
-            await self.storage_service.delete_object(stored_object.key)
-            raise
-        if old_storage_key is not None and old_storage_key != stored_object.key:
-            await self.storage_service.delete_object(old_storage_key)
-        if old_stored_file is not None:
-            await self.kp_repository.delete_stored_file(old_stored_file)
+            ),
+        )
         return self._stored_file_to_response(stored_file)
 
     async def delete_company_logo(self, booking_id: UUID) -> None:
@@ -315,9 +286,14 @@ class BookletService:
         if details is None or details.logo_stored_file is None:
             return
         stored_file = details.logo_stored_file
-        await self.kp_repository.set_company_details_logo_stored_file_id(details, None)
-        await self.storage_service.delete_object(stored_file.storage_key)
-        await self.kp_repository.delete_stored_file(stored_file)
+        await delete_attached_file(
+            storage_service=self.storage_service,
+            kp_repository=self.kp_repository,
+            old_stored_file=stored_file,
+            detach=lambda: self.kp_repository.set_company_details_logo_stored_file_id(
+                details, None
+            ),
+        )
 
     # --- Export tasks (staff) ---
 
@@ -502,15 +478,17 @@ class BookletService:
         assets = await self.kp_repository.get_booklet_assets(event_id)
         sorted_bookings = self._sort_bookings_for_booklet(bookings)
 
-        with tempfile.TemporaryDirectory() as workspace:
-            workspace_path = Path(workspace)
-            copyfile(
-                TEMPLATES_DIR / BOOKLET_TEMPLATE_NAME,
-                workspace_path / BOOKLET_TEMPLATE_NAME,
-            )
+        intro_page_path: str | None = None
+        blank_page_path: str | None = None
+        missing_ad_path: str | None = None
+        entry_with_ad: list[
+            tuple[KpEventBooking, dict[str, object], str | None]
+        ] = []
 
-            async def _materialize(stored_file: StoredFile, filename_hint: str) -> str:
-                """Download stored file into workspace, return basename."""
+        async def _materialize(workspace_path: Path) -> None:
+            nonlocal intro_page_path, blank_page_path, missing_ad_path
+
+            async def _download(stored_file: StoredFile, filename_hint: str) -> str:
                 content = await self.storage_service.download_bytes(
                     stored_file.storage_key
                 )
@@ -518,27 +496,21 @@ class BookletService:
                 (workspace_path / local_name).write_bytes(content)
                 return local_name
 
-            intro_page_path: str | None = None
-            blank_page_path: str | None = None
-            missing_ad_path: str | None = None
             if assets is not None:
                 if assets.intro_page_stored_file is not None:
-                    intro_page_path = await _materialize(
+                    intro_page_path = await _download(
                         assets.intro_page_stored_file, "intro_page"
                     )
                 if assets.blank_page_stored_file is not None:
-                    blank_page_path = await _materialize(
+                    blank_page_path = await _download(
                         assets.blank_page_stored_file, "blank_page"
                     )
                 if assets.missing_advertisement_stored_file is not None:
-                    missing_ad_path = await _materialize(
+                    missing_ad_path = await _download(
                         assets.missing_advertisement_stored_file,
                         "missing_advertisement",
                     )
 
-            entry_with_ad: list[
-                tuple[KpEventBooking, dict[str, object], str | None]
-            ] = []
             for booking in sorted_bookings:
                 entry = self._booklet_entry_data(booking)
                 if entry is None:
@@ -556,25 +528,17 @@ class BookletService:
             if not entry_with_ad:
                 raise KpExportEmpty("booklet_export:empty")
 
-            pages = self._build_booklet_pages(entry_with_ad, missing_ad_path)
-
-            render_input: dict[str, object] = {
+        content, rendered_filename = await self.pdf_service.render_with_workspace(
+            BOOKLET_TEMPLATE_NAME,
+            {
                 "event_name": event.name,
-                "pages": pages,
+                "pages": self._build_booklet_pages(entry_with_ad, missing_ad_path),
                 "intro_page_path": intro_page_path,
                 "blank_page_path": blank_page_path,
-            }
-
-            content, rendered_filename = await self.pdf_service.render(
-                BOOKLET_TEMPLATE_NAME,
-                render_input,
-                sanitize_download_filename(f"{event.name}-booklet.pdf"),
-                root=str(workspace_path),
-                template_dir=workspace_path,
-            )
-
-        if content is None:
-            raise KpExportEmpty("booklet_export:rendering_failed")
+            },
+            sanitize_download_filename(f"{event.name}-booklet.pdf"),
+            materialize=_materialize,
+        )
         return RenderedBooklet(content=content, filename=rendered_filename)
 
     # --- Persist render result on a task row ---

@@ -12,8 +12,9 @@ from app.core.exceptions import (
     InviteNotFound,
     NotAllowed,
 )
-from app.models.company import CompanyInvite, KpCompanyProfile
+from app.models.company import KpCompanyProfile
 from app.services.company_service import CompanyService
+from tests.unit.factories import make_invite
 
 
 @dataclass
@@ -29,23 +30,6 @@ def company_service(company_repo, mail_service, company_user):
         service=CompanyService(company_repo, mail_service, company_user),
         company_repo=company_repo,
         mail_service=mail_service,
-    )
-
-
-def make_invite(
-    *,
-    token: str = "invite-token",
-    company_id=None,
-    invited_email: str = "user@example.com",
-    is_used: bool = False,
-    expires_at: datetime | None = None,
-) -> CompanyInvite:
-    return CompanyInvite(
-        token=token,
-        company_id=company_id or uuid4(),
-        invited_email=invited_email,
-        is_used=is_used,
-        expires_at=expires_at or datetime.now(timezone.utc) + timedelta(days=1),
     )
 
 

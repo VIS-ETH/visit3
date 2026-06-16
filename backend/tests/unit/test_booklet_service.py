@@ -20,13 +20,13 @@ from app.models.kp_event import (
     KpEventBookletExportTask,
     KpEventBookletExportTaskStatus,
 )
-from app.models.storage import StoredFile
 from app.services.booklet_service import (
     ASSET_FIELD_NAMES,
     BookletService,
     RenderedBooklet,
     _to_asset_type,
 )
+from tests.unit.factories import make_stored_file
 
 
 @dataclass
@@ -64,16 +64,10 @@ def test_assets_field_names_mapping():
 
 
 def test_stored_file_to_response_maps_fields(booklet_service):
-    stored_file = StoredFile(
-        id=uuid4(),
+    stored_file = make_stored_file(
         storage_key="key",
         original_filename="file.pdf",
-        mime_type="application/pdf",
         size_bytes=1024,
-        sha256="sha256",
-        etag="etag",
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
     )
 
     response = booklet_service.service._stored_file_to_response(stored_file)
@@ -94,16 +88,10 @@ def test_assets_to_response_returns_empty_when_none(booklet_service):
 
 def test_assets_to_response_maps_files(booklet_service):
     event_id = uuid4()
-    stored_file = StoredFile(
-        id=uuid4(),
+    stored_file = make_stored_file(
         storage_key="key",
         original_filename="intro.pdf",
-        mime_type="application/pdf",
         size_bytes=1024,
-        sha256="sha256",
-        etag="etag",
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
     )
     assets = MagicMock(spec=KpEventBookletAssets)
     assets.id = uuid4()
@@ -327,16 +315,10 @@ async def test_store_rendered_booklet_uploads_and_completes_task(
     stored_object.sha256 = "sha256"
     stored_object.etag = "etag"
     booklet_service.storage_service.upload_bytes.return_value = stored_object
-    stored_file = StoredFile(
-        id=uuid4(),
+    stored_file = make_stored_file(
         storage_key="storage-key",
         original_filename="booklet.pdf",
-        mime_type="application/pdf",
         size_bytes=1024,
-        sha256="sha256",
-        etag="etag",
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
     )
     booklet_service.kp_repo.upsert_stored_file.return_value = stored_file
     completed_task = MagicMock(spec=KpEventBookletExportTask)

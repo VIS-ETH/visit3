@@ -82,6 +82,11 @@ from app.schemas.kp import (
     UpdateServiceInput,
     UpsertCompanyDetailsInput,
 )
+from app.services.attachment_utils import (
+    delete_attached_file,
+    upload_and_replace_attached_file,
+)
+from app.services.kp_helpers import get_event_or_raise
 from app.services.storage_service import StorageService
 
 
@@ -98,10 +103,7 @@ class KpService:
         self.settings = get_settings()
 
     async def _get_event(self, event_id: UUID) -> KpEvent:
-        event = await self.kp_repository.get_by_id(event_id)
-        if event is None:
-            raise KpEventNotFound(f"event:not_found:{event_id}")
-        return event
+        return await get_event_or_raise(self.kp_repository, event_id, context="event")
 
     async def list_kps(self) -> Sequence[KpEvent]:
         return await self.kp_repository.list_kps()
@@ -312,37 +314,20 @@ class KpService:
             error_context=f"service_image:{service_id}",
         )
         old_stored_file = service.image_stored_file
-        old_storage_key = (
-            old_stored_file.storage_key if old_stored_file is not None else None
-        )
         suffix = Path(filename).suffix
         storage_key = f"kp/services/{service_id}/image/{uuid4()}{suffix}"
-        stored_object = await self.storage_service.upload_bytes(
-            key=storage_key,
-            content=content,
+        _, updated = await upload_and_replace_attached_file(
+            storage_service=self.storage_service,
+            kp_repository=self.kp_repository,
             filename=filename,
+            content=content,
             content_type=mime_type,
-        )
-        try:
-            stored_file = await self.kp_repository.upsert_stored_file(
-                storage_key=stored_object.key,
-                original_filename=filename,
-                mime_type=stored_object.mime_type,
-                size_bytes=stored_object.size_bytes,
-                sha256=stored_object.sha256,
-                etag=stored_object.etag,
-                stored_file=None,
-            )
-            updated = await self.kp_repository.set_service_image_stored_file_id(
+            storage_key=storage_key,
+            old_stored_file=old_stored_file,
+            attach=lambda stored_file: self.kp_repository.set_service_image_stored_file_id(
                 service, stored_file.id
-            )
-        except Exception:
-            await self.storage_service.delete_object(stored_object.key)
-            raise
-        if old_storage_key is not None and old_storage_key != stored_object.key:
-            await self.storage_service.delete_object(old_storage_key)
-        if old_stored_file is not None:
-            await self.kp_repository.delete_stored_file(old_stored_file)
+            ),
+        )
         return await self._build_service_response(updated)
 
     async def delete_service_image(self, service_id: UUID) -> ServiceResponse:
@@ -353,12 +338,14 @@ class KpService:
         stored_file = service.image_stored_file
         if stored_file is None:
             return await self._build_service_response(service)
-        storage_key = stored_file.storage_key
-        updated = await self.kp_repository.set_service_image_stored_file_id(
-            service, None
+        updated = await delete_attached_file(
+            storage_service=self.storage_service,
+            kp_repository=self.kp_repository,
+            old_stored_file=stored_file,
+            detach=lambda: self.kp_repository.set_service_image_stored_file_id(
+                service, None
+            ),
         )
-        await self.storage_service.delete_object(storage_key)
-        await self.kp_repository.delete_stored_file(stored_file)
         return await self._build_service_response(updated)
 
     # --- Industries ---
@@ -982,35 +969,20 @@ class KpService:
         old_stored_file = (
             existing_file.stored_file if existing_file is not None else None
         )
-        old_storage_key = old_stored_file.storage_key if old_stored_file else None
-        stored_object = await self.storage_service.upload_bytes(
-            key=storage_key,
-            content=content,
+        _, requirement_file = await upload_and_replace_attached_file(
+            storage_service=self.storage_service,
+            kp_repository=self.kp_repository,
             filename=filename,
+            content=content,
             content_type=mime_type,
-        )
-        try:
-            stored_file = await self.kp_repository.upsert_stored_file(
-                storage_key=stored_object.key,
-                original_filename=filename,
-                mime_type=stored_object.mime_type,
-                size_bytes=stored_object.size_bytes,
-                sha256=stored_object.sha256,
-                etag=stored_object.etag,
-                stored_file=None,
-            )
-            requirement_file = await self.kp_repository.upsert_requirement_file_link(
+            storage_key=storage_key,
+            old_stored_file=old_stored_file,
+            attach=lambda stored_file: self.kp_repository.upsert_requirement_file_link(
                 booking_service_id=booking_service.id,
                 requirement_id=requirement.id,
                 stored_file_id=stored_file.id,
-            )
-        except Exception:
-            await self.storage_service.delete_object(stored_object.key)
-            raise
-        if old_storage_key is not None and old_storage_key != stored_object.key:
-            await self.storage_service.delete_object(old_storage_key)
-        if old_stored_file is not None:
-            await self.kp_repository.delete_stored_file(old_stored_file)
+            ),
+        )
         return requirement_file
 
     async def get_booking_requirement_file(
@@ -1106,15 +1078,16 @@ class KpService:
         requirement_file = await self.kp_repository.get_requirement_file(
             booking_service.id, requirement_id
         )
-        if requirement_file is None:
+        if requirement_file is None or requirement_file.stored_file is None:
             return
-        if requirement_file.stored_file is None:
-            return
-        await self.storage_service.delete_object(
-            requirement_file.stored_file.storage_key
+        await delete_attached_file(
+            storage_service=self.storage_service,
+            kp_repository=self.kp_repository,
+            old_stored_file=requirement_file.stored_file,
+            detach=lambda: self.kp_repository.delete_requirement_file_link(
+                requirement_file
+            ),
         )
-        await self.kp_repository.delete_requirement_file_link(requirement_file)
-        await self.kp_repository.delete_stored_file(requirement_file.stored_file)
 
     async def get_booking_requirement_file_download_url(
         self, booking_service_id: UUID, requirement_id: UUID

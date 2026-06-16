@@ -6,8 +6,6 @@ import pytest
 
 from app.core import maintenance
 from app.core.maintenance import (
-    BOOKLET_WORKER_IDLE_BACKOFF_SECONDS,
-    BOOKLET_WORKER_POLL_SECONDS,
     _process_pending_booklet_export_task,
     _run_booklet_worker,
     cleanup_expired_invites,

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date
 from unittest.mock import ANY, AsyncMock
 from uuid import uuid4
 
@@ -29,25 +29,17 @@ from app.core.exceptions import (
     KpWaitlistSameZone,
     NotAllowed,
 )
-from app.models.company import Company
 from app.models.kp_event import (
     KpBookingCompanyDetails,
     KpBookingCompanyDetailsIndustryLink,
     KpBookingStatus,
     KpCompanyLanguage,
-    KpEvent,
-    KpEventBooking,
-    KpEventBookingService,
     KpEventBookingServiceFileLink,
     KpEventBookingUpgradeWaitlist,
-    KpEventBoothZone,
     KpEventRegistrationException,
-    KpEventService,
-    KpEventServiceRequirement,
     KpEventServiceRequirementType,
     KpIndustry,
 )
-from app.models.storage import StoredFile
 from app.schemas.kp import (
     BookingServiceInput,
     CloneKpInput,
@@ -58,6 +50,18 @@ from app.schemas.kp import (
 )
 from app.services.kp_service import KpService
 from app.services.storage_service import StoredObject
+from tests.unit.factories import (
+    attach_staff_booking_relations,
+    make_booking,
+    make_booking_service,
+    make_closed_event,
+    make_event,
+    make_requirement,
+    make_requirement_file,
+    make_service,
+    make_stored_file,
+    make_zone,
+)
 
 
 @dataclass
@@ -73,148 +77,6 @@ def kp_service(kp_repo, storage_service, admin_user):
         service=KpService(kp_repo, storage_service, admin_user),
         kp_repo=kp_repo,
         storage_service=storage_service,
-    )
-
-
-def make_event(*, event_id=None, name: str = "Kontaktparty") -> KpEvent:
-    today = date.today()
-    return KpEvent(
-        id=event_id or uuid4(),
-        name=name,
-        registration_open=today - timedelta(days=1),
-        registration_end=today + timedelta(days=1),
-        finalization_deadline=today + timedelta(days=2),
-        nametags_deadline=today + timedelta(days=3),
-        event_date=today + timedelta(days=10),
-    )
-
-
-def make_closed_event(*, event_id=None, name: str = "Kontaktparty") -> KpEvent:
-    today = date.today()
-    return KpEvent(
-        id=event_id or uuid4(),
-        name=name,
-        registration_open=today - timedelta(days=10),
-        registration_end=today - timedelta(days=5),
-        finalization_deadline=today - timedelta(days=4),
-        nametags_deadline=today - timedelta(days=3),
-        event_date=today + timedelta(days=10),
-    )
-
-
-def make_zone(*, event_id, zone_id=None, capacity: int = 2) -> KpEventBoothZone:
-    return KpEventBoothZone(
-        id=zone_id or uuid4(),
-        event_id=event_id,
-        name="Main Hall",
-        description="Main booth zone",
-        capacity=capacity,
-    )
-
-
-def make_booking(
-    *,
-    event_id=None,
-    company_id=None,
-    booth_zone_id=None,
-    status: KpBookingStatus = KpBookingStatus.REGISTERED,
-) -> KpEventBooking:
-    return KpEventBooking(
-        id=uuid4(),
-        event_id=event_id or uuid4(),
-        company_id=company_id or uuid4(),
-        booth_zone_id=booth_zone_id or uuid4(),
-        status=status,
-    )
-
-
-def attach_staff_booking_relations(booking: KpEventBooking) -> KpEventBooking:
-    booking.company = Company(id=booking.company_id, name="Acme AG")
-    booking.booth_zone = make_zone(
-        event_id=booking.event_id,
-        zone_id=booking.booth_zone_id,
-    )
-    booking.services = []
-    booking.name_tags = []
-    booking.upgrade_waitlist_entries = []
-    booking.company_details = None
-    return booking
-
-
-def make_booking_service(
-    *,
-    booking: KpEventBooking,
-    service_id=None,
-) -> KpEventBookingService:
-    return KpEventBookingService(
-        id=uuid4(),
-        booking_id=booking.id,
-        service_id=service_id or uuid4(),
-        booking=booking,
-    )
-
-
-def make_requirement(
-    *,
-    service_id,
-    requirement_type: KpEventServiceRequirementType = KpEventServiceRequirementType.PDF,
-) -> KpEventServiceRequirement:
-    return KpEventServiceRequirement(
-        id=uuid4(),
-        service_id=service_id,
-        type=requirement_type,
-        name="Upload file",
-        description="Please upload the requested file.",
-    )
-
-
-def make_service(
-    *,
-    event_id,
-    service_id=None,
-    is_active: bool = True,
-    max_quantity_per_booking: int = 3,
-    max_total_quantity: int = 0,
-) -> KpEventService:
-    return KpEventService(
-        id=service_id or uuid4(),
-        event_id=event_id,
-        name="Power",
-        description="Power connection",
-        price=10000,
-        is_active=is_active,
-        max_quantity_per_booking=max_quantity_per_booking,
-        max_total_quantity=max_total_quantity,
-    )
-
-
-def make_stored_file(storage_key: str = "old/key.pdf") -> StoredFile:
-    return StoredFile(
-        id=uuid4(),
-        storage_key=storage_key,
-        original_filename="old.pdf",
-        mime_type="application/pdf",
-        size_bytes=7,
-        sha256="a" * 64,
-        etag="old-etag",
-    )
-
-
-def make_requirement_file(
-    *,
-    booking_service: KpEventBookingService,
-    requirement: KpEventServiceRequirement,
-    stored_file: StoredFile | None = None,
-) -> KpEventBookingServiceFileLink:
-    stored_file = stored_file or make_stored_file()
-    return KpEventBookingServiceFileLink(
-        id=uuid4(),
-        booking_service_id=booking_service.id,
-        requirement_id=requirement.id,
-        stored_file_id=stored_file.id,
-        booking_service=booking_service,
-        requirement=requirement,
-        stored_file=stored_file,
     )
 
 
@@ -1175,7 +1037,7 @@ async def test_delete_service_image_keeps_stored_file_row_when_storage_delete_fa
     admin_user,
 ):
     event_id = uuid4()
-    stored_file = make_stored_file("services/image.png")
+    stored_file = make_stored_file(storage_key="services/image.png")
     service_model = make_service(event_id=event_id)
     service_model.image_stored_file_id = stored_file.id
     service_model.image_stored_file = stored_file
@@ -1404,7 +1266,7 @@ async def test_upsert_booking_requirement_text_deletes_replaced_file(
         service_id=booking_service.service_id,
         requirement_type=KpEventServiceRequirementType.TEXT,
     )
-    old_file = make_stored_file("old/key.txt")
+    old_file = make_stored_file(storage_key="old/key.txt")
     existing_file = make_requirement_file(
         booking_service=booking_service,
         requirement=requirement,
@@ -1481,7 +1343,7 @@ async def test_upload_booking_requirement_file_replaces_existing_text_answer(
         size_bytes=7,
         sha256="b" * 64,
     )
-    stored_file = make_stored_file("new/key.pdf")
+    stored_file = make_stored_file(storage_key="new/key.pdf")
     requirement_file = make_requirement_file(
         booking_service=booking_service,
         requirement=requirement,
@@ -1533,7 +1395,7 @@ async def test_upload_booking_requirement_file_routes_pdf_validation_and_saves_l
         size_bytes=7,
         sha256="b" * 64,
     )
-    stored_file = make_stored_file("new/key.pdf")
+    stored_file = make_stored_file(storage_key="new/key.pdf")
     requirement_file = make_requirement_file(
         booking_service=booking_service,
         requirement=requirement,
@@ -1626,7 +1488,7 @@ async def test_upload_booking_requirement_file_deletes_replaced_old_file(
     booking = make_booking(company_id=company_id)
     booking_service = make_booking_service(booking=booking)
     requirement = make_requirement(service_id=booking_service.service_id)
-    old_file = make_stored_file("old/key.pdf")
+    old_file = make_stored_file(storage_key="old/key.pdf")
     existing_file = make_requirement_file(
         booking_service=booking_service,
         requirement=requirement,
@@ -1639,7 +1501,7 @@ async def test_upload_booking_requirement_file_deletes_replaced_old_file(
         size_bytes=7,
         sha256="b" * 64,
     )
-    updated_file = make_stored_file("new/key.pdf")
+    updated_file = make_stored_file(storage_key="new/key.pdf")
     requirement_file = make_requirement_file(
         booking_service=booking_service,
         requirement=requirement,
@@ -1685,7 +1547,7 @@ async def test_upload_booking_requirement_file_keeps_old_row_when_old_delete_fai
     booking = make_booking(company_id=company_id)
     booking_service = make_booking_service(booking=booking)
     requirement = make_requirement(service_id=booking_service.service_id)
-    old_file = make_stored_file("old/key.pdf")
+    old_file = make_stored_file(storage_key="old/key.pdf")
     existing_file = make_requirement_file(
         booking_service=booking_service,
         requirement=requirement,
@@ -1698,7 +1560,7 @@ async def test_upload_booking_requirement_file_keeps_old_row_when_old_delete_fai
         size_bytes=7,
         sha256="b" * 64,
     )
-    updated_file = make_stored_file("new/key.pdf")
+    updated_file = make_stored_file(storage_key="new/key.pdf")
     requirement_file = make_requirement_file(
         booking_service=booking_service,
         requirement=requirement,
@@ -1758,7 +1620,7 @@ async def test_staff_get_booking_requirement_file_download_url(
     booking = make_booking()
     booking_service = make_booking_service(booking=booking)
     requirement = make_requirement(service_id=booking_service.service_id)
-    stored_file = make_stored_file("uploads/file.pdf")
+    stored_file = make_stored_file(storage_key="uploads/file.pdf")
     requirement_file = make_requirement_file(
         booking_service=booking_service,
         requirement=requirement,
@@ -1826,7 +1688,7 @@ async def test_list_staff_booking_requirement_files_returns_file_map(
     booking = make_booking(event_id=event_id)
     booking_service = make_booking_service(booking=booking)
     requirement = make_requirement(service_id=booking_service.service_id)
-    stored_file = make_stored_file("uploads/file.pdf")
+    stored_file = make_stored_file(storage_key="uploads/file.pdf")
     requirement_file = make_requirement_file(
         booking_service=booking_service,
         requirement=requirement,
@@ -1860,7 +1722,7 @@ async def test_list_staff_booking_requirement_files_rejects_event_mismatch(
 
 
 async def test_cleanup_orphaned_stored_files_deletes_storage_and_rows(kp_service):
-    orphaned = [make_stored_file("orphan/one.pdf"), make_stored_file("orphan/two.pdf")]
+    orphaned = [make_stored_file(storage_key="orphan/one.pdf"), make_stored_file(storage_key="orphan/two.pdf")]
     kp_service.kp_repo.list_orphaned_stored_files.return_value = orphaned
 
     await kp_service.service.cleanup_orphaned_stored_files()

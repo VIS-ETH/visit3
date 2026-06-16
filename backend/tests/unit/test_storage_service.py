@@ -4,7 +4,6 @@ from unittest.mock import Mock
 
 import pytest
 from botocore.exceptions import ClientError
-from pypdf import PdfWriter
 
 from app.core.config import get_settings
 from app.core.exceptions import (
@@ -15,15 +14,7 @@ from app.core.exceptions import (
     StorageUploadFailed,
 )
 from app.services.storage_service import StorageService
-
-
-def _build_pdf(page_count: int) -> bytes:
-    writer = PdfWriter()
-    for _ in range(page_count):
-        writer.add_blank_page(width=72, height=72)
-    buffer = BytesIO()
-    writer.write(buffer)
-    return buffer.getvalue()
+from tests.unit.factories import build_pdf
 
 
 def make_storage_service(client=None) -> StorageService:
@@ -74,7 +65,7 @@ def test_validate_file_rejects_oversized_content():
 def test_validate_single_page_pdf_accepts_single_page():
     service = make_storage_service()
 
-    pdf_bytes = _build_pdf(1)
+    pdf_bytes = build_pdf(1)
 
     mime_type = service.validate_single_page_pdf_file(
         "ad.pdf",
@@ -89,7 +80,7 @@ def test_validate_single_page_pdf_accepts_single_page():
 def test_validate_single_page_pdf_rejects_multi_page():
     service = make_storage_service()
 
-    pdf_bytes = _build_pdf(2)
+    pdf_bytes = build_pdf(2)
 
     with pytest.raises(StoragePdfNotSinglePage):
         service.validate_single_page_pdf_file(

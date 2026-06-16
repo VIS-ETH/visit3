@@ -1,8 +1,6 @@
-import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from shutil import copyfile
 from uuid import UUID, uuid4
 
 from app.core.auth_context import require_staff_user
@@ -27,11 +25,12 @@ from app.schemas.kp import (
     NametagExportPersonResult,
     NametagExportTargetsResult,
 )
+from app.services.attachment_utils import upload_and_replace_attached_file
 from app.services.csv_service import CsvService
+from app.services.kp_helpers import get_event_or_raise
 from app.services.pdf_service import PdfService
 from app.services.storage_service import StorageService
 
-TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 NAMETAG_TEMPLATE_NAME = "nametag.typ"
 
 NAMETAG_BACKGROUND_MIME_TYPES = {"image/png", "image/jpeg"}
@@ -183,10 +182,7 @@ class ExportService:
         )
 
     async def _get_event_or_raise(self, event_id: UUID) -> KpEvent:
-        event = await self.kp_repository.get_by_id(event_id)
-        if event is None:
-            raise KpEventNotFound(f"export:event_not_found:{event_id}")
-        return event
+        return await get_event_or_raise(self.kp_repository, event_id, context="export")
 
     async def _list_event_bookings(
         self, event_id: UUID
@@ -272,28 +268,21 @@ class ExportService:
             raise KpExportEmpty("nametag_export:empty")
 
         suffix = self._background_suffix(background_mime_type)
-        with tempfile.TemporaryDirectory() as workspace:
-            workspace_path = Path(workspace)
+
+        async def _materialize(workspace_path: Path) -> None:
             background_path = workspace_path / f"background{suffix}"
-            template_path = workspace_path / NAMETAG_TEMPLATE_NAME
             background_path.write_bytes(background_bytes)
-            copyfile(TEMPLATES_DIR / NAMETAG_TEMPLATE_NAME, template_path)
 
-            content, rendered_filename = await self.pdf_service.render(
-                NAMETAG_TEMPLATE_NAME,
-                {
-                    "background_path": background_path.name,
-                    "columns": columns or 2,
-                    "tags": [self._name_tag_data(name_tag) for name_tag in name_tags],
-                },
-                self._export_filename(filename),
-                root=str(workspace_path),
-                template_dir=workspace_path,
-            )
-
-        if content is None:
-            raise KpExportEmpty("nametag_export:rendering_failed")
-
+        content, rendered_filename = await self.pdf_service.render_with_workspace(
+            NAMETAG_TEMPLATE_NAME,
+            {
+                "background_path": f"background{suffix}",
+                "columns": columns or 2,
+                "tags": [self._name_tag_data(name_tag) for name_tag in name_tags],
+            },
+            self._export_filename(filename),
+            materialize=_materialize,
+        )
         return RenderedExport(content, rendered_filename)
 
     async def upload_nametag_background(
@@ -312,38 +301,23 @@ class ExportService:
         old_stored_file = (
             existing_background.stored_file if existing_background is not None else None
         )
-        old_storage_key = old_stored_file.storage_key if old_stored_file else None
         suffix = self._background_suffix(mime_type)
         storage_key = (
             f"kp/events/{event_id}/exports/nametag-background/{uuid4()}{suffix}"
         )
-        stored_object = await self.storage_service.upload_bytes(
-            key=storage_key,
-            content=content,
+        _, background = await upload_and_replace_attached_file(
+            storage_service=self.storage_service,
+            kp_repository=self.kp_repository,
             filename=filename,
+            content=content,
             content_type=mime_type,
-        )
-        try:
-            stored_file = await self.kp_repository.upsert_stored_file(
-                storage_key=stored_object.key,
-                original_filename=filename,
-                mime_type=stored_object.mime_type,
-                size_bytes=stored_object.size_bytes,
-                sha256=stored_object.sha256,
-                etag=stored_object.etag,
-                stored_file=None,
-            )
-            background = await self.kp_repository.upsert_nametag_background(
+            storage_key=storage_key,
+            old_stored_file=old_stored_file,
+            attach=lambda stored_file: self.kp_repository.upsert_nametag_background(
                 event_id=event_id,
                 stored_file_id=stored_file.id,
-            )
-        except Exception:
-            await self.storage_service.delete_object(stored_object.key)
-            raise
-        if old_storage_key is not None and old_storage_key != stored_object.key:
-            await self.storage_service.delete_object(old_storage_key)
-        if old_stored_file is not None:
-            await self.kp_repository.delete_stored_file(old_stored_file)
+            ),
+        )
         return background
 
     async def get_nametag_background(
