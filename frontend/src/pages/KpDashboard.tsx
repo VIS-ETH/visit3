@@ -7,7 +7,6 @@ import {
   Modal,
   Paper,
   Stack,
-  Text,
   TextInput,
   Title,
 } from "@mantine/core";
@@ -187,12 +186,7 @@ const KpDashboard = () => {
       <BackButton to="/" />
 
       <Group justify="space-between" align="center">
-        <div>
-          <Title order={2}>{t("kp.dashboard.title")}</Title>
-          <Text c="dimmed" size="sm">
-            {t("kp.dashboard.description")}
-          </Text>
-        </div>
+        <Title order={2}>{t("kp.dashboard.title")}</Title>
         <Button leftSection={<IconPlus size={16} />} onClick={openModal}>
           {t("kp.dashboard.create_new_button")}
         </Button>

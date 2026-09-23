@@ -147,7 +147,6 @@
   "company": {
     "login": "Company Login"
   },
-  "welcome": "Welcome",
   "system-theme-follow": "Follow system theme",
   "language-change": "Change language",
   "not_allowed": {
@@ -161,7 +160,6 @@
   "home": {
     "welcome_name": "Welcome {{name}}",
     "portal_badge": "VISIT Portal",
-    "subtitle": "Manage your company profile and discover upcoming Kontaktparty events.",
     "kp": {
       "title": "Kontaktparty",
       "description": "Explore the ETH job fair timeline, latest event details, and company participation options.",

@@ -17,7 +17,6 @@
     "edit_profile": "Unternehmensprofil bearbeiten",
     "delete": "Unternehmen löschen",
     "profile_title": "Unternehmensprofil",
-    "profile_subtitle": "Bearbeiten Sie das Kontaktparty-Profil dieses Unternehmens.",
     "members": {
       "title": "Mitglieder von {{name}}",
       "empty": "Keine Benutzer diesem Unternehmen zugewiesen",
@@ -100,7 +99,6 @@
   },
   "event_settings": {
     "title": "Einstellungen",
-    "description": "MwSt., AGB und Benachrichtigungen für dieses Event.",
     "vat_rate": "MwSt.-Satz",
     "vat_rate_hint": "Gilt für jede Buchung dieses Events.",
     "vat_rate_range": "Der MwSt.-Satz muss zwischen 0 und 100 liegen.",

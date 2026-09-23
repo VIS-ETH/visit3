@@ -21,12 +21,7 @@ const EventSettingsFields = ({
 
   return (
     <Stack gap="sm">
-      <div>
-        <Text fw={600}>{t("event_settings.title")}</Text>
-        <Text c="dimmed" size="sm">
-          {t("event_settings.description")}
-        </Text>
-      </div>
+      <Text fw={600}>{t("event_settings.title")}</Text>
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md" verticalSpacing="sm">
         <NumberInput
           label={t("event_settings.vat_rate")}

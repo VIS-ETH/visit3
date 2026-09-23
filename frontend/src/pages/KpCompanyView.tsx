@@ -75,12 +75,7 @@ const KpCompanyView = () => {
       <BackButton to="/" />
 
       <Group justify="space-between" align="center">
-        <div>
-          <Title order={2}>{t("kp.company_view.title")}</Title>
-          <Text c="dimmed" size="sm">
-            {t("kp.company_view.subtitle")}
-          </Text>
-        </div>
+        <Title order={2}>{t("kp.company_view.title")}</Title>
       </Group>
 
       {isLoading ? (

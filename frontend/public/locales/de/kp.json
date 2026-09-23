@@ -27,7 +27,6 @@
     },
     "company_view": {
       "title": "Kontaktparty",
-      "subtitle": "Übersicht über das aktuelle Kontaktparty-Event für Ihr Unternehmen.",
       "error": "Kontaktparty-Daten konnten nicht geladen werden.",
       "no_event": "Es gibt derzeit kein aktives Kontaktparty-Event.",
       "registration_window": "Anmeldefenster",
@@ -298,7 +297,6 @@
     },
     "join": {
       "title": "KP beitreten",
-      "description": "Die aktuellen Kontaktparty-Eventdetails werden unten angezeigt.",
       "error": "KP-Eventdaten konnten nicht geladen werden",
       "current_event": "Aktuelles Event",
       "registration_window": "Anmeldefenster",
@@ -310,7 +308,6 @@
     },
     "dashboard": {
       "title": "KP Dashboard",
-      "description": "Kontaktparty-Events erstellen und einsehen.",
       "error": "KP-Dashboard-Daten konnten nicht geladen werden",
       "create_new_button": "Neue Kontaktparty erstellen",
       "create_title": "Neues Event erstellen",

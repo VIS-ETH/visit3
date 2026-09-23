@@ -1,4 +1,4 @@
-import { Badge, Group, Stack, Text, Title } from "@mantine/core";
+import { Badge, Group, Stack, Title } from "@mantine/core";
 import { useCurrentUser } from "../context/useCurrentUser";
 import LinkFeatureCard from "../components/LinkFeatureCard";
 import { useTranslation } from "react-i18next";
@@ -18,9 +18,6 @@ const Home = () => {
             {t("home.portal_badge")}
           </Badge>
         </Group>
-        <Text c="dimmed" size="sm">
-          {t("home.subtitle")}
-        </Text>
       </Stack>
 
       <LinkFeatureCard

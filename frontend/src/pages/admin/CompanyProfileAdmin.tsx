@@ -126,9 +126,6 @@ const CompanyProfileAdmin = () => {
           </Group>
           <CompanyProfileBadge complete={profile.profile_complete === true} />
         </Group>
-        <Text c="dimmed" size="sm">
-          {t("company_management.profile_subtitle")}
-        </Text>
 
         <CompanyProfileMissingFields
           fields={profile.missing_profile_fields ?? []}

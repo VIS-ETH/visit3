@@ -17,7 +17,6 @@
     "edit_profile": "Edit company profile",
     "delete": "Delete company",
     "profile_title": "Company profile",
-    "profile_subtitle": "Edit the Kontaktparty profile of this company.",
     "members": {
       "title": "Members of {{name}}",
       "empty": "No users assigned to this company",
@@ -100,7 +99,6 @@
   },
   "event_settings": {
     "title": "Settings",
-    "description": "VAT, terms and notifications for this event.",
     "vat_rate": "VAT rate",
     "vat_rate_hint": "Applied to every booking of this event.",
     "vat_rate_range": "The VAT rate must be between 0 and 100.",

@@ -69,7 +69,6 @@ const Login = () => {
   return (
     <AuthCardLayout
       title={t("company.login")}
-      subtitle={t("welcome")}
       maxWidth={620}
     >
       {callbackErrorKey ? (

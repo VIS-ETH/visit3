@@ -27,7 +27,6 @@
     },
     "company_view": {
       "title": "Kontaktparty",
-      "subtitle": "Overview of the current Kontaktparty event for your company.",
       "error": "Failed to load Kontaktparty data.",
       "no_event": "There is no active Kontaktparty event at the moment.",
       "registration_window": "Registration window",
@@ -298,7 +297,6 @@
     },
     "join": {
       "title": "Join KP",
-      "description": "Current Kontaktparty event details are shown below.",
       "error": "Failed to load KP event data",
       "current_event": "Current event",
       "registration_window": "Registration window",
@@ -310,7 +308,6 @@
     },
     "dashboard": {
       "title": "KP Dashboard",
-      "description": "Create and inspect Kontaktparty events.",
       "error": "Failed to load KP dashboard data",
       "create_new_button": "Create New Kontaktparty",
       "create_title": "Create new event",
