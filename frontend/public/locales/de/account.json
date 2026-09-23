@@ -132,8 +132,8 @@
     "contact_phone": "Kontakt-Telefon",
     "kp_contact_user": "Kontaktparty-Ansprechperson",
     "kp_contact_user_placeholder": "Mitglied auswählen",
-    "kp_contact_user_hint": "Die Organisator:innen wenden sich für alles rund um den Anlass an dieses Mitglied.",
-    "billing_company_name": "Firmenname für Rechnungen",
+    "kp_contact_user_hint": "Die Organisator:innen wenden sich für alles rund um das Event an dieses Mitglied.",
+    "billing_company_name": "Unternehmensname für die Rechnung",
     "billing_street": "Strasse",
     "billing_house_number": "Hausnummer",
     "billing_postal_code": "Postleitzahl",
@@ -144,7 +144,7 @@
     "billing_email": "Rechnungs-E-Mail",
     "shipping_address": "Lieferadresse",
     "shipping_address_hint": "Wohin Waren für Ihren Stand geliefert werden sollen.",
-    "shipping_address_placeholder": "Firma, Strasse, Postleitzahl, Ort",
+    "shipping_address_placeholder": "Unternehmen, Strasse, Postleitzahl, Ort",
     "errors": {
       "country": "Bitte wählen Sie ein Land aus."
     }

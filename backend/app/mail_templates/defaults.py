@@ -7,10 +7,10 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
         subject_en="VISIT: Confirm your email address",
         body_de=(
             "<p>Hallo {{ name }},</p>"
-            "<p>bitte bestätige deine E-Mail-Adresse, damit wir dein VISIT-Konto"
+            "<p>bitte bestätigen Sie Ihre E-Mail-Adresse, damit wir Ihr VISIT-Konto"
             " freischalten können.</p>"
             '<p><a href="{{ confirm_url }}">E-Mail-Adresse bestätigen</a></p>'
-            "<p>Viele Grüsse<br />Dein VIS-Kontaktparty-Team</p>"
+            "<p>Viele Grüsse<br />Ihr VIS-Kontaktparty-Team</p>"
         ),
         body_en=(
             "<p>Hello {{ name }},</p>"
@@ -25,10 +25,10 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
         subject_en="VISIT: Account activated",
         body_de=(
             "<p>Hallo {{ name }},</p>"
-            "<p>dein VISIT-Konto wurde vom VIS freigegeben. Du kannst dich ab sofort"
-            " anmelden und dein Unternehmen verwalten.</p>"
+            "<p>Ihr VISIT-Konto wurde vom VIS freigegeben. Sie können sich ab sofort"
+            " anmelden und Ihr Unternehmen verwalten.</p>"
             '<p><a href="{{ login_url }}">Zu VISIT</a></p>'
-            "<p>Viele Grüsse<br />Dein VIS-Kontaktparty-Team</p>"
+            "<p>Viele Grüsse<br />Ihr VIS-Kontaktparty-Team</p>"
         ),
         body_en=(
             "<p>Hello {{ name }},</p>"
@@ -57,10 +57,10 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
         subject_en="VISIT: Reset your password",
         body_de=(
             "<p>Hallo {{ name }},</p>"
-            "<p>über den folgenden Link kannst du ein neues Passwort für VISIT"
+            "<p>über den folgenden Link können Sie ein neues Passwort für VISIT"
             " setzen. Der Link ist zehn Minuten gültig.</p>"
             '<p><a href="{{ reset_url }}">Passwort zurücksetzen</a></p>'
-            "<p>Wenn du kein neues Passwort angefordert hast, kannst du diese"
+            "<p>Wenn Sie kein neues Passwort angefordert haben, können Sie diese"
             " Nachricht ignorieren.</p>"
         ),
         body_en=(
@@ -76,7 +76,7 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
         subject_de="VISIT: Einladung zu {{ company_name }}",
         subject_en="VISIT: Invitation to join {{ company_name }}",
         body_de=(
-            "<p>Du wurdest eingeladen, dem Unternehmen {{ company_name }} auf VISIT"
+            "<p>Sie wurden eingeladen, dem Unternehmen {{ company_name }} auf VISIT"
             " beizutreten.</p>"
             '<p><a href="{{ invite_url }}">Einladung annehmen</a></p>'
             "<p>Die Einladung ist sieben Tage gültig.</p>"
@@ -95,7 +95,8 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
             "<p>Hallo {{ name }},</p>"
             "<p>wir haben die Anmeldung von {{ company_name }} für {{ event_name }}"
             " in der Standzone {{ booth_zone_name }} erhalten.</p>"
-            "<p>Bitte vervollständige deine Buchung rechtzeitig vor dem Stichtag.</p>"
+            "<p>Bitte vervollständigen Sie Ihre Buchung rechtzeitig vor dem"
+            " Stichtag.</p>"
             '<p><a href="{{ login_url }}">Buchung öffnen</a></p>'
         ),
         body_en=(
@@ -114,7 +115,7 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
             "<p>{{ company_name }} hat die Buchung für {{ event_name }} in der"
             " Standzone {{ booth_zone_name }} abgeschlossen.</p>"
             "<p>Gesamtbetrag: {{ total_price }}</p>"
-            "<p>Der VIS prüft die Buchung und meldet sich bei dir.</p>"
+            "<p>Der VIS prüft die Buchung und meldet sich bei Ihnen.</p>"
             '<p><a href="{{ login_url }}">Buchung öffnen</a></p>'
         ),
         body_en=(

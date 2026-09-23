@@ -34,6 +34,17 @@ const LEGITIMATE_SPELLINGS = [
   "zuerst",
 ];
 
+// One German term per concept, so the same thing is not called differently
+// on different pages.
+const PREFERRED_TERMS = [
+  { avoid: /Firm(a|en)/, use: "Unternehmen" },
+  { avoid: /Leistung/, use: "Service" },
+  { avoid: /Anlass|Anlässe/, use: "Event" },
+  { avoid: /(?<!E-)Mail|mail/, use: "E-Mail" },
+  { avoid: /[Ee]inlogg/, use: "anmelden" },
+  { avoid: /\b(du|dich|dir|dein\w*)\b/i, use: "Sie" },
+];
+
 const TRANSLITERATION = /ae|oe|ue/;
 const GERMAN_WORD = /[A-Za-zÄÖÜäöüß]+/g;
 const STRING_LITERAL = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'/g;
@@ -130,5 +141,15 @@ describe("the german texts", () => {
 
   it("use the swiss double s", () => {
     expect(offendersMatching((text) => text.includes("ß"))).toEqual([]);
+  });
+
+  it("use one term per concept", () => {
+    const offenders = germanTexts.flatMap(([key, text]) =>
+      PREFERRED_TERMS.filter(({ avoid }) =>
+        avoid.test(withoutMarkup(text)),
+      ).map(({ use }) => `${key}: use "${use}"`),
+    );
+
+    expect(offenders).toEqual([]);
   });
 });

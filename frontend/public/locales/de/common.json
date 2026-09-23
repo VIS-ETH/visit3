@@ -57,7 +57,7 @@
     "kp_service_name_exists": "Ein Service mit diesem Namen existiert bereits für dieses Event.",
     "kp_service_quantity_invalid": "Die ausgewählte Service-Anzahl ist nicht verfügbar.",
     "kp_service_event_mismatch": "Der ausgewählte Service gehört zu einem anderen KP-Event.",
-    "kp_included_service_duplicate": "Dieser Service ist mehrfach in den inkludierten Leistungen aufgeführt.",
+    "kp_included_service_duplicate": "Dieser Service ist mehrfach in den inkludierten Services aufgeführt.",
     "kp_included_exceeds_max": "Die inkludierte Anzahl ist höher als die maximale Anzahl pro Buchung dieses Services.",
     "kp_nametag_limit_reached": "Diese Buchung hat die maximale Anzahl an Namensschildern erreicht.",
     "kp_nametags_deadline_passed": "Die Frist für die Bearbeitung der Namensschilder ist abgelaufen.",
@@ -95,9 +95,9 @@
     "invite_email_mismatch": "Diese Einladung wurde an eine andere E-Mail-Adresse gesendet.",
     "company_invite_pending": "Für diese E-Mail-Adresse ist bereits eine Einladung offen.",
     "rate_limited": "Zu viele Anfragen. Bitte warte einige Minuten und versuche es erneut.",
-    "session_load_failed": "Deine Sitzung konnte nicht geladen werden. Bitte versuche es erneut.",
-    "mail_template_not_found": "Diese Mail-Vorlage existiert nicht.",
-    "mail_template_invalid": "Die Mail-Vorlage verwendet einen Platzhalter, der nicht verfügbar ist.",
+    "session_load_failed": "Ihre Sitzung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "mail_template_not_found": "Diese E-Mail-Vorlage existiert nicht.",
+    "mail_template_invalid": "Die E-Mail-Vorlage verwendet einen Platzhalter, der nicht verfügbar ist.",
     "retry": "Erneut versuchen"
   },
   "validation": {
@@ -122,22 +122,22 @@
       "title": "Bestätigen Sie Ihre E-Mail",
       "description": "Klicken Sie auf die untenstehende Schaltfläche, um Ihre E-Mail-Adresse zu bestätigen",
       "success": "E-Mail bestätigt",
-      "success_description": "Ihre E-Mail wurde erfolgreich bestätigt. Sie können sich jetzt in Ihr Konto einloggen.",
+      "success_description": "Ihre E-Mail wurde erfolgreich bestätigt. Sie können sich jetzt anmelden.",
       "invalid": "Ungültiger oder abgelaufener Link",
-      "link_expired": "Dieser Bestätigungslink ist abgelaufen. Bitte fordern Sie eine neue Bestätigungsmail an.",
+      "link_expired": "Dieser Bestätigungslink ist abgelaufen. Bitte fordern Sie eine neue Bestätigungs-E-Mail an.",
       "unconfirmed": "Um VISIT zu nutzen, müssen Sie Ihre E-Mail bestätigen",
       "unconfirmed_description": "Wir müssen {{email}} bestätigen, bevor Sie fortfahren können. Öffnen Sie den Bestätigungslink in Ihrem Posteingang oder fordern Sie unten eine neue E-Mail an.",
-      "button": "Bestätigungsmail senden",
+      "button": "Bestätigungs-E-Mail senden",
       "confirm_button": "E-Mail bestätigen",
       "cancel": "Abbrechen",
       "validating": "Link wird validiert",
       "please_wait": "Bitte warten Sie, während wir Ihren Bestätigungslink validieren",
       "back_to_login": "Zurück zur Anmeldung",
       "go_to_login": "Zur Anmeldung",
-      "sent": "Bestätigungsmail wurde an Ihre E-Mail gesendet",
-      "sent_description": "Wir haben eine neue Bestätigungsmail an {{email}} gesendet.",
+      "sent": "Eine Bestätigungs-E-Mail wurde gesendet",
+      "sent_description": "Wir haben eine neue Bestätigungs-E-Mail an {{email}} gesendet.",
       "login_required": "Anmelden, um Ihre E-Mail zu bestätigen",
-      "login_required_description": "Diese Seite kann eine Bestätigungsmail nur für ein angemeldetes Konto erneut senden."
+      "login_required_description": "Diese Seite kann eine Bestätigungs-E-Mail nur für ein angemeldetes Konto erneut senden."
     }
   },
   "password": {
@@ -162,7 +162,7 @@
     "portal_badge": "VISIT Portal",
     "kp": {
       "title": "Kontaktparty",
-      "description": "Entdecken Sie den ETH-Jobmesse-Zeitplan, die neuesten Eventdetails und Optionen zur Firmenbeteiligung.",
+      "description": "Entdecken Sie den ETH-Jobmesse-Zeitplan, die neuesten Eventdetails und Teilnahmemöglichkeiten für Unternehmen.",
       "image_alt": "Kontaktparty Event Platzhalter"
     }
   },
@@ -176,7 +176,7 @@
     "user_management": "Benutzerverwaltung",
     "kontaktparty": "Kontaktparty",
     "company_management": "Unternehmensverwaltung",
-    "mail_templates": "Mailvorlagen",
+    "mail_templates": "E-Mail-Vorlagen",
     "industries": "Branchen",
     "logout": "Abmelden",
     "logout_confirm_title": "Abmelden?",

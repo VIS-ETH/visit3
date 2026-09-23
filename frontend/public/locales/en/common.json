@@ -16,7 +16,7 @@
     "email_taken_locally": "This email address already belongs to a local account. Please log in with your password instead.",
     "not_vis_member": "Your VIS membership is not active, so you cannot log in with your ETH account.",
     "link_invalid": "This login link is invalid, expired or has already been used. Please log in with your password.",
-    "link_redirecting": "Signing you in, please wait."
+    "link_redirecting": "Logging you in, please wait."
   },
   "error": {
     "title": "Error",
@@ -96,8 +96,8 @@
     "company_invite_pending": "An invite for this email address is already pending.",
     "rate_limited": "Too many requests. Please wait a few minutes and try again.",
     "session_load_failed": "Your session could not be loaded. Please try again.",
-    "mail_template_not_found": "This mail template does not exist.",
-    "mail_template_invalid": "The mail template uses a placeholder that is not available.",
+    "mail_template_not_found": "This email template does not exist.",
+    "mail_template_invalid": "The email template uses a placeholder that is not available.",
     "retry": "Try again"
   },
   "validation": {
@@ -119,7 +119,7 @@
     "title": "Email",
     "valid": "Enter a valid email",
     "confirm": {
-      "title": "Confirm Your Email",
+      "title": "Confirm your email",
       "description": "Click the button below to verify your email address",
       "success": "Email confirmed",
       "success_description": "Your email has been successfully verified. You can now log in to your account.",
@@ -134,10 +134,10 @@
       "please_wait": "Please wait while we validate your confirmation link",
       "back_to_login": "Back to Login",
       "go_to_login": "Go to Login",
-      "sent": "Confirmation mail has been sent to your email",
+      "sent": "A confirmation email has been sent",
       "sent_description": "We sent a fresh confirmation email to {{email}}.",
       "login_required": "Log in to confirm your email",
-      "login_required_description": "This page can resend confirmation mail only for a signed-in account."
+      "login_required_description": "This page can resend confirmation email only for a logged-in account."
     }
   },
   "password": {
@@ -145,16 +145,16 @@
     "min": "Password must be at least 8 characters long"
   },
   "company": {
-    "login": "Company Login"
+    "login": "Company login"
   },
   "system-theme-follow": "Follow system theme",
   "language-change": "Change language",
   "not_allowed": {
-    "title": "Access Denied",
+    "title": "Access denied",
     "description": "You do not have permission to access this page."
   },
   "not_found": {
-    "title": "Page Not Found",
+    "title": "Page not found",
     "description": "The page you are looking for does not exist."
   },
   "home": {
@@ -173,10 +173,10 @@
     "home": "Home",
     "profile": "Profile",
     "company": "Company",
-    "user_management": "User Management",
+    "user_management": "User management",
     "kontaktparty": "Kontaktparty",
-    "company_management": "Company Management",
-    "mail_templates": "Mail Templates",
+    "company_management": "Company management",
+    "mail_templates": "Email templates",
     "industries": "Industries",
     "logout": "Logout",
     "logout_confirm_title": "Log out?",
