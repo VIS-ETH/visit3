@@ -39,6 +39,7 @@ import {
   useUploadNametagExportBackground,
 } from "../orval/generated/kp/kp";
 import { downloadBlob, safeFilenamePart } from "../utils/download";
+import { NAMETAG_BACKGROUND_ACCEPT } from "../utils/upload-formats";
 
 const downloadRequestOptions = { responseType: "blob" as const };
 type EventDownloadFunction = (eventId: string) => unknown;
@@ -350,7 +351,8 @@ const ExportsTab = ({
             <FileInput
               label={t("kp.dashboard.exports.background")}
               placeholder={t("kp.dashboard.exports.background_placeholder")}
-              accept="image/png,image/jpeg"
+              accept={NAMETAG_BACKGROUND_ACCEPT}
+              description={t("kp.dashboard.exports.background_allowed_formats")}
               value={backgroundFile}
               onChange={setBackgroundFile}
               flex={1}

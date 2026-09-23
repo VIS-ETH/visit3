@@ -1,5 +1,6 @@
 import {
   Alert,
+  Anchor,
   Card,
   Center,
   Checkbox,
@@ -12,23 +13,37 @@ import {
 import { notifications } from "@mantine/notifications";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
-import { useListAvailableServices } from "../api/kp-services";
+import { getApiErrorCode } from "../api/errors";
+import { KpServiceCategory } from "../orval/generated/fastAPI.schemas";
 import type {
+  BookingResponse,
   BoothZoneWithAvailabilityResponse,
   RegisterBookingRequest,
 } from "../orval/generated/fastAPI.schemas";
 import {
   getGetMyBookingQueryKey,
   getListAvailableBoothZonesQueryKey,
+  getMyBooking,
+  useListAvailableServices,
   useRegisterBooking,
   useUpsertBookingRequirementText,
   useUploadBookingRequirementFile,
 } from "../orval/generated/kp/kp";
+import {
+  chargedServiceQuantity,
+  includedQuantitiesByServiceId,
+  serviceLineLabel,
+} from "../utils/kp-service-quantity";
+import { activeBooking } from "../utils/my-booking";
 import { formatPrice } from "../utils/price-utils";
+import { priceBreakdown } from "../utils/pricing";
 import SummaryPriceBreakdown from "./SummaryPriceBreakdown";
+
+const BOOKING_ALREADY_EXISTS_CODE = "error.kp_booking_already_exists";
 
 export type BookingSummaryServiceLine = { label: string; amount: number };
 export type DraftBookingRequirementValue = {
@@ -44,25 +59,29 @@ export type DraftBookingService = {
 interface KpBookingSummaryStepProps {
   eventId: string;
   isLoadingBooking: boolean;
+  isProfileConfirmed: boolean;
+  vatRatePercent: number;
+  termsUrl: string | null;
   draftZone: BoothZoneWithAvailabilityResponse | null;
   isRegistrationOpen: boolean;
-  draftAdditionalServiceLines?: BookingSummaryServiceLine[];
   draftServices?: DraftBookingService[];
-  onConfirmStateChange?: (
-    state: {
-      onConfirm: () => void;
-      disabled: boolean;
-      loading: boolean;
-    } | null,
-  ) => void;
+  onConfirmStateChange?: (state: BookingConfirmState | null) => void;
 }
+
+export type BookingConfirmState = {
+  onConfirm: () => Promise<void>;
+  disabled: boolean;
+  loading: boolean;
+};
 
 const KpBookingSummaryStep = ({
   eventId,
   isLoadingBooking,
+  isProfileConfirmed,
+  vatRatePercent,
+  termsUrl,
   draftZone,
   isRegistrationOpen,
-  draftAdditionalServiceLines = [],
   draftServices = [],
   onConfirmStateChange,
 }: KpBookingSummaryStepProps) => {
@@ -72,23 +91,53 @@ const KpBookingSummaryStep = ({
   const [agbAccepted, setAgbAccepted] = useState(false);
   const [bindingAccepted, setBindingAccepted] = useState(false);
   const [consentHighlight, setConsentHighlight] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const agbCheckboxRef = useRef<HTMLInputElement>(null);
   const bindingCheckboxRef = useRef<HTMLInputElement>(null);
   const { data: services } = useListAvailableServices(eventId);
   const serviceById = new Map(
     (services ?? []).map((service) => [service.id, service]),
   );
-  const selectedServiceLines = draftServices.map((item) => {
+  const includedQuantities = includedQuantitiesByServiceId(
+    draftZone?.included_services ?? [],
+  );
+  const lineForDraftService = (item: DraftBookingService) => {
     const service = serviceById.get(item.serviceId);
+    const name = service?.name ?? item.serviceId;
+    const included = includedQuantities.get(item.serviceId) ?? 0;
+    const charged = chargedServiceQuantity(item.quantity, included);
     return {
-      label: service?.name ?? item.serviceId,
-      amount: (service?.price ?? 0) * item.quantity,
+      label: serviceLineLabel(
+        name,
+        charged,
+        included > 0
+          ? t("kp.booking.service_included_note", { included })
+          : null,
+      ),
+      amount: (service?.price ?? 0) * charged,
     };
-  });
-  const additionalLines =
-    draftAdditionalServiceLines.length > 0
-      ? draftAdditionalServiceLines
-      : selectedServiceLines;
+  };
+  const linesOfCategory = (category: KpServiceCategory) =>
+    draftServices
+      .filter((item) => serviceById.get(item.serviceId)?.category === category)
+      .map(lineForDraftService);
+  const serviceGroups = [
+    {
+      title: t("kp.booking.summary_group_services"),
+      lines: linesOfCategory(KpServiceCategory.SERVICE),
+    },
+    {
+      title: t("kp.booking.summary_group_booth_elements"),
+      lines: linesOfCategory(KpServiceCategory.BOOTH_ELEMENT),
+    },
+  ].filter((group) => group.lines.length > 0);
+  const netTotal =
+    (draftZone?.base_price ?? 0) +
+    serviceGroups.reduce(
+      (total, group) =>
+        total + group.lines.reduce((sum, line) => sum + line.amount, 0),
+      0,
+    );
 
   useEffect(() => {
     setAgbAccepted(false);
@@ -102,24 +151,53 @@ const KpBookingSummaryStep = ({
     }
   }, [agbAccepted, bindingAccepted]);
 
-  const { mutateAsync: register, isPending: isRegistering } =
-    useRegisterBooking();
-  const {
-    mutateAsync: uploadBookingRequirementFile,
-    isPending: isUploadingRequirements,
-  } = useUploadBookingRequirementFile();
-  const {
-    mutateAsync: upsertBookingRequirementText,
-    isPending: isSavingRequirementText,
-  } = useUpsertBookingRequirementText();
+  const { mutateAsync: register } = useRegisterBooking();
+  const { mutateAsync: uploadBookingRequirementFile } =
+    useUploadBookingRequirementFile();
+  const { mutateAsync: upsertBookingRequirementText } =
+    useUpsertBookingRequirementText();
 
-  const handleConfirmBookingClick = useCallback(async () => {
-    if (
-      !draftZone ||
-      isRegistering ||
-      isUploadingRequirements ||
-      isSavingRequirementText
-    ) {
+  const saveDraftRequirements = useCallback(
+    async (booking: BookingResponse) => {
+      for (const draftService of draftServices) {
+        const bookingService = booking.services?.find(
+          (item) => item.service_id === draftService.serviceId,
+        );
+        if (!bookingService) continue;
+        for (const [requirementId, value] of Object.entries(
+          draftService.requirements ?? {},
+        )) {
+          if (value.text?.trim()) {
+            await upsertBookingRequirementText({
+              bookingServiceId: bookingService.id,
+              requirementId,
+              data: { text_value: value.text.trim() },
+            });
+            continue;
+          }
+          if (!value.file) continue;
+          await uploadBookingRequirementFile({
+            bookingServiceId: bookingService.id,
+            requirementId,
+            data: { file: value.file },
+          });
+        }
+      }
+    },
+    [draftServices, uploadBookingRequirementFile, upsertBookingRequirementText],
+  );
+
+  const navigateToExistingBooking = useCallback(async () => {
+    const latestBooking = await getMyBooking(eventId).catch(() => null);
+    if (!latestBooking) return;
+    queryClient.setQueryData(getGetMyBookingQueryKey(eventId), latestBooking);
+    const existingBooking = activeBooking(latestBooking);
+    if (!existingBooking) return;
+    navigate(`/kp/${eventId}/booking/${existingBooking.id}`);
+  }, [eventId, navigate, queryClient]);
+
+  const handleConfirmBooking = useCallback(async () => {
+    if (!draftZone || isSubmitting) {
       return;
     }
     if (draftZone.available_spots <= 0) {
@@ -143,6 +221,7 @@ const KpBookingSummaryStep = ({
     }
     const data = {
       booth_zone_id: draftZone.id,
+      confirm_profile: isProfileConfirmed,
       services: draftServices.map((service) => ({
         service_id: service.serviceId,
         quantity: service.quantity,
@@ -150,53 +229,61 @@ const KpBookingSummaryStep = ({
     } satisfies RegisterBookingRequest & {
       services: { service_id: string; quantity: number }[];
     };
-    const booking = await register({ eventId, data });
-    for (const draftService of draftServices) {
-      const bookingService = booking.services?.find(
-        (item) => item.service_id === draftService.serviceId,
-      );
-      if (!bookingService) continue;
-      for (const [requirementId, value] of Object.entries(
-        draftService.requirements ?? {},
-      )) {
-        if (value.text?.trim()) {
-          await upsertBookingRequirementText({
-            bookingServiceId: bookingService.id,
-            requirementId,
-            data: { text_value: value.text.trim() },
-          });
-          continue;
+
+    setIsSubmitting(true);
+    try {
+      let booking: BookingResponse;
+      try {
+        booking = await register({ eventId, data });
+      } catch (error) {
+        if (getApiErrorCode(error) === BOOKING_ALREADY_EXISTS_CODE) {
+          await navigateToExistingBooking();
         }
-        if (!value.file) continue;
-        await uploadBookingRequirementFile({
-          bookingServiceId: bookingService.id,
-          requirementId,
-          data: { file: value.file },
-        });
+        return;
       }
+
+      let requirementsSaved = true;
+      try {
+        await saveDraftRequirements(booking);
+      } catch {
+        requirementsSaved = false;
+      }
+
+      void queryClient.invalidateQueries({
+        queryKey: getGetMyBookingQueryKey(eventId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: getListAvailableBoothZonesQueryKey(eventId),
+      });
+
+      if (!requirementsSaved) {
+        notifications.show({
+          color: "yellow",
+          title: t("kp.booking.register_requirements_failed_title"),
+          message: t("kp.booking.register_requirements_failed_message"),
+        });
+        navigate(`/kp/${eventId}/booking/${booking.id}/manage/services`);
+        return;
+      }
+
+      navigate(`/kp/${eventId}/booking/${booking.id}`, {
+        state: { fromBookingProcess: true },
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-    queryClient.invalidateQueries({
-      queryKey: getGetMyBookingQueryKey(eventId),
-    });
-    queryClient.invalidateQueries({
-      queryKey: getListAvailableBoothZonesQueryKey(eventId),
-    });
-    navigate(`/kp/${eventId}/booking/${booking.id}`, {
-      state: { fromBookingProcess: true },
-    });
   }, [
     draftZone,
-    isRegistering,
-    isUploadingRequirements,
-    isSavingRequirementText,
+    isSubmitting,
+    isProfileConfirmed,
     t,
     register,
     eventId,
     agbAccepted,
     bindingAccepted,
     draftServices,
-    uploadBookingRequirementFile,
-    upsertBookingRequirementText,
+    navigateToExistingBooking,
+    saveDraftRequirements,
     queryClient,
     navigate,
   ]);
@@ -208,33 +295,42 @@ const KpBookingSummaryStep = ({
       return;
     }
     onConfirmStateChange({
-      onConfirm: handleConfirmBookingClick,
-      disabled: isRegistering || isUploadingRequirements || isSavingRequirementText,
-      loading: isRegistering || isUploadingRequirements || isSavingRequirementText,
+      onConfirm: handleConfirmBooking,
+      disabled: isSubmitting,
+      loading: isSubmitting,
     });
     return () => onConfirmStateChange(null);
   }, [
     onConfirmStateChange,
     draftZone,
     isRegistrationOpen,
-    handleConfirmBookingClick,
-    isRegistering,
-    isUploadingRequirements,
-    isSavingRequirementText,
+    handleConfirmBooking,
+    isSubmitting,
   ]);
 
-  const requiredLabel = (i18nKey: string, showError: boolean) => (
+  const requiredLabel = (content: ReactNode, showError: boolean) => (
     <Text
       component="span"
       size="sm"
       lh={1.45}
       c={showError ? "red" : undefined}
     >
-      {t(i18nKey)}
+      {content}
       <Text component="span" c="red" fw={700} ml={4} aria-hidden>
         *
       </Text>
     </Text>
+  );
+
+  const agbLabelContent = termsUrl ? (
+    <>
+      {t("kp.booking.confirm_agb_prefix")}{" "}
+      <Anchor href={termsUrl} target="_blank" rel="noopener noreferrer">
+        {t("kp.booking.confirm_agb_link")}
+      </Anchor>
+    </>
+  ) : (
+    t("kp.booking.confirm_agb_checkbox")
   );
 
   if (isLoadingBooking) {
@@ -292,8 +388,9 @@ const KpBookingSummaryStep = ({
           </Text>
         </Group>
         <SummaryPriceBreakdown
-          basePrice={draftZone.base_price}
-          additionalLines={additionalLines}
+          groups={serviceGroups}
+          price={priceBreakdown(netTotal, vatRatePercent)}
+          vatRatePercent={vatRatePercent}
         />
       </Stack>
       {!isRegistrationOpen ? (
@@ -308,7 +405,7 @@ const KpBookingSummaryStep = ({
               checked={agbAccepted}
               onChange={(e) => setAgbAccepted(e.currentTarget.checked)}
               label={requiredLabel(
-                "kp.booking.confirm_agb_checkbox",
+                agbLabelContent,
                 consentHighlight && !agbAccepted,
               )}
             />
@@ -317,7 +414,7 @@ const KpBookingSummaryStep = ({
               checked={bindingAccepted}
               onChange={(e) => setBindingAccepted(e.currentTarget.checked)}
               label={requiredLabel(
-                "kp.booking.confirm_binding_checkbox",
+                t("kp.booking.confirm_binding_checkbox"),
                 consentHighlight && !bindingAccepted,
               )}
             />

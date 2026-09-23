@@ -39,7 +39,7 @@ services:
       - ./frontend/scripts:/app/scripts
 
   postgres:
-    image: postgres:17
+    image: postgres:18
     container_name: "visit-postgres"
     environment:
       POSTGRES_PASSWORD: postgres
@@ -50,7 +50,7 @@ services:
       timeout: 1s
       retries: 50
     volumes:
-      - ./data/sql:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql
     ports:
       - 5432:5432
 
@@ -89,10 +89,10 @@ services:
 
   keycloak:
     container_name: "visit-keycloak"
-    image: quay.io/keycloak/keycloak:21.1.2
+    image: quay.io/keycloak/keycloak:26.7.4
     environment:
-      - KEYCLOAK_ADMIN=keycloak
-      - KEYCLOAK_ADMIN_PASSWORD=keycloak
+      - KC_BOOTSTRAP_ADMIN_USERNAME=keycloak
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=keycloak
       - KC_HTTP_PORT=8181
     command: start-dev --import-realm --log-level=ERROR
     volumes:

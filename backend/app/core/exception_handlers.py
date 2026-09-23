@@ -13,15 +13,15 @@ def register_exception_handlers(app: FastAPI) -> None:
 
 
 async def app_error_handler(_request: Request, exc: AppError) -> JSONResponse:
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "statusCode": exc.status_code,
-            "code": exc.code,
-            "identifier": exc.identifier,
-            "message": exc.message,
-        },
-    )
+    content: dict[str, object] = {
+        "statusCode": exc.status_code,
+        "code": exc.code,
+        "identifier": exc.identifier,
+        "message": exc.message,
+    }
+    if exc.details is not None:
+        content["details"] = exc.details
+    return JSONResponse(status_code=exc.status_code, content=content)
 
 
 async def request_validation_error_handler(
@@ -58,12 +58,23 @@ def _validation_error_code(error: dict[str, object]) -> str:
         return "validation.required"
     if "email" in error_type or "email" in message:
         return "validation.invalid_email"
+    if "url" in error_type or "url" in message:
+        return "validation.invalid_url"
     if error_type in {"uuid_parsing", "uuid_type"}:
         return "validation.invalid_uuid"
     if error_type in {"int_parsing", "int_type"}:
         return "validation.invalid_integer"
-    if error_type in {"float_parsing", "float_type", "decimal_parsing"}:
+    if error_type in {"float_parsing", "float_type"} or error_type.startswith(
+        "decimal_"
+    ):
         return "validation.invalid_number"
+    if error_type in {
+        "greater_than",
+        "greater_than_equal",
+        "less_than",
+        "less_than_equal",
+    }:
+        return "validation.out_of_range"
     if error_type in {"bool_parsing", "bool_type"}:
         return "validation.invalid_boolean"
     if error_type in {"date_parsing", "date_type", "datetime_parsing", "datetime_type"}:

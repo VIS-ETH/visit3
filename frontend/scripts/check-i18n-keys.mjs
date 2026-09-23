@@ -1,12 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const rootDir = process.cwd();
+const rootDir = path.resolve(process.argv[2] ?? process.cwd());
 const sourceDirs = [path.join(rootDir, "src")];
 const localeRootDir = path.join(rootDir, "public", "locales");
 const locales = ["en", "de"];
 
 const fileExtensions = new Set([".ts", ".tsx"]);
+const ignoredDirectories = new Set([
+  path.join(rootDir, "src", "test", "fixtures"),
+]);
 
 function walk(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -15,6 +18,7 @@ function walk(dir) {
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
+      if (ignoredDirectories.has(fullPath)) continue;
       files.push(...walk(fullPath));
     } else if (fileExtensions.has(path.extname(entry.name))) {
       files.push(fullPath);
@@ -112,15 +116,24 @@ function loadLocaleKeys(locale) {
 
 const sourceFiles = sourceDirs.flatMap((dir) => (fs.existsSync(dir) ? walk(dir) : []));
 const usedKeys = new Set();
+const dynamicKeys = new Set();
+
+function rememberKey(key) {
+  if (key.includes("${")) {
+    dynamicKeys.add(key);
+    return;
+  }
+  usedKeys.add(key);
+}
 
 for (const filePath of sourceFiles) {
   const source = fs.readFileSync(filePath, "utf8");
   for (const key of collectTranslationUsages(source)) {
-    usedKeys.add(key);
+    rememberKey(key);
   }
   if (filePath.includes(`${path.sep}src${path.sep}schemas${path.sep}`)) {
     for (const key of collectSchemaTranslationUsages(source)) {
-      usedKeys.add(key);
+      rememberKey(key);
     }
   }
 }
@@ -163,6 +176,8 @@ for (const key of [...allLocaleKeys].sort()) {
 const hasLocaleMismatch = Object.values(missingLocaleKeysByLocale).some(
   (keys) => keys.length > 0,
 );
+
+console.log(`i18n-keys: skipped ${dynamicKeys.size} dynamic translation keys.`);
 
 if (!hasMissingKeys && !hasLocaleMismatch) {
   console.log("i18n-keys: all referenced translation keys exist in en/de locale files.");

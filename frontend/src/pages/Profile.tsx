@@ -20,6 +20,7 @@ import {
   useGetUserProfile,
   useUpdateUserProfile,
 } from "../orval/generated/user/user";
+import type { UpdateUserProfileRequest } from "../orval/generated/fastAPI.schemas";
 import { profileSchema } from "../schemas/profileSchema";
 import { useTranslatedForm } from "../utils/translator";
 import { useState } from "react";
@@ -48,15 +49,17 @@ function toNormalizedProfile(values: {
   };
 }
 
-function hasMeaningfulChanges(
+function changedProfileFields(
   next: NormalizedProfile,
   current: NormalizedProfile,
-) {
-  return (
-    next.firstName !== current.firstName ||
-    next.lastName !== current.lastName ||
-    next.phoneNumber !== current.phoneNumber
-  );
+): UpdateUserProfileRequest {
+  const changes: UpdateUserProfileRequest = {};
+  if (next.firstName !== current.firstName) changes.first_name = next.firstName;
+  if (next.lastName !== current.lastName) changes.last_name = next.lastName;
+  if (next.phoneNumber !== current.phoneNumber) {
+    changes.phone_number = next.phoneNumber;
+  }
+  return changes;
 }
 
 const Profile = () => {
@@ -110,7 +113,8 @@ const Profile = () => {
     phoneNumber: user?.phone_number,
   });
 
-  const hasChanges = hasMeaningfulChanges(nextProfile, currentProfile);
+  const hasChanges =
+    Object.keys(changedProfileFields(nextProfile, currentProfile)).length > 0;
   const disableSave = isUpdating || !hasChanges || !form.isValid();
 
   if (isLoading) {
@@ -160,20 +164,17 @@ const Profile = () => {
         >
           <form
             onSubmit={form.onSubmit((values) => {
-              const submittedProfile = toNormalizedProfile(values);
+              const changes = changedProfileFields(
+                toNormalizedProfile(values),
+                currentProfile,
+              );
 
-              if (!hasMeaningfulChanges(submittedProfile, currentProfile)) {
+              if (Object.keys(changes).length === 0) {
                 setSettingsOpened(false);
                 return;
               }
 
-              updateUserProfile({
-                data: {
-                  first_name: submittedProfile.firstName,
-                  last_name: submittedProfile.lastName,
-                  phone_number: submittedProfile.phoneNumber,
-                },
-              });
+              updateUserProfile({ data: changes });
             })}
           >
             <Stack gap="md">

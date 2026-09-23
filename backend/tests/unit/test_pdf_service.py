@@ -1,12 +1,19 @@
 import json
+from base64 import b64decode
+from shutil import copyfile
 
-from app.services.pdf_service import PdfService
+from app.services.export_service import NAMETAG_TEMPLATE_NAME
+from app.services.pdf_service import TEMPLATES_DIR, PdfService
+
+ONE_PIXEL_PNG = b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
 
 
 async def test_render_passes_user_data_as_json_sys_input(monkeypatch, tmp_path):
     service = PdfService()
     template = tmp_path / "template.typ"
-    template.write_text('#let data = json.decode(sys.inputs.at("data"))')
+    template.write_text('#let data = json(bytes(sys.inputs.at("data")))')
     captured: dict[str, object] = {}
 
     def fake_compile(path: str, *, root: str | None, sys_inputs: dict[str, str]):
@@ -31,3 +38,30 @@ async def test_render_passes_user_data_as_json_sys_input(monkeypatch, tmp_path):
     assert captured["path"] == str(template)
     assert captured["root"] == str(tmp_path)
     assert json.loads(captured["sys_inputs"]["data"]) == data
+
+
+async def test_render_compiles_nametag_template(tmp_path):
+    copyfile(TEMPLATES_DIR / NAMETAG_TEMPLATE_NAME, tmp_path / NAMETAG_TEMPLATE_NAME)
+    (tmp_path / "background.png").write_bytes(ONE_PIXEL_PNG)
+
+    content, filename = await PdfService().render(
+        NAMETAG_TEMPLATE_NAME,
+        {
+            "background_path": "background.png",
+            "columns": 2,
+            "tags": [
+                {
+                    "full_name": "Ada Lovelace",
+                    "position": "Engineer",
+                    "company": "ACME",
+                }
+            ],
+        },
+        "nametag.pdf",
+        root=str(tmp_path),
+        template_dir=tmp_path,
+    )
+
+    assert content is not None
+    assert content.startswith(b"%PDF")
+    assert filename == "nametag.pdf"

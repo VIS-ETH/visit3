@@ -8,6 +8,7 @@ import {
   Loader,
   NumberInput,
   Paper,
+  SegmentedControl,
   Select,
   Stack,
   Switch,
@@ -19,12 +20,15 @@ import {
 import { notifications } from "@mantine/notifications";
 import { IconAlertCircle, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
 import ImageUploadInput from "../components/ImageUploadInput";
-import { KpEventServiceRequirementType } from "../orval/generated/fastAPI.schemas";
+import {
+  KpEventServiceRequirementType,
+  KpServiceCategory,
+} from "../orval/generated/fastAPI.schemas";
 import {
   getListServicesQueryKey,
   useCreateService,
@@ -58,6 +62,8 @@ const emptyRequirement = (): ServiceRequirementFormValue => ({
 const emptyServiceFormValues = {
   name: "",
   description: "",
+  category: KpServiceCategory.SERVICE as string,
+  unitLabel: "",
   imageUrl: "",
   price: 0,
   maxPerBooking: 1,
@@ -81,6 +87,8 @@ const KpServiceForm = () => {
   const { data: services, isLoading } = useListServices(eventId ?? "");
   const service = services?.find((item) => item.id === serviceId);
 
+  const initialisedServiceIdRef = useRef<string | null>(null);
+
   const form = useTranslatedForm<typeof serviceSchema>(serviceSchema, {
     initialValues: emptyServiceFormValues,
     validateInputOnChange: true,
@@ -103,10 +111,13 @@ const KpServiceForm = () => {
     isCreating || isUpdating || isUploadingImage || isDeletingImage;
 
   useEffect(() => {
-    if (!service) return;
+    if (!service || initialisedServiceIdRef.current === service.id) return;
+    initialisedServiceIdRef.current = service.id;
     form.setValues({
       name: service.name,
       description: service.description,
+      category: service.category,
+      unitLabel: service.unit_label ?? "",
       imageUrl: service.image_url ?? "",
       price: centsToCurrencyAmount(service.price),
       maxPerBooking: service.max_quantity_per_booking,
@@ -124,9 +135,18 @@ const KpServiceForm = () => {
     form.clearErrors();
     setServiceImageFile(null);
     setServiceImageCleared(false);
-    // Only initialize when the target service changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [service?.id]);
+  }, [service, form]);
+
+  const categoryOptions = [
+    {
+      value: KpServiceCategory.SERVICE,
+      label: t("kp.manage.service_category_service"),
+    },
+    {
+      value: KpServiceCategory.BOOTH_ELEMENT,
+      label: t("kp.manage.service_category_booth_element"),
+    },
+  ];
 
   const requirementTypeOptions = [
     {
@@ -160,6 +180,8 @@ const KpServiceForm = () => {
     const data = {
       name: values.name.trim(),
       description: values.description,
+      category: values.category as KpServiceCategory,
+      unit_label: values.unitLabel.trim() || null,
       price: currencyAmountToCents(values.price),
       max_quantity_per_booking: values.maxPerBooking,
       max_total_quantity: values.maxTotal,
@@ -239,7 +261,9 @@ const KpServiceForm = () => {
       <BackButton to={servicesPath} />
       <Group justify="space-between" align="flex-start">
         <Title order={2}>
-          {isEditing ? t("kp.manage.services_edit") : t("kp.manage.services_add")}
+          {isEditing
+            ? t("kp.manage.services_edit")
+            : t("kp.manage.services_add")}
         </Title>
       </Group>
 
@@ -256,6 +280,23 @@ const KpServiceForm = () => {
               disabled={isSaving}
               {...form.getInputProps("description")}
             />
+            <Stack gap={4}>
+              <Text fw={500} size="sm">
+                {t("kp.manage.service_category")}
+              </Text>
+              <SegmentedControl
+                data={categoryOptions}
+                disabled={isSaving}
+                fullWidth
+                {...form.getInputProps("category")}
+              />
+            </Stack>
+            <TextInput
+              label={t("kp.manage.service_unit_label")}
+              description={t("kp.manage.service_unit_label_description")}
+              disabled={isSaving}
+              {...form.getInputProps("unitLabel")}
+            />
             <ImageUploadInput
               label={t("kp.manage.service_image")}
               previewAlt={t("kp.manage.service_image_preview")}
@@ -265,6 +306,7 @@ const KpServiceForm = () => {
               clearLabel={t("kp.manage.service_image_clear")}
               currentFileLabel={t("kp.manage.service_image_current_file")}
               invalidFileMessage={t("kp.manage.service_image_file_invalid")}
+              allowedFormatsLabel={t("kp.manage.service_image_allowed_formats")}
               disabled={isSaving}
               value={form.values.imageUrl}
               onChange={(value) => {
@@ -316,7 +358,12 @@ const KpServiceForm = () => {
                 </Text>
               ) : null}
               {form.values.requirements.map((requirement, index) => (
-                <Paper withBorder p="sm" radius="md" key={requirement.id ?? index}>
+                <Paper
+                  withBorder
+                  p="sm"
+                  radius="md"
+                  key={requirement.id ?? index}
+                >
                   <Stack gap="sm">
                     <Group justify="space-between" align="center">
                       <Text fw={600} size="sm">
@@ -328,7 +375,9 @@ const KpServiceForm = () => {
                         aria-label={t("kp.manage.requirement_remove")}
                         color="red"
                         disabled={isSaving}
-                        onClick={() => form.removeListItem("requirements", index)}
+                        onClick={() =>
+                          form.removeListItem("requirements", index)
+                        }
                         size="sm"
                         variant="subtle"
                       >

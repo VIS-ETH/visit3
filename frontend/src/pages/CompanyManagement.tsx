@@ -1,254 +1,295 @@
 import {
+  ActionIcon,
   Alert,
-  Button,
   Center,
   Group,
-  Modal,
+  Loader,
+  Pagination,
   Paper,
   Stack,
+  Table,
   Text,
+  TextInput,
   Title,
+  Tooltip,
 } from "@mantine/core";
-import { IconAlertCircle, IconTrash, IconUsers } from "@tabler/icons-react";
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useDebouncedValue } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
 import {
-  getListCompaniesQueryKey,
-  type ListCompaniesQueryResult,
-  useDeleteCompanyKeepUsers,
-  useDeleteCompanyWithUsers,
-  useListCompanies,
-} from "../orval/generated/company/company";
+  IconAlertCircle,
+  IconCheck,
+  IconId,
+  IconPencil,
+  IconSearch,
+  IconTrash,
+  IconUsers,
+  IconX,
+} from "@tabler/icons-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
+import CompanyDeleteModal from "../components/admin/CompanyDeleteModal";
+import CompanyMembersDrawer from "../components/admin/CompanyMembersDrawer";
 import { useCurrentUser } from "../context/useCurrentUser";
-import DataTable, { type DataTableColumn } from "../components/DataTable";
+import {
+  getSearchCompaniesQueryKey,
+  useSearchCompanies,
+  useUpdateCompany,
+} from "../orval/generated/company/company";
+import type { CompanyListResult } from "../orval/generated/fastAPI.schemas";
 
-interface CompanyForDelete {
-  id: string;
-  name: string;
-  usersCount: number;
-}
-
-type CompanyRow = ListCompaniesQueryResult[number];
+const SEARCH_DEBOUNCE_MS = 300;
+const PAGE_SIZE = 25;
 
 const CompanyManagement = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
-  const staffStatus = user?.is_staff ?? false;
-  const adminStatus = user?.is_admin ?? false;
-  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
-  const [companyToDelete, setCompanyToDelete] =
-    useState<CompanyForDelete | null>(null);
-  const {
-    data: companies,
-    isLoading,
-    isError,
-  } = useListCompanies({
-    query: {
-      enabled: staffStatus,
+  const isAdmin = user?.is_admin ?? false;
+
+  const [search, setSearch] = useState("");
+  const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
+  const [page, setPage] = useState(1);
+  const [renamedId, setRenamedId] = useState<string | null>(null);
+  const [renamedName, setRenamedName] = useState("");
+  const [membersCompany, setMembersCompany] =
+    useState<CompanyListResult | null>(null);
+  const [deletedCompany, setDeletedCompany] =
+    useState<CompanyListResult | null>(null);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  const { data, isLoading, isError } = useSearchCompanies({
+    query: debouncedSearch.trim() || undefined,
+    page,
+    page_size: PAGE_SIZE,
+  });
+
+  const { mutate: rename, isPending: isRenaming } = useUpdateCompany({
+    mutation: {
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({
+          queryKey: getSearchCompaniesQueryKey(),
+        });
+        setRenamedId(null);
+        notifications.show({
+          color: "green",
+          message: t("company_management.renamed"),
+        });
+      },
     },
   });
 
-  const { mutate: deleteCompanyKeepUsers, isPending: isDeletingKeepUsers } =
-    useDeleteCompanyKeepUsers({
-      mutation: {
-        onSuccess: () => {
-          queryClient.invalidateQueries({
-            queryKey: getListCompaniesQueryKey(),
-          });
-          setDeleteModalOpened(false);
-        },
-      },
-    });
-
-  const { mutate: deleteCompanyWithUsers, isPending: isDeletingWithUsers } =
-    useDeleteCompanyWithUsers({
-      mutation: {
-        onSuccess: () => {
-          queryClient.invalidateQueries({
-            queryKey: getListCompaniesQueryKey(),
-          });
-          setDeleteModalOpened(false);
-        },
-      },
-    });
-
-  const isDeleting = isDeletingKeepUsers || isDeletingWithUsers;
-
-  const handleOpenDeleteModal = (
-    companyId: string,
-    companyName: string,
-    usersCount: number,
-  ) => {
-    if (!adminStatus) return;
-    setCompanyToDelete({
-      id: companyId,
-      name: companyName,
-      usersCount,
-    });
-    setDeleteModalOpened(true);
-  };
-
-  const handleDeleteKeepUsers = () => {
-    if (!adminStatus) return;
-    if (!companyToDelete?.id) return;
-    deleteCompanyKeepUsers({ companyId: companyToDelete.id });
-  };
-
-  const handleDeleteWithUsers = () => {
-    if (!adminStatus) return;
-    if (!companyToDelete?.id) return;
-    deleteCompanyWithUsers({ companyId: companyToDelete.id });
-  };
-
-  const companyHasUsers = (companyToDelete?.usersCount ?? 0) > 0;
-
-  const companyColumns: DataTableColumn<CompanyRow>[] = [
-    {
-      key: "name",
-      header: t("company_management.company_name"),
-      render: (company) => company.name,
-      searchableValue: (company) => company.name,
-    },
-    {
-      key: "users",
-      header: t("company_management.users_count"),
-      render: (company) => company.users_count,
-      searchableValue: (company) => String(company.users_count),
-    },
-    {
-      key: "actions",
-      header: t("company_management.actions"),
-      render: (company) => (
-        <Group gap="xs">
-          <Button
-            component={Link}
-            to={`/company-management/${company.id}/users`}
-            leftSection={<IconUsers size={14} />}
-            size="xs"
-            variant="light"
-          >
-            {t("company_management.view_users")}
-          </Button>
-          {adminStatus ? (
-            <Button
-              leftSection={<IconTrash size={14} />}
-              size="xs"
-              color="red"
-              variant="light"
-              onClick={() =>
-                handleOpenDeleteModal(
-                  company.id,
-                  company.name,
-                  company.users_count,
-                )
-              }
-            >
-              {t("company_management.delete")}
-            </Button>
-          ) : null}
-        </Group>
-      ),
-      width: adminStatus ? 220 : 120,
-    },
-  ];
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <Center h="100%" w="100%" py="xl">
-      <Stack w="100%" maw={1100} gap="lg">
+      <Stack w="100%" maw={1200} gap="lg">
         <Title order={2}>{t("company_management.title")}</Title>
 
-        <Modal
-          opened={adminStatus && deleteModalOpened}
-          onClose={() => {
-            if (!isDeleting) {
-              setDeleteModalOpened(false);
-            }
-          }}
-          onExitTransitionEnd={() => {
-            if (!deleteModalOpened) {
-              setCompanyToDelete(null);
-            }
-          }}
-          closeOnClickOutside={!isDeleting}
-          closeOnEscape={!isDeleting}
-          withCloseButton={!isDeleting}
-          title={t("company_management.delete_modal.title")}
-          centered
-        >
-          <Stack gap="sm">
-            <Text>
-              {t("company_management.delete_modal.message", {
-                name: companyToDelete?.name ?? "-",
-              })}
-            </Text>
-            <Text c="red" fw={600}>
-              {t("company_management.delete_modal.irreversible")}
-            </Text>
-            <Group justify="flex-end" mt="md">
-              <Button
-                variant="default"
-                onClick={() => setDeleteModalOpened(false)}
-                disabled={isDeleting}
-              >
-                {t("company_management.delete_modal.cancel")}
-              </Button>
-              {companyHasUsers ? (
-                <>
-                  <Button
-                    color="yellow"
-                    onClick={handleDeleteKeepUsers}
-                    loading={isDeletingKeepUsers}
-                    disabled={!companyToDelete?.id || isDeleting}
-                  >
-                    {t("company_management.delete_modal.keep_users")}
-                  </Button>
-                  <Button
-                    color="red"
-                    onClick={handleDeleteWithUsers}
-                    loading={isDeletingWithUsers}
-                    disabled={!companyToDelete?.id || isDeleting}
-                  >
-                    {t("company_management.delete_modal.delete_with_users")}
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  color="red"
-                  onClick={handleDeleteKeepUsers}
-                  loading={isDeletingKeepUsers}
-                  disabled={!companyToDelete?.id || isDeleting}
-                >
-                  {t("company_management.delete")}
-                </Button>
-              )}
-            </Group>
-          </Stack>
-        </Modal>
+        <CompanyMembersDrawer
+          company={membersCompany}
+          onClose={() => setMembersCompany(null)}
+        />
+        <CompanyDeleteModal
+          company={
+            deletedCompany
+              ? {
+                  id: deletedCompany.id,
+                  name: deletedCompany.name,
+                  usersCount: deletedCompany.users_count,
+                }
+              : null
+          }
+          onClose={() => setDeletedCompany(null)}
+        />
+
+        <TextInput
+          leftSection={<IconSearch size={16} />}
+          maw={360}
+          onChange={(event) => setSearch(event.currentTarget.value)}
+          placeholder={t("company_management.search_placeholder")}
+          value={search}
+        />
 
         {isError ? (
           <Alert
-            icon={<IconAlertCircle />}
             color="red"
+            icon={<IconAlertCircle />}
             title={t("server.error")}
           >
             {t("company_management.error")}
           </Alert>
         ) : (
           <Paper withBorder p="lg" radius="md">
-            <DataTable
-              columns={companyColumns}
-              data={companies}
-              emptyLabel={t("company_management.no_companies_description")}
-              getRowKey={(company) => company.id}
-              isLoading={isLoading}
-            />
+            {isLoading ? (
+              <Center py="md">
+                <Loader />
+              </Center>
+            ) : items.length === 0 ? (
+              <Text c="dimmed">
+                {t("company_management.no_companies_description")}
+              </Text>
+            ) : (
+              <>
+                <Table.ScrollContainer minWidth={700}>
+                  <Table highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>
+                          {t("company_management.company_name")}
+                        </Table.Th>
+                        <Table.Th>
+                          {t("company_management.users_count")}
+                        </Table.Th>
+                        <Table.Th>
+                          {t("company_management.bookings_count")}
+                        </Table.Th>
+                        <Table.Th>{t("company_management.actions")}</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {items.map((company) => (
+                        <Table.Tr key={company.id}>
+                          <Table.Td>
+                            {renamedId === company.id ? (
+                              <Group gap="xs" wrap="nowrap">
+                                <TextInput
+                                  aria-label={t("company_management.rename")}
+                                  disabled={isRenaming}
+                                  onChange={(event) =>
+                                    setRenamedName(event.currentTarget.value)
+                                  }
+                                  value={renamedName}
+                                />
+                                <ActionIcon
+                                  aria-label={t(
+                                    "company_management.rename_save",
+                                  )}
+                                  color="green"
+                                  disabled={
+                                    isRenaming || renamedName.trim() === ""
+                                  }
+                                  onClick={() =>
+                                    rename({
+                                      companyId: company.id,
+                                      data: { name: renamedName.trim() },
+                                    })
+                                  }
+                                  variant="light"
+                                >
+                                  <IconCheck size={16} />
+                                </ActionIcon>
+                                <ActionIcon
+                                  aria-label={t(
+                                    "company_management.rename_cancel",
+                                  )}
+                                  disabled={isRenaming}
+                                  onClick={() => setRenamedId(null)}
+                                  variant="subtle"
+                                >
+                                  <IconX size={16} />
+                                </ActionIcon>
+                              </Group>
+                            ) : (
+                              <Group gap="xs" wrap="nowrap">
+                                <Text>{company.name}</Text>
+                                <ActionIcon
+                                  aria-label={t("company_management.rename")}
+                                  onClick={() => {
+                                    setRenamedId(company.id);
+                                    setRenamedName(company.name);
+                                  }}
+                                  variant="subtle"
+                                >
+                                  <IconPencil size={16} />
+                                </ActionIcon>
+                              </Group>
+                            )}
+                          </Table.Td>
+                          <Table.Td>{company.users_count}</Table.Td>
+                          <Table.Td>{company.bookings_count}</Table.Td>
+                          <Table.Td>
+                            <Group gap="xs" wrap="nowrap">
+                              <Tooltip
+                                label={t("company_management.view_users")}
+                                withArrow
+                              >
+                                <ActionIcon
+                                  aria-label={t(
+                                    "company_management.view_users",
+                                  )}
+                                  onClick={() => setMembersCompany(company)}
+                                  variant="light"
+                                >
+                                  <IconUsers size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                              <Tooltip
+                                label={t("company_management.edit_profile")}
+                                withArrow
+                              >
+                                <ActionIcon
+                                  aria-label={t(
+                                    "company_management.edit_profile",
+                                  )}
+                                  onClick={() =>
+                                    navigate(
+                                      `/company-management/${company.id}/profile`,
+                                    )
+                                  }
+                                  variant="light"
+                                >
+                                  <IconId size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                              {isAdmin ? (
+                                <Tooltip
+                                  label={t("company_management.delete")}
+                                  withArrow
+                                >
+                                  <ActionIcon
+                                    aria-label={t("company_management.delete")}
+                                    color="red"
+                                    onClick={() => setDeletedCompany(company)}
+                                    variant="light"
+                                  >
+                                    <IconTrash size={16} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              ) : null}
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </Table.ScrollContainer>
+
+                <Group justify="space-between" mt="sm">
+                  <Text c="dimmed" size="sm">
+                    {t("company_management.total", { total })}
+                  </Text>
+                  <Pagination
+                    onChange={setPage}
+                    total={totalPages}
+                    value={page}
+                    withEdges
+                  />
+                </Group>
+              </>
+            )}
           </Paper>
         )}
       </Stack>
     </Center>
   );
 };
+
 export default CompanyManagement;

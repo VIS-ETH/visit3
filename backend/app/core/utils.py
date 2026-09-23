@@ -3,6 +3,9 @@ import json
 from typing import Any, Protocol, TypeVar, cast, overload
 
 import phonenumbers
+from pydantic import HttpUrl, TypeAdapter, ValidationError
+
+_http_url = TypeAdapter(HttpUrl)
 
 T = TypeVar("T", covariant=True)
 
@@ -40,6 +43,17 @@ def strip_text(value: str | None) -> str | None:
     if value is None:
         return None
     return value.strip()
+
+
+def normalize_http_url(url: str | None) -> str | None:
+    stripped = strip_text(url)
+    if not stripped:
+        return None
+    try:
+        _http_url.validate_python(stripped)
+    except ValidationError as error:
+        raise ValueError("url must start with http:// or https://") from error
+    return stripped
 
 
 def hash_str(s: str) -> str:

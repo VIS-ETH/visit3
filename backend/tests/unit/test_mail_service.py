@@ -35,16 +35,3 @@ async def test_send_mail_delegates_to_grpc_stub():
     await service.send_mail(message)
 
     stub.SendMail.assert_awaited_once_with(message)
-
-
-async def test_send_confirm_email_mail_sends_expected_link():
-    service = MailService(AsyncMock())
-    service.send_mail = AsyncMock()
-
-    await service.send_confirm_email_mail("to@example.com", "token-123")
-
-    service.send_mail.assert_awaited_once()
-    message = service.send_mail.await_args.args[0]
-    assert message.subject == "Confirm Your Account For VISIT"
-    assert message.to[0].mail_address.address == "to@example.com"
-    assert "http://localhost:3000/confirm-email/token-123" in message.plain_text

@@ -13,12 +13,19 @@ import {
   Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconAlertCircle, IconMail, IconSettings } from "@tabler/icons-react";
+import {
+  IconAlertCircle,
+  IconClock,
+  IconMail,
+  IconSettings,
+} from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { NavLink } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useCreateCompanyInvite,
+  useGetMyCompany,
   useGetMyCompanyMembers,
   useUpdateMyCompany,
 } from "../orval/generated/company/company";
@@ -26,6 +33,8 @@ import {
   getGetUserProfileQueryKey,
   useGetUserProfile,
 } from "../orval/generated/user/user";
+import CompanyProfileBadge from "../components/company/CompanyProfileBadge";
+import { useCurrentUser } from "../context/useCurrentUser";
 import { useTranslatedForm } from "../utils/translator";
 import { companySchema } from "../schemas/companySchema";
 import { inviteSchema } from "../schemas/inviteSchema";
@@ -33,14 +42,18 @@ import { inviteSchema } from "../schemas/inviteSchema";
 const CompanyProfile = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { user } = useCurrentUser();
   const [settingsOpened, setSettingsOpened] = useState(false);
 
+  const isConfirmed = user?.user_confirmed === true;
+
   const { data: userProfile } = useGetUserProfile();
+  const { data: company } = useGetMyCompany();
   const {
     data: members = [],
     isLoading: membersLoading,
     isError: membersError,
-  } = useGetMyCompanyMembers();
+  } = useGetMyCompanyMembers({ query: { enabled: isConfirmed } });
 
   const companyForm = useTranslatedForm<typeof companySchema>(companySchema, {
     initialValues: { name: "" },
@@ -90,12 +103,16 @@ const CompanyProfile = () => {
     setSettingsOpened(true);
   };
 
+  const missingCount = company?.missing_profile_fields.length ?? 0;
+
   return (
     <Center h="100%" w="100%" py="xl">
       <Stack w="100%" maw={700} gap="lg">
         <Group justify="space-between" align="center">
           <Title order={2}>
-            {userProfile?.company?.name ?? t("company_profile.title")}
+            {company?.name ??
+              userProfile?.company?.name ??
+              t("company_profile.title")}
           </Title>
           <Button
             variant="light"
@@ -149,42 +166,80 @@ const CompanyProfile = () => {
           </form>
         </Modal>
 
+        {isConfirmed ? null : (
+          <Alert
+            icon={<IconClock />}
+            color="blue"
+            variant="light"
+            title={t("company_profile.unconfirmed_title")}
+          >
+            {t("user.unconfirmed")}
+          </Alert>
+        )}
+
         <Paper withBorder p="xl" radius="md">
-          <Stack gap="md">
-            <Title order={4}>
-              <IconMail
-                size={18}
-                style={{ marginRight: 6, verticalAlign: "middle" }}
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Stack gap={4}>
+              <Title order={4}>{t("company_profile.profile_title")}</Title>
+              <Text c="dimmed" size="sm">
+                {company?.profile_complete === true
+                  ? t("company_profile.profile_complete_hint")
+                  : t("company_profile.profile_incomplete_hint", {
+                      missing: missingCount,
+                    })}
+              </Text>
+            </Stack>
+            <Group gap="sm">
+              <CompanyProfileBadge
+                complete={company?.profile_complete === true}
               />
-              {t("company_profile.invite_title")}
-            </Title>
-            <form
-              onSubmit={inviteForm.onSubmit((v) =>
-                sendInvite({ data: { email: v.email } }),
-              )}
-            >
-              <Group align="flex-end" gap="sm">
-                <TextInput
-                  style={{ flex: 1 }}
-                  label={t("company_profile.invite_email")}
-                  placeholder={t("company_profile.invite_email_placeholder")}
-                  {...inviteForm.getInputProps("email")}
-                />
-                <Button
-                  type="submit"
-                  loading={isSending}
-                  disabled={isSending || !inviteForm.isValid()}
-                >
-                  {t("company_profile.invite_button")}
-                </Button>
-              </Group>
-            </form>
-          </Stack>
+              <Button component={NavLink} to="/company/profile">
+                {t("company_profile.profile_link")}
+              </Button>
+            </Group>
+          </Group>
         </Paper>
+
+        {isConfirmed ? (
+          <Paper withBorder p="xl" radius="md">
+            <Stack gap="md">
+              <Title order={4}>
+                <IconMail
+                  size={18}
+                  style={{ marginRight: 6, verticalAlign: "middle" }}
+                />
+                {t("company_profile.invite_title")}
+              </Title>
+              <form
+                onSubmit={inviteForm.onSubmit((v) =>
+                  sendInvite({ data: { email: v.email } }),
+                )}
+              >
+                <Group align="flex-end" gap="sm">
+                  <TextInput
+                    style={{ flex: 1 }}
+                    label={t("company_profile.invite_email")}
+                    placeholder={t("company_profile.invite_email_placeholder")}
+                    {...inviteForm.getInputProps("email")}
+                  />
+                  <Button
+                    type="submit"
+                    loading={isSending}
+                    disabled={isSending || !inviteForm.isValid()}
+                  >
+                    {t("company_profile.invite_button")}
+                  </Button>
+                </Group>
+              </form>
+            </Stack>
+          </Paper>
+        ) : null}
 
         <Title order={3}>{t("company_profile.members_title")}</Title>
 
-        {membersLoading ? (
+        {!isConfirmed ? (
+          <Text c="dimmed">{t("company_profile.members_unconfirmed")}</Text>
+        ) : membersLoading ? (
           <Center>
             <Loader />
           </Center>

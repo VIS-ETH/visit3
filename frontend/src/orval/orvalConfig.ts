@@ -6,6 +6,7 @@ export default defineConfig({
       mode: "tags-split",
       target: "./generated/",
       client: "react-query",
+      httpClient: "axios",
       mock: false,
       override: {
         mutator: {

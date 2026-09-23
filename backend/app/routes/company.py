@@ -1,31 +1,45 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, File, Query, Request, UploadFile
 
-from app.core.deps import CompanyServiceDep, CsrfDep
+from app.core.deps import CompanyServiceDep, CsrfDep, InviteServiceDep
+from app.core.rate_limit import user_rate_limit
+from app.core.uploads import upload_size
 from app.models.company import Company
 from app.models.user import User
 from app.schemas.company import (
+    AddCompanyMemberRequest,
     CompanyListResponse,
     CompanyListResult,
+    CompanyPageResponse,
+    CompanyPageResult,
+    CompanyProfileResponse,
+    CompanyProfileResult,
+    CompanyResponse,
     CompanyWithUsersResponse,
     CompanyWithUsersResult,
     CreateInviteRequest,
     InviteInfoResponse,
     InviteInfoResult,
-    KpCompanyProfileResponse,
-    KpCompanyProfileResult,
+    MyCompanyResponse,
+    MyCompanyResult,
     SetupCompanyRequest,
+    UpdateCompanyProfileRequest,
     UpdateCompanyRequest,
-    UpdateKpCompanyProfileRequest,
 )
 from app.schemas.user import UserResponse
 
+MAX_PAGE_SIZE = 100
+
+public_router = APIRouter(prefix="/company", tags=["company"])
 router = APIRouter(prefix="/company", tags=["company"], dependencies=[CsrfDep])
+companies_router = APIRouter(
+    prefix="/companies", tags=["company"], dependencies=[CsrfDep]
+)
 
 
-@router.post("/setup", operation_id="setupCompany", response_model=Company)
+@router.post("/setup", operation_id="setupCompany", response_model=CompanyResponse)
 async def setup_company(
     company_service: CompanyServiceDep,
     request: SetupCompanyRequest,
@@ -44,35 +58,125 @@ async def get_my_company_members(
     return await company_service.get_my_members()
 
 
+@router.get("/me", operation_id="getMyCompany", response_model=MyCompanyResponse)
+async def get_my_company(company_service: CompanyServiceDep) -> MyCompanyResult:
+    return await company_service.get_my_company()
+
+
 @router.get(
-    "/me/kp-profile",
-    operation_id="getMyKpCompanyProfile",
-    response_model=KpCompanyProfileResponse | None,
+    "/me/profile",
+    operation_id="getMyCompanyProfile",
+    response_model=CompanyProfileResponse,
 )
-async def get_my_kp_company_profile(
+async def get_my_company_profile(
     company_service: CompanyServiceDep,
-) -> KpCompanyProfileResult | None:
-    return await company_service.get_my_kp_profile()
+) -> CompanyProfileResult:
+    return await company_service.get_my_profile()
 
 
 @router.put(
-    "/me/kp-profile",
-    operation_id="updateMyKpCompanyProfile",
-    response_model=KpCompanyProfileResponse,
+    "/me/profile",
+    operation_id="updateMyCompanyProfile",
+    response_model=CompanyProfileResponse,
 )
-async def update_my_kp_company_profile(
+async def update_my_company_profile(
     company_service: CompanyServiceDep,
-    request: UpdateKpCompanyProfileRequest,
-) -> KpCompanyProfileResult:
-    return await company_service.update_my_kp_profile(
-        invoice_address=request.invoice_address,
-        shipping_address=request.shipping_address,
-        contact_email=request.contact_email,
-        kp_contact_user_id=request.kp_contact_user_id,
+    request: UpdateCompanyProfileRequest,
+) -> CompanyProfileResult:
+    return await company_service.update_my_profile(request)
+
+
+@router.post(
+    "/me/profile/logo",
+    operation_id="uploadMyCompanyProfileLogo",
+    response_model=CompanyProfileResponse,
+)
+async def upload_my_company_profile_logo(
+    company_service: CompanyServiceDep,
+    request: Request,
+    file: UploadFile = File(...),
+) -> CompanyProfileResult:
+    return await company_service.upload_my_profile_logo(
+        filename=file.filename or "company-logo",
+        upload=file,
+        content_length=upload_size(request, file),
+        content_type=file.content_type,
     )
 
 
-@router.post("/invite", operation_id="createCompanyInvite")
+@router.delete(
+    "/me/profile/logo",
+    operation_id="deleteMyCompanyProfileLogo",
+    response_model=CompanyProfileResponse,
+)
+async def delete_my_company_profile_logo(
+    company_service: CompanyServiceDep,
+) -> CompanyProfileResult:
+    return await company_service.delete_my_profile_logo()
+
+
+@router.get(
+    "/{company_id}/profile",
+    operation_id="getCompanyProfile",
+    response_model=CompanyProfileResponse,
+)
+async def get_company_profile(
+    company_service: CompanyServiceDep,
+    company_id: UUID,
+) -> CompanyProfileResult:
+    return await company_service.get_company_profile(company_id)
+
+
+@router.put(
+    "/{company_id}/profile",
+    operation_id="updateCompanyProfile",
+    response_model=CompanyProfileResponse,
+)
+async def update_company_profile(
+    company_service: CompanyServiceDep,
+    company_id: UUID,
+    request: UpdateCompanyProfileRequest,
+) -> CompanyProfileResult:
+    return await company_service.update_company_profile(company_id, request)
+
+
+@router.post(
+    "/{company_id}/profile/logo",
+    operation_id="uploadCompanyProfileLogo",
+    response_model=CompanyProfileResponse,
+)
+async def upload_company_profile_logo(
+    company_service: CompanyServiceDep,
+    company_id: UUID,
+    request: Request,
+    file: UploadFile = File(...),
+) -> CompanyProfileResult:
+    return await company_service.upload_company_profile_logo(
+        company_id,
+        filename=file.filename or "company-logo",
+        upload=file,
+        content_length=upload_size(request, file),
+        content_type=file.content_type,
+    )
+
+
+@router.delete(
+    "/{company_id}/profile/logo",
+    operation_id="deleteCompanyProfileLogo",
+    response_model=CompanyProfileResponse,
+)
+async def delete_company_profile_logo(
+    company_service: CompanyServiceDep,
+    company_id: UUID,
+) -> CompanyProfileResult:
+    return await company_service.delete_company_profile_logo(company_id)
+
+
+@router.post(
+    "/invite",
+    operation_id="createCompanyInvite",
+    dependencies=[user_rate_limit("company_invite")],
+)
 async def create_company_invite(
     company_service: CompanyServiceDep,
     request: CreateInviteRequest,
@@ -80,16 +184,16 @@ async def create_company_invite(
     await company_service.create_invite(request.email)
 
 
-@router.get(
+@public_router.get(
     "/invite/{token}",
     operation_id="getCompanyInviteInfo",
     response_model=InviteInfoResponse,
 )
 async def get_company_invite_info(
-    company_service: CompanyServiceDep,
+    invite_service: InviteServiceDep,
     token: str,
 ) -> InviteInfoResult:
-    return await company_service.get_invite_info(token)
+    return await invite_service.get_invite_info(token)
 
 
 @router.post(
@@ -161,8 +265,56 @@ async def delete_company_keep_users(
     await company_service.delete_company_keep_users(company_id)
 
 
-@router.delete(
-    "/{company_id}/users/{user_id}",
+@router.patch("/me", operation_id="updateMyCompany", response_model=CompanyResponse)
+async def update_my_company(
+    company_service: CompanyServiceDep,
+    request: UpdateCompanyRequest,
+) -> Company:
+    return await company_service.update_company_name(request.name)
+
+
+@companies_router.get(
+    "",
+    operation_id="searchCompanies",
+    response_model=CompanyPageResponse,
+)
+async def search_companies(
+    company_service: CompanyServiceDep,
+    query: str | None = None,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=1, le=MAX_PAGE_SIZE),
+) -> CompanyPageResult:
+    return await company_service.search_companies(query, page, page_size)
+
+
+@companies_router.patch(
+    "/{company_id}",
+    operation_id="updateCompany",
+    response_model=CompanyResponse,
+)
+async def update_company(
+    company_service: CompanyServiceDep,
+    company_id: UUID,
+    request: UpdateCompanyRequest,
+) -> Company:
+    return await company_service.update_company(company_id, request.name)
+
+
+@companies_router.post(
+    "/{company_id}/members",
+    operation_id="addCompanyMember",
+    response_model=UserResponse,
+)
+async def add_company_member(
+    company_service: CompanyServiceDep,
+    company_id: UUID,
+    request: AddCompanyMemberRequest,
+) -> User:
+    return await company_service.add_company_user(company_id, request.user_id)
+
+
+@companies_router.delete(
+    "/{company_id}/members/{user_id}",
     operation_id="removeCompanyUser",
 )
 async def remove_company_user(
@@ -171,11 +323,3 @@ async def remove_company_user(
     user_id: UUID,
 ) -> None:
     await company_service.remove_company_user(company_id, user_id)
-
-
-@router.patch("/me", operation_id="updateMyCompany", response_model=Company)
-async def update_my_company(
-    company_service: CompanyServiceDep,
-    request: UpdateCompanyRequest,
-) -> Company:
-    return await company_service.update_company_name(request.name)

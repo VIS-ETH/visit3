@@ -1,5 +1,6 @@
 import {
   Button,
+  Divider,
   Group,
   Paper,
   SimpleGrid,
@@ -10,15 +11,24 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ChangeEvent } from "react";
+import { useEffect, useRef, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { kpSchema, toKpRequest, type KpFormValues } from "../schemas/kpSchema";
-import { formatKpDateInput } from "../utils/kp-utils";
+import {
+  emptyEventSettingsValues,
+  kpWithSettingsSchema,
+  toKpWithSettingsRequest,
+  type KpWithSettingsFormValues,
+} from "../schemas/eventSettingsSchema";
+import { formatKpIsoDateInput } from "../utils/kp-utils";
 import { useTranslatedForm } from "../utils/translator";
+import { useCurrentUser } from "../context/useCurrentUser";
+import EventSettingsFields from "./kp/EventSettingsFields";
 import {
   getGetKpByIdQueryKey,
+  getGetKpSettingsQueryKey,
   getListKpsQueryKey,
   useGetKpById,
+  useGetKpSettings,
   useUpdateKp,
 } from "../orval/generated/kp/kp";
 
@@ -30,32 +40,56 @@ const dateFieldNames = [
   "eventDate",
 ] as const;
 
+const emptyKpFormValues: KpWithSettingsFormValues = {
+  name: "",
+  registrationOpen: "",
+  registrationEnd: "",
+  finalizationDeadline: "",
+  nametagsDeadline: "",
+  eventDate: "",
+  ...emptyEventSettingsValues,
+};
+
 const DetailsTab = ({ eventId }: { eventId: string }) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { user } = useCurrentUser();
+  const isPresident = user?.is_kp_president ?? false;
   const { data: event } = useGetKpById(eventId);
-
-  const form = useTranslatedForm<typeof kpSchema>(kpSchema, {
-    initialValues: {
-      name: event?.name ?? "",
-      registrationOpen: event?.registration_open
-        ? formatKpDateInput(new Date(event.registration_open))
-        : "",
-      registrationEnd: event?.registration_end
-        ? formatKpDateInput(new Date(event.registration_end))
-        : "",
-      finalizationDeadline: event?.finalization_deadline
-        ? formatKpDateInput(new Date(event.finalization_deadline))
-        : "",
-      nametagsDeadline: event?.nametags_deadline
-        ? formatKpDateInput(new Date(event.nametags_deadline))
-        : "",
-      eventDate: event?.event_date
-        ? formatKpDateInput(new Date(event.event_date))
-        : "",
-    },
-    validateInputOnChange: true,
+  const { data: settings } = useGetKpSettings(eventId, {
+    query: { enabled: isPresident },
   });
+  const initialisedEventIdRef = useRef<string | null>(null);
+
+  const form = useTranslatedForm<typeof kpWithSettingsSchema>(
+    kpWithSettingsSchema,
+    {
+      initialValues: emptyKpFormValues,
+      validateInputOnChange: true,
+    },
+  );
+
+  useEffect(() => {
+    if (!event || initialisedEventIdRef.current === event.id) return;
+    if (isPresident && !settings) return;
+    initialisedEventIdRef.current = event.id;
+    const values: KpWithSettingsFormValues = {
+      name: event.name,
+      registrationOpen: formatKpIsoDateInput(event.registration_open),
+      registrationEnd: formatKpIsoDateInput(event.registration_end),
+      finalizationDeadline: formatKpIsoDateInput(event.finalization_deadline),
+      nametagsDeadline: formatKpIsoDateInput(event.nametags_deadline),
+      eventDate: formatKpIsoDateInput(event.event_date),
+      vatRatePercent: event.vat_rate_percent,
+      termsUrl: event.terms_url ?? "",
+      notificationEmail: settings?.notification_email ?? "",
+      finalizationReminderDays: event.finalization_reminder_days,
+    };
+    form.setInitialValues(values);
+    form.setValues(values);
+    form.resetDirty();
+    form.clearErrors();
+  }, [event, settings, isPresident, form]);
 
   const getDateInputProps = (field: (typeof dateFieldNames)[number]) => {
     const inputProps = form.getInputProps(field);
@@ -74,6 +108,9 @@ const DetailsTab = ({ eventId }: { eventId: string }) => {
         await queryClient.invalidateQueries({
           queryKey: getGetKpByIdQueryKey(eventId),
         });
+        await queryClient.invalidateQueries({
+          queryKey: getGetKpSettingsQueryKey(eventId),
+        });
         await queryClient.invalidateQueries({ queryKey: getListKpsQueryKey() });
         notifications.show({
           color: "green",
@@ -83,10 +120,10 @@ const DetailsTab = ({ eventId }: { eventId: string }) => {
     },
   });
 
-  const handleSubmit = (values: KpFormValues) => {
+  const handleSubmit = (values: KpWithSettingsFormValues) => {
     update({
       eventId,
-      data: toKpRequest(values),
+      data: toKpWithSettingsRequest(values),
     });
   };
 
@@ -141,6 +178,11 @@ const DetailsTab = ({ eventId }: { eventId: string }) => {
               {...getDateInputProps("eventDate")}
             />
           </SimpleGrid>
+          <Divider />
+          <EventSettingsFields
+            disabled={isPending}
+            getInputProps={(field) => form.getInputProps(field)}
+          />
           <Group justify="flex-end">
             <Button
               type="submit"

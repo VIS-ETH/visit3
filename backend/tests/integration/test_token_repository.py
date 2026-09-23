@@ -116,14 +116,14 @@ async def test_cleanup_expired_removes_expired_and_revoked_tokens(
         hashed_token=hash_str("expired-refresh"),
         expires_at=now - timedelta(seconds=1),
     )
-    revoked_reset = await token_repository.create_reset_password_token(user.id)
+    await token_repository.create_reset_password_token(user.id)
     await token_repository._create_token(
         ConfirmEmailToken,
         user_id=user.id,
         hashed_token=hash_str("expired-confirm"),
         expires_at=now - timedelta(seconds=1),
     )
-    await token_repository.revoke_reset_password_token(revoked_reset)
+    await token_repository.revoke_reset_password_tokens(user.id)
 
     await token_repository.cleanup_expired()
 
@@ -145,3 +145,61 @@ async def test_cleanup_expired_removes_expired_and_revoked_tokens(
     assert refresh_tokens == [hash_str("active-refresh")]
     assert reset_tokens == []
     assert confirm_tokens == []
+
+
+async def test_login_link_token_is_single_use(
+    monkeypatch,
+    user_repository,
+    token_repository,
+):
+    user = await user_repository.create_user(
+        user_repository.model(email="link@example.com", password="hash")
+    )
+    use_token_values(monkeypatch, token_repository, "link-token")
+    token_value = await token_repository.create_login_link_token(user.id, "/kp")
+
+    link_token = await token_repository.get_unused_login_link_token(token_value)
+
+    assert link_token is not None
+    assert link_token.target_path == "/kp"
+    assert link_token.token == hash_str(token_value)
+
+    await token_repository.mark_login_link_token_used(link_token)
+
+    assert await token_repository.get_unused_login_link_token(token_value) is None
+
+
+async def test_expired_login_link_token_is_not_usable(
+    monkeypatch,
+    user_repository,
+    token_repository,
+    db_session,
+):
+    user = await user_repository.create_user(
+        user_repository.model(email="expired-link@example.com", password="hash")
+    )
+    use_token_values(monkeypatch, token_repository, "stale-link")
+    token_value = await token_repository.create_login_link_token(user.id, "/")
+    link_token = await token_repository.get_unused_login_link_token(token_value)
+    assert link_token is not None
+    link_token.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+    db_session.add(link_token)
+    await db_session.commit()
+
+    assert await token_repository.get_unused_login_link_token(token_value) is None
+
+
+async def test_revoking_login_link_tokens_invalidates_them(
+    monkeypatch,
+    user_repository,
+    token_repository,
+):
+    user = await user_repository.create_user(
+        user_repository.model(email="revoke-link@example.com", password="hash")
+    )
+    use_token_values(monkeypatch, token_repository, "revoked-link")
+    token_value = await token_repository.create_login_link_token(user.id, "/")
+
+    await token_repository.revoke_login_link_tokens(user.id)
+
+    assert await token_repository.get_unused_login_link_token(token_value) is None

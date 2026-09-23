@@ -14,7 +14,9 @@ from app.core.exceptions import (
     KpExportEmpty,
     KpNameTagNotFound,
 )
+from app.models.company import KpCompanyLanguage, KpCompanyProfile
 from app.models.kp_event import (
+    KpBookingCompanyDetails,
     KpEvent,
     KpEventBooking,
     KpEventNametagBackground,
@@ -27,14 +29,18 @@ from app.schemas.kp import (
     NametagExportPersonResult,
     NametagExportTargetsResult,
 )
+from app.services.booking_completeness import booking_completeness
 from app.services.csv_service import CsvService
 from app.services.pdf_service import PdfService
-from app.services.storage_service import StorageService
+from app.services.pricing import price_breakdown
+from app.services.storage_service import StorageService, UploadKind, UploadStream
 
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 NAMETAG_TEMPLATE_NAME = "nametag.typ"
 
 NAMETAG_BACKGROUND_MIME_TYPES = {"image/png", "image/jpeg"}
+NAMETAG_BACKGROUND_CONTEXT = "nametag_background"
+PRICE_EXPORT_FIELDS = ["net", "vat", "gross"]
 BOOKING_EXPORT_FIELDS = [
     "booking_id",
     "company",
@@ -45,6 +51,8 @@ BOOKING_EXPORT_FIELDS = [
     "base_price",
     "services",
     "nametag_count",
+    *PRICE_EXPORT_FIELDS,
+    "missing_items",
 ]
 WAITLIST_EXPORT_FIELDS = [
     "company",
@@ -66,6 +74,7 @@ BOOKED_SERVICE_EXPORT_FIELDS = [
     "charged_quantity",
     "unit_price",
     "total_charged_price",
+    *PRICE_EXPORT_FIELDS,
 ]
 NAMETAG_DATA_EXPORT_FIELDS = [
     "name_tag_id",
@@ -80,17 +89,31 @@ COMPANY_DETAILS_EXPORT_FIELDS = [
     "booking_id",
     "zone",
     "booth_number",
+    "confirmed_at",
     "brand_name",
-    "address",
+    "description",
+    "website",
     "contact_person",
+    "contact_email",
+    "contact_phone",
     "places_of_work",
-    "employees_count",
-    "employees_count_switzerland",
-    "offer_internship",
-    "offer_part_time",
-    "offer_thesis",
+    "industries",
+    "employee_count_switzerland",
+    "employee_count_worldwide",
+    "offers_internships",
+    "offers_part_time",
+    "offers_theses",
+    "offers_graduate_positions",
     "languages",
-    "profile",
+    "billing_company_name",
+    "billing_street",
+    "billing_house_number",
+    "billing_postal_code",
+    "billing_city",
+    "billing_country",
+    "billing_vat_number",
+    "billing_email",
+    "shipping_address",
 ]
 SERVICE_REQUIREMENT_EXPORT_FIELDS = [
     "company",
@@ -114,15 +137,19 @@ BOOTH_ZONE_CAPACITY_EXPORT_FIELDS = [
     "waitlist_demand",
     "booth_size_m2",
     "base_price",
+    *PRICE_EXPORT_FIELDS,
 ]
 CONTACT_EXPORT_FIELDS = [
     "company",
     "booking_id",
     "contact_email",
+    "contact_person",
     "kp_contact_user_email",
     "kp_contact_user_first_name",
     "kp_contact_user_last_name",
-    "invoice_address",
+    "billing_company_name",
+    "billing_address",
+    "billing_email",
     "shipping_address",
     "company_user_emails",
 ]
@@ -164,14 +191,49 @@ class ExportService:
     def _export_filename(self, filename: str) -> str:
         return sanitize_download_filename(filename)
 
+    def _unique_export_filename(self, taken: set[str], filename: str) -> str:
+        name = self._export_filename(filename)
+        suffix = Path(name).suffix
+        stem = name[: len(name) - len(suffix)]
+        candidate = name
+        index = 1
+        while candidate in taken:
+            index += 1
+            candidate = f"{stem}-{index}{suffix}"
+        taken.add(candidate)
+        return candidate
+
     def _bool(self, value: bool) -> str:
         return "yes" if value else "no"
 
     def _money(self, cents: int) -> str:
         return f"{cents / 100:.2f}"
 
-    def _languages(self, languages: Sequence[str]) -> str:
-        return ", ".join(str(language) for language in languages)
+    def _price_columns(self, net_cents: int, event: KpEvent) -> dict[str, object]:
+        breakdown = price_breakdown(net_cents, event.vat_rate_permille)
+        return {
+            "net": self._money(breakdown.net),
+            "vat": self._money(breakdown.vat),
+            "gross": self._money(breakdown.gross),
+        }
+
+    def _languages(self, languages: Sequence[KpCompanyLanguage]) -> str:
+        return ", ".join(KpCompanyLanguage(language).value for language in languages)
+
+    def _billing_address(self, profile: KpCompanyProfile | None) -> str:
+        if profile is None:
+            return ""
+        street = " ".join(
+            part
+            for part in (profile.billing_street, profile.billing_house_number)
+            if part
+        )
+        city = " ".join(
+            part for part in (profile.billing_postal_code, profile.billing_city) if part
+        )
+        return ", ".join(
+            part for part in (street, city, profile.billing_country) if part
+        )
 
     async def _get_event_or_raise(self, event_id: UUID) -> KpEvent:
         event = await self.kp_repository.get_by_id(event_id)
@@ -185,13 +247,21 @@ class ExportService:
         event = await self._get_event_or_raise(event_id)
         return event, await self.kp_repository.list_bookings_for_event(event_id)
 
+    async def _list_active_event_bookings(
+        self, event_id: UUID
+    ) -> tuple[KpEvent, Sequence[KpEventBooking]]:
+        event, bookings = await self._list_event_bookings(event_id)
+        return event, [booking for booking in bookings if booking.is_active]
+
     def _booking_services_summary(self, booking: KpEventBooking) -> str:
         return "; ".join(
             f"{booking_service.service.name} x{booking_service.quantity}"
             for booking_service in booking.services
         )
 
-    def _booking_row(self, booking: KpEventBooking) -> dict[str, object]:
+    def _booking_row(
+        self, booking: KpEventBooking, event: KpEvent
+    ) -> dict[str, object]:
         return {
             "booking_id": booking.id,
             "company": booking.company.name,
@@ -202,6 +272,8 @@ class ExportService:
             "base_price": self._money(booking.booth_zone.base_price),
             "services": self._booking_services_summary(booking),
             "nametag_count": len(booking.name_tags),
+            **self._price_columns(booking.total_price, event),
+            "missing_items": "; ".join(booking_completeness(booking)),
         }
 
     def _csv_export(
@@ -222,12 +294,8 @@ class ExportService:
             filename,
             content,
             content_type,
-            error_context="nametag_background",
+            error_context=NAMETAG_BACKGROUND_CONTEXT,
             allowed_mime_types=NAMETAG_BACKGROUND_MIME_TYPES,
-            required_signatures={
-                "image/png": b"\x89PNG\r\n\x1a\n",
-                "image/jpeg": b"\xff\xd8",
-            },
         )
 
     def _background_suffix(self, mime_type: str) -> str:
@@ -291,13 +359,20 @@ class ExportService:
         self,
         event_id: UUID,
         filename: str,
-        content: bytes,
+        upload: UploadStream,
+        content_length: int | None,
         content_type: str | None,
     ) -> KpEventNametagBackground:
         require_staff_user(self.current_user)
         event = await self.kp_repository.get_by_id(event_id)
         if event is None:
             raise KpEventNotFound(f"nametag_background:event_not_found:{event_id}")
+        content = await self.storage_service.read_upload(
+            upload,
+            content_length=content_length,
+            kind=UploadKind.IMAGE,
+            error_context=NAMETAG_BACKGROUND_CONTEXT,
+        )
         mime_type = self._validate_background_upload(filename, content, content_type)
         existing_background = await self.kp_repository.get_nametag_background(event_id)
         old_stored_file = (
@@ -365,7 +440,8 @@ class ExportService:
             key=lambda company: (
                 company.company_name.casefold(),
                 company.booth_zone_name.casefold(),
-                company.booth_nr,
+                company.booth_nr is None,
+                company.booth_nr or 0,
             )
         )
 
@@ -450,7 +526,7 @@ class ExportService:
     async def export_bookings_csv(self, event_id: UUID) -> RenderedExport:
         require_staff_user(self.current_user)
         event, bookings = await self._list_event_bookings(event_id)
-        rows = [self._booking_row(booking) for booking in bookings]
+        rows = [self._booking_row(booking, event) for booking in bookings]
         return self._csv_export(
             rows, f"{event.name}-bookings-all.csv", BOOKING_EXPORT_FIELDS
         )
@@ -460,9 +536,10 @@ class ExportService:
         event, bookings = await self._list_event_bookings(event_id)
         zones = await self.kp_repository.list_booth_zones(event_id)
         files: list[tuple[str, bytes]] = []
+        entry_names: set[str] = set()
         for zone in zones:
             rows = [
-                self._booking_row(booking)
+                self._booking_row(booking, event)
                 for booking in bookings
                 if booking.booth_zone_id == zone.id
             ]
@@ -471,7 +548,7 @@ class ExportService:
                 f"{self._safe_filename_part(zone.name)}.csv",
                 BOOKING_EXPORT_FIELDS,
             )
-            files.append((filename, content))
+            files.append((self._unique_export_filename(entry_names, filename), content))
         content, filename = self.csv_service.render_zip(
             files, f"{event.name}-bookings-by-zone.zip"
         )
@@ -479,7 +556,7 @@ class ExportService:
 
     async def export_waitlist_companies_csv(self, event_id: UUID) -> RenderedExport:
         require_staff_user(self.current_user)
-        event, bookings = await self._list_event_bookings(event_id)
+        event, bookings = await self._list_active_event_bookings(event_id)
         rows: list[dict[str, object]] = []
         for booking in bookings:
             for entry in booking.upgrade_waitlist_entries:
@@ -504,6 +581,9 @@ class ExportService:
         rows: list[dict[str, object]] = []
         for booking in bookings:
             for booking_service in booking.services:
+                line_net = (
+                    booking_service.charged_quantity * booking_service.service.price
+                )
                 rows.append(
                     {
                         "company": booking.company.name,
@@ -515,10 +595,8 @@ class ExportService:
                         "included_quantity": booking_service.included_quantity,
                         "charged_quantity": booking_service.charged_quantity,
                         "unit_price": self._money(booking_service.service.price),
-                        "total_charged_price": self._money(
-                            booking_service.charged_quantity
-                            * booking_service.service.price
-                        ),
+                        "total_charged_price": self._money(line_net),
+                        **self._price_columns(line_net, event),
                     }
                 )
         return self._csv_export(
@@ -544,35 +622,63 @@ class ExportService:
             rows, f"{event.name}-nametags-data.csv", NAMETAG_DATA_EXPORT_FIELDS
         )
 
+    def _company_snapshot_row(
+        self, snapshot: KpBookingCompanyDetails
+    ) -> dict[str, object]:
+        return {
+            "confirmed_at": snapshot.confirmed_at.isoformat(),
+            "brand_name": snapshot.brand_name,
+            "description": snapshot.description,
+            "website": snapshot.website or "",
+            "contact_person": snapshot.contact_person,
+            "contact_email": snapshot.contact_email or "",
+            "contact_phone": snapshot.contact_phone or "",
+            "places_of_work": snapshot.places_of_work,
+            "industries": ", ".join(snapshot.industry_names),
+            "employee_count_switzerland": snapshot.employee_count_switzerland
+            if snapshot.employee_count_switzerland is not None
+            else "",
+            "employee_count_worldwide": snapshot.employee_count_worldwide
+            if snapshot.employee_count_worldwide is not None
+            else "",
+            "offers_internships": self._bool(snapshot.offers_internships),
+            "offers_part_time": self._bool(snapshot.offers_part_time),
+            "offers_theses": self._bool(snapshot.offers_theses),
+            "offers_graduate_positions": self._bool(snapshot.offers_graduate_positions),
+            "languages": self._languages(snapshot.languages),
+            "billing_company_name": snapshot.billing_company_name,
+            "billing_street": snapshot.billing_street,
+            "billing_house_number": snapshot.billing_house_number,
+            "billing_postal_code": snapshot.billing_postal_code,
+            "billing_city": snapshot.billing_city,
+            "billing_country": snapshot.billing_country,
+            "billing_vat_number": snapshot.billing_vat_number or "",
+            "billing_email": snapshot.billing_email or "",
+            "shipping_address": snapshot.shipping_address,
+        }
+
     async def export_company_details_csv(self, event_id: UUID) -> RenderedExport:
         require_staff_user(self.current_user)
         event, bookings = await self._list_event_bookings(event_id)
+        empty_snapshot_row = {
+            field: ""
+            for field in COMPANY_DETAILS_EXPORT_FIELDS
+            if field not in {"company", "booking_id", "zone", "booth_number"}
+        }
         rows: list[dict[str, object]] = []
         for booking in bookings:
-            details = booking.company_details
+            snapshot = booking.company_details
             rows.append(
                 {
                     "company": booking.company.name,
                     "booking_id": booking.id,
                     "zone": booking.booth_zone.name,
                     "booth_number": booking.booth_nr,
-                    "brand_name": details.brand_name if details else "",
-                    "address": details.address if details else "",
-                    "contact_person": details.contact_person if details else "",
-                    "places_of_work": details.places_of_work if details else "",
-                    "employees_count": details.employees_count if details else "",
-                    "employees_count_switzerland": details.employees_count_switzerland
-                    if details
-                    else "",
-                    "offer_internship": self._bool(details.offer_internship)
-                    if details
-                    else "",
-                    "offer_part_time": self._bool(details.offer_part_time)
-                    if details
-                    else "",
-                    "offer_thesis": self._bool(details.offer_thesis) if details else "",
-                    "languages": self._languages(details.languages) if details else "",
-                    "profile": details.profile if details else "",
+                    **(
+                        self._company_snapshot_row(snapshot)
+                        if snapshot is not None
+                        else empty_snapshot_row
+                    ),
                 }
             )
         return self._csv_export(
@@ -623,7 +729,7 @@ class ExportService:
 
     async def export_booth_zone_capacity_csv(self, event_id: UUID) -> RenderedExport:
         require_staff_user(self.current_user)
-        event, bookings = await self._list_event_bookings(event_id)
+        event, bookings = await self._list_active_event_bookings(event_id)
         zones = await self.kp_repository.list_booth_zones(event_id)
         rows: list[dict[str, object]] = []
         for zone in zones:
@@ -645,6 +751,7 @@ class ExportService:
                     "waitlist_demand": waitlist_demand,
                     "booth_size_m2": zone.booth_size,
                     "base_price": self._money(zone.base_price),
+                    **self._price_columns(zone.base_price, event),
                 }
             )
         return self._csv_export(
@@ -655,7 +762,7 @@ class ExportService:
 
     async def export_contacts_csv(self, event_id: UUID) -> RenderedExport:
         require_staff_user(self.current_user)
-        event, bookings = await self._list_event_bookings(event_id)
+        event, bookings = await self._list_active_event_bookings(event_id)
         rows: list[dict[str, object]] = []
         for booking in bookings:
             profile = booking.company.kp_profile
@@ -680,7 +787,12 @@ class ExportService:
                     "kp_contact_user_last_name": contact_user.last_name
                     if contact_user
                     else "",
-                    "invoice_address": profile.invoice_address if profile else "",
+                    "contact_person": profile.contact_person if profile else "",
+                    "billing_company_name": profile.billing_company_name
+                    if profile
+                    else "",
+                    "billing_address": self._billing_address(profile),
+                    "billing_email": profile.billing_email if profile else "",
                     "shipping_address": profile.shipping_address if profile else "",
                     "company_user_emails": ", ".join(
                         user.email for user in company_users

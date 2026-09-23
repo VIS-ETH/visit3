@@ -5,20 +5,25 @@ import {
   Divider,
   Group,
   Image,
+  Modal,
   Stack,
   Text,
 } from "@mantine/core";
 import {
   IconBuilding,
   IconCalendarEvent,
+  IconBuildingFactory2,
   IconHome2,
   IconLogout2,
+  IconMail,
   IconSettings,
   IconUser,
 } from "@tabler/icons-react";
+import { useState } from "react";
 import { NavLink, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { clearToken } from "../api/utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { clearAuthState } from "../api/utils";
 import { useLogoutUser } from "../orval/generated/user/user";
 import { useCurrentUser } from "../context/useCurrentUser";
 import serverData from "../utils/server-data";
@@ -26,19 +31,49 @@ import serverData from "../utils/server-data";
 const Navbar = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useCurrentUser();
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
-  const { mutate: logout } = useLogoutUser({
+  const { mutate: logout, isPending: isLoggingOut } = useLogoutUser({
     mutation: {
-      onSuccess: () => {
+      onSettled: () => {
+        clearAuthState();
+        queryClient.clear();
         navigate("/login");
-        clearToken();
       },
     },
   });
 
   return (
     <AppShell.Navbar p="md" className="app-navbar">
+      <Modal
+        centered
+        opened={isLogoutConfirmOpen}
+        onClose={() => setIsLogoutConfirmOpen(false)}
+        title={t("nav.logout_confirm_title")}
+      >
+        <Stack gap="md">
+          <Text size="sm">{t("nav.logout_confirm_body")}</Text>
+          <Group justify="flex-end">
+            <Button
+              variant="subtle"
+              onClick={() => setIsLogoutConfirmOpen(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              color="red"
+              loading={isLoggingOut}
+              onClick={() => {
+                logout();
+              }}
+            >
+              {t("nav.logout_confirm_submit")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
       <Stack m="sm" align="stretch">
         <Group justify="center" align="center" gap="xs" mb="xs" wrap="nowrap">
           <Image
@@ -123,12 +158,28 @@ const Navbar = () => {
               >
                 {t("nav.company_management")}
               </Button>
+              <Button
+                component={NavLink}
+                to="/admin/mail-templates"
+                leftSection={<IconMail />}
+                variant="subtle"
+                justify="flex-start"
+              >
+                {t("nav.mail_templates")}
+              </Button>
+              <Button
+                component={NavLink}
+                to="/admin/industries"
+                leftSection={<IconBuildingFactory2 />}
+                variant="subtle"
+                justify="flex-start"
+              >
+                {t("nav.industries")}
+              </Button>
             </>
           )}
           <Button
-            onClick={() => {
-              logout();
-            }}
+            onClick={() => setIsLogoutConfirmOpen(true)}
             leftSection={<IconLogout2 />}
             color="red"
             variant="light"

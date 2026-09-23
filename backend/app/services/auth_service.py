@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
@@ -10,27 +11,87 @@ from pwdlib import PasswordHash
 
 from app.core.config import get_settings
 from app.core.exceptions import (
+    AppError,
+    EmailTakenLocally,
     EmailUsed,
     InvalidCredentials,
     KeycloakExchangeFailed,
-    NotAllowed,
+    NotVisMember,
     PasswordTooShort,
     PhoneNumberInvalid,
     TokenInvalid,
 )
 from app.core.security import decode_token
-from app.core.utils import normalize_phone_number
-from app.models.user import RefreshToken, Role, User
+from app.core.utils import normalize_phone_number, strip_text
+from app.mail_templates.context import (
+    AccountAwaitingConfirmationContext,
+    AccountConfirmEmailContext,
+    PasswordResetContext,
+)
+from app.mail_templates.keys import MailTemplateKey
+from app.models.user import Role, User
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
-from app.services.mail_service import MailService
+from app.services.invite_service import InviteService
+from app.services.mail_template_service import MailTemplateService
 
 logger = logging.getLogger(__name__)
 
 password_hash = PasswordHash.recommended()
 ACCESS_TOKEN_EXPIRE = timedelta(minutes=15)
 MIN_PASSWORD_LENGTH = 10
+UNKNOWN_NAME = "Unknown"
+LOGIN_LINK_PATH = "/auth/link"
+STAFF_ACCOUNT_REVIEW_PATH = "/user-management"
+
+
+@dataclass(frozen=True)
+class LoginLink:
+    refresh_token: str
+    target_path: str
+
+
+def safe_target_path(target_path: str) -> str:
+    if target_path.startswith("/") and not target_path.startswith("//"):
+        return target_path
+    return "/"
+
+
+def frontend_url(path: str) -> str:
+    return f"{get_settings().VISIT_FRONTEND_SERVER_URL}{path}"
+
+
+def is_local_account(user: User) -> bool:
+    return user.password is not None or user.is_company
+
+
+def _claim(decoded_token: dict[str, Any], name: str) -> str:
+    value = decoded_token.get(name)
+    return strip_text(value) if isinstance(value, str) else ""
+
+
+def _fallback_names(decoded_token: dict[str, Any]) -> tuple[str, str]:
+    display = (
+        _claim(decoded_token, "name")
+        or _claim(decoded_token, "preferred_username")
+        or _claim(decoded_token, "email").split("@")[0]
+    )
+    parts = display.split()
+    if len(parts) >= 2:
+        return parts[0], " ".join(parts[1:])
+    if len(parts) == 1:
+        return parts[0], UNKNOWN_NAME
+    return UNKNOWN_NAME, UNKNOWN_NAME
+
+
+def keycloak_names(decoded_token: dict[str, Any]) -> tuple[str, str]:
+    given = _claim(decoded_token, "given_name")
+    family = _claim(decoded_token, "family_name")
+    if given and family:
+        return given, family
+    fallback_given, fallback_family = _fallback_names(decoded_token)
+    return given or fallback_given, family or fallback_family
 
 
 class AuthService:
@@ -39,12 +100,14 @@ class AuthService:
         user_repository: UserRepository,
         token_repository: TokenRepository,
         role_repository: RoleRepository,
-        mail_service: MailService,
+        mail_template_service: MailTemplateService,
+        invite_service: InviteService,
     ) -> None:
         self.user_repository = user_repository
         self.token_repository = token_repository
         self.role_repository = role_repository
-        self.mail_service = mail_service
+        self.mail_template_service = mail_template_service
+        self.invite_service = invite_service
 
     async def authenticate_user(
         self, email: str, password: str
@@ -59,9 +122,7 @@ class AuthService:
 
     async def create_access_token(self, user: User) -> str:
         to_encode: dict[str, Any] = {
-            "sub": str(
-                user.id
-            ),  # we use the internal user id as the subject to have a uniform way to identify users, regardless of the login method (keycloak or password)
+            "sub": str(user.id),
             "email": user.email,
         }
         expire = datetime.now(timezone.utc) + ACCESS_TOKEN_EXPIRE
@@ -75,9 +136,6 @@ class AuthService:
         access_token = await self.create_access_token(user)
         refresh_token = await self.create_refresh_token(user)
         return (access_token, refresh_token)
-
-    async def get_active_refresh_token(self, token: str) -> RefreshToken | None:
-        return await self.token_repository.get_active_refresh_token(token)
 
     async def verify_and_update_password(self, user: User, plain_password: str) -> bool:
         if user.password is None:
@@ -105,14 +163,45 @@ class AuthService:
     async def create_confirm_email_token(self, user: User) -> str:
         return await self.token_repository.create_confirm_email_token(user.id)
 
+    async def create_login_link(self, user: User, target_path: str) -> str:
+        token = await self.token_repository.create_login_link_token(
+            user.id, safe_target_path(target_path)
+        )
+        return frontend_url(f"{LOGIN_LINK_PATH}/{token}")
+
+    async def consume_login_link(self, token: str) -> LoginLink:
+        link_token = await self.token_repository.get_unused_login_link_token(token)
+        if not link_token:
+            logger.warning("Login link used with an invalid or expired token")
+            raise TokenInvalid("login_link")
+
+        user = await self.user_repository.get_by_id(link_token.user_id)
+        if not user:
+            raise TokenInvalid(f"login_link:{link_token.user_id}")
+
+        await self.token_repository.mark_login_link_token_used(link_token)
+        refresh_token = await self.create_refresh_token(user)
+        logger.info(f"Login link consumed for user: {user.email}")
+        return LoginLink(
+            refresh_token=refresh_token,
+            target_path=safe_target_path(link_token.target_path),
+        )
+
     async def send_confirm_email(self, user: User) -> None:
         if user.email_confirmed:
             return
         await self.token_repository.revoke_confirm_email_tokens(user.id)
         token = await self.create_confirm_email_token(user)
-        await self.mail_service.send_confirm_email_mail(user.email, token)
+        await self.mail_template_service.send(
+            MailTemplateKey.ACCOUNT_CONFIRM_EMAIL,
+            [user.email],
+            AccountConfirmEmailContext(
+                name=user.display_name,
+                confirm_url=frontend_url(f"/confirm-email/{token}"),
+            ),
+        )
 
-    async def register_user(self, user: User) -> User:
+    async def register_user(self, user: User, invite_token: str | None = None) -> User:
         if await self.user_repository.get_by_email(user.email):
             raise EmailUsed(f"register_user:{user.email}")
 
@@ -127,6 +216,13 @@ class AuthService:
                 user.phone_number = normalize_phone_number(user.phone_number)
             except Exception:
                 raise PhoneNumberInvalid("register:phone_number_invalid")
+
+        if invite_token is not None:
+            invite = await self.invite_service.load_open_invite(
+                invite_token, "register"
+            )
+            self.invite_service.ensure_email_matches(invite, user.email, "register")
+            user.pending_invite_token = invite_token
 
         user.password = await self.hash_password(user.password)
         user.is_admin = False
@@ -154,19 +250,20 @@ class AuthService:
         if not refresh_token:
             raise TokenInvalid("refresh:no_token")
 
-        token = await self.get_active_refresh_token(refresh_token)
+        token = await self.token_repository.get_refresh_token_for_rotation(
+            refresh_token
+        )
 
         if not token:
-            raise TokenInvalid(f"refresh:{token.user_id if token else 'unknown'}")
+            raise TokenInvalid("refresh:unknown")
 
         user = await self.user_repository.get_by_id(token.user_id)
 
         if not user:
             raise TokenInvalid(f"refresh:{token.user_id}")
 
-        await self.token_repository.revoke_refresh_token(
-            user.id, refresh_token
-        )
+        if not token.is_revoked:
+            await self.token_repository.rotate_refresh_token(user.id, refresh_token)
 
         return await self.create_tokens(user)
 
@@ -174,18 +271,23 @@ class AuthService:
         user = await self.user_repository.get_by_email(email)
 
         if not user:
-            logger.debug(
-                f"Password reset requested for non-existent user: {email}"
-            )
+            logger.debug(f"Password reset requested for non-existent user: {email}")
             return
 
         if not user.password:
             logger.warning(f"Password reset requested for OAuth-only user: {email}")
-            raise NotAllowed(f"request_password_reset:{user.id}")
+            return
 
+        await self.token_repository.revoke_reset_password_tokens(user.id)
         token = await self.create_reset_password_token(user)
         logger.info(f"Password reset token created for user: {email}")
-        await self.mail_service.send_reset_password_mail(email, token)
+        await self.mail_template_service.send(
+            MailTemplateKey.PASSWORD_RESET,
+            [user.email],
+            PasswordResetContext(
+                name=user.display_name, reset_url=frontend_url(f"/reset/{token}")
+            ),
+        )
 
     async def reset_password(self, token: str, new_password: str) -> bool:
         if len(new_password) < MIN_PASSWORD_LENGTH:
@@ -202,7 +304,10 @@ class AuthService:
                 reset_token.user_id, await self.hash_password(new_password)
             )
             await self.token_repository.revoke_all_refresh_tokens(reset_token.user_id)
-            await self.token_repository.revoke_reset_password_token(token)
+            await self.token_repository.revoke_reset_password_tokens(
+                reset_token.user_id
+            )
+            await self.token_repository.revoke_login_link_tokens(reset_token.user_id)
             logger.info("Password reset successful")
             return True
         except Exception as e:
@@ -210,16 +315,10 @@ class AuthService:
             raise e
 
     async def validate_reset_token(self, token: str) -> bool:
-        return (
-            await self.token_repository.get_reset_password_token(token)
-            is not None
-        )
+        return await self.token_repository.get_reset_password_token(token) is not None
 
     async def validate_confirm_email_token(self, token: str) -> bool:
-        return (
-            await self.token_repository.get_confirm_email_token(token)
-            is not None
-        )
+        return await self.token_repository.get_confirm_email_token(token) is not None
 
     async def confirm_email(self, token: str) -> bool:
         confirm_token = await self.token_repository.get_confirm_email_token(token)
@@ -236,8 +335,30 @@ class AuthService:
 
         await self.user_repository.confirm_email(user)
         await self.token_repository.revoke_confirm_email_tokens(user.id)
+        await self._apply_pending_invite(user)
         logger.info(f"Email confirmed for user: {user.email}")
+        if not user.user_confirmed:
+            await self.mail_template_service.send_to_staff_notification(
+                MailTemplateKey.ACCOUNT_AWAITING_CONFIRMATION,
+                AccountAwaitingConfirmationContext(
+                    name=user.display_name,
+                    email=user.email,
+                    admin_url=frontend_url(STAFF_ACCOUNT_REVIEW_PATH),
+                ),
+            )
         return True
+
+    async def _apply_pending_invite(self, user: User) -> None:
+        token = user.pending_invite_token
+        if token is None:
+            return
+        try:
+            await self.invite_service.join_company(user, token, "confirm_email")
+        except AppError as error:
+            logger.warning(
+                f"Pending invite not applied for {user.email}: {error.identifier}"
+            )
+        await self.user_repository.clear_pending_invite(user)
 
     async def keycloak_callback(self, code: str) -> str:
         settings = get_settings()
@@ -282,23 +403,37 @@ class AuthService:
 
         email = decoded_token["email"]
         sub = decoded_token["sub"]
-        first_name = decoded_token.get("given_name", "")
-        last_name = decoded_token.get("family_name", "")
 
-        return await self.user_repository.create_or_update_user(
-            User(
-                email=email,
-                sub=sub,
-                roles=roles,
-                user_confirmed=True,
-                email_confirmed=True,
-                is_admin=admin,
-                is_staff=True,
-                is_company=False,
-                first_name=first_name,
-                last_name=last_name,
-            )
+        if not roles:
+            raise NotVisMember(f"keycloak:{sub}")
+
+        first_name, last_name = keycloak_names(decoded_token)
+
+        keycloak_user = User(
+            email=email,
+            sub=sub,
+            user_confirmed=True,
+            email_confirmed=True,
+            is_admin=admin,
+            is_staff=True,
+            is_company=False,
+            first_name=first_name,
+            last_name=last_name,
         )
+
+        db_user = await self.user_repository.get_by_sub(sub)
+        if db_user is not None:
+            return await self.user_repository.update_keycloak_user(
+                db_user, keycloak_user, roles
+            )
+
+        email_owner = await self.user_repository.get_by_email(email)
+        if email_owner is not None:
+            if is_local_account(email_owner):
+                raise EmailTakenLocally(f"keycloak:{email}")
+            raise EmailUsed(f"keycloak:{email}")
+
+        return await self.user_repository.create_user(keycloak_user, roles)
 
     async def map_keycloak_roles(
         self, roles: Sequence[str], vis_groups: Sequence[str]

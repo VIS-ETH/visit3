@@ -1,5 +1,4 @@
-# Stage 1: Generate gRPC stubs and OpenAPI spec
-FROM python:3.12-slim AS code-generator
+FROM python:3.12-slim AS grpc-and-openapi-generator
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
@@ -30,7 +29,6 @@ COPY --from=common backend/.env ./backend/.env
 RUN /opt/venv/bin/python ./scripts/extract_docs.py /repo/visit.json
 
 
-# Build stage
 FROM node:24-alpine AS builder
 
 WORKDIR /app/frontend
@@ -42,11 +40,9 @@ COPY tsconfig*.json vite.config.ts index.html ./
 COPY public public
 COPY src src
 
-COPY --from=code-generator /repo/visit.json ./src/orval/visit.json
+COPY --from=grpc-and-openapi-generator /repo/visit.json ./src/orval/visit.json
 RUN yarn orval --config src/orval/orvalConfig.ts
 
-# Enable Vite plugin to allow handling environment variables via nginx at runtime
-# See vite.config.ts
 ENV REPLACE_ENV_FORMAT_ENVSUBST=true
 ENV NODE_ENV=production
 RUN yarn build

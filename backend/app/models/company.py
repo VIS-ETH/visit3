@@ -1,20 +1,65 @@
+import re
 from datetime import datetime
-from typing import TYPE_CHECKING
+from enum import Enum
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from pydantic import EmailStr
+from pydantic import EmailStr, field_validator
 from sqlalchemy import Column, DateTime
-from sqlmodel import Field, Relationship  # pyright: ignore[reportUnknownVariableType]
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlmodel import Field, Relationship
 
-from app.models.base import BaseEntity
+from app.models.base import TIMESTAMPTZ, BaseEntity, unique_among_active_index
+from app.models.storage import StoredFile
 
 if TYPE_CHECKING:
+    from app.models.industry import KpCompanyProfileIndustryLink
     from app.models.kp_event import KpEventBooking, KpEventRegistrationException
     from app.models.user import User
 
+PROFILE_DESCRIPTION_MAX_LENGTH = 600
+
+MANDATORY_PROFILE_FIELDS = (
+    "description",
+    "contact_person",
+    "contact_email",
+    "billing_company_name",
+    "billing_street",
+    "billing_postal_code",
+    "billing_city",
+    "billing_country",
+    "billing_email",
+)
+
+COUNTRY_CODE_PATTERN = re.compile(r"[A-Z]{2}")
+
+
+class KpCompanyLanguage(str, Enum):
+    ENGLISH = "ENGLISH"
+    GERMAN = "GERMAN"
+    FRENCH = "FRENCH"
+    ITALIAN = "ITALIAN"
+
+
+def company_language_column() -> Column[Any]:
+    language_enum = SAEnum(
+        KpCompanyLanguage, name="kpcompanylanguage", native_enum=True
+    )
+    return Column(ARRAY(language_enum), nullable=False)
+
+
+def normalize_country_code(value: str) -> str:
+    normalized = value.strip().upper()
+    if normalized and not COUNTRY_CODE_PATTERN.fullmatch(normalized):
+        raise ValueError("country must be an ISO 3166-1 alpha-2 code")
+    return normalized
+
 
 class Company(BaseEntity, table=True):
-    name: str = Field(index=True, unique=True)
+    __table_args__ = (unique_among_active_index("ix_company_name", "name"),)
+
+    name: str
 
     users: list["User"] = Relationship(back_populates="company")
     invites: list["CompanyInvite"] = Relationship(back_populates="company")
@@ -31,13 +76,68 @@ class Company(BaseEntity, table=True):
 class KpCompanyProfile(BaseEntity, table=True):
     company_id: UUID = Field(foreign_key="company.id", unique=True)
 
-    invoice_address: str = Field(default="")
-    shipping_address: str = Field(default="")
+    description: str = Field(default="", max_length=PROFILE_DESCRIPTION_MAX_LENGTH)
+    website: str | None = Field(default=None)
+    logo_stored_file_id: UUID | None = Field(
+        default=None, foreign_key="storedfile.id", unique=True
+    )
+
+    brand_name: str = Field(default="")
+    contact_person: str = Field(default="")
     contact_email: EmailStr | None = Field(default=None)
+    contact_phone: str | None = Field(default=None)
+    places_of_work: str = Field(default="")
+
+    employee_count_switzerland: int | None = Field(default=None, ge=0)
+    employee_count_worldwide: int | None = Field(default=None, ge=0)
+
+    offers_internships: bool = Field(default=False)
+    offers_part_time: bool = Field(default=False)
+    offers_theses: bool = Field(default=False)
+    offers_graduate_positions: bool = Field(default=False)
+
+    languages: list[KpCompanyLanguage] = Field(
+        default_factory=list,
+        sa_column=company_language_column(),
+    )
+
+    billing_company_name: str = Field(default="")
+    billing_street: str = Field(default="")
+    billing_house_number: str = Field(default="")
+    billing_postal_code: str = Field(default="")
+    billing_city: str = Field(default="")
+    billing_country: str = Field(default="", max_length=2)
+    billing_vat_number: str | None = Field(default=None)
+    billing_email: EmailStr | None = Field(default=None)
+
+    shipping_address: str = Field(default="")
     kp_contact_user_id: UUID | None = Field(default=None, foreign_key="user.id")
+    profile_completed_at: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
 
     company: Company = Relationship(back_populates="kp_profile")
     kp_contact_user: "User" = Relationship(back_populates="kp_company_profiles")
+    logo_stored_file: StoredFile | None = Relationship()
+    industry_links: list["KpCompanyProfileIndustryLink"] = Relationship(
+        back_populates="profile"
+    )
+
+    @field_validator("billing_country")
+    @classmethod
+    def validate_billing_country(cls, value: str) -> str:
+        return normalize_country_code(value)
+
+    def missing_profile_fields(self) -> list[str]:
+        return [
+            name
+            for name in MANDATORY_PROFILE_FIELDS
+            if not str(getattr(self, name) or "").strip()
+        ]
+
+    @property
+    def is_complete(self) -> bool:
+        return not self.missing_profile_fields()
 
 
 class CompanyInvite(BaseEntity, table=True):

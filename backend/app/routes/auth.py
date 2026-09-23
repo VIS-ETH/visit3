@@ -2,18 +2,25 @@ import logging
 import secrets
 from typing import Annotated
 
+import grpc
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.config import get_settings
+from app.core.cookies import secure_cookies
 from app.core.deps import AuthServiceDep, CsrfDep
 from app.core.exceptions import (
+    AppError,
+    EmailTakenLocally,
+    EmailUsed,
     KeycloakExchangeFailed,
+    NotVisMember,
     ResetPasswordError,
     TokenInvalid,
     Unauthenticated,
 )
+from app.core.rate_limit import client_rate_limit
 from app.models.user import User
 from app.repositories.token_repository import REFRESH_TOKEN_EXPIRE
 from app.schemas.user import (
@@ -28,13 +35,16 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"], dependencies=[CsrfDep])
 
+GENERIC_LOGIN_ERROR = "server.error"
+LOGIN_LINK_ERROR = "auth.link_invalid"
+
 
 def set_refresh_cookie(response: Response, raw_refresh_token: str) -> None:
     response.set_cookie(
         key="refresh_token",
         value=raw_refresh_token,
         httponly=True,
-        secure=True,
+        secure=secure_cookies(),
         samesite="lax",
         max_age=int(REFRESH_TOKEN_EXPIRE.total_seconds()),
     )
@@ -57,7 +67,7 @@ async def register_user(
         phone_number=request.phone_number,
     )
 
-    return await auth_service.register_user(user)
+    return await auth_service.register_user(user, request.invite_token)
 
 
 @router.post("/login", operation_id="loginUser")
@@ -92,13 +102,17 @@ async def refresh_user(
         raise Unauthenticated(e.identifier)
 
 
-@router.post("/reset-password", operation_id="requestPasswordReset")
+@router.post(
+    "/reset-password",
+    operation_id="requestPasswordReset",
+    dependencies=[client_rate_limit("reset_password")],
+)
 async def request_password_reset(
     auth_service: AuthServiceDep, request: PasswordResetRequest
 ) -> None:
     try:
         return await auth_service.request_password_reset(request.email)
-    except Exception:
+    except grpc.RpcError:
         raise HTTPException(status_code=500, detail="gRPC call failed")
 
 
@@ -112,11 +126,36 @@ async def reset_password(
     request: ResetPasswordRequest, auth_service: AuthServiceDep
 ) -> bool:
     try:
-        result = await auth_service.reset_password(request.token, request.new_password)
-        logger.info("Password reset successful")
-        return result
-    except Exception as e:
-        raise ResetPasswordError(str(e))
+        return await auth_service.reset_password(request.token, request.new_password)
+    except AppError:
+        raise
+    except Exception:
+        logger.exception("Password reset failed unexpectedly")
+        raise ResetPasswordError("reset_password:unexpected")
+
+
+@router.get("/link/{token}", operation_id="loginWithLink")
+async def login_with_link(auth_service: AuthServiceDep, token: str) -> RedirectResponse:
+    frontend = get_settings().VISIT_FRONTEND_SERVER_URL
+    try:
+        link = await auth_service.consume_login_link(token)
+    except TokenInvalid:
+        return RedirectResponse(
+            f"{frontend}/login?error={LOGIN_LINK_ERROR}", status_code=303
+        )
+
+    response = RedirectResponse(f"{frontend}{link.target_path}", status_code=303)
+    set_refresh_cookie(response, link.refresh_token)
+    return response
+
+
+def login_error_redirect(code: str) -> RedirectResponse:
+    response = RedirectResponse(
+        f"{get_settings().VISIT_FRONTEND_SERVER_URL}/login?error={code}",
+        status_code=303,
+    )
+    response.delete_cookie("oauth_state")
+    return response
 
 
 @router.get("/callback", operation_id="keycloakCallback")
@@ -127,12 +166,14 @@ async def keycloak_callback(
     oauth_state: str = Cookie(None),
 ) -> RedirectResponse:
     if not oauth_state or state != oauth_state:
-        raise HTTPException(status_code=400, detail="State mismatch. CSRF suspected.")
+        return login_error_redirect(GENERIC_LOGIN_ERROR)
 
     try:
         refresh_token = await auth_service.keycloak_callback(code)
-    except KeycloakExchangeFailed as e:
-        raise HTTPException(status_code=400, detail=f"Exchange failed: {e.identifier}")
+    except (EmailTakenLocally, EmailUsed, NotVisMember) as e:
+        return login_error_redirect(e.code)
+    except KeycloakExchangeFailed:
+        return login_error_redirect(GENERIC_LOGIN_ERROR)
 
     response = RedirectResponse(url=get_settings().VISIT_FRONTEND_SERVER_URL)
 
@@ -148,7 +189,12 @@ def keycloak_init(response: Response) -> str:
     state = secrets.token_urlsafe(32)
 
     response.set_cookie(
-        key="oauth_state", value=state, httponly=True, max_age=600, samesite="lax"
+        key="oauth_state",
+        value=state,
+        httponly=True,
+        secure=secure_cookies(),
+        max_age=600,
+        samesite="lax",
     )
 
     login_url = (

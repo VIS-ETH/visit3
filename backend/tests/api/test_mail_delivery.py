@@ -1,0 +1,150 @@
+from collections.abc import Awaitable, Callable
+from unittest.mock import AsyncMock
+
+import pytest
+from httpx import AsyncClient
+
+from app.models.user import User
+from app.services.auth_service import AuthService
+
+
+def sent_message(mail_stub: AsyncMock) -> object:
+    mail_stub.SendMail.assert_awaited_once()
+    return mail_stub.SendMail.await_args.args[0]
+
+
+def recipients(message: object) -> list[str]:
+    return [address.mail_address.address for address in getattr(message, "to")]
+
+
+@pytest.fixture
+async def unconfirmed_company_user(
+    create_user: Callable[..., Awaitable[User]],
+) -> User:
+    return await create_user(
+        email="pending@example.com",
+        company_name="Pending AG",
+        user_confirmed=False,
+        email_confirmed=False,
+    )
+
+
+async def test_registration_sends_the_confirm_email_mail(
+    client: AsyncClient, csrf_headers: dict[str, str], mail_stub: AsyncMock
+):
+    response = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "newcomer@example.com",
+            "password": "a-long-enough-password",
+            "first_name": "Ada",
+            "last_name": "Lovelace",
+        },
+        headers=csrf_headers,
+    )
+
+    assert response.status_code == 200
+    message = sent_message(mail_stub)
+    assert recipients(message) == ["newcomer@example.com"]
+    assert getattr(message, "subject") == (
+        "VISIT: E-Mail-Adresse bestätigen / VISIT: Confirm your email address"
+    )
+
+
+async def test_password_reset_request_sends_the_reset_mail(
+    client: AsyncClient,
+    csrf_headers: dict[str, str],
+    company_user: User,
+    mail_stub: AsyncMock,
+):
+    response = await client.post(
+        "/api/auth/reset-password",
+        json={"email": company_user.email},
+        headers=csrf_headers,
+    )
+
+    assert response.status_code == 200
+    message = sent_message(mail_stub)
+    assert recipients(message) == [company_user.email]
+    assert getattr(message, "subject") == (
+        "VISIT: Passwort zurücksetzen / VISIT: Reset your password"
+    )
+
+
+async def test_company_invite_sends_the_invite_mail(
+    client: AsyncClient, company_headers: dict[str, str], mail_stub: AsyncMock
+):
+    response = await client.post(
+        "/api/company/invite",
+        json={"email": "guest@example.com"},
+        headers=company_headers,
+    )
+
+    assert response.status_code == 200
+    message = sent_message(mail_stub)
+    assert recipients(message) == ["guest@example.com"]
+    assert getattr(message, "subject") == (
+        "VISIT: Einladung zu Acme AG / VISIT: Invitation to join Acme AG"
+    )
+
+
+async def test_email_confirmation_notifies_the_staff_address(
+    client: AsyncClient,
+    csrf_headers: dict[str, str],
+    auth_service: AuthService,
+    unconfirmed_company_user: User,
+    mail_stub: AsyncMock,
+):
+    token = await auth_service.create_confirm_email_token(unconfirmed_company_user)
+
+    response = await client.post(
+        f"/api/user/confirm-email/{token}", headers=csrf_headers
+    )
+
+    assert response.status_code == 200
+    message = sent_message(mail_stub)
+    assert recipients(message) == ["kontaktparty@vis.ethz.ch"]
+    assert getattr(message, "subject") == (
+        "VISIT: Neues Konto wartet auf Freigabe / VISIT: New account awaiting approval"
+    )
+
+
+async def test_staff_confirmation_sends_the_account_confirmed_mail(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    unconfirmed_company_user: User,
+    mail_stub: AsyncMock,
+):
+    response = await client.post(
+        f"/api/users/{unconfirmed_company_user.id}/confirm", headers=staff_headers
+    )
+
+    assert response.status_code == 200
+    message = sent_message(mail_stub)
+    assert recipients(message) == [unconfirmed_company_user.email]
+    assert getattr(message, "subject") == (
+        "VISIT: Konto freigeschaltet / VISIT: Account activated"
+    )
+    html = getattr(message, "multipart_body").parts[1].content
+    assert "/auth/link/" in html
+
+
+async def test_staff_confirmation_of_a_staff_user_sends_nothing(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    create_user: Callable[..., Awaitable[User]],
+    mail_stub: AsyncMock,
+):
+    colleague = await create_user(
+        email="colleague@example.com",
+        is_staff=True,
+        is_company=False,
+        user_confirmed=False,
+    )
+
+    response = await client.post(
+        f"/api/users/{colleague.id}/confirm", headers=staff_headers
+    )
+
+    assert response.status_code == 200
+    mail_stub.SendMail.assert_not_awaited()

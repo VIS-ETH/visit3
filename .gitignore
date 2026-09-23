@@ -1,4 +1,6 @@
 .env.local
+backend/.env
+frontend/.env
 data/
 .DS_Store
 node_modules/

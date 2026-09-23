@@ -8,16 +8,9 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
-import type { KpBookingStatus } from "../orval/generated/fastAPI.schemas";
+import { BOOKING_STATUS_ORDER } from "../utils/booking-status";
+import { BOOKING_STATUS_DESCRIPTION_KEYS } from "../utils/kp-utils";
 import { KpBookingStatusBadge } from "./KpBookingStatusBadge";
-
-const BOOKING_STATUSES: KpBookingStatus[] = [
-  // "DRAFT", not used at the moment
-  "REGISTERED",
-  "FINALIZED",
-  "CONFIRMED",
-  "CANCELLED",
-];
 
 export const KpBookingStatusHelp = () => {
   const { t } = useTranslation();
@@ -49,14 +42,14 @@ export const KpBookingStatusHelp = () => {
           <Text size="sm" c="dimmed">
             {t("kp.booking.status_help_description")}
           </Text>
-          {BOOKING_STATUSES.map((status) => (
+          {BOOKING_STATUS_ORDER.map((status) => (
             <Stack key={status} gap={4}>
               <KpBookingStatusBadge
                 status={status}
                 style={{ minWidth: 120, justifyContent: "center" }}
               />
               <Text size="sm" c="dimmed">
-                {t(`kp.booking.statuses.${status.toLowerCase()}.description`)}
+                {t(BOOKING_STATUS_DESCRIPTION_KEYS[status])}
               </Text>
             </Stack>
           ))}

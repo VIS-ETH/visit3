@@ -10,6 +10,10 @@ import {
 import { IconEye, IconPhotoUp, IconTrash } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import {
+  IMAGE_UPLOAD_ACCEPT,
+  isAllowedImageType,
+} from "../utils/upload-formats";
 
 interface ImageUploadInputProps {
   value: string;
@@ -24,6 +28,7 @@ interface ImageUploadInputProps {
   clearLabel: string;
   currentFileLabel: string;
   invalidFileMessage: string;
+  allowedFormatsLabel: string;
   maxSizeBytes?: number;
   error?: ReactNode;
 }
@@ -51,6 +56,7 @@ const ImageUploadInput = ({
   clearLabel,
   currentFileLabel,
   invalidFileMessage,
+  allowedFormatsLabel,
   maxSizeBytes = DEFAULT_MAX_SIZE_BYTES,
   error,
 }: ImageUploadInputProps) => {
@@ -61,7 +67,7 @@ const ImageUploadInput = ({
   const handleFileChange = async (nextFile: File | null) => {
     setFileError(null);
     if (!nextFile) return;
-    if (!nextFile.type.startsWith("image/") || nextFile.size > maxSizeBytes) {
+    if (!isAllowedImageType(nextFile.type) || nextFile.size > maxSizeBytes) {
       setFileError(invalidFileMessage);
       return;
     }
@@ -101,8 +107,11 @@ const ImageUploadInput = ({
         <Text fw={500} size="sm">
           {label}
         </Text>
+        <Text c="dimmed" size="xs">
+          {allowedFormatsLabel}
+        </Text>
         <Group align="center" gap="sm">
-          <FileButton accept="image/*" onChange={handleFileChange}>
+          <FileButton accept={IMAGE_UPLOAD_ACCEPT} onChange={handleFileChange}>
             {(props) => (
               <Button
                 {...props}

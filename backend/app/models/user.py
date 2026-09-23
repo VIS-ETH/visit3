@@ -1,11 +1,19 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import EmailStr, field_validator
-from sqlmodel import Field, Relationship  # pyright: ignore[reportUnknownVariableType]
+from sqlmodel import Field, Relationship
 
+from app.core.config import get_settings
 from app.core.utils import normalize_email, strip_text
-from app.models.base import BaseEntity, BaseLink, BaseToken
+from app.models.base import (
+    TIMESTAMPTZ,
+    BaseEntity,
+    BaseLink,
+    BaseToken,
+    unique_among_active_index,
+)
 from app.models.company import Company
 
 if TYPE_CHECKING:
@@ -24,7 +32,9 @@ class Role(BaseEntity, table=True):
 
 
 class User(BaseEntity, table=True):
-    email: EmailStr = Field(unique=True, index=True)
+    __table_args__ = (unique_among_active_index("ix_user_email", "email"),)
+
+    email: EmailStr
     sub: str | None = Field(default=None, index=True)
     password: str | None = None
 
@@ -39,7 +49,13 @@ class User(BaseEntity, table=True):
     user_confirmed: bool = False
     email_confirmed: bool = False
 
-    roles: list["Role"] = Relationship(back_populates="users", link_model=UserRole)
+    pending_invite_token: str | None = Field(default=None)
+
+    roles: list["Role"] = Relationship(
+        back_populates="users",
+        link_model=UserRole,
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
 
     company_id: UUID | None = Field(default=None, foreign_key="company.id", index=True)
     company: Company = Relationship(
@@ -48,6 +64,18 @@ class User(BaseEntity, table=True):
     kp_company_profiles: list["KpCompanyProfile"] = Relationship(
         back_populates="kp_contact_user"
     )
+
+    @property
+    def display_name(self) -> str:
+        parts = [part for part in (self.first_name, self.last_name) if part]
+        return " ".join(parts) if parts else self.email
+
+    @property
+    def is_kp_president(self) -> bool:
+        if self.is_admin:
+            return True
+        president_role = get_settings().VISIT_KP_PRESIDENT_ROLE
+        return any(role.name == president_role for role in self.roles)
 
     @field_validator("email", mode="after")
     @classmethod
@@ -61,7 +89,11 @@ class User(BaseEntity, table=True):
 
 
 class RefreshToken(BaseToken, table=True):
-    pass
+    rotated_at: datetime | None = Field(
+        default=None,
+        nullable=True,
+        sa_type=TIMESTAMPTZ,
+    )
 
 
 class ResetPasswordToken(BaseToken, table=True):

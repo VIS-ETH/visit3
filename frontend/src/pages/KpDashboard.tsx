@@ -2,6 +2,7 @@ import {
   Alert,
   Badge,
   Button,
+  Divider,
   Group,
   Modal,
   Paper,
@@ -19,7 +20,13 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import BackButton from "../components/BackButton";
 import DataTable, { type DataTableColumn } from "../components/DataTable";
-import { kpSchema, toKpRequest, type KpFormValues } from "../schemas/kpSchema";
+import {
+  emptyEventSettingsValues,
+  kpWithSettingsSchema,
+  toKpWithSettingsRequest,
+  type KpWithSettingsFormValues,
+} from "../schemas/eventSettingsSchema";
+import EventSettingsFields from "../components/kp/EventSettingsFields";
 import {
   EVENT_STATUS_COLORS,
   formatKpDateInput,
@@ -65,18 +72,22 @@ const KpDashboard = () => {
   const [modalOpened, { open: openModal, close: closeModal }] =
     useDisclosure(false);
 
-  const initialValues: KpFormValues = {
+  const initialValues: KpWithSettingsFormValues = {
     name: "",
     registrationOpen: todayAsDateInput(),
     registrationEnd: todayAsDateInput(),
     finalizationDeadline: todayAsDateInput(),
     nametagsDeadline: todayAsDateInput(),
     eventDate: todayAsDateInput(),
+    ...emptyEventSettingsValues,
   };
-  const form = useTranslatedForm<typeof kpSchema>(kpSchema, {
-    initialValues,
-    validateInputOnChange: true,
-  });
+  const form = useTranslatedForm<typeof kpWithSettingsSchema>(
+    kpWithSettingsSchema,
+    {
+      initialValues,
+      validateInputOnChange: true,
+    },
+  );
 
   const getDateInputProps = (field: (typeof dateFieldNames)[number]) => {
     const inputProps = form.getInputProps(field);
@@ -118,9 +129,9 @@ const KpDashboard = () => {
     },
   });
 
-  const handleCreate = (values: KpFormValues) => {
+  const handleCreate = (values: KpWithSettingsFormValues) => {
     createEvent({
-      data: toKpRequest(values),
+      data: toKpWithSettingsRequest(values),
     });
   };
 
@@ -244,6 +255,11 @@ const KpDashboard = () => {
                 {...getDateInputProps("eventDate")}
               />
             </Group>
+            <Divider />
+            <EventSettingsFields
+              disabled={isCreating}
+              getInputProps={(field) => form.getInputProps(field)}
+            />
             <Group justify="flex-end">
               <Button
                 variant="default"

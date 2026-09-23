@@ -4,12 +4,13 @@ import serverData from "../utils/server-data";
 import i18n from "../i18";
 import { createElement } from "react";
 import {
-  clearToken,
+  clearAuthState,
   getCsrfToken,
   getImpersonatingUserId,
   getToken,
   isTokenExpired,
   refreshToken,
+  renewCsrfToken,
 } from "./utils";
 import { IconX } from "@tabler/icons-react";
 const backend_url = serverData.backendUrl;
@@ -79,7 +80,20 @@ const parseBlobErrorResponse = async (
 const ERROR_CODE_REDIRECTS: Record<string, string> = {
   "error.email_not_confirmed": "/unconfirmed-email",
   "error.not_confirmed": "/unconfirmed-user",
-  "csrf.validation_failed": "/login",
+};
+
+const CSRF_ERROR_CODE = "csrf.validation_failed";
+const LOGIN_PATH = "/login";
+
+interface RetryableRequestConfig extends InternalAxiosRequestConfig {
+  csrfRetried?: boolean;
+  authRetried?: boolean;
+}
+
+const redirectToLogin = () => {
+  if (window.location.pathname !== LOGIN_PATH) {
+    window.location.href = LOGIN_PATH;
+  }
 };
 
 const getErrorMessage = (errorResponse: ErrorResponse | undefined): string => {
@@ -134,9 +148,29 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    const request = error.config as RetryableRequestConfig | undefined;
+
+    if (
+      errorResponse?.code === CSRF_ERROR_CODE &&
+      request &&
+      !request.csrfRetried
+    ) {
+      request.csrfRetried = true;
+      const renewedCsrfToken = await renewCsrfToken().catch(() => undefined);
+      if (renewedCsrfToken) {
+        return api(request);
+      }
+    }
+
     if (status === 401) {
-      clearToken();
-      window.location.href = "/login";
+      if (request && !request.authRetried && getToken()) {
+        request.authRetried = true;
+        if (await refreshToken()) {
+          return api(request);
+        }
+      }
+      clearAuthState();
+      redirectToLogin();
     } else if (redirectTo) {
       window.location.href = redirectTo;
     } else {

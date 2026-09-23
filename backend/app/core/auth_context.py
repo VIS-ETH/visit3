@@ -46,6 +46,16 @@ def require_confirmed_company_user(user: User) -> ConfirmedCompanyUser:
     return ConfirmedCompanyUser(user=user)
 
 
+def require_company_profile_user(user: User) -> AssignedCompanyUser:
+    if not user.is_company:
+        raise NotAllowed(f"require_company_profile:{user.id}")
+    if not user.email_confirmed:
+        raise EmailNotConfirmed(f"require_company_profile:{user.id}")
+    if user.company_id is None:
+        raise NotAllowed(f"require_company_profile:no_company:{user.id}")
+    return AssignedCompanyUser(user=user, company_id=user.company_id)
+
+
 def require_assigned_company_user(user: User) -> AssignedCompanyUser:
     require_confirmed_company_user(user)
     if user.company_id is None:
@@ -55,8 +65,7 @@ def require_assigned_company_user(user: User) -> AssignedCompanyUser:
 
 def require_kp_president_user(user: User) -> KpPresidentUser:
     role = get_settings().VISIT_KP_PRESIDENT_ROLE
-    user_roles = {user_role.name for user_role in (user.roles or [])}
-    if role not in user_roles and not user.is_admin:
+    if not user.is_kp_president:
         raise NotAllowed(f"require_role[{role}]:{user.id}")
     return KpPresidentUser(user=user, role=role)
 

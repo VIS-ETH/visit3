@@ -3,31 +3,41 @@ from typing import Annotated
 from uuid import UUID
 
 import jwt
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi_csrf_protect import CsrfProtect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.config import get_settings
-from app.core.deleted_filter import register_deleted_filter
-from app.core.exceptions import NotAllowed, Unauthenticated
+from app.core.deleted_filter import hide_deleted_rows_in_orm_queries
+from app.core.exceptions import CsrfInvalid, NotAllowed, Unauthenticated
 from app.core.grpc import grpc_client
 from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
+from app.repositories.industry_repository import IndustryRepository
 from app.repositories.kp_repository import KpRepository
+from app.repositories.mail_repository import MailTemplateRepository
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.venue_repository import VenueRepository
 from app.services.auth_service import AuthService
+from app.services.booking_notifier import MailBookingNotifier
 from app.services.company_service import CompanyService
 from app.services.csv_service import CsvService
 from app.services.export_service import ExportService
+from app.services.industry_service import IndustryService
+from app.services.invite_service import InviteService
 from app.services.kp_service import KpService
 from app.services.mail_service import MailService
+from app.services.mail_template_admin_service import MailTemplateAdminService
+from app.services.mail_template_service import MailTemplateService
+from app.services.notification_recipients import NotificationRecipients
 from app.services.pdf_service import PdfService
 from app.services.storage_service import StorageService
 from app.services.user_service import UserService
+from app.services.venue_service import VenueService
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +61,7 @@ SessionLocal = async_sessionmaker(
     expire_on_commit=False,
 )
 
-# Hide deleted rows in ORM queries by default.
-register_deleted_filter()
+hide_deleted_rows_in_orm_queries()
 
 
 async def get_db_session():
@@ -116,13 +125,7 @@ async def _csrf_dep(request: Request, csrf_protect: Annotated[CsrfProtect, Depen
         try:
             await csrf_protect.validate_csrf(request)
         except Exception:
-            raise HTTPException(
-                status_code=403,
-                detail={
-                    "code": "csrf.validation_failed",
-                    "message": "CSRF validation failed",
-                },
-            )
+            raise CsrfInvalid(f"csrf:{request.method}:{request.url.path}")
 
 
 CsrfDep = Depends(_csrf_dep)
@@ -177,6 +180,15 @@ async def get_kp_repository(
 KpRepositoryDep = Annotated[KpRepository, Depends(get_kp_repository)]
 
 
+async def get_venue_repository(
+    session: DbSessionDep,
+):
+    return VenueRepository(session)
+
+
+VenueRepositoryDep = Annotated[VenueRepository, Depends(get_venue_repository)]
+
+
 async def get_mail_service(mail: MailDep):
     return MailService(mail)
 
@@ -184,38 +196,103 @@ async def get_mail_service(mail: MailDep):
 MailServiceDep = Annotated[MailService, Depends(get_mail_service)]
 
 
-async def get_user_service(
-    user_repository: UserRepositoryDep,
-    token_repository: TokenRepositoryDep,
+async def get_mail_template_repository(
+    session: DbSessionDep,
+):
+    return MailTemplateRepository(session)
+
+
+MailTemplateRepositoryDep = Annotated[
+    MailTemplateRepository, Depends(get_mail_template_repository)
+]
+
+
+async def get_notification_recipients(
+    kp_repository: KpRepositoryDep,
+):
+    return NotificationRecipients(kp_repository)
+
+
+NotificationRecipientsDep = Annotated[
+    NotificationRecipients, Depends(get_notification_recipients)
+]
+
+
+async def get_mail_template_service(
+    mail_template_repository: MailTemplateRepositoryDep,
+    notification_recipients: NotificationRecipientsDep,
+    mail_service: MailServiceDep,
+):
+    return MailTemplateService(
+        mail_template_repository, notification_recipients, mail_service
+    )
+
+
+MailTemplateServiceDep = Annotated[
+    MailTemplateService, Depends(get_mail_template_service)
+]
+
+
+async def get_mail_template_admin_service(
+    mail_template_repository: MailTemplateRepositoryDep,
+    mail_template_service: MailTemplateServiceDep,
     current_user: CurrentUserDep,
 ):
-    return UserService(user_repository, token_repository, current_user)
+    return MailTemplateAdminService(
+        mail_template_repository, mail_template_service, current_user
+    )
 
 
-UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+MailTemplateAdminServiceDep = Annotated[
+    MailTemplateAdminService, Depends(get_mail_template_admin_service)
+]
+
+
+async def get_invite_service(company_repository: CompanyRepositoryDep):
+    return InviteService(company_repository)
+
+
+InviteServiceDep = Annotated[InviteService, Depends(get_invite_service)]
 
 
 async def get_auth_service(
     user_repository: UserRepositoryDep,
     token_repository: TokenRepositoryDep,
     role_repository: RoleRepositoryDep,
-    mail_service: MailServiceDep,
+    mail_template_service: MailTemplateServiceDep,
+    invite_service: InviteServiceDep,
 ):
-    return AuthService(user_repository, token_repository, role_repository, mail_service)
+    return AuthService(
+        user_repository,
+        token_repository,
+        role_repository,
+        mail_template_service,
+        invite_service,
+    )
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 
 
-async def get_company_service(
+async def get_user_service(
+    user_repository: UserRepositoryDep,
+    token_repository: TokenRepositoryDep,
     company_repository: CompanyRepositoryDep,
-    mail_service: MailServiceDep,
+    auth_service: AuthServiceDep,
+    mail_template_service: MailTemplateServiceDep,
     current_user: CurrentUserDep,
 ):
-    return CompanyService(company_repository, mail_service, current_user)
+    return UserService(
+        user_repository,
+        token_repository,
+        company_repository,
+        auth_service,
+        mail_template_service,
+        current_user,
+    )
 
 
-CompanyServiceDep = Annotated[CompanyService, Depends(get_company_service)]
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 
 def get_storage_service():
@@ -225,15 +302,71 @@ def get_storage_service():
 StorageServiceDep = Annotated[StorageService, Depends(get_storage_service)]
 
 
+async def get_company_service(
+    company_repository: CompanyRepositoryDep,
+    mail_template_service: MailTemplateServiceDep,
+    storage_service: StorageServiceDep,
+    current_user: CurrentUserDep,
+):
+    return CompanyService(
+        company_repository, mail_template_service, storage_service, current_user
+    )
+
+
+CompanyServiceDep = Annotated[CompanyService, Depends(get_company_service)]
+
+
+async def get_industry_repository(
+    session: DbSessionDep,
+):
+    return IndustryRepository(session)
+
+
+IndustryRepositoryDep = Annotated[IndustryRepository, Depends(get_industry_repository)]
+
+
+async def get_industry_service(
+    industry_repository: IndustryRepositoryDep,
+    current_user: CurrentUserDep,
+):
+    return IndustryService(industry_repository, current_user)
+
+
+IndustryServiceDep = Annotated[IndustryService, Depends(get_industry_service)]
+
+
+async def get_booking_notifier(
+    mail_template_service: MailTemplateServiceDep,
+    auth_service: AuthServiceDep,
+):
+    return MailBookingNotifier(mail_template_service, auth_service)
+
+
+BookingNotifierDep = Annotated[MailBookingNotifier, Depends(get_booking_notifier)]
+
+
 async def get_kp_service(
     kp_repository: KpRepositoryDep,
     storage_service: StorageServiceDep,
     current_user: CurrentUserDep,
+    booking_notifier: BookingNotifierDep,
 ):
-    return KpService(kp_repository, storage_service, current_user)
+    return KpService(kp_repository, storage_service, current_user, booking_notifier)
 
 
 KpServiceDep = Annotated[KpService, Depends(get_kp_service)]
+
+
+async def get_venue_service(
+    venue_repository: VenueRepositoryDep,
+    kp_repository: KpRepositoryDep,
+    storage_service: StorageServiceDep,
+    current_user: CurrentUserDep,
+):
+    return VenueService(venue_repository, kp_repository, storage_service, current_user)
+
+
+VenueServiceDep = Annotated[VenueService, Depends(get_venue_service)]
 
 
 def get_pdf_service():

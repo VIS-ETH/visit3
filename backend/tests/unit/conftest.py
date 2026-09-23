@@ -1,17 +1,19 @@
 from collections.abc import Callable
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
 
-from app.models.company import Company
+from app.models.company import Company, KpCompanyProfile
+from app.models.kp_event import KpBookingCompanyDetails
 from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
 from app.repositories.kp_repository import KpRepository
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
-from app.services.mail_service import MailService
+from app.services.invite_service import InviteService
+from app.services.mail_template_service import MailTemplateService
 from app.services.storage_service import StorageService
 
 
@@ -35,14 +37,70 @@ def company_repo() -> AsyncMock:
     return AsyncMock(spec=CompanyRepository)
 
 
-@pytest.fixture
-def kp_repo() -> AsyncMock:
-    return AsyncMock(spec=KpRepository)
+def complete_company_profile(
+    company_id: UUID | None = None, **overrides: object
+) -> KpCompanyProfile:
+    values: dict[str, object] = {
+        "description": "We build the best anvils in Switzerland.",
+        "contact_person": "Ada Lovelace",
+        "contact_email": "contact@example.com",
+        "billing_company_name": "Acme AG",
+        "billing_street": "Invoice street",
+        "billing_house_number": "1",
+        "billing_postal_code": "8000",
+        "billing_city": "Zurich",
+        "billing_country": "CH",
+        "billing_email": "billing@example.com",
+        **overrides,
+    }
+    profile = KpCompanyProfile(company_id=company_id or uuid4(), **values)
+    profile.industry_links = []
+    return profile
+
+
+def complete_company_snapshot(
+    booking_id: UUID, **overrides: object
+) -> KpBookingCompanyDetails:
+    values: dict[str, object] = {
+        "billing_company_name": "Acme AG",
+        "billing_street": "Invoice street",
+        "billing_house_number": "1",
+        "billing_postal_code": "8000",
+        "billing_city": "Zurich",
+        "billing_country": "CH",
+        "billing_email": "billing@example.com",
+        **overrides,
+    }
+    return KpBookingCompanyDetails(booking_id=booking_id, **values)
 
 
 @pytest.fixture
-def mail_service() -> AsyncMock:
-    return AsyncMock(spec=MailService)
+def make_company_profile() -> Callable[..., KpCompanyProfile]:
+    def _make_company_profile(
+        *, company_id: UUID | None = None, **overrides: object
+    ) -> KpCompanyProfile:
+        return complete_company_profile(company_id, **overrides)
+
+    return _make_company_profile
+
+
+@pytest.fixture
+def kp_repo(make_company_profile: Callable[..., KpCompanyProfile]) -> AsyncMock:
+    repo = AsyncMock(spec=KpRepository)
+    repo.get_company_profile.return_value = make_company_profile()
+    return repo
+
+
+@pytest.fixture
+def invite_service() -> AsyncMock:
+    service = AsyncMock(spec=InviteService)
+    service.ensure_email_matches = MagicMock()
+    return service
+
+
+@pytest.fixture
+def mail_template_service() -> AsyncMock:
+    return AsyncMock(spec=MailTemplateService)
 
 
 @pytest.fixture

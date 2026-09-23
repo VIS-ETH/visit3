@@ -1,24 +1,52 @@
 import re
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 from enum import Enum
 from typing import Optional, Self
 from uuid import UUID
 
-from pydantic import field_validator, model_validator
+from pydantic import EmailStr, field_validator, model_validator
 from sqlalchemy import CheckConstraint, Column, Integer
-from sqlalchemy import Enum as SAEnum
 from sqlalchemy import Sequence as SQLSequence
-from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import (
-    Field,  # pyright: ignore[reportUnknownVariableType]
+    Field,
     Relationship,
     UniqueConstraint,
 )
 
 from app.core.utils import strip_text
-from app.models.base import BaseEntity, BaseLink
-from app.models.company import Company
+from app.models.base import (
+    NOT_DELETED,
+    PERMILLE_PER_PERCENT,
+    TIMESTAMPTZ,
+    BaseEntity,
+    BaseLink,
+    Cents,
+    Permille,
+    SquareMeters,
+    unique_among_active_index,
+    unique_partial_index,
+)
+from app.models.company import (
+    PROFILE_DESCRIPTION_MAX_LENGTH,
+    Company,
+    KpCompanyLanguage,
+    company_language_column,
+    normalize_country_code,
+)
+from app.models.industry import Industry
 from app.models.storage import StoredFile
+
+ACTIVE_BOOKING = f"status NOT IN ('CANCELLED', 'REJECTED') AND {NOT_DELETED}"
+UNLIMITED_TOTAL_QUANTITY = 0
+MAX_SERVICE_QUANTITY = 999
+DEFAULT_MAX_NAMETAGS_PER_BOOKING = 10
+LAYOUT_DESCRIPTION_MAX_LENGTH = 2000
+
+
+class KpServiceCategory(str, Enum):
+    SERVICE = "SERVICE"
+    BOOTH_ELEMENT = "BOOTH_ELEMENT"
 
 
 class KpEvent(BaseEntity, table=True):
@@ -39,14 +67,30 @@ class KpEvent(BaseEntity, table=True):
             "finalization_deadline < event_date",
             name="kpevent_finalization_before_event_date",
         ),
+        CheckConstraint(
+            "nametags_deadline >= registration_end",
+            name="kpevent_nametags_on_or_after_registration_end",
+        ),
+        CheckConstraint(
+            "nametags_deadline < event_date",
+            name="kpevent_nametags_before_event_date",
+        ),
     )
 
     name: str = Field(index=True, unique=True)
     registration_open: date
     registration_end: date
-    finalization_deadline: date  # deadline for finalizing the booking. after this date, no changes to the booking are allowed.
-    nametags_deadline: date  # deadline for submitting nametags. after this date, no nametags can be changed.
+    finalization_deadline: date
+    nametags_deadline: date
     event_date: date
+
+    vat_rate_permille: Permille = Field(default=81, ge=0, le=1000)
+    terms_url: str | None = Field(default=None)
+    notification_email: EmailStr | None = Field(default=None)
+    finalization_reminder_days: int = Field(default=3, ge=0)
+    max_nametags_per_booking: int = Field(
+        default=DEFAULT_MAX_NAMETAGS_PER_BOOKING, ge=1, le=MAX_SERVICE_QUANTITY
+    )
 
     booth_zones: list["KpEventBoothZone"] = Relationship(back_populates="event")
     bookings: list["KpEventBooking"] = Relationship(back_populates="event")
@@ -59,6 +103,10 @@ class KpEvent(BaseEntity, table=True):
         sa_relationship_kwargs={"uselist": False},
     )
 
+    @property
+    def vat_rate_percent(self) -> Decimal:
+        return Decimal(self.vat_rate_permille) / PERMILLE_PER_PERCENT
+
     def is_registration_open(self) -> bool:
         today = date.today()
         return self.registration_open <= today <= self.registration_end
@@ -66,6 +114,15 @@ class KpEvent(BaseEntity, table=True):
     def is_finalization_deadline_passed(self) -> bool:
         today = date.today()
         return self.finalization_deadline < today
+
+    def is_nametags_deadline_passed(self) -> bool:
+        return self.nametags_deadline < date.today()
+
+    @property
+    def finalization_reminder_date(self) -> date:
+        return self.finalization_deadline - timedelta(
+            days=self.finalization_reminder_days
+        )
 
     @model_validator(mode="after")
     def validate_dates(self) -> Self:
@@ -85,19 +142,32 @@ class KpEvent(BaseEntity, table=True):
 
 
 class KpBookingStatus(str, Enum):
-    DRAFT = "DRAFT"  # TODO: Currently not used, do we need it?
     REGISTERED = "REGISTERED"
     FINALIZED = "FINALIZED"
     CONFIRMED = "CONFIRMED"
     CANCELLED = "CANCELLED"
+    REJECTED = "REJECTED"
+
+
+INACTIVE_BOOKING_STATUSES = (KpBookingStatus.CANCELLED, KpBookingStatus.REJECTED)
 
 
 class KpEventBooking(BaseEntity, table=True):
     __table_args__ = (
-        UniqueConstraint("event_id", "company_id", "booth_zone_id"),
-        UniqueConstraint(
-            "event_id", "booth_zone_id", "booth_nr"
-        ),  # each booking within a zone must have a unique booth number
+        unique_partial_index(
+            "ix_kpeventbooking_event_id_company_id_booth_zone_id",
+            "event_id",
+            "company_id",
+            "booth_zone_id",
+            where=ACTIVE_BOOKING,
+        ),
+        unique_partial_index(
+            "ix_kpeventbooking_event_id_booth_zone_id_booth_nr",
+            "event_id",
+            "booth_zone_id",
+            "booth_nr",
+            where=f"booth_nr IS NOT NULL AND {ACTIVE_BOOKING}",
+        ),
     )
 
     event_id: UUID = Field(foreign_key="kpevent.id")
@@ -105,6 +175,23 @@ class KpEventBooking(BaseEntity, table=True):
     booth_zone_id: UUID = Field(foreign_key="kpeventboothzone.id")
 
     status: KpBookingStatus = Field(default=KpBookingStatus.REGISTERED)
+    status_changed_at: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
+    status_note: str | None = Field(default=None)
+    rejection_reason: str | None = Field(default=None)
+    finalized_at: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
+    confirmed_at: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
+    auto_finalize_blocked_at: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
+    reminder_sent_at: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
 
     booking_number: int | None = Field(
         default=None,
@@ -116,9 +203,7 @@ class KpEventBooking(BaseEntity, table=True):
         ),
     )
 
-    booth_nr: int | None = Field(
-        default=None, ge=1
-    )  # assigned manually after registration
+    booth_nr: int | None = Field(default=None, ge=1)
 
     event: "KpEvent" = Relationship(back_populates="bookings")
     company: Company = Relationship(back_populates="bookings")
@@ -136,6 +221,10 @@ class KpEventBooking(BaseEntity, table=True):
     @property
     def is_finalized(self) -> bool:
         return self.status == KpBookingStatus.FINALIZED
+
+    @property
+    def is_active(self) -> bool:
+        return self.status not in INACTIVE_BOOKING_STATUSES
 
     @property
     def total_price(self) -> int:
@@ -200,7 +289,7 @@ class NameTag(BaseEntity, table=True):
 class KpEventBoothZoneServiceLink(BaseLink, table=True):
     booth_zone_id: UUID = Field(foreign_key="kpeventboothzone.id", primary_key=True)
     service_id: UUID = Field(foreign_key="kpeventservice.id", primary_key=True)
-    included_quantity: int = Field(default=1, ge=1)
+    included_quantity: int = Field(default=1, ge=1, le=MAX_SERVICE_QUANTITY)
 
     booth_zone: "KpEventBoothZone" = Relationship(back_populates="included_services")
     service: "KpEventService" = Relationship(back_populates="booth_zones")
@@ -208,8 +297,12 @@ class KpEventBoothZoneServiceLink(BaseLink, table=True):
 
 class KpEventBoothZone(BaseEntity, table=True):
     __table_args__ = (
-        UniqueConstraint("event_id", "name"),
-        UniqueConstraint("event_id", "color"),
+        unique_among_active_index(
+            "ix_kpeventboothzone_event_id_name", "event_id", "name"
+        ),
+        unique_among_active_index(
+            "ix_kpeventboothzone_event_id_color", "event_id", "color"
+        ),
     )
 
     event_id: UUID = Field(foreign_key="kpevent.id")
@@ -220,10 +313,18 @@ class KpEventBoothZone(BaseEntity, table=True):
     order: int = Field(default=100, ge=0)
     capacity: int = Field(default=0, ge=0)
 
-    booth_size: float = Field(default=0, ge=0)  # square meters
-    base_price: int = Field(default=0, ge=0)  # cents
+    booth_size: SquareMeters = Field(default=0, ge=0)
+    base_price: Cents = Field(default=0, ge=0)
+
+    layout_description: str | None = Field(
+        default=None, max_length=LAYOUT_DESCRIPTION_MAX_LENGTH
+    )
+    layout_stored_file_id: UUID | None = Field(
+        default=None, foreign_key="storedfile.id", unique=True
+    )
 
     event: "KpEvent" = Relationship(back_populates="booth_zones")
+    layout_stored_file: StoredFile | None = Relationship()
     included_services: list["KpEventBoothZoneServiceLink"] = Relationship(
         back_populates="booth_zone"
     )
@@ -241,7 +342,6 @@ class KpEventBoothZone(BaseEntity, table=True):
 
 
 class KpEventServiceRequirementType(Enum):
-    # TODO: Perhaps we should have a more flexible the types, mime-type?
     TEXT = "text"
     FILE = "file"
     IMAGE = "image"
@@ -260,27 +360,28 @@ class KpEventServiceRequirement(BaseEntity, table=True):
 
 
 class KpEventService(BaseEntity, table=True):
-    __table_args__ = (UniqueConstraint("event_id", "name"),)
+    __table_args__ = (
+        unique_among_active_index(
+            "ix_kpeventservice_event_id_name", "event_id", "name"
+        ),
+    )
 
     event_id: UUID = Field(foreign_key="kpevent.id")
 
     name: str = Field(min_length=1)
     description: str
+    category: KpServiceCategory = Field(default=KpServiceCategory.SERVICE)
+    unit_label: str | None = Field(default=None)
     image_stored_file_id: UUID | None = Field(
         default=None, foreign_key="storedfile.id", unique=True
     )
-    # description of the service that will be shown to the company after they have booked the service.
-    # e.g. "Please send us the parcels to the following address: ..."
     confirmation_description: str | None = None
     order: int = Field(default=100, ge=0)
 
-    price: int = Field(default=0, ge=0)  # cents
-    # how many of this service can be ordered by a single booking. 0 means unlimited.
-    max_quantity_per_booking: int = Field(default=1, ge=1)
-    # how many of this service can be ordered in total by all bookings. 0 means unlimited.
-    max_total_quantity: int = Field(default=0, ge=0)
+    price: Cents = Field(default=0, ge=0)
+    max_quantity_per_booking: int = Field(default=1, ge=1, le=MAX_SERVICE_QUANTITY)
+    max_total_quantity: int = Field(default=UNLIMITED_TOTAL_QUANTITY, ge=0)
 
-    # if false, service is no longer available for booking. already booked services are not affected.
     is_active: bool = Field(default=True)
 
     event: "KpEvent" = Relationship(back_populates="services")
@@ -301,11 +402,9 @@ class KpEventBookingService(BaseEntity, table=True):
     booking_id: UUID = Field(foreign_key="kpeventbooking.id")
     service_id: UUID = Field(foreign_key="kpeventservice.id")
 
-    quantity: int = Field(default=1, ge=1)
+    quantity: int = Field(default=1, ge=1, le=MAX_SERVICE_QUANTITY)
 
-    included_quantity: int = Field(
-        default=0, ge=0
-    )  # quantity of the service that is already included in the booking.
+    included_quantity: int = Field(default=0, ge=0, le=MAX_SERVICE_QUANTITY)
 
     booking: "KpEventBooking" = Relationship(back_populates="services")
     service: "KpEventService" = Relationship(back_populates="booking_services")
@@ -315,9 +414,6 @@ class KpEventBookingService(BaseEntity, table=True):
 
     @property
     def charged_quantity(self) -> int:
-        """
-        The charged quantity of the service. Subtracts the quantity that is already included in the booking (e.g. through the selected booth zone).
-        """
         return max(self.quantity - self.included_quantity, 0)
 
 
@@ -345,6 +441,10 @@ class KpEventBookingServiceFileLink(BaseEntity, table=True):
 
 
 class KpEventNametagBackground(BaseEntity, table=True):
+    __table_args__ = (
+        unique_among_active_index("ix_kpeventnametagbackground_event_id", "event_id"),
+    )
+
     event_id: UUID = Field(foreign_key="kpevent.id")
     stored_file_id: UUID = Field(foreign_key="storedfile.id", unique=True)
 
@@ -352,56 +452,60 @@ class KpEventNametagBackground(BaseEntity, table=True):
     stored_file: StoredFile = Relationship()
 
 
-class KpCompanyLanguage(str, Enum):
-    ENGLISH = "ENGLISH"
-    GERMAN = "GERMAN"
-    FRENCH = "FRENCH"
-    ITALIAN = "ITALIAN"
-
-
-_kp_company_language_pg_enum = SAEnum(
-    KpCompanyLanguage,
-    name="kpcompanylanguage",
-    native_enum=True,
-)
-
-
-class KpIndustry(BaseEntity, table=True):
-    name: str = Field(min_length=1, index=True, unique=True)
-
-    company_details_links: list["KpBookingCompanyDetailsIndustryLink"] = Relationship(
-        back_populates="industry",
-    )
-
-
 class KpBookingCompanyDetails(BaseEntity, table=True):
     booking_id: UUID = Field(foreign_key="kpeventbooking.id", unique=True)
+    confirmed_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        sa_type=TIMESTAMPTZ,
+    )
 
-    profile: str = Field(default="")  # markdown
+    description: str = Field(default="", max_length=PROFILE_DESCRIPTION_MAX_LENGTH)
+    website: str | None = Field(default=None)
+
     brand_name: str = Field(default="")
-    address: str = Field(default="")
     contact_person: str = Field(default="")
+    contact_email: EmailStr | None = Field(default=None)
+    contact_phone: str | None = Field(default=None)
     places_of_work: str = Field(default="")
 
-    employees_count: int | None = Field(default=None, ge=0)
-    employees_count_switzerland: int | None = Field(default=None, ge=0)
+    employee_count_switzerland: int | None = Field(default=None, ge=0)
+    employee_count_worldwide: int | None = Field(default=None, ge=0)
 
-    offer_internship: bool = Field(default=False)
-    offer_part_time: bool = Field(default=False)
-    offer_thesis: bool = Field(default=False)
+    offers_internships: bool = Field(default=False)
+    offers_part_time: bool = Field(default=False)
+    offers_theses: bool = Field(default=False)
+    offers_graduate_positions: bool = Field(default=False)
 
     languages: list[KpCompanyLanguage] = Field(
         default_factory=list,
-        sa_column=Column(
-            ARRAY(_kp_company_language_pg_enum),
-            nullable=False,
-        ),
+        sa_column=company_language_column(),
     )
+
+    billing_company_name: str = Field(default="")
+    billing_street: str = Field(default="")
+    billing_house_number: str = Field(default="")
+    billing_postal_code: str = Field(default="")
+    billing_city: str = Field(default="")
+    billing_country: str = Field(default="", max_length=2)
+    billing_vat_number: str | None = Field(default=None)
+    billing_email: EmailStr | None = Field(default=None)
+
+    shipping_address: str = Field(default="")
 
     booking: "KpEventBooking" = Relationship(back_populates="company_details")
     industry_links: list["KpBookingCompanyDetailsIndustryLink"] = Relationship(
         back_populates="booking_company_details",
     )
+
+    @field_validator("billing_country")
+    @classmethod
+    def validate_billing_country(cls, value: str) -> str:
+        return normalize_country_code(value)
+
+    @property
+    def industry_names(self) -> list[str]:
+        return [link.industry_name for link in self.industry_links]
 
 
 class KpBookingCompanyDetailsIndustryLink(BaseLink, table=True):
@@ -409,17 +513,16 @@ class KpBookingCompanyDetailsIndustryLink(BaseLink, table=True):
         foreign_key="kpbookingcompanydetails.id",
         primary_key=True,
     )
-    industry_id: UUID = Field(foreign_key="kpindustry.id", primary_key=True)
+    industry_id: UUID = Field(foreign_key="industry.id", primary_key=True)
+    industry_name: str = Field(default="")
 
     booking_company_details: "KpBookingCompanyDetails" = Relationship(
         back_populates="industry_links",
     )
-    industry: "KpIndustry" = Relationship(back_populates="company_details_links")
+    industry: Industry = Relationship(back_populates="snapshot_links")
 
 
 class KpEventRegistrationException(BaseEntity, table=True):
-    """Allows specific companies to register after the event's registration deadline."""
-
     __table_args__ = (UniqueConstraint("event_id", "company_id"),)
 
     event_id: UUID = Field(foreign_key="kpevent.id")

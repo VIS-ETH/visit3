@@ -10,10 +10,11 @@ import {
 import { IconAlertCircle, IconCircleCheck } from "@tabler/icons-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation, useNavigate, useParams } from "react-router";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
 import { useGetKpById, useGetMyBooking } from "../orval/generated/kp/kp";
 import { KpBookingRecap } from "../components/KpBookingRecap";
+import { isInactiveBooking } from "../utils/my-booking";
 
 const KP_BOOKING_HELP_EMAIL = "info@kontaktparty.ch";
 
@@ -109,6 +110,10 @@ const KpBookingConfirmation = () => {
     );
   }
 
+  if (isInactiveBooking(booking)) {
+    return <Navigate to={`/kp/${eventId}`} replace />;
+  }
+
   const supportSubject = `[${event.name}] - Booking #${booking.booking_number}`;
 
   return (
@@ -139,7 +144,10 @@ const KpBookingConfirmation = () => {
         </Alert>
       ) : null}
 
-      <KpBookingRecap booking={booking} />
+      <KpBookingRecap
+        booking={booking}
+        vatRatePercent={event.vat_rate_percent}
+      />
 
       <Text size="sm" c="dimmed">
         {t("kp.booking.confirmation_help_footer_prompt")}{" "}

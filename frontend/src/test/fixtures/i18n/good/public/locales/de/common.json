@@ -1,0 +1,11 @@
+{
+  "fixture": {
+    "body": "Zu jedem Stand gehören ein Tisch und zwei Stühle.",
+    "booth_number_label": "Standnummer",
+    "booth_number_error": "Bitte eine Standnummer wählen",
+    "booth_photo_alt": "Foto eines Stands",
+    "save": "Speichern",
+    "saved": "Stand gespeichert",
+    "title": "Stand"
+  }
+}

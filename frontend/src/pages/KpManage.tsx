@@ -2,6 +2,7 @@ import {
   Alert,
   Button,
   Center,
+  Divider,
   Group,
   Loader,
   Modal,
@@ -24,7 +25,13 @@ import {
   useCloneKp,
   useGetKpById,
 } from "../orval/generated/kp/kp";
-import { kpSchema, toKpRequest, type KpFormValues } from "../schemas/kpSchema";
+import {
+  emptyEventSettingsValues,
+  kpWithSettingsSchema,
+  toKpWithSettingsRequest,
+  type KpWithSettingsFormValues,
+} from "../schemas/eventSettingsSchema";
+import EventSettingsFields from "../components/kp/EventSettingsFields";
 import { formatKpDisplayDate } from "../utils/kp-utils";
 import BookingsTab from "../components/BookingsTab";
 import BoothZonesTab from "../components/BoothZonesTab";
@@ -32,7 +39,9 @@ import DetailsTab from "../components/DetailsTab";
 import IndustriesTab from "../components/IndustriesTab";
 import ServicesTab from "../components/ServicesTab";
 import ExportsTab from "../components/ExportsTab";
+import VenueTab from "../components/kp/VenueTab";
 import { useTranslatedForm } from "../utils/translator";
+import { useCurrentUser } from "../context/useCurrentUser";
 
 function formatDate(dateString?: string) {
   return formatKpDisplayDate(dateString);
@@ -43,6 +52,7 @@ const KP_MANAGE_TAB_VALUES = [
   "exports",
   "services",
   "booth_zones",
+  "venue",
   "bookings",
   "industries",
 ] as const;
@@ -59,17 +69,29 @@ const dateFieldNames = [
   "eventDate",
 ] as const;
 
+const PRESIDENT_KP_MANAGE_TAB_VALUES: readonly KpManageTabValue[] = [
+  "services",
+  "booth_zones",
+  "venue",
+  "industries",
+];
+
 function isKpManageTabValue(v: string | null): v is KpManageTabValue {
   return v !== null && KP_MANAGE_TAB_VALUES.includes(v as KpManageTabValue);
 }
 
-const emptyKpFormValues: KpFormValues = {
+function isVisibleTab(v: KpManageTabValue, isPresident: boolean): boolean {
+  return isPresident || !PRESIDENT_KP_MANAGE_TAB_VALUES.includes(v);
+}
+
+const emptyKpFormValues: KpWithSettingsFormValues = {
   name: "",
   registrationOpen: "",
   registrationEnd: "",
   finalizationDeadline: "",
   nametagsDeadline: "",
   eventDate: "",
+  ...emptyEventSettingsValues,
 };
 
 const CloneKpModal = ({
@@ -84,10 +106,13 @@ const CloneKpModal = ({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const form = useTranslatedForm<typeof kpSchema>(kpSchema, {
-    initialValues: emptyKpFormValues,
-    validateInputOnChange: true,
-  });
+  const form = useTranslatedForm<typeof kpWithSettingsSchema>(
+    kpWithSettingsSchema,
+    {
+      initialValues: emptyKpFormValues,
+      validateInputOnChange: true,
+    },
+  );
 
   const { mutate: clone, isPending } = useCloneKp({
     mutation: {
@@ -120,10 +145,10 @@ const CloneKpModal = ({
     };
   };
 
-  const handleSubmit = (values: KpFormValues) => {
+  const handleSubmit = (values: KpWithSettingsFormValues) => {
     clone({
       eventId,
-      data: toKpRequest(values),
+      data: toKpWithSettingsRequest(values),
     });
   };
 
@@ -173,6 +198,11 @@ const CloneKpModal = ({
               {...getDateInputProps("eventDate")}
             />
           </SimpleGrid>
+          <Divider />
+          <EventSettingsFields
+            disabled={isPending}
+            getInputProps={(field) => form.getInputProps(field)}
+          />
           <Group justify="flex-end">
             <Button
               variant="default"
@@ -195,32 +225,35 @@ const CloneKpModal = ({
   );
 };
 
-// ─── Main Page ───
-
 const KpManage = () => {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
+  const { user } = useCurrentUser();
   const [searchParams, setSearchParams] = useSearchParams();
   const [cloneModalOpen, setCloneModalOpen] = useState(false);
   const { data: event, isLoading, isError } = useGetKpById(id ?? "");
 
+  const isPresident = user?.is_kp_president ?? false;
   const tabParam = searchParams.get("tab");
-  const activeTab: KpManageTabValue = isKpManageTabValue(tabParam)
-    ? tabParam
-    : DEFAULT_KP_MANAGE_TAB;
+  const activeTab: KpManageTabValue =
+    isKpManageTabValue(tabParam) && isVisibleTab(tabParam, isPresident)
+      ? tabParam
+      : DEFAULT_KP_MANAGE_TAB;
 
   useEffect(() => {
-    if (tabParam !== null && !isKpManageTabValue(tabParam)) {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete("tab");
-          return next;
-        },
-        { replace: true },
-      );
+    if (tabParam === null) return;
+    if (isKpManageTabValue(tabParam) && isVisibleTab(tabParam, isPresident)) {
+      return;
     }
-  }, [tabParam, setSearchParams]);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("tab");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [tabParam, isPresident, setSearchParams]);
 
   const setActiveTabInUrl = (value: string | null) => {
     const next = new URLSearchParams(searchParams);
@@ -297,14 +330,21 @@ const KpManage = () => {
         <Tabs.List>
           <Tabs.Tab value="details">{t("kp.manage.tab_details")}</Tabs.Tab>
           <Tabs.Tab value="exports">{t("kp.manage.tab_exports")}</Tabs.Tab>
-          <Tabs.Tab value="services">{t("kp.manage.tab_services")}</Tabs.Tab>
-          <Tabs.Tab value="booth_zones">
-            {t("kp.manage.tab_booth_zones")}
-          </Tabs.Tab>
           <Tabs.Tab value="bookings">{t("kp.manage.tab_bookings")}</Tabs.Tab>
-          <Tabs.Tab value="industries">
-            {t("kp.manage.tab_industries")}
-          </Tabs.Tab>
+          {isPresident && (
+            <>
+              <Tabs.Tab value="services">
+                {t("kp.manage.tab_services")}
+              </Tabs.Tab>
+              <Tabs.Tab value="booth_zones">
+                {t("kp.manage.tab_booth_zones")}
+              </Tabs.Tab>
+              <Tabs.Tab value="venue">{t("kp.venue.tab_title")}</Tabs.Tab>
+              <Tabs.Tab value="industries">
+                {t("kp.manage.tab_industries")}
+              </Tabs.Tab>
+            </>
+          )}
         </Tabs.List>
 
         <Tabs.Panel value="details" pt="md">
@@ -313,18 +353,25 @@ const KpManage = () => {
         <Tabs.Panel value="exports" pt="md">
           <ExportsTab eventId={id} eventName={event.name} />
         </Tabs.Panel>
-        <Tabs.Panel value="services" pt="md">
-          <ServicesTab eventId={id} />
-        </Tabs.Panel>
-        <Tabs.Panel value="booth_zones" pt="md">
-          <BoothZonesTab eventId={id} />
-        </Tabs.Panel>
         <Tabs.Panel value="bookings" pt="md">
           <BookingsTab eventId={id} />
         </Tabs.Panel>
-        <Tabs.Panel value="industries" pt="md">
-          <IndustriesTab />
-        </Tabs.Panel>
+        {isPresident && (
+          <>
+            <Tabs.Panel value="services" pt="md">
+              <ServicesTab eventId={id} />
+            </Tabs.Panel>
+            <Tabs.Panel value="booth_zones" pt="md">
+              <BoothZonesTab eventId={id} />
+            </Tabs.Panel>
+            <Tabs.Panel value="venue" pt="md">
+              <VenueTab eventId={id} />
+            </Tabs.Panel>
+            <Tabs.Panel value="industries" pt="md">
+              <IndustriesTab />
+            </Tabs.Panel>
+          </>
+        )}
       </Tabs>
     </Stack>
   );

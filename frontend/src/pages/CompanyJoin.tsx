@@ -2,7 +2,6 @@ import {
   Alert,
   Button,
   Center,
-  Group,
   Loader,
   Stack,
   Text,
@@ -17,6 +16,8 @@ import {
   useGetCompanyInviteInfo,
 } from "../orval/generated/company/company";
 import { getGetCurrentUserQueryKey } from "../orval/generated/user/user";
+import { getApiErrorCode } from "../api/errors";
+import CompanyJoinSignup from "../components/company/CompanyJoinSignup";
 import { useCurrentUser } from "../context/useCurrentUser";
 
 const CompanyJoin = () => {
@@ -29,13 +30,18 @@ const CompanyJoin = () => {
 
   const {
     data: invite,
+    error: inviteError,
     isLoading,
     isError,
   } = useGetCompanyInviteInfo(token!, {
-    query: { enabled: !!token },
+    query: { enabled: !!token, retry: false },
   });
 
-  const { mutate: accept, isPending } = useAcceptCompanyInvite({
+  const {
+    mutate: accept,
+    error: acceptError,
+    isPending,
+  } = useAcceptCompanyInvite({
     mutation: {
       onSuccess: async () => {
         await queryClient.invalidateQueries({
@@ -45,8 +51,20 @@ const CompanyJoin = () => {
       },
     },
   });
+
   const loginHref = `/login?next=${encodeURIComponent(location.pathname)}`;
-  const registerHref = `/register?next=${encodeURIComponent(location.pathname)}`;
+  const invitedEmail = new URLSearchParams(location.search).get("email") ?? "";
+
+  const inviteErrorText = (error: unknown) => {
+    const code = getApiErrorCode(error);
+    if (code === "error.invite_expired") return t("error.invite_expired");
+    if (code === "error.invite_email_mismatch") {
+      return t("company_join.email_mismatch", {
+        currentEmail: user?.email ?? "",
+      });
+    }
+    return t("error.invite_not_found");
+  };
 
   if (isLoading) {
     return (
@@ -64,7 +82,7 @@ const CompanyJoin = () => {
           color="red"
           title={t("company_join.invalid")}
         >
-          {t("error.invite_not_found")}
+          {inviteErrorText(inviteError)}
         </Alert>
       </Center>
     );
@@ -72,7 +90,7 @@ const CompanyJoin = () => {
 
   return (
     <Center py="xl">
-      <Stack align="center" gap="lg" maw={480} w="90%" px="md">
+      <Stack align="center" gap="lg" maw={520} w="90%" px="md">
         <IconBuilding size={48} />
         <Title order={2} ta="center">
           {t("company_join.title")}
@@ -80,29 +98,37 @@ const CompanyJoin = () => {
         <Text ta="center" c="dimmed">
           {t("company_join.joining")} <strong>{invite.company_name}</strong>
         </Text>
-        {!user ? (
+        {user ? (
+          <Stack w="100%" gap="sm">
+            {acceptError ? (
+              <Alert icon={<IconAlertCircle />} color="red">
+                {inviteErrorText(acceptError)}
+              </Alert>
+            ) : null}
+            <Button
+              size="lg"
+              loading={isPending}
+              disabled={isPending}
+              onClick={() => accept({ token: token! })}
+            >
+              {t("company_join.button", { company: invite.company_name })}
+            </Button>
+          </Stack>
+        ) : invite.account_exists ? (
           <Stack w="100%" gap="sm">
             <Alert icon={<IconAlertCircle />} color="blue" variant="light">
               {t("company_join.login_required")}
             </Alert>
-            <Group grow>
-              <Button component={NavLink} to={loginHref}>
-                {t("company_join.log_in")}
-              </Button>
-              <Button component={NavLink} to={registerHref} variant="light">
-                {t("company_join.create_account")}
-              </Button>
-            </Group>
+            <Button component={NavLink} to={loginHref}>
+              {t("company_join.log_in")}
+            </Button>
           </Stack>
         ) : (
-          <Button
-            size="lg"
-            loading={isPending}
-            disabled={isPending}
-            onClick={() => accept({ token: token! })}
-          >
-            {t("company_join.button", { company: invite.company_name })}
-          </Button>
+          <CompanyJoinSignup
+            token={token!}
+            invitedEmail={invitedEmail}
+            loginHref={loginHref}
+          />
         )}
       </Stack>
     </Center>

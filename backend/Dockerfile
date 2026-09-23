@@ -1,6 +1,6 @@
 FROM python:3.12-slim AS grpc-generator
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.6 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.17 /uv /uvx /bin/
 
 ENV UV_PROJECT_ENVIRONMENT="/opt/gen-venv"
 ENV UV_COMPILE_BYTECODE=1
@@ -26,7 +26,7 @@ RUN /opt/gen-venv/bin/python ./fix_imports.py app/generated app.generated
 
 FROM python:3.12-slim AS compiler
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.6 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.17 /uv /uvx /bin/
 
 ENV UV_PROJECT_ENVIRONMENT="/opt/venv"
 ENV UV_COMPILE_BYTECODE=1
@@ -52,4 +52,6 @@ COPY --from=grpc-generator /build/app/generated ./app/generated
 
 RUN python -m compileall -q app migrations
 
-CMD ["sh", "-c", "alembic upgrade head && fastapi run --host 0.0.0.0 --port 8000"]
+ENV FORWARDED_ALLOW_IPS="127.0.0.1"
+
+CMD ["sh", "-c", "alembic upgrade head && fastapi run --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips \"$FORWARDED_ALLOW_IPS\""]

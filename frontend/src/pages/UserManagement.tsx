@@ -1,354 +1,329 @@
 import {
-  Center,
-  Stack,
-  Title,
-  Loader,
+  ActionIcon,
   Alert,
-  Button,
-  Tabs,
-  Modal,
-  Text,
+  Badge,
+  Center,
   Group,
+  Loader,
+  Pagination,
+  Paper,
+  SegmentedControl,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+  Title,
+  Tooltip,
 } from "@mantine/core";
+import { useDebouncedValue } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
 import {
   IconAlertCircle,
   IconCheck,
+  IconMailForward,
+  IconPencil,
+  IconSearch,
   IconTrash,
   IconUserSearch,
 } from "@tabler/icons-react";
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  getGetAllCompanyUsersQueryKey,
-  getGetCurrentUserQueryKey,
-  getGetUnconfirmedUsersQueryKey,
-  useConfirmUser,
-  useDeleteUser,
-  useGetAllAdmins,
-  useGetAllCompanyUsers,
-  useGetAllStaff,
-  useGetUnconfirmedUsers,
-} from "../orval/generated/user/user";
-import {
-  isImpersonating,
-  setImpersonation,
-  getImpersonatingUserId,
-} from "../api/utils";
-
-import UserTable from "../components/UserTable";
-import type { UserResponse } from "../orval/generated/fastAPI.schemas";
-import { useCurrentUser } from "../context/useCurrentUser";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
+import { resetQueriesForIdentityChange } from "../api/query-cache";
+import { getImpersonatingUserId, setImpersonation } from "../api/utils";
+import UserDeleteModal from "../components/admin/UserDeleteModal";
+import UserEditDrawer from "../components/admin/UserEditDrawer";
+import UserFlagBadges from "../components/admin/UserFlagBadges";
+import { useCurrentUser } from "../context/useCurrentUser";
+import {
+  UserFilter,
+  type UserResponse,
+} from "../orval/generated/fastAPI.schemas";
+import {
+  getListUsersQueryKey,
+  useConfirmUser,
+  useListUsers,
+  useResendUserConfirmationMail,
+} from "../orval/generated/user/user";
+import { getDisplayName } from "../utils/display";
+
+const SEARCH_DEBOUNCE_MS = 300;
+const PAGE_SIZE = 25;
+
+const filterLabelKeys: Record<UserFilter, string> = {
+  [UserFilter.all]: "user_management.filters.all",
+  [UserFilter.unconfirmed]: "user_management.filters.unconfirmed",
+  [UserFilter.company]: "user_management.filters.company",
+  [UserFilter.staff]: "user_management.filters.staff",
+};
 
 const UserManagement = () => {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const { user } = useCurrentUser();
   const navigate = useNavigate();
-  const adminStatus = user?.is_admin ?? false;
-  const [activeTab, setActiveTab] = useState<string | null>("unconfirmed");
-  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<UserResponse | null>(null);
+  const queryClient = useQueryClient();
+  const { user: currentUser } = useCurrentUser();
+  const isAdmin = currentUser?.is_admin ?? false;
 
-  const {
-    data: unconfirmedUsers,
-    isLoading: isUnconfirmedLoading,
-    isError: isUnconfirmedError,
-  } = useGetUnconfirmedUsers({
-    query: { enabled: activeTab === "unconfirmed" },
+  const [search, setSearch] = useState("");
+  const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
+  const [filter, setFilter] = useState<UserFilter>(UserFilter.all);
+  const [page, setPage] = useState(1);
+  const [editedUser, setEditedUser] = useState<UserResponse | null>(null);
+  const [deletedUser, setDeletedUser] = useState<UserResponse | null>(null);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, filter]);
+
+  const { data, isLoading, isError } = useListUsers({
+    query: debouncedSearch.trim() || undefined,
+    filter,
+    page,
+    page_size: PAGE_SIZE,
   });
-  const {
-    data: staffUsers,
-    isLoading: isStaffLoading,
-    isError: isStaffError,
-  } = useGetAllStaff({ query: { enabled: activeTab === "staff" } });
-  const {
-    data: companyUsers,
-    isLoading: isCompaniesLoading,
-    isError: isCompaniesError,
-  } = useGetAllCompanyUsers({ query: { enabled: activeTab === "companies" } });
-  const {
-    data: adminUsers,
-    isLoading: isAdminsLoading,
-    isError: isAdminsError,
-  } = useGetAllAdmins({ query: { enabled: activeTab === "admins" } });
 
-  const { mutate: confirm, isPending: isConfirming } = useConfirmUser({
+  const invalidateUsers = () =>
+    queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+
+  const { mutate: confirmUser, isPending: isConfirming } = useConfirmUser({
     mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: getGetUnconfirmedUsersQueryKey(),
+      onSuccess: async () => {
+        await invalidateUsers();
+        notifications.show({
+          color: "green",
+          message: t("user_management.confirmed_notice"),
         });
       },
     },
   });
 
-  const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: getGetAllCompanyUsersQueryKey(),
-        });
-        setDeleteModalOpened(false);
+  const { mutate: resendConfirmation, isPending: isResending } =
+    useResendUserConfirmationMail({
+      mutation: {
+        onSuccess: () => {
+          notifications.show({
+            color: "green",
+            message: t("user_management.resent_notice"),
+          });
+        },
       },
-    },
-  });
+    });
 
-  const handleConfirmUser = (userId: string | undefined) => {
-    if (!userId) return;
-    confirm({ userId });
-  };
-
-  const handleImpersonateUser = (
-    userId: string | undefined,
-    displayName: string,
-  ) => {
-    if (!adminStatus || !userId) return;
-    setImpersonation(userId, displayName);
-    queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+  const impersonate = (target: UserResponse) => {
+    if (!isAdmin) return;
+    setImpersonation(
+      target.id,
+      getDisplayName(target.first_name, target.last_name, target.email),
+    );
+    resetQueriesForIdentityChange(queryClient);
     navigate("/", { replace: true });
   };
 
-  const handleDeleteUser = (userId: string | undefined) => {
-    if (!adminStatus) return;
-    if (!userId) return;
-    const targetUser = companyUsers?.find((user) => user.id === userId);
-    if (!targetUser) return;
-    setUserToDelete(targetUser as UserResponse);
-    setDeleteModalOpened(true);
-  };
-
-  const confirmDeleteUser = () => {
-    if (!adminStatus) return;
-    if (!userToDelete?.id) return;
-    deleteUser({ userId: userToDelete.id });
-  };
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <Center h="100%" w="100%" py="xl">
-      <Stack w="100%" maw={1000} gap="lg">
+      <Stack w="100%" maw={1200} gap="lg">
         <Title order={2}>{t("user_management.title")}</Title>
 
-        <Modal
-          opened={adminStatus && deleteModalOpened}
-          onClose={() => {
-            if (!isDeleting) {
-              setDeleteModalOpened(false);
-            }
-          }}
-          onExitTransitionEnd={() => {
-            if (!deleteModalOpened) {
-              setUserToDelete(null);
-            }
-          }}
-          closeOnClickOutside={!isDeleting}
-          closeOnEscape={!isDeleting}
-          withCloseButton={!isDeleting}
-          title={t("user_management.delete_modal.title")}
-          centered
-        >
-          <Stack gap="sm">
-            <Text>
-              {t("user_management.delete_modal.message", {
-                email: userToDelete?.email ?? "-",
-              })}
-            </Text>
-            <Text c="red" fw={600}>
-              {t("user_management.delete_modal.irreversible")}
-            </Text>
-            <Group justify="flex-end" mt="md">
-              <Button
-                variant="default"
-                onClick={() => setDeleteModalOpened(false)}
-                disabled={isDeleting}
-              >
-                {t("user_management.delete_modal.cancel")}
-              </Button>
-              <Button
-                color="red"
-                onClick={confirmDeleteUser}
-                loading={isDeleting}
-                disabled={!userToDelete?.id}
-              >
-                {t("user_management.delete_modal.confirm")}
-              </Button>
-            </Group>
-          </Stack>
-        </Modal>
+        <UserEditDrawer
+          canEditPrivileges={isAdmin}
+          onClose={() => setEditedUser(null)}
+          user={editedUser}
+        />
+        <UserDeleteModal
+          onClose={() => setDeletedUser(null)}
+          user={deletedUser}
+        />
 
-        <Tabs value={activeTab} onChange={setActiveTab}>
-          <Tabs.List>
-            <Tabs.Tab value="unconfirmed">
-              {t("user_management.tabs.unconfirmed")}
-            </Tabs.Tab>
-            <Tabs.Tab value="companies">
-              {t("user_management.tabs.companies")}
-            </Tabs.Tab>
-            <Tabs.Tab value="staff">{t("user_management.tabs.staff")}</Tabs.Tab>
-            <Tabs.Tab value="admins">
-              {t("user_management.tabs.admins")}
-            </Tabs.Tab>
-          </Tabs.List>
+        <Group align="flex-end" gap="sm" justify="space-between">
+          <TextInput
+            flex={1}
+            leftSection={<IconSearch size={16} />}
+            maw={360}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+            placeholder={t("user_management.search_placeholder")}
+            value={search}
+          />
+          <SegmentedControl
+            data={Object.entries(filterLabelKeys).map(([value, labelKey]) => ({
+              value,
+              label: t(labelKey),
+            }))}
+            onChange={(value) => setFilter(value as UserFilter)}
+            value={filter}
+          />
+        </Group>
 
-          <Tabs.Panel value="unconfirmed" pt="md">
-            {isUnconfirmedLoading ? (
-              <Center py="xl">
+        {isError ? (
+          <Alert
+            color="red"
+            icon={<IconAlertCircle />}
+            title={t("server.error")}
+          >
+            {t("user_management.error")}
+          </Alert>
+        ) : (
+          <Paper withBorder p="lg" radius="md">
+            {isLoading ? (
+              <Center py="md">
                 <Loader />
               </Center>
-            ) : isUnconfirmedError ? (
-              <Alert
-                icon={<IconAlertCircle />}
-                color="red"
-                title={t("server.error")}
-              >
-                {t("user_management.error")}
-              </Alert>
-            ) : unconfirmedUsers && unconfirmedUsers.length > 0 ? (
-              <UserTable
-                users={unconfirmedUsers}
-                t={t}
-                actionButton={(user) => (
-                  <Button
-                    size="xs"
-                    leftSection={<IconCheck size={14} />}
-                    onClick={() => handleConfirmUser(user.id)}
-                    disabled={isConfirming || !user.id}
-                    loading={isConfirming}
-                  >
-                    {t("user_management.confirm")}
-                  </Button>
-                )}
-              />
+            ) : items.length === 0 ? (
+              <Text c="dimmed">{t("user_management.table_empty")}</Text>
             ) : (
-              <Alert
-                icon={<IconAlertCircle />}
-                color="blue"
-                title={t("user_management.no_users")}
-              >
-                {t("user_management.no_users_description")}
-              </Alert>
-            )}
-          </Tabs.Panel>
+              <>
+                <Table.ScrollContainer minWidth={900}>
+                  <Table highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>{t("user_management.email")}</Table.Th>
+                        <Table.Th>{t("user_management.name")}</Table.Th>
+                        <Table.Th>{t("user_management.company")}</Table.Th>
+                        <Table.Th>{t("user_management.flags.header")}</Table.Th>
+                        <Table.Th>{t("user_management.status")}</Table.Th>
+                        <Table.Th>{t("user_management.actions")}</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {items.map((item) => (
+                        <Table.Tr key={item.id}>
+                          <Table.Td>{item.email}</Table.Td>
+                          <Table.Td>
+                            {getDisplayName(item.first_name, item.last_name)}
+                          </Table.Td>
+                          <Table.Td>{item.company?.name ?? "-"}</Table.Td>
+                          <Table.Td>
+                            <UserFlagBadges user={item} />
+                          </Table.Td>
+                          <Table.Td>
+                            <Group gap="xs" wrap="wrap">
+                              <Badge
+                                color={item.user_confirmed ? "green" : "yellow"}
+                                variant="light"
+                              >
+                                {item.user_confirmed
+                                  ? t("user_management.confirmed")
+                                  : t("user_management.unconfirmed")}
+                              </Badge>
+                              {item.email_confirmed ? null : (
+                                <Badge color="orange" variant="light">
+                                  {t("user_management.email_unconfirmed")}
+                                </Badge>
+                              )}
+                            </Group>
+                          </Table.Td>
+                          <Table.Td>
+                            <Group gap="xs" wrap="nowrap">
+                              {item.user_confirmed ? null : (
+                                <Tooltip
+                                  label={t("user_management.confirm")}
+                                  withArrow
+                                >
+                                  <ActionIcon
+                                    aria-label={t("user_management.confirm")}
+                                    color="green"
+                                    disabled={isConfirming}
+                                    onClick={() =>
+                                      confirmUser({ userId: item.id })
+                                    }
+                                    variant="light"
+                                  >
+                                    <IconCheck size={16} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              )}
+                              {item.email_confirmed ? null : (
+                                <Tooltip
+                                  label={t("user_management.resend")}
+                                  withArrow
+                                >
+                                  <ActionIcon
+                                    aria-label={t("user_management.resend")}
+                                    disabled={isResending}
+                                    onClick={() =>
+                                      resendConfirmation({ userId: item.id })
+                                    }
+                                    variant="light"
+                                  >
+                                    <IconMailForward size={16} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              )}
+                              {isAdmin ? (
+                                <Tooltip
+                                  label={t("user_management.impersonate")}
+                                  withArrow
+                                >
+                                  <ActionIcon
+                                    aria-label={t(
+                                      "user_management.impersonate",
+                                    )}
+                                    color="blue"
+                                    disabled={
+                                      getImpersonatingUserId() === item.id
+                                    }
+                                    onClick={() => impersonate(item)}
+                                    variant="light"
+                                  >
+                                    <IconUserSearch size={16} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              ) : null}
+                              <Tooltip
+                                label={t("user_management.edit.title")}
+                                withArrow
+                              >
+                                <ActionIcon
+                                  aria-label={t("user_management.edit.title")}
+                                  onClick={() => setEditedUser(item)}
+                                  variant="light"
+                                >
+                                  <IconPencil size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                              <Tooltip
+                                label={t("user_management.delete")}
+                                withArrow
+                              >
+                                <ActionIcon
+                                  aria-label={t("user_management.delete")}
+                                  color="red"
+                                  onClick={() => setDeletedUser(item)}
+                                  variant="light"
+                                >
+                                  <IconTrash size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </Table.ScrollContainer>
 
-          <Tabs.Panel value="companies" pt="md">
-            {isCompaniesLoading ? (
-              <Center py="xl">
-                <Loader />
-              </Center>
-            ) : isCompaniesError ? (
-              <Alert
-                icon={<IconAlertCircle />}
-                color="red"
-                title={t("server.error")}
-              >
-                {t("user_management.error")}
-              </Alert>
-            ) : companyUsers && companyUsers.length > 0 ? (
-              <UserTable
-                users={companyUsers}
-                t={t}
-                actionButton={
-                  adminStatus
-                    ? (user) => {
-                        const displayName =
-                          user.first_name || user.last_name
-                            ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim()
-                            : user.email;
-                        const isCurrentlyImpersonating =
-                          isImpersonating() &&
-                          getImpersonatingUserId() === user.id;
-                        return (
-                          <Group gap="xs" wrap="nowrap">
-                            <Button
-                              leftSection={<IconUserSearch size={14} />}
-                              size="xs"
-                              color="blue"
-                              variant="light"
-                              onClick={() =>
-                                handleImpersonateUser(user.id, displayName)
-                              }
-                              disabled={!user.id || isCurrentlyImpersonating}
-                            >
-                              {isCurrentlyImpersonating
-                                ? t("user_management.impersonating")
-                                : t("user_management.impersonate")}
-                            </Button>
-                            <Button
-                              leftSection={<IconTrash size={14} />}
-                              size="xs"
-                              color="red"
-                              variant="light"
-                              onClick={() => handleDeleteUser(user.id)}
-                              disabled={!user.id}
-                            >
-                              {t("user_management.delete")}
-                            </Button>
-                          </Group>
-                        );
-                      }
-                    : undefined
-                }
-              />
-            ) : (
-              <Alert
-                icon={<IconAlertCircle />}
-                color="blue"
-                title={t("user_management.no_companies")}
-              />
+                <Group justify="space-between" mt="sm">
+                  <Text c="dimmed" size="sm">
+                    {t("user_management.total", { total })}
+                  </Text>
+                  <Pagination
+                    onChange={setPage}
+                    total={totalPages}
+                    value={page}
+                    withEdges
+                  />
+                </Group>
+              </>
             )}
-          </Tabs.Panel>
-
-          <Tabs.Panel value="staff" pt="md">
-            {isStaffLoading ? (
-              <Center py="xl">
-                <Loader />
-              </Center>
-            ) : isStaffError ? (
-              <Alert
-                icon={<IconAlertCircle />}
-                color="red"
-                title={t("server.error")}
-              >
-                {t("user_management.error")}
-              </Alert>
-            ) : staffUsers && staffUsers.length > 0 ? (
-              <UserTable users={staffUsers} t={t} showCompany={false} />
-            ) : (
-              <Alert
-                icon={<IconAlertCircle />}
-                color="blue"
-                title={t("user_management.no_staff")}
-              />
-            )}
-          </Tabs.Panel>
-
-          <Tabs.Panel value="admins" pt="md">
-            {isAdminsLoading ? (
-              <Center py="xl">
-                <Loader />
-              </Center>
-            ) : isAdminsError ? (
-              <Alert
-                icon={<IconAlertCircle />}
-                color="red"
-                title={t("server.error")}
-              >
-                {t("user_management.error")}
-              </Alert>
-            ) : adminUsers && adminUsers.length > 0 ? (
-              <UserTable users={adminUsers} t={t} showCompany={false} />
-            ) : (
-              <Alert
-                icon={<IconAlertCircle />}
-                color="blue"
-                title={t("user_management.no_admins")}
-              />
-            )}
-          </Tabs.Panel>
-        </Tabs>
+          </Paper>
+        )}
       </Stack>
     </Center>
   );
 };
+
 export default UserManagement;

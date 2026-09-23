@@ -19,6 +19,14 @@ Install tools and Git hooks:
 mise install
 ```
 
+Create the local environment files from the committed examples and replace the
+placeholder secrets before deploying anything:
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+```
+
 Yarn is managed by Corepack from `frontend/package.json`.
 
 Install frontend dependencies when you want to run the frontend outside Docker:
@@ -39,7 +47,7 @@ Start the full dev stack:
 docker compose --profile frontend up --build
 ```
 
-This starts FastAPI, the Vite frontend, PostgreSQL, rclone S3, Keycloak, and the Notifications API.
+This starts FastAPI, the Vite frontend, PostgreSQL, rclone S3, Keycloak, and the Notifications API. PostgreSQL keeps its cluster in `data/postgres`; existing local data in `data/sql` was written by Postgres 17 and is not migrated, so dump and restore it or delete it.
 
 The backend dev container mounts `backend/app`, `backend/migrations`, `backend/scripts`, and `backend/alembic.ini`, so changes in application code, migrations, and local scripts are picked up without rebuilding. The frontend dev container mounts `frontend/src`, `frontend/public`, and `frontend/scripts` for hot reload and script checks. Rebuild when changing dependency or container inputs such as `pyproject.toml`, `uv.lock`, `package.json`, `yarn.lock`, `.yarnrc.yml`, `vite.config.ts`, `tsconfig*.json`, `index.html`, or dev Dockerfiles.
 

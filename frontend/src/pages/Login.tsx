@@ -1,27 +1,44 @@
-import { TextInput, PasswordInput, Stack, Divider } from "@mantine/core";
-import { IconLock, IconMailSearch } from "@tabler/icons-react";
+import { TextInput, PasswordInput, Stack, Divider, Alert } from "@mantine/core";
+import { IconAlertCircle, IconLock, IconMailSearch } from "@tabler/icons-react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useDocumentTitle } from "@mantine/hooks";
 import { useTranslatedForm } from "../utils/translator";
 import { loginSchema } from "../schemas/loginSchema";
 import { useTranslation } from "react-i18next";
-import { setToken } from "../api/utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { clearAuthState, setToken } from "../api/utils";
 import type { Token } from "../orval/generated/fastAPI.schemas";
 import { useKeycloakInit, useLoginUser } from "../orval/generated/auth/auth";
 import AuthCardLayout from "../components/AuthCardLayout";
 import AuthButton from "../components/AuthButton";
 import { getSafeNextPath } from "../utils/navigation";
 
+const CALLBACK_ERROR_CODES = new Set([
+  "auth.email_taken_locally",
+  "auth.not_vis_member",
+  "auth.link_invalid",
+]);
+
+const getCallbackErrorKey = (search: string) => {
+  const code = new URLSearchParams(search).get("error");
+  if (!code) return null;
+  return CALLBACK_ERROR_CODES.has(code) ? code : "server.error";
+};
+
 const Login = () => {
   const { t } = useTranslation();
   useDocumentTitle(t("login.title"));
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const nextPath = getSafeNextPath(location.search);
+  const callbackErrorKey = getCallbackErrorKey(location.search);
 
   const { mutate: login, isPending } = useLoginUser({
     mutation: {
       onSuccess: (data: Token) => {
+        clearAuthState();
+        queryClient.clear();
         setToken(data.access_token);
         navigate(nextPath ?? "/");
       },
@@ -36,6 +53,8 @@ const Login = () => {
     const { data } = await refetch();
 
     if (data) {
+      clearAuthState();
+      queryClient.clear();
       window.location.replace(data);
     }
   };
@@ -53,6 +72,17 @@ const Login = () => {
       subtitle={t("welcome")}
       maxWidth={620}
     >
+      {callbackErrorKey ? (
+        <Alert
+          icon={<IconAlertCircle />}
+          color="red"
+          title={t("error.title")}
+          w="100%"
+        >
+          {t(callbackErrorKey)}
+        </Alert>
+      ) : null}
+
       <form
         onSubmit={form.onSubmit((values) => {
           login({
@@ -98,11 +128,7 @@ const Login = () => {
         >
           {t("login.register.title")}
         </AuthButton>
-        <AuthButton
-          component={NavLink}
-          to="/reset-password"
-          intent="secondary"
-        >
+        <AuthButton component={NavLink} to="/reset-password" intent="secondary">
           {t("password_reset_request.login")}
         </AuthButton>
       </Stack>

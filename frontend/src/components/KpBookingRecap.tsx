@@ -6,24 +6,38 @@ import type { BookingResponse } from "../orval/generated/fastAPI.schemas";
 import { formatPrice } from "../utils/price-utils";
 import type { BookingSummaryServiceLine } from "./KpBookingSummaryStep";
 import SummaryPriceBreakdown from "./SummaryPriceBreakdown";
+import { serviceLineLabel } from "../utils/kp-service-quantity";
 
 function bookingToAdditionalServiceLines(
   booking: BookingResponse,
+  t: (key: string, options?: Record<string, unknown>) => string,
 ): BookingSummaryServiceLine[] {
-  return (booking.additional_service_charges ?? []).map((charge) => ({
-    label:
-      charge.quantity > 1 ? `${charge.name} × ${charge.quantity}` : charge.name,
-    amount: charge.line_total_cents,
-  }));
+  return (booking.additional_service_charges ?? []).map((charge) => {
+    const included = charge.quantity - charge.charged_quantity;
+    return {
+      label: serviceLineLabel(
+        charge.name,
+        charge.charged_quantity,
+        included > 0
+          ? t("kp.booking.service_included_note", { included })
+          : null,
+      ),
+      amount: charge.line_net,
+    };
+  });
 }
 
 interface KpBookingRecapProps {
   booking: BookingResponse;
+  vatRatePercent?: number | null;
 }
 
-export const KpBookingRecap = ({ booking }: KpBookingRecapProps) => {
+export const KpBookingRecap = ({
+  booking,
+  vatRatePercent,
+}: KpBookingRecapProps) => {
   const { t } = useTranslation();
-  const additionalLines = bookingToAdditionalServiceLines(booking);
+  const additionalLines = bookingToAdditionalServiceLines(booking, t);
   const basePrice = booking.booth_zone?.base_price ?? 0;
 
   return (
@@ -62,8 +76,9 @@ export const KpBookingRecap = ({ booking }: KpBookingRecapProps) => {
           </Text>
         </Group>
         <SummaryPriceBreakdown
-          basePrice={basePrice}
           additionalLines={additionalLines}
+          price={booking.price}
+          vatRatePercent={vatRatePercent}
         />
         <Group justify="space-between" align="center" wrap="nowrap">
           <Text size="sm" fw={500}>

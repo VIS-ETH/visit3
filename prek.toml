@@ -1,6 +1,6 @@
 [[repos]]
 repo = "https://github.com/astral-sh/ruff-pre-commit"
-rev = "v0.11.7"
+rev = "v0.16.8"
 
 [[repos.hooks]]
 id = "ruff-format"
@@ -14,3 +14,4 @@ rev = "v4.0.0-alpha.8"
 id = "prettier"
 files = '^frontend/src/.*\.(ts|tsx|json|css)$'
 exclude = "^frontend/src/orval/"
+args = ["--config-path", "frontend/.prettierrc"]

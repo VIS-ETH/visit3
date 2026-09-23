@@ -140,6 +140,13 @@ export const boothZoneSchema = z.object({
   capacity: z.number().min(0, "kp.manage.zone_number_non_negative"),
   boothSize: z.number().min(0, "kp.manage.zone_number_non_negative"),
   basePrice: z.number().min(0, "kp.manage.zone_number_non_negative"),
+  layoutDescription: z.string(),
+  includedServices: z.array(
+    z.object({
+      serviceId: z.string().min(1, "validation.required"),
+      quantity: z.number().min(1, "kp.manage.zone_included_quantity_min"),
+    }),
+  ),
 });
 
 export type BoothZoneFormValues = z.infer<typeof boothZoneSchema>;
@@ -147,6 +154,8 @@ export type BoothZoneFormValues = z.infer<typeof boothZoneSchema>;
 export const serviceSchema = z.object({
   name: z.string().trim().min(1, "validation.required"),
   description: z.string(),
+  category: z.string().min(1, "validation.required"),
+  unitLabel: z.string(),
   imageUrl: z
     .string()
     .trim()
