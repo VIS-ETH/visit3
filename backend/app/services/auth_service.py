@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 password_hash = PasswordHash.recommended()
 ACCESS_TOKEN_EXPIRE = timedelta(minutes=15)
-MIN_PASSWORD_LENGTH = 10
+MIN_PASSWORD_LENGTH = 8
 UNKNOWN_NAME = "Unknown"
 LOGIN_LINK_PATH = "/auth/link"
 STAFF_ACCOUNT_REVIEW_PATH = "/user-management"

@@ -142,7 +142,7 @@
   },
   "password": {
     "wrong": "Wrong password or email",
-    "min": "Password has to be longer than 10 characters"
+    "min": "Password must be at least 8 characters long"
   },
   "company": {
     "login": "Company Login"
