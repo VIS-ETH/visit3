@@ -174,7 +174,7 @@ const Navbar = () => {
             onClick={() => setIsLogoutConfirmOpen(true)}
             leftSection={<IconLogout2 />}
             color="red"
-            variant="light"
+            variant="subtle"
             justify="flex-start"
           >
             {t("nav.logout")}
