@@ -4,7 +4,6 @@ import {
   Button,
   Divider,
   Group,
-  Image,
   Modal,
   Stack,
   Text,
@@ -76,13 +75,6 @@ const Navbar = () => {
       </Modal>
       <Stack m="sm" align="stretch">
         <Group justify="center" align="center" gap="xs" mb="xs" wrap="nowrap">
-          <Image
-            src={`${serverData.staticBase}favicon.ico`}
-            alt={t("nav.vis_logo_alt")}
-            h={22}
-            w={22}
-            fit="contain"
-          />
           <Text fw={700} size="lg" ta="center">
             {`${t("nav.company_portal_of")} `}
             <Anchor
