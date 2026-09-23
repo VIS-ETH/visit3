@@ -94,7 +94,7 @@ async def test_every_notification_reaches_the_company_user_once(
         "company@example.com"
     ]
     assert message.subject == EXPECTED_SUBJECTS[method_name]
-    assert "/auth/link/" in message.multipart_body.parts[1].content
+    assert "/auth/link/" in message.plain_text
 
 
 async def test_rejection_reason_is_rendered(
@@ -108,7 +108,7 @@ async def test_rejection_reason_is_rendered(
     await notifier.booking_rejected(booking, REJECTION_REASON)
 
     message = mail_stub.SendMail.await_args.args[0]
-    assert REJECTION_REASON in message.multipart_body.parts[0].content
+    assert REJECTION_REASON in message.plain_text
 
 
 async def test_rejection_without_a_reason_still_renders(
@@ -161,7 +161,7 @@ async def test_rejecting_a_booking_sends_the_rejection_mail(
     mail_stub.SendMail.assert_awaited_once()
     message = mail_stub.SendMail.await_args.args[0]
     assert message.subject == EXPECTED_SUBJECTS["booking_rejected"]
-    assert REJECTION_REASON in message.multipart_body.parts[0].content
+    assert REJECTION_REASON in message.plain_text
 
 
 async def test_finalized_mail_contains_the_total_price(
@@ -175,7 +175,7 @@ async def test_finalized_mail_contains_the_total_price(
     await notifier.booking_finalized(booking)
 
     message = mail_stub.SendMail.await_args.args[0]
-    assert "CHF 150.00" in message.multipart_body.parts[0].content
+    assert "CHF 150.00" in message.plain_text
 
 
 async def test_registration_succeeds_when_the_mail_service_fails(

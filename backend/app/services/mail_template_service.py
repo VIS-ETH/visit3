@@ -9,9 +9,6 @@ from app.repositories.mail_repository import MailTemplateRepository
 from app.services.mail_service import MailService
 from app.services.notification_recipients import NotificationRecipients
 
-PLAIN_TEXT_CONTENT_TYPE = "text/plain; charset=utf-8"
-HTML_CONTENT_TYPE = "text/html; charset=utf-8"
-
 
 def template_identifier(key: MailTemplateKey) -> str:
     return f"mail_template:{key}"
@@ -48,17 +45,10 @@ class MailTemplateService:
         if not recipients:
             return
         rendered = await self.render(key, context)
+        # The notifications API rejects multipart bodies ("multipart mail not
+        # supported"), so only the plain-text rendering can be delivered.
         message = self.mail_service.construct_mail(
-            recipients,
-            rendered.subject,
-            multipart_body=MailService.Mimebody(
-                [
-                    MailService.Mimebody.Multipart(
-                        PLAIN_TEXT_CONTENT_TYPE, rendered.text
-                    ),
-                    MailService.Mimebody.Multipart(HTML_CONTENT_TYPE, rendered.html),
-                ]
-            ),
+            recipients, rendered.subject, plain_text=rendered.text
         )
         if message is not None:
             await self.mail_service.send_mail(message)

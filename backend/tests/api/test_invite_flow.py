@@ -27,7 +27,7 @@ def register_payload(**overrides: Any) -> dict[str, Any]:
 
 
 def mail_text(message: Any) -> str:
-    return message.multipart_body.parts[0].content
+    return message.plain_text
 
 
 def sent_links(mail_stub: AsyncMock, marker: str) -> list[str]:

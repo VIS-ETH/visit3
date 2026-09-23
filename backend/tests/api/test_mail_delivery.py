@@ -51,6 +51,28 @@ async def test_registration_sends_the_confirm_email_mail(
     )
 
 
+async def test_failed_confirm_email_mail_does_not_keep_the_registration(
+    client: AsyncClient, csrf_headers: dict[str, str], mail_stub: AsyncMock
+):
+    payload = {
+        "email": "unlucky@example.com",
+        "password": "a-long-enough-password",
+        "first_name": "Ada",
+        "last_name": "Lovelace",
+    }
+    mail_stub.SendMail.side_effect = RuntimeError("notifications api down")
+
+    with pytest.raises(RuntimeError):
+        await client.post("/api/auth/register", json=payload, headers=csrf_headers)
+
+    mail_stub.SendMail.side_effect = None
+    response = await client.post(
+        "/api/auth/register", json=payload, headers=csrf_headers
+    )
+
+    assert response.status_code == 200
+
+
 async def test_password_reset_request_sends_the_reset_mail(
     client: AsyncClient,
     csrf_headers: dict[str, str],
@@ -125,8 +147,7 @@ async def test_staff_confirmation_sends_the_account_confirmed_mail(
     assert getattr(message, "subject") == (
         "VISIT: Konto freigeschaltet / VISIT: Account activated"
     )
-    html = getattr(message, "multipart_body").parts[1].content
-    assert "/auth/link/" in html
+    assert "/auth/link/" in getattr(message, "plain_text")
 
 
 async def test_staff_confirmation_of_a_staff_user_sends_nothing(

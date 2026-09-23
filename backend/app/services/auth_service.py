@@ -231,12 +231,20 @@ class AuthService:
 
         try:
             result = await self.user_repository.create_user(user)
-            await self.send_confirm_email(result)
-            logger.info(f"User registered: {user.email}")
-            return result
         except Exception as e:
             logger.error(f"User registration failed: {user.email} - {str(e)}")
             raise e
+
+        try:
+            await self.send_confirm_email(result)
+        except Exception as e:
+            # Undo the registration so the email address can be used again.
+            logger.error(f"User registration failed: {user.email} - {str(e)}")
+            await self.user_repository.delete_user(result)
+            raise e
+
+        logger.info(f"User registered: {user.email}")
+        return result
 
     async def login_user(self, username: str, password: str) -> tuple[str, str]:
         user = await self.authenticate_user(username, password)

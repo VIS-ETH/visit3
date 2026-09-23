@@ -91,7 +91,7 @@ async def test_stored_row_overrides_the_default(
     assert "DE Ada" in rendered.html
 
 
-async def test_send_builds_a_multipart_message(
+async def test_send_builds_a_plain_text_message(
     template_service: MailTemplateService,
     mail_template_repo: AsyncMock,
     mail_stub: AsyncMock,
@@ -105,9 +105,8 @@ async def test_send_builds_a_multipart_message(
     mail_stub.SendMail.assert_awaited_once()
     message = mail_stub.SendMail.await_args.args[0]
     assert message.to[0].mail_address.address == "user@example.com"
-    content_types = [part.content_type for part in message.multipart_body.parts]
-    assert content_types == ["text/plain; charset=utf-8", "text/html; charset=utf-8"]
-    assert message.multipart_body.parts[1].content.startswith("<!DOCTYPE html>")
+    assert message.WhichOneof("body_oneof") == "plain_text"
+    assert "https://visit.test/reset/abc" in message.plain_text
 
 
 async def test_send_without_recipients_does_nothing(
