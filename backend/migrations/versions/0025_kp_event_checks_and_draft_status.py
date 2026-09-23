@@ -34,6 +34,20 @@ EVENT_DATE_CHECKS = [
 ]
 
 BOOKING_TABLE = "kpeventbooking"
+# Partial indexes from 0024 whose predicates reference the status enum; they
+# must be dropped before the column type changes and recreated afterwards.
+ACTIVE_BOOKING_INDEXES = [
+    (
+        "ix_kpeventbooking_event_id_company_id_booth_zone_id",
+        ["event_id", "company_id", "booth_zone_id"],
+        "status <> 'CANCELLED' AND deleted_at IS NULL",
+    ),
+    (
+        "ix_kpeventbooking_event_id_booth_zone_id_booth_nr",
+        ["event_id", "booth_zone_id", "booth_nr"],
+        "booth_nr IS NOT NULL AND status <> 'CANCELLED' AND deleted_at IS NULL",
+    ),
+]
 
 booking_status_without_draft = postgresql.ENUM(
     "REGISTERED",
@@ -80,6 +94,8 @@ def _reject_violating_events() -> None:
 
 def _swap_booking_status_enum(target: postgresql.ENUM) -> None:
     target.create(op.get_bind(), checkfirst=True)
+    for index_name, _, _ in ACTIVE_BOOKING_INDEXES:
+        op.drop_index(index_name, table_name=BOOKING_TABLE)
     op.execute(
         f"""
         ALTER TABLE {BOOKING_TABLE}
@@ -89,6 +105,14 @@ def _swap_booking_status_enum(target: postgresql.ENUM) -> None:
     )
     op.execute("DROP TYPE kpbookingstatus")
     op.execute(f"ALTER TYPE {target.name} RENAME TO kpbookingstatus")
+    for index_name, columns, predicate in ACTIVE_BOOKING_INDEXES:
+        op.create_index(
+            index_name,
+            BOOKING_TABLE,
+            columns,
+            unique=True,
+            postgresql_where=sa.text(predicate),
+        )
 
 
 def upgrade() -> None:
