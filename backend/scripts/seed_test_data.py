@@ -22,6 +22,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 from app.core.config import get_settings
 from app.models.company import Company
+from app.models.industry import Industry
 from app.models.kp_event import (
     KpBookingCompanyDetails,
     KpBookingCompanyDetailsIndustryLink,
@@ -37,7 +38,6 @@ from app.models.kp_event import (
     KpEventService,
     KpEventServiceRequirement,
     KpEventServiceRequirementType,
-    KpIndustry,
     NameTag,
 )
 from app.models.storage import StoredFile
@@ -1044,12 +1044,12 @@ async def upsert_requirement_file_answer(
     return answer
 
 
-async def get_or_create_industry(session, name: str) -> KpIndustry:
+async def get_or_create_industry(session, name: str) -> Industry:
     industry = (
-        await session.execute(select(KpIndustry).where(KpIndustry.name == name))
+        await session.execute(select(Industry).where(Industry.name == name))
     ).scalar_one_or_none()
     if industry is None:
-        industry = KpIndustry(name=name)
+        industry = Industry(name=name)
         session.add(industry)
         await session.flush()
     return industry
@@ -1089,6 +1089,7 @@ async def upsert_booking_company_details(
             KpBookingCompanyDetailsIndustryLink(
                 booking_company_details_id=details.id,
                 industry_id=industry.id,
+                industry_name=industry.name,
             )
         )
 
