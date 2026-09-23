@@ -25,7 +25,8 @@ RUN find ./backend/app/generated -type d -exec touch {}/__init__.py \;
 RUN /opt/venv/bin/python ./scripts/fix_imports.py ./backend/app/generated app.generated
 
 COPY --from=common scripts/extract_docs.py ./scripts/extract_docs.py
-COPY --from=common backend/.env ./backend/.env
+# Schema generation uses example settings so CI does not require a local .env.
+COPY --from=common backend/.env.example ./backend/.env.example
 RUN /opt/venv/bin/python ./scripts/extract_docs.py /repo/visit.json
 
 
