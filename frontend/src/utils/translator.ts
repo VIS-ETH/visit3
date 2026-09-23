@@ -10,6 +10,9 @@ export function useTranslatedForm<T extends z.ZodType<Record<string, unknown>>>(
   const { t } = useTranslation();
 
   return useForm<z.infer<T>>({
+    // Show field errors while the user types, not only after submit.
+    validateInputOnChange: true,
+    validateInputOnBlur: true,
     ...options,
     validate: (values) => {
       const errors = zod4Resolver(schema)(values);

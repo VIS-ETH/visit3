@@ -83,7 +83,6 @@ const BoothZonesTab = ({ eventId }: { eventId: string }) => {
   const [layoutFileError, setLayoutFileError] = useState<string | null>(null);
   const form = useTranslatedForm<typeof boothZoneSchema>(boothZoneSchema, {
     initialValues: emptyZoneValues,
-    validateInputOnChange: true,
   });
 
   const invalidate = () =>

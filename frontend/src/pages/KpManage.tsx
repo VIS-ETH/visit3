@@ -110,7 +110,6 @@ const CloneKpModal = ({
     kpWithSettingsSchema,
     {
       initialValues: emptyKpFormValues,
-      validateInputOnChange: true,
     },
   );
 

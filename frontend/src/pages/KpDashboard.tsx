@@ -85,7 +85,6 @@ const KpDashboard = () => {
     kpWithSettingsSchema,
     {
       initialValues,
-      validateInputOnChange: true,
     },
   );
 

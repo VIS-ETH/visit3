@@ -91,7 +91,6 @@ const KpServiceForm = () => {
 
   const form = useTranslatedForm<typeof serviceSchema>(serviceSchema, {
     initialValues: emptyServiceFormValues,
-    validateInputOnChange: true,
   });
 
   const invalidate = () =>

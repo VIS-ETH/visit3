@@ -57,12 +57,10 @@ const CompanyProfile = () => {
 
   const companyForm = useTranslatedForm<typeof companySchema>(companySchema, {
     initialValues: { name: "" },
-    validateInputOnChange: true,
   });
 
   const inviteForm = useTranslatedForm<typeof inviteSchema>(inviteSchema, {
     initialValues: { email: "" },
-    validateInputOnChange: true,
   });
 
   const { mutate: updateCompany, isPending: isUpdating } = useUpdateMyCompany({

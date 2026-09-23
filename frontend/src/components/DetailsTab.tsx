@@ -65,7 +65,6 @@ const DetailsTab = ({ eventId }: { eventId: string }) => {
     kpWithSettingsSchema,
     {
       initialValues: emptyKpFormValues,
-      validateInputOnChange: true,
     },
   );
 

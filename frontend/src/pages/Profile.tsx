@@ -74,7 +74,6 @@ const Profile = () => {
       lastName: "",
       phoneNumber: "",
     },
-    validateInputOnChange: true,
   });
 
   const { mutate: updateUserProfile, isPending: isUpdating } =
