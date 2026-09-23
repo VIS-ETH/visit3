@@ -1,4 +1,4 @@
-import { AppShell, Burger, Divider, Group, Title } from "@mantine/core";
+import { AppShell, Burger, Divider, Group, Image, Title } from "@mantine/core";
 import { NavLink } from "react-router";
 import NavbarToggles from "./NavbarToggles";
 
@@ -31,9 +31,12 @@ const Header = ({ showNavbar, navbarOpened, toggleNavbar }: HeaderProps) => {
             </>
           )}
           <NavLink to="/" style={{ textDecoration: "none", color: "inherit" }}>
-            <Title order={3} px="lg" visibleFrom="sm" className="brand-title">
-              VISIT
-            </Title>
+            <Group gap="sm" px="lg" wrap="nowrap">
+              <Image src="/brand/vis-signet.svg" alt="VIS" h={32} w={32} />
+              <Title order={3} visibleFrom="sm" className="brand-title">
+                VISIT
+              </Title>
+            </Group>
           </NavLink>
         </Group>
         <NavbarToggles />

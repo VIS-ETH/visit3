@@ -37,6 +37,7 @@ const ignoredTextLiterals = new Set([
   ":",
   "|",
   "CHF",
+  "VIS",
   "VISIT",
   "new Date(isoDate).getTime()",
 ]);
