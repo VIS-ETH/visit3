@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     SIP_S3_FILES_SECRET_KEY: str
     SIP_S3_FILES_BUCKET: str
     S3_REGION: str = "us-east-1"
+    S3_PUBLIC_ENDPOINT_URL: str | None = None
     S3_PRESIGN_EXPIRY_SECONDS: int = 3600
     STORAGE_FILE_MAX_SIZE_BYTES: int = 25 * 1024 * 1024
     STORAGE_IMAGE_MAX_SIZE_BYTES: int = 10 * 1024 * 1024

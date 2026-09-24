@@ -328,6 +328,18 @@ async def test_generate_download_url_sanitizes_content_disposition_filename():
     assert "/" not in disposition
 
 
+async def test_generate_download_url_is_signed_for_the_public_endpoint():
+    settings = get_settings().model_copy(
+        update={"S3_PUBLIC_ENDPOINT_URL": "http://localhost:9000"}
+    )
+
+    url = await StorageService(settings).generate_download_url(
+        "kp/plan.png", "plan.png"
+    )
+
+    assert url.startswith("http://localhost:9000/")
+
+
 def test_validate_image_file_rejects_heic_with_its_sniffed_mime_type():
     service = make_storage_service()
 

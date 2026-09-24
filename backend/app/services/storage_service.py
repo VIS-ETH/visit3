@@ -3,6 +3,7 @@ import hashlib
 import mimetypes
 from dataclasses import dataclass
 from enum import Enum
+from functools import cached_property
 from typing import Any, Protocol, cast
 
 import boto3
@@ -85,16 +86,27 @@ class StoredObject:
     sha256: str
 
 
+def s3_client(settings: Settings, endpoint_url: str) -> Any:
+    return cast(Any, boto3).client(
+        "s3",
+        endpoint_url=endpoint_url,
+        region_name=settings.S3_REGION,
+        aws_access_key_id=settings.SIP_S3_FILES_ACCESS_KEY,
+        aws_secret_access_key=settings.SIP_S3_FILES_SECRET_KEY,
+    )
+
+
 class StorageService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.client: Any = cast(Any, boto3).client(
-            "s3",
-            endpoint_url=settings.S3_ENDPOINT_URL,
-            region_name=settings.S3_REGION,
-            aws_access_key_id=settings.SIP_S3_FILES_ACCESS_KEY,
-            aws_secret_access_key=settings.SIP_S3_FILES_SECRET_KEY,
-        )
+        self.client: Any = s3_client(settings, settings.S3_ENDPOINT_URL)
+
+    @cached_property
+    def presign_client(self) -> Any:
+        public_endpoint_url = self.settings.S3_PUBLIC_ENDPOINT_URL
+        if public_endpoint_url is None:
+            return self.client
+        return s3_client(self.settings, public_endpoint_url)
 
     def _normalize_mime_type(
         self, filename: str, content_type: str | None = None
@@ -306,7 +318,7 @@ class StorageService:
         def _presign() -> str:
             return cast(
                 str,
-                self.client.generate_presigned_url(
+                self.presign_client.generate_presigned_url(
                     "get_object",
                     Params={
                         "Bucket": self.settings.SIP_S3_FILES_BUCKET,
