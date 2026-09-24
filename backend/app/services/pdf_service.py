@@ -6,6 +6,7 @@ from typing import Any
 import typst
 
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+FONTS_DIR = TEMPLATES_DIR / "fonts"
 
 
 class PdfService:
@@ -22,6 +23,8 @@ class PdfService:
             typst.compile,
             str(template_path),
             root=root,
+            font_paths=[str(FONTS_DIR)],
+            ignore_system_fonts=True,
             sys_inputs={"data": json.dumps(data)},
         )
         return pdf_bytes, filename
