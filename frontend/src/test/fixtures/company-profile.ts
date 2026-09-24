@@ -72,6 +72,7 @@ export interface BookletPageRequest {
 
 export const installBookletPageHandler = (
   page: BookletPageResponse = testBookletPage,
+  { allowedRequests = Infinity }: { allowedRequests?: number } = {},
 ) => {
   const requests: BookletPageRequest[] = [];
   server.use(
@@ -82,6 +83,12 @@ export const installBookletPageHandler = (
           url: request.url,
           body: (await request.json()) as Record<string, unknown>,
         });
+        if (requests.length > allowedRequests) {
+          return HttpResponse.json(
+            { code: "error.rate_limited", message: "Too many requests" },
+            { status: 429 },
+          );
+        }
         return HttpResponse.json(page);
       },
     ),

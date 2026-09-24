@@ -234,3 +234,35 @@ describe("token refresh on 401", () => {
     expect(location.navigations).toEqual(["/login"]);
   });
 });
+
+describe("quiet statuses", () => {
+  const rateLimited = () =>
+    HttpResponse.json(
+      { code: "error.rate_limited", message: "Too many requests" },
+      { status: 429 },
+    );
+
+  it("rejects without a notification for a status the request expects", async () => {
+    storeValidToken();
+    server.use(http.get(meUrl, rateLimited));
+    const api = await importApi();
+
+    await expect(
+      api.get("/api/user/me", { quietStatuses: [429] }),
+    ).rejects.toThrow();
+
+    expect(notificationsShow).not.toHaveBeenCalled();
+  });
+
+  it("still notifies about other statuses", async () => {
+    storeValidToken();
+    server.use(http.get(meUrl, rateLimited));
+    const api = await importApi();
+
+    await expect(
+      api.get("/api/user/me", { quietStatuses: [409] }),
+    ).rejects.toThrow();
+
+    expect(notificationsShow).toHaveBeenCalledTimes(1);
+  });
+});

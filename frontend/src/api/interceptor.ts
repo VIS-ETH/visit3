@@ -85,6 +85,12 @@ const ERROR_CODE_REDIRECTS: Record<string, string> = {
 const CSRF_ERROR_CODE = "csrf.validation_failed";
 const LOGIN_PATH = "/login";
 
+declare module "axios" {
+  interface AxiosRequestConfig {
+    quietStatuses?: readonly number[];
+  }
+}
+
 interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   csrfRetried?: boolean;
   authRetried?: boolean;
@@ -173,7 +179,7 @@ api.interceptors.response.use(
       redirectToLogin();
     } else if (redirectTo) {
       window.location.href = redirectTo;
-    } else {
+    } else if (!request?.quietStatuses?.includes(status)) {
       notifications.show({
         color: "red",
         title: i18n.t("error.title"),

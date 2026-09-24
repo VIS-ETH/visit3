@@ -10,6 +10,7 @@ import type {
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
+import { notificationsShow } from "../notifications";
 import { SLOW_WAIT } from "../timeouts";
 import { renderWithProviders } from "../render";
 import {
@@ -391,6 +392,36 @@ describe("Company booklet page", () => {
         general_email: null,
       });
     }, SLOW_WAIT);
+  });
+
+  it("keeps the last page quietly while the preview is rate limited", async () => {
+    bookletRequests = installBookletPageHandler(testBookletPage, {
+      allowedRequests: 1,
+    });
+    const { user } = renderProfile();
+
+    const page = await screen.findByRole(
+      "img",
+      { name: "company_profile_form.booklet_page_alt" },
+      SLOW_WAIT,
+    );
+    const brandName = screen.getByLabelText(
+      labelOf("company_profile_form.brand_name"),
+    );
+    await user.clear(brandName);
+    await user.paste("Examplify Group");
+
+    await waitFor(() => {
+      expect(lastBookletBody()).toMatchObject({
+        brand_name: "Examplify Group",
+      });
+    }, SLOW_WAIT);
+    expect(
+      screen.getByRole("img", {
+        name: "company_profile_form.booklet_page_alt",
+      }),
+    ).toBe(page);
+    expect(notificationsShow).not.toHaveBeenCalled();
   });
 
   it("warns when the page overflows", async () => {

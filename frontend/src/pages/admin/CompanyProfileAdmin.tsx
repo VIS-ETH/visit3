@@ -179,8 +179,8 @@ const CompanyProfileAdmin = () => {
                 }
                 values={form.values}
                 logoUrl={profile.logo_url ?? null}
-                render={(request) =>
-                  previewCompanyBookletPage(companyId, request)
+                render={(request, options) =>
+                  previewCompanyBookletPage(companyId, request, options)
                 }
               />
             </CompanyProfileSection>
