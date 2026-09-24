@@ -39,7 +39,6 @@ import { Navigate, useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
 import { KpBookingCompletion } from "../components/KpBookingCompletion";
 import {
-  KpBookingStatus,
   KpEventServiceRequirementType,
   KpServiceCategory,
   type BookingServiceResponse,
@@ -832,10 +831,7 @@ const KpBookingManage = () => {
     query: { enabled: Boolean(eventId) },
   });
   const bookingServices = booking?.services ?? [];
-  const isEditable =
-    booking != null &&
-    booking.status !== KpBookingStatus.CONFIRMED &&
-    !isInactiveBooking(booking);
+  const isEditable = booking != null && !isInactiveBooking(booking);
   const pendingRequirementChangeList = Object.values(pendingRequirementChanges);
   const hasPendingRequirementChanges = pendingRequirementChangeList.length > 0;
   const allRequirementKeys = bookingServices.flatMap((bookingService) =>

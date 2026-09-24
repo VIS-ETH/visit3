@@ -46,7 +46,7 @@
     "kp_booking_not_owned": "This KP booking does not belong to your company.",
     "kp_booking_status_transition_invalid": "The requested booking status change is not allowed.",
     "kp_booking_delete_requires_force": "A confirmed booking can only be deleted after an explicit confirmation.",
-    "kp_booking_confirmed_readonly": "Confirmed bookings can no longer be changed.",
+    "kp_booking_readonly": "This booking can no longer be changed.",
     "kp_finalization_deadline_passed": "The deadline for changing your booking has passed.",
     "kp_name_tag_not_found": "The selected name tag could not be found.",
     "kp_export_background_not_found": "The name tag export background could not be found.",

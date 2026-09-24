@@ -5,7 +5,10 @@ import { http, HttpResponse } from "msw";
 import { Route, Routes } from "react-router";
 import KpBookingManage from "../../pages/KpBookingManage";
 import KpBookingStepper from "../../pages/KpBookingStepper";
-import { KpServiceCategory } from "../../orval/generated/fastAPI.schemas";
+import {
+  KpBookingStatus,
+  KpServiceCategory,
+} from "../../orval/generated/fastAPI.schemas";
 import type {
   BookingResponse,
   BoothZoneWithAvailabilityResponse,
@@ -282,5 +285,32 @@ describe("single quantity services on the booking page", () => {
         services: [{ service_id: singleService.id, quantity: 1 }],
       });
     }, SLOW_WAIT);
+  });
+
+  it("still adds services once VIS confirmed the booking", async () => {
+    server.use(
+      http.get(`${testBackendUrl}/api/kp/events/:eventId/my-booking`, () =>
+        HttpResponse.json({ ...testBooking, status: KpBookingStatus.CONFIRMED }),
+      ),
+    );
+    const { user } = renderWithProviders(
+      <Routes>
+        <Route path={managePath} element={<KpBookingManage />} />
+      </Routes>,
+      { route: manageRoute },
+    );
+
+    const toggle = await screen.findByRole(
+      "switch",
+      { name: "kp.booking.service_book_toggle" },
+      SLOW_WAIT,
+    );
+    await user.click(toggle);
+
+    expect(
+      screen.getByRole("button", {
+        name: "kp.booking_manage.add_services_submit",
+      }),
+    ).toBeEnabled();
   });
 });
