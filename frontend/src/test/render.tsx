@@ -3,7 +3,7 @@ import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, type InitialEntry } from "react-router";
 
 export const createTestQueryClient = () =>
   new QueryClient({
@@ -14,7 +14,7 @@ export const createTestQueryClient = () =>
   });
 
 interface RenderOptions {
-  route?: string;
+  route?: InitialEntry;
   queryClient?: QueryClient;
 }
 

@@ -166,7 +166,7 @@
       "stepper_continue": "Weiter",
       "confirmation_title_success": "Buchung bestätigt",
       "confirmation_just_booked_headline": "Wir haben Ihre Buchung erhalten!",
-      "confirmation_just_booked_body": "Vielen Dank für Ihre Standbuchung bei {{eventName}}. Bitte gehen Sie als Nächstes im KP-Bereich und in Ihrem Unternehmensprofil die weiteren Schritte durch, um Ihre Buchungsangaben zu vervollständigen, etwaige Anforderungen zu erfüllen und Ihre Standinformationen bis zur Veranstaltung aktuell zu halten.",
+      "confirmation_just_booked_body": "Der VIS bestätigt Ihre Buchung in den nächsten Tagen.",
       "confirmation_help_footer_prompt": "Brauchen Sie Hilfe bei Ihrer Buchung?",
       "confirmation_help_contact_us": "Kontaktieren Sie uns",
       "step_profile": "Unternehmensprofil",

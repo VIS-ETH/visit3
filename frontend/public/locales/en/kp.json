@@ -166,7 +166,7 @@
       "stepper_continue": "Continue",
       "confirmation_title_success": "Booking confirmed",
       "confirmation_just_booked_headline": "We have received your booking!",
-      "confirmation_just_booked_body": "Thank you for booking a booth at {{eventName}}. Please follow the next steps in the KP area and your company profile to complete your booking details, satisfy any requirements, and keep your booth information up to date before the event.",
+      "confirmation_just_booked_body": "VIS will confirm your booking within the next few days.",
       "confirmation_help_footer_prompt": "Need help with your booking?",
       "confirmation_help_contact_us": "Contact us",
       "step_profile": "Company profile",

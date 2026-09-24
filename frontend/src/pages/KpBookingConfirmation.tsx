@@ -1,14 +1,17 @@
 import {
   Alert,
   Anchor,
+  Button,
   Center,
+  Group,
   Loader,
+  Modal,
   Stack,
   Text,
   Title,
 } from "@mantine/core";
-import { IconAlertCircle, IconCircleCheck } from "@tabler/icons-react";
-import { useEffect } from "react";
+import { IconAlertCircle } from "@tabler/icons-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
@@ -31,6 +34,8 @@ const KpBookingConfirmation = () => {
   const showJustBookedNotice =
     (location.state as { fromBookingProcess?: boolean } | null)
       ?.fromBookingProcess === true;
+  const [isJustBookedNoticeOpen, setIsJustBookedNoticeOpen] =
+    useState(showJustBookedNotice);
 
   const {
     data: event,
@@ -128,21 +133,21 @@ const KpBookingConfirmation = () => {
         </Text>
       </div>
 
-      {showJustBookedNotice ? (
-        <Alert
-          variant="light"
-          color="green"
-          radius="md"
-          icon={<IconCircleCheck size={22} stroke={1.5} />}
-          title={t("kp.booking.confirmation_just_booked_headline")}
-        >
-          <Text size="sm" mt={4}>
-            {t("kp.booking.confirmation_just_booked_body", {
-              eventName: event.name,
-            })}
-          </Text>
-        </Alert>
-      ) : null}
+      <Modal
+        centered
+        opened={isJustBookedNoticeOpen}
+        onClose={() => setIsJustBookedNoticeOpen(false)}
+        title={t("kp.booking.confirmation_just_booked_headline")}
+      >
+        <Stack gap="md">
+          <Text size="sm">{t("kp.booking.confirmation_just_booked_body")}</Text>
+          <Group justify="flex-end">
+            <Button onClick={() => setIsJustBookedNoticeOpen(false)}>
+              {t("common.ok")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       <KpBookingRecap
         booking={booking}
