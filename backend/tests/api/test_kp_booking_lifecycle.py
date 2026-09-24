@@ -100,14 +100,6 @@ async def booking_world(
     )
 
 
-async def finalize(client: AsyncClient, world: BookingWorld) -> Response:
-    return await client.patch(
-        f"/api/kp/bookings/{world.booking_id}/status",
-        json={"status": "FINALIZED"},
-        headers=world.company_headers,
-    )
-
-
 async def test_my_booking_reports_completeness(
     client: AsyncClient, booking_world: BookingWorld
 ):
@@ -138,12 +130,11 @@ async def test_completeness_survives_a_later_profile_edit(
     assert response.json()["is_complete"] is True
 
 
-async def test_incomplete_booking_cannot_be_finalized(
+async def test_my_booking_lists_the_missing_items(
     client: AsyncClient,
     db_session: AsyncSession,
     kp_setup: KpSetup,
     company_headers: dict[str, str],
-    staff_headers: dict[str, str],
     register_booking: Callable[..., Awaitable[Response]],
     complete_company_profile: Callable[..., Awaitable[Response]],
 ):
@@ -158,34 +149,22 @@ async def test_incomplete_booking_cannot_be_finalized(
     booking = (await register_booking(company_headers, kp_setup)).json()
     await drop_company_details(db_session, booking["id"])
     await complete_company_profile(company_headers, billing_city="")
-    world = BookingWorld(
-        event_id=kp_setup.event_id,
-        booth_zone_id=kp_setup.booth_zone_id,
-        service_id=kp_setup.service_id,
-        booking_id=booking["id"],
-        company_headers=company_headers,
-        staff_headers=staff_headers,
+
+    response = await client.get(
+        f"/api/kp/events/{kp_setup.event_id}/my-booking", headers=company_headers
     )
 
-    response = await finalize(client, world)
-
-    assert response.status_code == 409
+    assert response.status_code == 200
     body = response.json()
-    assert body["code"] == "error.kp_booking_incomplete"
-    assert f"requirement:{requirement.id}" in body["details"]["missingItems"]
-    assert "company_profile" in body["details"]["missingItems"]
-    assert "billing_address" in body["details"]["missingItems"]
+    assert body["is_complete"] is False
+    assert f"requirement:{requirement.id}" in body["missing_items"]
+    assert "company_profile" in body["missing_items"]
+    assert "billing_address" in body["missing_items"]
 
 
-async def test_company_finalizes_and_staff_accepts(
+async def test_staff_confirms_a_registered_booking(
     client: AsyncClient, booking_world: BookingWorld
 ):
-    finalized = await finalize(client, booking_world)
-
-    assert finalized.status_code == 200
-    assert finalized.json()["status"] == "FINALIZED"
-    assert finalized.json()["finalized_at"] is not None
-
     accepted = await client.post(
         f"/api/kp/bookings/{booking_world.booking_id}/accept",
         headers=booking_world.staff_headers,
@@ -199,7 +178,6 @@ async def test_company_finalizes_and_staff_accepts(
 async def test_staff_undoes_an_acceptance(
     client: AsyncClient, booking_world: BookingWorld
 ):
-    await finalize(client, booking_world)
     await client.post(
         f"/api/kp/bookings/{booking_world.booking_id}/accept",
         headers=booking_world.staff_headers,
@@ -211,7 +189,7 @@ async def test_staff_undoes_an_acceptance(
     )
 
     assert response.status_code == 200
-    assert response.json()["status"] == "FINALIZED"
+    assert response.json()["status"] == "REGISTERED"
     assert response.json()["confirmed_at"] is None
 
 
@@ -562,7 +540,6 @@ async def test_staff_deletes_a_registered_booking(
 async def test_a_confirmed_booking_is_only_deleted_with_force(
     client: AsyncClient, booking_world: BookingWorld
 ):
-    await finalize(client, booking_world)
     await client.post(
         f"/api/kp/bookings/{booking_world.booking_id}/accept",
         headers=booking_world.staff_headers,
@@ -696,21 +673,3 @@ async def test_my_booking_cannot_register_after_the_registration_end(
 
     assert response.json()["status"] == "CANCELLED"
     assert response.json()["can_register"] is False
-
-
-async def test_undoing_an_acceptance_keeps_the_finalization_timestamp(
-    client: AsyncClient, booking_world: BookingWorld
-):
-    finalized = await finalize(client, booking_world)
-    await client.post(
-        f"/api/kp/bookings/{booking_world.booking_id}/accept",
-        headers=booking_world.staff_headers,
-    )
-
-    response = await client.post(
-        f"/api/kp/bookings/{booking_world.booking_id}/undo-accept",
-        headers=booking_world.staff_headers,
-    )
-
-    assert response.status_code == 200
-    assert response.json()["finalized_at"] == finalized.json()["finalized_at"]

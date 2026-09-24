@@ -190,23 +190,13 @@ async def test_reading_nametags_stays_open_after_the_deadline(
     assert people(response) == [("Ada", "Lovelace", "Engineer")]
 
 
-@pytest.mark.parametrize("status", ["FINALIZED", "CONFIRMED"])
-async def test_nametags_can_still_be_edited_after_the_booking_is_locked(
+async def test_nametags_can_still_be_edited_after_confirmation(
     client: AsyncClient,
     staff_headers: dict[str, str],
     company_headers: dict[str, str],
     booking_id: str,
-    status: str,
 ):
-    await client.patch(
-        f"/api/kp/bookings/{booking_id}/status",
-        json={"status": "FINALIZED"},
-        headers=company_headers,
-    )
-    if status == "CONFIRMED":
-        await client.post(
-            f"/api/kp/bookings/{booking_id}/accept", headers=staff_headers
-        )
+    await client.post(f"/api/kp/bookings/{booking_id}/accept", headers=staff_headers)
 
     response = await put_nametags(client, company_headers, booking_id, [ADA])
 

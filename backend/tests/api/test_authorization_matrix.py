@@ -314,7 +314,7 @@ REQUEST_BODIES: dict[str, dict[str, Any]] = {
     "POST /api/kp/bookings/{booking_id}/switch-zone": {
         "booth_zone_id": "{spare_booth_zone_id}"
     },
-    "PATCH /api/kp/bookings/{booking_id}/status": {"status": "FINALIZED"},
+    "PATCH /api/kp/bookings/{booking_id}/status": {"status": "REGISTERED"},
     "PATCH /api/kp/bookings/{booking_id}/booth-number": {"booth_nr": 7},
     "PATCH /api/kp/bookings/{booking_id}": {},
     "POST /api/kp/bookings/{booking_id}/reject": {

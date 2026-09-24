@@ -775,7 +775,7 @@ async def test_update_my_booking_status_allows_valid_company_transition(
         company_id=company_id, status=KpBookingStatus.REGISTERED
     )
     updated = attach_staff_booking_relations(
-        make_booking(company_id=company_id, status=KpBookingStatus.FINALIZED)
+        make_booking(company_id=company_id, status=KpBookingStatus.CANCELLED)
     )
     service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
     kp_repo.get_booking_by_id.return_value = booking
@@ -783,14 +783,14 @@ async def test_update_my_booking_status_allows_valid_company_transition(
 
     result = await service.update_my_booking_status(
         booking.id,
-        UpdateBookingStatusInput(status=KpBookingStatus.FINALIZED),
+        UpdateBookingStatusInput(status=KpBookingStatus.CANCELLED),
     )
 
     assert result.id == updated.id
-    assert result.status == KpBookingStatus.FINALIZED
+    assert result.status == KpBookingStatus.CANCELLED
     args = kp_repo.update_booking.await_args.args
     assert args[0] is booking
-    assert args[1].status == KpBookingStatus.FINALIZED
+    assert args[1].status == KpBookingStatus.CANCELLED
 
 
 def test_update_booking_status_input_rejects_draft():
@@ -1994,52 +1994,6 @@ async def test_replace_booking_upgrade_waitlist_rejects_after_finalization_deadl
     kp_repo.replace_booking_upgrade_waitlist_entries.assert_not_awaited()
 
 
-async def test_update_my_booking_status_rejects_after_finalization_deadline(
-    kp_repo,
-    storage_service,
-    make_user,
-):
-    company_id = uuid4()
-    booking = make_booking(event=make_deadline_passed_event(), company_id=company_id)
-    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
-    kp_repo.get_booking_by_id.return_value = booking
-
-    with pytest.raises(KpFinalizationDeadlinePassed):
-        await service.update_my_booking_status(
-            booking.id,
-            UpdateBookingStatusInput(status=KpBookingStatus.FINALIZED),
-        )
-
-    kp_repo.update_booking.assert_not_awaited()
-
-
-async def test_update_my_booking_status_allows_change_on_deadline_day(
-    kp_repo,
-    storage_service,
-    make_user,
-):
-    company_id = uuid4()
-    event = make_event()
-    event.finalization_deadline = date.today()
-    booking = make_complete_booking(event=event, company_id=company_id)
-    updated = attach_staff_booking_relations(
-        make_booking(
-            event=event, company_id=company_id, status=KpBookingStatus.FINALIZED
-        )
-    )
-    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
-    kp_repo.get_booking_by_id.return_value = booking
-    kp_repo.update_booking.return_value = updated
-
-    result = await service.update_my_booking_status(
-        booking.id,
-        UpdateBookingStatusInput(status=KpBookingStatus.FINALIZED),
-    )
-
-    assert result.status == KpBookingStatus.FINALIZED
-    kp_repo.update_booking.assert_awaited_once()
-
-
 async def test_add_booking_services_locks_the_event_row(
     kp_repo,
     storage_service,
@@ -2157,7 +2111,7 @@ async def test_update_my_booking_status_rejects_cancelled_revival_after_deadline
     with pytest.raises(KpBookingStatusTransitionInvalid):
         await service.update_my_booking_status(
             booking.id,
-            UpdateBookingStatusInput(status=KpBookingStatus.FINALIZED),
+            UpdateBookingStatusInput(status=KpBookingStatus.REGISTERED),
         )
 
     kp_repo.update_booking.assert_not_awaited()

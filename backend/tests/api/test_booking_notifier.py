@@ -19,8 +19,6 @@ REJECTION_REASON = "Die Standzone ist ausgebucht."
 EXPECTED_SUBJECTS = {
     "booking_registered": "VISIT: Anmeldung für Kontaktparty erhalten"
     " / VISIT: Registration for Kontaktparty received",
-    "booking_finalized": "VISIT: Buchung für Kontaktparty abgeschlossen"
-    " / VISIT: Booking for Kontaktparty completed",
     "booking_accepted": "VISIT: Buchung für Kontaktparty bestätigt"
     " / VISIT: Booking for Kontaktparty confirmed",
     "booking_rejected": "VISIT: Buchung für Kontaktparty abgelehnt"
@@ -37,7 +35,6 @@ NOTIFICATIONS: dict[
     "booking_registered": lambda notifier, booking: notifier.booking_registered(
         booking
     ),
-    "booking_finalized": lambda notifier, booking: notifier.booking_finalized(booking),
     "booking_accepted": lambda notifier, booking: notifier.booking_accepted(booking),
     "booking_rejected": lambda notifier, booking: notifier.booking_rejected(
         booking, REJECTION_REASON
@@ -157,20 +154,6 @@ async def test_rejecting_a_booking_sends_the_rejection_mail(
     message = mail_stub.SendMail.await_args.args[0]
     assert message.subject == EXPECTED_SUBJECTS["booking_rejected"]
     assert REJECTION_REASON in message.plain_text
-
-
-async def test_finalized_mail_contains_the_total_price(
-    client: AsyncClient,
-    notifier: MailBookingNotifier,
-    booking: KpEventBooking,
-    mail_stub: AsyncMock,
-):
-    mail_stub.SendMail.reset_mock()
-
-    await notifier.booking_finalized(booking)
-
-    message = mail_stub.SendMail.await_args.args[0]
-    assert "CHF 150.00" in message.plain_text
 
 
 async def test_registration_succeeds_when_the_mail_service_fails(

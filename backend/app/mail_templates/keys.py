@@ -8,7 +8,6 @@ class MailTemplateKey(StrEnum):
     PASSWORD_RESET = "password_reset"
     COMPANY_INVITE = "company_invite"
     BOOKING_REGISTERED = "booking_registered"
-    BOOKING_FINALIZED = "booking_finalized"
     BOOKING_ACCEPTED = "booking_accepted"
     BOOKING_REJECTED = "booking_rejected"
     BOOKING_INCOMPLETE_REMINDER = "booking_incomplete_reminder"

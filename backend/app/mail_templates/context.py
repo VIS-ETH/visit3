@@ -54,11 +54,6 @@ class BookingContext(MailContext):
 
 
 @dataclass(frozen=True)
-class BookingFinalizedContext(BookingContext):
-    total_price: str
-
-
-@dataclass(frozen=True)
 class BookingAcceptedContext(BookingContext):
     booth_number: str
 
@@ -104,14 +99,6 @@ SAMPLE_CONTEXTS: dict[MailTemplateKey, MailContext] = {
         event_name="Kontaktparty 2026",
         booth_zone_name="Haupthalle",
         login_url="https://visit.vis.ethz.ch/auth/link/sample-token",
-    ),
-    MailTemplateKey.BOOKING_FINALIZED: BookingFinalizedContext(
-        name="Ada Lovelace",
-        company_name="Acme AG",
-        event_name="Kontaktparty 2026",
-        booth_zone_name="Haupthalle",
-        login_url="https://visit.vis.ethz.ch/auth/link/sample-token",
-        total_price="CHF 1500.00",
     ),
     MailTemplateKey.BOOKING_ACCEPTED: BookingAcceptedContext(
         name="Ada Lovelace",

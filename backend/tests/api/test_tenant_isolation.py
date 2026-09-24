@@ -176,9 +176,6 @@ def cross_tenant_requests(tenants: Tenants) -> dict[str, CrossTenantRequest]:
         "change-status": CrossTenantRequest(
             "PATCH", f"{booking}/status", {"status": "CANCELLED"}
         ),
-        "finalize": CrossTenantRequest(
-            "PATCH", f"{booking}/status", {"status": "FINALIZED"}
-        ),
         "download-nametags": CrossTenantRequest("GET", f"{booking}/nametags/download"),
         "read-nametags": CrossTenantRequest("GET", f"{booking}/nametags"),
         "write-nametags": CrossTenantRequest(
@@ -213,7 +210,6 @@ CROSS_TENANT_CASES = [
     "delete-file",
     "download-file",
     "download-nametags",
-    "finalize",
     "read-file",
     "read-nametags",
     "read-text",

@@ -344,17 +344,6 @@ class KpBookingStatusTransitionInvalid(AppError):
         )
 
 
-class KpBookingIncomplete(AppError):
-    def __init__(self, identifier: str, missing_items: Sequence[str]):
-        super().__init__(
-            "The KP booking is still missing required information",
-            "error.kp_booking_incomplete",
-            identifier,
-            409,
-            {"missingItems": list(missing_items)},
-        )
-
-
 class KpBookingDeleteRequiresForce(AppError):
     def __init__(self, identifier: str):
         super().__init__(

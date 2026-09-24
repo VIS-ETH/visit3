@@ -6,9 +6,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.core.exceptions import (
-    KpBookingIncomplete,
     KpBookingStatusTransitionInvalid,
-    KpFinalizationDeadlinePassed,
     NotAllowed,
 )
 from app.models.company import Company
@@ -22,10 +20,6 @@ from app.schemas.kp import (
     RejectBookingInput,
     UpdateBookingStatusInput,
 )
-from app.services.booking_completeness import (
-    BILLING_ADDRESS_MISSING,
-    COMPANY_PROFILE_MISSING,
-)
 from app.services.kp_service import (
     COMPANY_BOOKING_TRANSITIONS,
     STAFF_BOOKING_TRANSITIONS,
@@ -36,10 +30,7 @@ from tests.unit.conftest import complete_company_profile, complete_company_snaps
 REJECTION_REASON = "The booth zone is not available for this company."
 
 EXPECTED_COMPANY_TRANSITIONS = {
-    KpBookingStatus.REGISTERED: {
-        KpBookingStatus.FINALIZED,
-        KpBookingStatus.CANCELLED,
-    },
+    KpBookingStatus.REGISTERED: {KpBookingStatus.CANCELLED},
     KpBookingStatus.FINALIZED: {KpBookingStatus.CANCELLED},
     KpBookingStatus.CONFIRMED: set[KpBookingStatus](),
     KpBookingStatus.CANCELLED: set[KpBookingStatus](),
@@ -47,9 +38,9 @@ EXPECTED_COMPANY_TRANSITIONS = {
 }
 
 EXPECTED_STAFF_TRANSITIONS = {
-    KpBookingStatus.REGISTERED: {KpBookingStatus.REJECTED},
+    KpBookingStatus.REGISTERED: {KpBookingStatus.CONFIRMED, KpBookingStatus.REJECTED},
     KpBookingStatus.FINALIZED: {KpBookingStatus.CONFIRMED, KpBookingStatus.REJECTED},
-    KpBookingStatus.CONFIRMED: {KpBookingStatus.FINALIZED},
+    KpBookingStatus.CONFIRMED: {KpBookingStatus.REGISTERED},
     KpBookingStatus.CANCELLED: set[KpBookingStatus](),
     KpBookingStatus.REJECTED: set[KpBookingStatus](),
 }
@@ -112,7 +103,7 @@ STAFF_ACTIONS: dict[KpBookingStatus, StaffAction] = {
     KpBookingStatus.CONFIRMED: lambda service, booking_id: service.accept_booking(
         booking_id
     ),
-    KpBookingStatus.FINALIZED: lambda service, booking_id: service.undo_accept_booking(
+    KpBookingStatus.REGISTERED: lambda service, booking_id: service.undo_accept_booking(
         booking_id
     ),
     KpBookingStatus.REJECTED: lambda service, booking_id: service.reject_booking(
@@ -212,7 +203,7 @@ async def test_staff_transitions_are_refused_for_company_users(
     make_user: Callable[..., Any],
     target: KpBookingStatus,
 ):
-    booking = make_booking(status=KpBookingStatus.FINALIZED)
+    booking = make_booking()
     service = KpService(kp_repo, storage_service, make_user(company_id=uuid4()))
     kp_repo.get_booking_by_id.return_value = booking
 
@@ -220,29 +211,6 @@ async def test_staff_transitions_are_refused_for_company_users(
         await STAFF_ACTIONS[target](service, booking.id)
 
     kp_repo.update_booking.assert_not_awaited()
-
-
-async def test_finalize_records_the_finalized_timestamp(
-    kp_repo: Any, storage_service: Any, make_user: Callable[..., Any]
-):
-    company_id = uuid4()
-    booking = make_booking(company_id=company_id)
-    service = company_service(
-        kp_repo, storage_service, make_user(company_id=company_id)
-    )
-    kp_repo.get_booking_by_id.return_value = booking
-    kp_repo.update_booking.return_value = make_booking(
-        status=KpBookingStatus.FINALIZED, company_id=company_id
-    )
-
-    await service.update_my_booking_status(
-        booking.id, UpdateBookingStatusInput(status=KpBookingStatus.FINALIZED)
-    )
-
-    update = kp_repo.update_booking.await_args.args[1]
-    assert update.status_changed_at is not None
-    assert update.finalized_at == update.status_changed_at
-    assert update.confirmed_at is None
 
 
 async def test_cancel_records_only_the_status_change(
@@ -270,7 +238,7 @@ async def test_cancel_records_only_the_status_change(
 async def test_accept_records_the_confirmed_timestamp(
     kp_repo: Any, storage_service: Any, staff_user: Any
 ):
-    booking = make_booking(status=KpBookingStatus.FINALIZED)
+    booking = make_booking()
     service = KpService(kp_repo, storage_service, staff_user)
     kp_repo.get_booking_by_id.return_value = booking
     kp_repo.update_booking.return_value = make_booking(status=KpBookingStatus.CONFIRMED)
@@ -281,13 +249,26 @@ async def test_accept_records_the_confirmed_timestamp(
     assert update.confirmed_at == update.status_changed_at
 
 
+async def test_accept_does_not_wait_for_a_complete_booking(
+    kp_repo: Any, storage_service: Any, staff_user: Any
+):
+    booking = make_booking(complete=False)
+    service = KpService(kp_repo, storage_service, staff_user)
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.update_booking.return_value = make_booking(status=KpBookingStatus.CONFIRMED)
+
+    result = await service.accept_booking(booking.id)
+
+    assert result.status == KpBookingStatus.CONFIRMED
+
+
 async def test_undo_accept_clears_the_confirmed_timestamp(
     kp_repo: Any, storage_service: Any, staff_user: Any
 ):
     booking = make_booking(status=KpBookingStatus.CONFIRMED)
     service = KpService(kp_repo, storage_service, staff_user)
     kp_repo.get_booking_by_id.return_value = booking
-    kp_repo.update_booking.return_value = make_booking(status=KpBookingStatus.FINALIZED)
+    kp_repo.update_booking.return_value = make_booking()
 
     await service.undo_accept_booking(booking.id)
 
@@ -299,7 +280,7 @@ async def test_undo_accept_clears_the_confirmed_timestamp(
 async def test_reject_stores_the_reason(
     kp_repo: Any, storage_service: Any, staff_user: Any
 ):
-    booking = make_booking(status=KpBookingStatus.FINALIZED)
+    booking = make_booking()
     service = KpService(kp_repo, storage_service, staff_user)
     kp_repo.get_booking_by_id.return_value = booking
     kp_repo.update_booking.return_value = make_booking(status=KpBookingStatus.REJECTED)
@@ -310,49 +291,6 @@ async def test_reject_stores_the_reason(
 
     update = kp_repo.update_booking.await_args.args[1]
     assert update.rejection_reason == REJECTION_REASON
-
-
-async def test_finalize_refuses_an_incomplete_booking(
-    kp_repo: Any, storage_service: Any, make_user: Callable[..., Any]
-):
-    company_id = uuid4()
-    booking = make_booking(company_id=company_id, complete=False)
-    service = company_service(
-        kp_repo, storage_service, make_user(company_id=company_id)
-    )
-    kp_repo.get_booking_by_id.return_value = booking
-
-    with pytest.raises(KpBookingIncomplete) as error:
-        await service.update_my_booking_status(
-            booking.id, UpdateBookingStatusInput(status=KpBookingStatus.FINALIZED)
-        )
-
-    assert error.value.status_code == 409
-    assert error.value.code == "error.kp_booking_incomplete"
-    assert error.value.details == {
-        "missingItems": [COMPANY_PROFILE_MISSING, BILLING_ADDRESS_MISSING]
-    }
-    kp_repo.update_booking.assert_not_awaited()
-
-
-async def test_finalize_after_the_deadline_is_refused_before_completeness(
-    kp_repo: Any, storage_service: Any, make_user: Callable[..., Any]
-):
-    company_id = uuid4()
-    booking = make_booking(
-        company_id=company_id,
-        complete=False,
-        event=make_event(finalization_deadline=date.today() - timedelta(days=1)),
-    )
-    service = company_service(
-        kp_repo, storage_service, make_user(company_id=company_id)
-    )
-    kp_repo.get_booking_by_id.return_value = booking
-
-    with pytest.raises(KpFinalizationDeadlinePassed):
-        await service.update_my_booking_status(
-            booking.id, UpdateBookingStatusInput(status=KpBookingStatus.FINALIZED)
-        )
 
 
 async def test_cancel_stays_allowed_after_the_deadline(

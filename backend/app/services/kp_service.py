@@ -17,7 +17,6 @@ from app.core.exceptions import (
     KpBookingAlreadyExists,
     KpBookingConfirmedReadonly,
     KpBookingDeleteRequiresForce,
-    KpBookingIncomplete,
     KpBookingNotFound,
     KpBookingNotOwned,
     KpBookingStatusTransitionInvalid,
@@ -132,9 +131,7 @@ REQUIREMENT_UPLOAD_KINDS = {
 BookingTransitions = dict[KpBookingStatus, frozenset[KpBookingStatus]]
 
 COMPANY_BOOKING_TRANSITIONS: BookingTransitions = {
-    KpBookingStatus.REGISTERED: frozenset(
-        {KpBookingStatus.FINALIZED, KpBookingStatus.CANCELLED}
-    ),
+    KpBookingStatus.REGISTERED: frozenset({KpBookingStatus.CANCELLED}),
     KpBookingStatus.FINALIZED: frozenset({KpBookingStatus.CANCELLED}),
     KpBookingStatus.CONFIRMED: frozenset(),
     KpBookingStatus.CANCELLED: frozenset(),
@@ -142,11 +139,13 @@ COMPANY_BOOKING_TRANSITIONS: BookingTransitions = {
 }
 
 STAFF_BOOKING_TRANSITIONS: BookingTransitions = {
-    KpBookingStatus.REGISTERED: frozenset({KpBookingStatus.REJECTED}),
+    KpBookingStatus.REGISTERED: frozenset(
+        {KpBookingStatus.CONFIRMED, KpBookingStatus.REJECTED}
+    ),
     KpBookingStatus.FINALIZED: frozenset(
         {KpBookingStatus.CONFIRMED, KpBookingStatus.REJECTED}
     ),
-    KpBookingStatus.CONFIRMED: frozenset({KpBookingStatus.FINALIZED}),
+    KpBookingStatus.CONFIRMED: frozenset({KpBookingStatus.REGISTERED}),
     KpBookingStatus.CANCELLED: frozenset(),
     KpBookingStatus.REJECTED: frozenset(),
 }
@@ -758,13 +757,6 @@ class KpService:
             )
         self._ensure_finalization_deadline_open(booking, context)
 
-    def _ensure_booking_complete(self, booking: KpEventBooking, context: str) -> None:
-        missing_items = booking_completeness(booking)
-        if missing_items:
-            raise KpBookingIncomplete(
-                f"{context}:incomplete:{booking.id}", missing_items
-            )
-
     async def _build_booking_response(self, booking: KpEventBooking) -> BookingResponse:
         services, additional_service_charges = await self._build_booking_services(
             booking
@@ -1301,26 +1293,13 @@ class KpService:
             next_status,
             "update_my_booking_status",
         )
-        changed_at = datetime.now(timezone.utc)
-        if next_status == KpBookingStatus.CANCELLED:
-            updated = await self.kp_repository.update_booking(
-                booking,
-                UpdateBookingInput(status=next_status, status_changed_at=changed_at),
-            )
-            await self._promote_waitlist(updated.event_id, updated.booth_zone_id)
-            return await self._build_staff_booking_response(updated)
-
-        self._ensure_finalization_deadline_open(booking, "update_my_booking_status")
-        self._ensure_booking_complete(booking, "update_my_booking_status")
         updated = await self.kp_repository.update_booking(
             booking,
             UpdateBookingInput(
-                status=next_status,
-                status_changed_at=changed_at,
-                finalized_at=changed_at,
+                status=next_status, status_changed_at=datetime.now(timezone.utc)
             ),
         )
-        await notify_best_effort(self.notifier.booking_finalized(updated))
+        await self._promote_waitlist(updated.event_id, updated.booth_zone_id)
         return await self._build_staff_booking_response(updated)
 
     async def update_booking_booth_number(
@@ -1368,14 +1347,14 @@ class KpService:
         ensure_booking_transition(
             STAFF_BOOKING_TRANSITIONS,
             booking,
-            KpBookingStatus.FINALIZED,
+            KpBookingStatus.REGISTERED,
             "undo_accept_booking",
         )
         changed_at = datetime.now(timezone.utc)
         updated = await self.kp_repository.update_booking(
             booking,
             UpdateBookingInput(
-                status=KpBookingStatus.FINALIZED,
+                status=KpBookingStatus.REGISTERED,
                 status_changed_at=changed_at,
                 confirmed_at=None,
             ),

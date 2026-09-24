@@ -5,7 +5,6 @@ from typing import Any, Protocol
 from app.mail_templates.context import (
     BookingAcceptedContext,
     BookingContext,
-    BookingFinalizedContext,
     BookingRejectedContext,
     BookingReminderContext,
     MailContext,
@@ -18,7 +17,6 @@ from app.services.mail_template_service import MailTemplateService
 
 logger = logging.getLogger(__name__)
 
-CURRENCY = "CHF"
 NO_BOOTH_NUMBER = "-"
 NO_REASON = "-"
 
@@ -36,8 +34,6 @@ class BookingNotifier(Protocol):
     async def booking_registered(self, booking: KpEventBooking) -> None:
         return None
 
-    async def booking_finalized(self, booking: KpEventBooking) -> None: ...
-
     async def booking_accepted(self, booking: KpEventBooking) -> None: ...
 
     async def booking_rejected(self, booking: KpEventBooking, reason: str) -> None: ...
@@ -50,9 +46,6 @@ class BookingNotifier(Protocol):
 
 
 class SilentBookingNotifier(BookingNotifier):
-    async def booking_finalized(self, booking: KpEventBooking) -> None:
-        return None
-
     async def booking_accepted(self, booking: KpEventBooking) -> None:
         return None
 
@@ -62,10 +55,6 @@ class SilentBookingNotifier(BookingNotifier):
 
 def booking_path(booking: KpEventBooking) -> str:
     return f"/kp/{booking.event_id}/booking"
-
-
-def money(cents: int) -> str:
-    return f"{CURRENCY} {cents / 100:.2f}"
 
 
 def same_context(context: BookingContext) -> MailContext:
@@ -110,15 +99,6 @@ class MailBookingNotifier:
 
     async def booking_registered(self, booking: KpEventBooking) -> None:
         await self._send_to_company(booking, MailTemplateKey.BOOKING_REGISTERED)
-
-    async def booking_finalized(self, booking: KpEventBooking) -> None:
-        await self._send_to_company(
-            booking,
-            MailTemplateKey.BOOKING_FINALIZED,
-            lambda context: BookingFinalizedContext(
-                **context.variables(), total_price=money(booking.total_price)
-            ),
-        )
 
     async def booking_accepted(self, booking: KpEventBooking) -> None:
         await self._send_to_company(

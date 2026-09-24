@@ -107,26 +107,6 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
             '<p><a href="{{ login_url }}">Open booking</a></p>'
         ),
     ),
-    MailTemplateKey.BOOKING_FINALIZED: MailTemplateTexts(
-        subject_de="VISIT: Buchung für {{ event_name }} abgeschlossen",
-        subject_en="VISIT: Booking for {{ event_name }} completed",
-        body_de=(
-            "<p>Hallo {{ name }},</p>"
-            "<p>{{ company_name }} hat die Buchung für {{ event_name }} in der"
-            " Standzone {{ booth_zone_name }} abgeschlossen.</p>"
-            "<p>Gesamtbetrag: {{ total_price }}</p>"
-            "<p>Der VIS prüft die Buchung und meldet sich bei Ihnen.</p>"
-            '<p><a href="{{ login_url }}">Buchung öffnen</a></p>'
-        ),
-        body_en=(
-            "<p>Hello {{ name }},</p>"
-            "<p>{{ company_name }} completed the booking for {{ event_name }} in booth"
-            " zone {{ booth_zone_name }}.</p>"
-            "<p>Total amount: {{ total_price }}</p>"
-            "<p>VIS will review the booking and get back to you.</p>"
-            '<p><a href="{{ login_url }}">Open booking</a></p>'
-        ),
-    ),
     MailTemplateKey.BOOKING_ACCEPTED: MailTemplateTexts(
         subject_de="VISIT: Buchung für {{ event_name }} bestätigt",
         subject_en="VISIT: Booking for {{ event_name }} confirmed",

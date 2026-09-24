@@ -170,13 +170,12 @@ async def test_switching_to_the_current_zone_is_refused(
     assert response.json()["code"] == "error.kp_booking_zone_switch_not_allowed"
 
 
-async def test_switching_is_refused_once_the_booking_is_finalized(
+async def test_switching_is_refused_once_the_booking_is_confirmed(
     client: AsyncClient, switch_world: SwitchWorld
 ):
-    await client.patch(
-        f"/api/kp/bookings/{switch_world.booking_id}/status",
-        json={"status": "FINALIZED"},
-        headers=switch_world.company_headers,
+    await client.post(
+        f"/api/kp/bookings/{switch_world.booking_id}/accept",
+        headers=switch_world.staff_headers,
     )
 
     response = await switch_zone(client, switch_world, switch_world.target_zone_id)

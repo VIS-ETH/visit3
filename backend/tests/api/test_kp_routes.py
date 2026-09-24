@@ -378,11 +378,6 @@ async def test_company_can_cancel_after_the_finalization_deadline(
         json={"status": "REGISTERED"},
         headers=company_headers,
     )
-    finalized = await client.patch(
-        f"/api/kp/bookings/{booking_id}/status",
-        json={"status": "FINALIZED"},
-        headers=company_headers,
-    )
     cancelled = await client.patch(
         f"/api/kp/bookings/{booking_id}/status",
         json={"status": "CANCELLED"},
@@ -391,8 +386,6 @@ async def test_company_can_cancel_after_the_finalization_deadline(
 
     assert unchanged.status_code == 200
     assert unchanged.json()["status"] == "REGISTERED"
-    assert finalized.status_code == 403
-    assert finalized.json()["code"] == "error.kp_finalization_deadline_passed"
     assert cancelled.status_code == 200
     assert cancelled.json()["status"] == "CANCELLED"
 
