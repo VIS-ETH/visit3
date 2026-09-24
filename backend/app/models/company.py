@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from app.models.kp_event import KpEventBooking, KpEventRegistrationException
     from app.models.user import User
 
-PROFILE_DESCRIPTION_MAX_LENGTH = 600
+PROFILE_DESCRIPTION_MAX_LENGTH = 2500
 
 MANDATORY_PROFILE_FIELDS = (
     "description",

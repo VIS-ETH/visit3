@@ -116,12 +116,25 @@ async def test_the_completion_timestamp_marks_the_first_completion(
     assert second.json()["profile_completed_at"] == first.json()["profile_completed_at"]
 
 
+async def test_profile_accepts_a_description_of_a_booklet_page(
+    client: AsyncClient, company_headers: dict[str, str]
+):
+    response = await client.put(
+        PROFILE,
+        json=company_profile_payload(description="x" * 2500),
+        headers=company_headers,
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()["description"]) == 2500
+
+
 async def test_profile_rejects_a_description_over_the_limit(
     client: AsyncClient, company_headers: dict[str, str]
 ):
     response = await client.put(
         PROFILE,
-        json=company_profile_payload(description="x" * 601),
+        json=company_profile_payload(description="x" * 2501),
         headers=company_headers,
     )
 
