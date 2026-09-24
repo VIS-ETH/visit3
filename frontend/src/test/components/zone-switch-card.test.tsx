@@ -297,7 +297,7 @@ describe("the zone switch card", () => {
   it("disables the switch while the booking is no longer registered", async () => {
     renderCard(openEvent, {
       ...testBooking,
-      status: KpBookingStatus.FINALIZED,
+      status: KpBookingStatus.CONFIRMED,
     });
 
     expect(

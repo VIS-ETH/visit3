@@ -44,7 +44,6 @@
     "kp_booking_not_found": "Die ausgewählte KP-Buchung wurde nicht gefunden.",
     "kp_booking_not_owned": "Diese KP-Buchung gehört nicht zu Ihrem Unternehmen.",
     "kp_booking_status_transition_invalid": "Der angeforderte Buchungsstatuswechsel ist nicht erlaubt.",
-    "kp_booking_incomplete": "Ihrer Buchung fehlen noch erforderliche Angaben.",
     "kp_booking_delete_requires_force": "Eine bestätigte Buchung kann nur nach ausdrücklicher Bestätigung gelöscht werden.",
     "kp_booking_confirmed_readonly": "Bestätigte Buchungen können nicht mehr geändert werden.",
     "kp_finalization_deadline_passed": "Die Frist für Änderungen an Ihrer Buchung ist abgelaufen.",

@@ -179,7 +179,7 @@ describe("the company event view", () => {
 
   it("drops the hint once the booking can no longer switch", async () => {
     event = closedEvent;
-    booking = { ...testBooking, status: KpBookingStatus.FINALIZED };
+    booking = { ...testBooking, status: KpBookingStatus.CONFIRMED };
     renderCompanyView();
 
     await screen.findByText(

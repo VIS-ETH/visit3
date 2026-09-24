@@ -92,7 +92,7 @@ describe("the staff bookings table", () => {
     await screen.findByText("Beta GmbH", {}, { timeout: 5000 });
     await user.click(screen.getByText("kp.manage.booking_status"));
 
-    expect(companyOrder()).toEqual(["Beta GmbH", "Acme AG", "Zeta SA"]);
+    expect(companyOrder()).toEqual(["Acme AG", "Beta GmbH", "Zeta SA"]);
   });
 
   it("renders every row when the list carries no download urls", async () => {

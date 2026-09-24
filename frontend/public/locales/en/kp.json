@@ -137,13 +137,9 @@
           "label": "Registered",
           "description": "Your booth zone registration was received successfully."
         },
-        "finalized": {
-          "label": "Finalized",
-          "description": "You have finalized your booking and company details and are now awaiting the organizers final review."
-        },
         "confirmed": {
           "label": "Confirmed",
-          "description": "Your booking is finalized and confirmed by the KP organizers."
+          "description": "VIS has confirmed your booking."
         },
         "cancelled": {
           "label": "Cancelled",
@@ -206,22 +202,15 @@
       "service_book_toggle": "Book this service",
       "completeness_complete": "Complete",
       "completeness_incomplete": "Incomplete",
-      "completeness_incomplete_body": "The following information is still missing before you can finalize this booking:",
+      "completeness_incomplete_body": "The following information is still missing:",
       "missing_item_requirement": "An answer for a booked service is missing",
       "missing_item_company_profile": "Company profile details are missing",
       "missing_item_billing_address": "Billing address is missing",
       "missing_item_unknown": "Further information is missing",
       "rejected_title": "Booking rejected",
       "rejected_body": "The KP organizers rejected this booking. Please contact them if you have questions.",
-      "finalized_title": "Booking finalized",
-      "finalized_body": "You have finalized this booking. The KP organizers now review it.",
       "confirmed_title": "Booking confirmed",
       "confirmed_body": "The KP organizers confirmed this booking. It can no longer be changed here.",
-      "finalize_action": "Finalize booking",
-      "finalize_confirm_title": "Finalize this booking?",
-      "finalize_confirm_body": "Finalizing hands your booking over to the KP organizers for review. Afterwards you can no longer change your booked services yourself.",
-      "finalize_confirm_submit": "Finalize booking",
-      "finalize_success": "Your booking was finalized.",
       "cancel_action": "Cancel booking",
       "cancel_confirm_title": "Cancel this booking?",
       "cancel_confirm_body": "Cancelling releases your booth spot to other companies and cannot be undone here. Booked services and uploaded requirements are lost, and you have to register again if you change your mind.",
@@ -551,7 +540,7 @@
       "booking_accept_submit": "Accept booking",
       "booking_accepted": "Booking accepted.",
       "booking_undo_accept_title": "Undo accept",
-      "booking_undo_accept_body": "The booking goes back to finalized and can be accepted or rejected again.",
+      "booking_undo_accept_body": "The booking goes back to registered and can be accepted or rejected again.",
       "booking_undo_accept_submit": "Undo accept",
       "booking_undo_accepted": "Acceptance undone.",
       "booking_reject_title": "Reject booking",
@@ -575,7 +564,6 @@
       "booking_missing_item_unknown": "Something is still missing",
       "booking_timeline_title": "Status history",
       "booking_timeline_registered": "Registered",
-      "booking_timeline_finalized": "Finalized",
       "booking_timeline_confirmed": "Confirmed",
       "booking_timeline_rejected": "Rejected",
       "booking_timeline_pending": "Still open",

@@ -2,7 +2,6 @@ import { Text, Timeline } from "@mantine/core";
 import {
   IconCheck,
   IconClock,
-  IconProgressCheck,
   IconX,
 } from "@tabler/icons-react";
 import type { ReactNode } from "react";
@@ -28,10 +27,6 @@ const BookingStatusTimeline = ({
 }) => {
   const { t } = useTranslation();
   const isRejected = booking.status === KpBookingStatus.REJECTED;
-  const isFinalized =
-    Boolean(booking.finalized_at) ||
-    booking.status === KpBookingStatus.FINALIZED ||
-    booking.status === KpBookingStatus.CONFIRMED;
 
   const steps: TimelineStep[] = [
     {
@@ -43,13 +38,6 @@ const BookingStatusTimeline = ({
           ? booking.status_changed_at
           : undefined,
       title: t("kp.manage.booking_timeline_registered"),
-    },
-    {
-      bullet: <IconProgressCheck size={12} />,
-      isDone: isFinalized,
-      key: "finalized",
-      timestamp: booking.finalized_at,
-      title: t("kp.manage.booking_timeline_finalized"),
     },
     isRejected
       ? {

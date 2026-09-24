@@ -26,7 +26,6 @@ describe("the booking status badge", () => {
 
     for (const status of [
       "registered",
-      "finalized",
       "confirmed",
       "cancelled",
       "rejected",

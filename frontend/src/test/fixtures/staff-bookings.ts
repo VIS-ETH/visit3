@@ -14,7 +14,7 @@ const testMainHallZoneId = "99999999-9999-9999-9999-999999999991";
 export const testSideHallZoneId = "99999999-9999-9999-9999-999999999992";
 
 export const acmeBookingId = "aaaa0000-0000-0000-0000-000000000001";
-const betaBookingId = "aaaa0000-0000-0000-0000-000000000002";
+export const betaBookingId = "aaaa0000-0000-0000-0000-000000000002";
 export const zetaBookingId = "aaaa0000-0000-0000-0000-000000000003";
 
 const zone = (
@@ -55,10 +55,9 @@ export const acmeBooking: StaffBookingResponse = {
   booth_zone_id: testMainHallZoneId,
   company: { id: "company-acme", name: "Acme AG" },
   company_id: "company-acme",
-  finalized_at: "2026-02-02T10:00:00Z",
   is_complete: true,
   missing_items: [],
-  status: KpBookingStatus.FINALIZED,
+  status: KpBookingStatus.REGISTERED,
   status_changed_at: "2026-02-02T10:00:00Z",
 };
 
@@ -90,7 +89,6 @@ const zetaBooking: StaffBookingResponse = {
   company: { id: "company-zeta", name: "Zeta SA" },
   company_id: "company-zeta",
   confirmed_at: "2026-02-04T12:00:00Z",
-  finalized_at: "2026-02-03T12:00:00Z",
   is_complete: true,
   missing_items: [],
   status: KpBookingStatus.CONFIRMED,

@@ -92,7 +92,7 @@ describe("the staff booking details header", () => {
       screen.getByText("kp.manage.booking_timeline_registered"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(formatted(acmeBooking.finalized_at ?? "")),
+      screen.getByText(formatted(acmeBooking.status_changed_at ?? "")),
     ).toBeInTheDocument();
     expect(
       screen.getByText("kp.manage.booking_timeline_pending"),

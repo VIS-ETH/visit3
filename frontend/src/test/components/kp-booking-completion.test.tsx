@@ -96,15 +96,7 @@ describe("KpBookingCompletion", () => {
     ).toBeInTheDocument();
   });
 
-  it("explains finalized and confirmed bookings", () => {
-    const { unmount } = renderWithProviders(
-      <KpBookingCompletion
-        booking={{ ...completeBooking, status: KpBookingStatus.FINALIZED }}
-      />,
-    );
-    expect(screen.getByText("kp.booking.finalized_title")).toBeInTheDocument();
-    unmount();
-
+  it("explains confirmed bookings", () => {
     renderWithProviders(
       <KpBookingCompletion
         booking={{ ...completeBooking, status: KpBookingStatus.CONFIRMED }}

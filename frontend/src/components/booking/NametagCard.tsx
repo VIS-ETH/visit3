@@ -40,7 +40,6 @@ import { formatKpDisplayDate, isDeadlinePassed } from "../../utils/kp-utils";
 
 const EDITABLE_STATUSES: readonly KpBookingStatus[] = [
   KpBookingStatus.REGISTERED,
-  KpBookingStatus.FINALIZED,
   KpBookingStatus.CONFIRMED,
 ];
 

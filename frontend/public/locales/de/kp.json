@@ -137,13 +137,9 @@
           "label": "Registriert",
           "description": "Die Registrierung Ihrer Standzone wurde erfolgreich erfasst."
         },
-        "finalized": {
-          "label": "Finalisiert",
-          "description": "Sie haben Ihre Buchung und Ihre Unternehmensangaben finalisiert und warten nun auf die abschliessende Prüfung durch die Organisatoren."
-        },
         "confirmed": {
           "label": "Bestätigt",
-          "description": "Ihre Buchung ist finalisiert und von den KP-Organisatoren bestätigt."
+          "description": "Der VIS hat Ihre Buchung bestätigt."
         },
         "cancelled": {
           "label": "Storniert",
@@ -206,22 +202,15 @@
       "service_book_toggle": "Diesen Service buchen",
       "completeness_complete": "Vollständig",
       "completeness_incomplete": "Unvollständig",
-      "completeness_incomplete_body": "Diese Angaben fehlen noch, bevor Sie die Buchung abschliessen können:",
+      "completeness_incomplete_body": "Diese Angaben fehlen noch:",
       "missing_item_requirement": "Eine Angabe zu einem gebuchten Service fehlt",
       "missing_item_company_profile": "Angaben im Unternehmensprofil fehlen",
       "missing_item_billing_address": "Rechnungsadresse fehlt",
       "missing_item_unknown": "Weitere Angaben fehlen",
       "rejected_title": "Buchung abgelehnt",
       "rejected_body": "Die KP-Organisatoren haben diese Buchung abgelehnt. Bitte kontaktieren Sie sie bei Fragen.",
-      "finalized_title": "Buchung abgeschlossen",
-      "finalized_body": "Sie haben diese Buchung abgeschlossen. Die KP-Organisatoren prüfen sie nun.",
       "confirmed_title": "Buchung bestätigt",
       "confirmed_body": "Die KP-Organisatoren haben diese Buchung bestätigt. Sie kann hier nicht mehr geändert werden.",
-      "finalize_action": "Buchung abschliessen",
-      "finalize_confirm_title": "Buchung abschliessen?",
-      "finalize_confirm_body": "Mit dem Abschliessen geben Sie Ihre Buchung zur Prüfung an die KP-Organisatoren. Danach können Sie Ihre gebuchten Services nicht mehr selbst ändern.",
-      "finalize_confirm_submit": "Buchung abschliessen",
-      "finalize_success": "Ihre Buchung wurde abgeschlossen.",
       "cancel_action": "Buchung stornieren",
       "cancel_confirm_title": "Buchung stornieren?",
       "cancel_confirm_body": "Mit der Stornierung wird Ihr Standplatz für andere Unternehmen freigegeben und kann hier nicht rückgängig gemacht werden. Gebuchte Services und hochgeladene Unterlagen gehen verloren, und Sie müssen sich neu anmelden, falls Sie es sich anders überlegen.",
@@ -551,7 +540,7 @@
       "booking_accept_submit": "Buchung annehmen",
       "booking_accepted": "Buchung angenommen.",
       "booking_undo_accept_title": "Annahme rückgängig machen",
-      "booking_undo_accept_body": "Die Buchung wird wieder abgeschlossen und kann erneut angenommen oder abgelehnt werden.",
+      "booking_undo_accept_body": "Die Buchung ist wieder registriert und kann erneut angenommen oder abgelehnt werden.",
       "booking_undo_accept_submit": "Annahme rückgängig",
       "booking_undo_accepted": "Annahme rückgängig gemacht.",
       "booking_reject_title": "Buchung ablehnen",
@@ -575,7 +564,6 @@
       "booking_missing_item_unknown": "Es fehlt noch etwas",
       "booking_timeline_title": "Statusverlauf",
       "booking_timeline_registered": "Registriert",
-      "booking_timeline_finalized": "Abgeschlossen",
       "booking_timeline_confirmed": "Bestätigt",
       "booking_timeline_rejected": "Abgelehnt",
       "booking_timeline_pending": "Noch offen",

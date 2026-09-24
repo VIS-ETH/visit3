@@ -11,6 +11,7 @@ import { testEventId } from "../fixtures/kp-booking";
 import {
   acmeBooking,
   acmeBookingId,
+  betaBookingId,
   staffBookings,
   zetaBookingId,
 } from "../fixtures/staff-bookings";
@@ -86,7 +87,7 @@ describe("the staff booking row actions", () => {
     ).toBeDisabled();
   });
 
-  it("blocks every transition on a registered booking except reject", async () => {
+  it("offers accept and reject on a registered booking", async () => {
     const { user } = renderWithProviders(<BookingsTab eventId={testEventId} />);
 
     await screen.findByText("Beta GmbH", {}, { timeout: 5000 });
@@ -99,7 +100,7 @@ describe("the staff booking row actions", () => {
     ).toBeEnabled();
     expect(
       screen.getByRole("menuitem", { name: "kp.manage.booking_action_accept" }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     expect(
       screen.getByRole("menuitem", {
         name: "kp.manage.booking_action_undo_accept",
@@ -107,7 +108,7 @@ describe("the staff booking row actions", () => {
     ).toBeDisabled();
   });
 
-  it("accepts a finalized booking and reloads the list", async () => {
+  it("accepts a registered booking and reloads the list", async () => {
     const accepted: string[] = [];
     server.use(
       http.post(
@@ -261,7 +262,7 @@ describe("the staff booking row actions", () => {
     );
   });
 
-  it("deletes a finalized booking without the extra confirmation", async () => {
+  it("deletes a registered booking without the extra confirmation", async () => {
     const deletions: { bookingId: string; force: string | null }[] = [];
     server.use(
       http.delete(
@@ -295,7 +296,7 @@ describe("the staff booking row actions", () => {
     );
   });
 
-  it("accepts every selected finalized booking at once", async () => {
+  it("accepts every selected registered booking at once", async () => {
     const accepted: string[] = [];
     server.use(
       http.post(
@@ -316,7 +317,9 @@ describe("the staff booking row actions", () => {
       }),
     );
 
-    await waitFor(() => expect(accepted).toEqual([acmeBookingId]));
+    await waitFor(() =>
+      expect(accepted).toEqual([acmeBookingId, betaBookingId]),
+    );
     expect(notificationsShow).toHaveBeenCalledWith({
       color: "green",
       message: "kp.manage.bookings_accepted",
