@@ -10,7 +10,13 @@ import type {
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
+import { SLOW_WAIT } from "../timeouts";
 import { renderWithProviders } from "../render";
+import {
+  installBookletPageHandler,
+  testBookletPage,
+  type BookletPageRequest,
+} from "../fixtures/company-profile";
 
 const companyUser: UserResponse = {
   id: "user-1",
@@ -60,6 +66,7 @@ const storedProfile: CompanyProfileResponse = {
 const labelOf = (key: string) => new RegExp(`^${key.replaceAll(".", "\\.")}`);
 
 let putBodies: unknown[] = [];
+let bookletRequests: BookletPageRequest[] = [];
 let memberRequests = 0;
 
 const mockProfile = (profile: CompanyProfileResponse) => {
@@ -113,7 +120,10 @@ beforeEach(() => {
     ),
   );
   mockProfile(storedProfile);
+  bookletRequests = installBookletPageHandler();
 });
+
+const lastBookletBody = () => bookletRequests.at(-1)?.body;
 
 describe("Company profile form", () => {
   it("renders the values stored on the server", async () => {
@@ -193,9 +203,7 @@ describe("Company profile form", () => {
       screen.getByRole("button", { name: "company_profile_form.save" }),
     );
 
-    expect(
-      await screen.findByText("validation.required"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("validation.required")).toBeInTheDocument();
     expect(putBodies).toHaveLength(0);
   });
 
@@ -322,5 +330,80 @@ describe("Company profile form", () => {
     );
 
     expect(await backLinkHref()).toBe("/kp/event-1/booking");
+  });
+});
+
+describe("Company booklet page", () => {
+  it("shows the page rendered from the stored profile", async () => {
+    renderProfile();
+
+    expect(
+      await screen.findByRole(
+        "img",
+        { name: "company_profile_form.booklet_page_alt" },
+        SLOW_WAIT,
+      ),
+    ).toHaveAttribute(
+      "src",
+      `data:image/png;base64,${testBookletPage.png_base64}`,
+    );
+    expect(bookletRequests[0].url).toBe(
+      `${testBackendUrl}/api/company/me/profile/booklet-page`,
+    );
+    expect(lastBookletBody()).toMatchObject({
+      brand_name: "Examplify",
+      description: "We build things.",
+      general_email: "info@example.com",
+      general_phone: "+41791234567",
+      industry_ids: ["industry-1"],
+    });
+  });
+
+  it("renders the unsaved values after a short pause", async () => {
+    const { user } = renderProfile();
+
+    const brandName = await screen.findByLabelText(
+      labelOf("company_profile_form.brand_name"),
+    );
+    await user.clear(brandName);
+    await user.paste("Examplify Group");
+
+    await waitFor(() => {
+      expect(lastBookletBody()).toMatchObject({
+        brand_name: "Examplify Group",
+      });
+    }, SLOW_WAIT);
+    expect(putBodies).toHaveLength(0);
+  });
+
+  it("leaves an invalid general email off the page", async () => {
+    const { user } = renderProfile();
+
+    const email = await screen.findByLabelText(
+      labelOf("company_profile_form.general_email"),
+    );
+    await user.clear(email);
+    await user.paste("info-at-example");
+
+    await waitFor(() => {
+      expect(lastBookletBody()).toMatchObject({
+        brand_name: "Examplify",
+        general_email: null,
+      });
+    }, SLOW_WAIT);
+  });
+
+  it("warns when the page overflows", async () => {
+    installBookletPageHandler({ ...testBookletPage, overflow: true });
+
+    renderProfile();
+
+    expect(
+      await screen.findByText(
+        "company_profile_form.booklet_page_overflow",
+        undefined,
+        SLOW_WAIT,
+      ),
+    ).toBeInTheDocument();
   });
 });

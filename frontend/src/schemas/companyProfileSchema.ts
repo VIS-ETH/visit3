@@ -164,3 +164,28 @@ export const toCompanyProfileRequest = (
   billing_vat_number: trimmedOrNull(values.billing_vat_number),
   billing_email: trimmedOrNull(values.billing_email),
 });
+
+export const toBookletPageRequest = (
+  values: CompanyProfileFormValues,
+): UpdateCompanyProfileRequest => {
+  const request = toCompanyProfileRequest(values);
+  const hasValidEmail = companyProfileSchema.shape.general_email.safeParse(
+    values.general_email,
+  ).success;
+  return {
+    description: request.description,
+    website: request.website,
+    brand_name: request.brand_name,
+    general_email: hasValidEmail ? request.general_email : null,
+    general_phone: request.general_phone,
+    places_of_work: request.places_of_work,
+    employee_count_switzerland: request.employee_count_switzerland,
+    employee_count_worldwide: request.employee_count_worldwide,
+    offers_internships: request.offers_internships,
+    offers_part_time: request.offers_part_time,
+    offers_theses: request.offers_theses,
+    offers_graduate_positions: request.offers_graduate_positions,
+    languages: request.languages,
+    industry_ids: request.industry_ids,
+  };
+};

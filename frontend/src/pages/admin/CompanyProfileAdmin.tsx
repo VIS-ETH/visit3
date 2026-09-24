@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
 import BackButton from "../../components/BackButton";
 import CompanyBillingFields from "../../components/company/CompanyBillingFields";
+import CompanyBookletPage from "../../components/company/CompanyBookletPage";
 import CompanyContactFields from "../../components/company/CompanyContactFields";
 import CompanyDetailsFields from "../../components/company/CompanyDetailsFields";
 import CompanyLogoFieldForStaff from "../../components/company/CompanyLogoFieldForStaff";
@@ -25,6 +26,7 @@ import CompanyProfileMissingFields from "../../components/company/CompanyProfile
 import CompanyProfileSection from "../../components/company/CompanyProfileSection";
 import {
   getGetCompanyProfileQueryKey,
+  previewCompanyBookletPage,
   useGetCompanyProfile,
   useGetCompanyUsers,
   useUpdateCompanyProfile,
@@ -164,6 +166,22 @@ const CompanyProfileAdmin = () => {
                 form={form}
                 disabled={isSaving}
                 members={members}
+              />
+            </CompanyProfileSection>
+
+            <CompanyProfileSection
+              title={t("company_profile_form.section_booklet")}
+            >
+              <CompanyBookletPage
+                scope={companyId}
+                ready={
+                  form.getInitialValues() !== emptyCompanyProfileFormValues
+                }
+                values={form.values}
+                logoUrl={profile.logo_url ?? null}
+                render={(request) =>
+                  previewCompanyBookletPage(companyId, request)
+                }
               />
             </CompanyProfileSection>
 

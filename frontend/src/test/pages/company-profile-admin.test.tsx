@@ -13,7 +13,12 @@ import {
   memberUser,
   softwareIndustry,
 } from "../fixtures/admin";
+import {
+  installBookletPageHandler,
+  type BookletPageRequest,
+} from "../fixtures/company-profile";
 import { createToken } from "../jwt";
+import { SLOW_WAIT } from "../timeouts";
 import { renderWithProviders } from "../render";
 import { server } from "../server";
 
@@ -54,6 +59,7 @@ let profileRequests: string[] = [];
 let putCalls: { companyId: string; body: unknown }[] = [];
 let logoUploads: { companyId: string; hasFileField: boolean }[] = [];
 let logoDeletes: string[] = [];
+let bookletRequests: BookletPageRequest[] = [];
 
 beforeEach(() => {
   profileRequests = [];
@@ -111,6 +117,7 @@ beforeEach(() => {
       HttpResponse.json([softwareIndustry]),
     ),
   );
+  bookletRequests = installBookletPageHandler();
 });
 
 const renderPage = () =>
@@ -196,5 +203,23 @@ describe("the staff company profile page", () => {
         screen.queryByAltText("company_profile_form.logo_alt"),
       ).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("the staff booklet page", () => {
+  it("renders the page of the company in the route", async () => {
+    renderPage();
+
+    expect(
+      await screen.findByRole(
+        "img",
+        { name: "company_profile_form.booklet_page_alt" },
+        SLOW_WAIT,
+      ),
+    ).toBeInTheDocument();
+    expect(bookletRequests[0].url).toBe(
+      `${testBackendUrl}/api/company/${acmeCompany.id}/profile/booklet-page`,
+    );
+    expect(bookletRequests[0].body).toMatchObject({ brand_name: "Acme" });
   });
 });

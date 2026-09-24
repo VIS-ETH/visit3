@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import type {
+  BookletPageResponse,
   CompanyProfileResponse,
   MyCompanyResponse,
 } from "../../orval/generated/fastAPI.schemas";
@@ -57,6 +58,35 @@ export const installCompanyProfileHandlers = ({
       HttpResponse.json(profile),
     ),
   );
+};
+
+export const testBookletPage: BookletPageResponse = {
+  png_base64: "iVBORw0KGgo=",
+  overflow: false,
+};
+
+export interface BookletPageRequest {
+  url: string;
+  body: Record<string, unknown>;
+}
+
+export const installBookletPageHandler = (
+  page: BookletPageResponse = testBookletPage,
+) => {
+  const requests: BookletPageRequest[] = [];
+  server.use(
+    http.post(
+      `${testBackendUrl}/api/company/:scope/profile/booklet-page`,
+      async ({ request }) => {
+        requests.push({
+          url: request.url,
+          body: (await request.json()) as Record<string, unknown>,
+        });
+        return HttpResponse.json(page);
+      },
+    ),
+  );
+  return requests;
 };
 
 export const profileConfirmCheckbox = () =>

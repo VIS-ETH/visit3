@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router";
 import BackButton from "../../components/BackButton";
 import CompanyBillingFields from "../../components/company/CompanyBillingFields";
+import CompanyBookletPage from "../../components/company/CompanyBookletPage";
 import CompanyContactFields from "../../components/company/CompanyContactFields";
 import CompanyDetailsFields from "../../components/company/CompanyDetailsFields";
 import CompanyLogoField from "../../components/company/CompanyLogoField";
@@ -27,6 +28,7 @@ import { useCurrentUser } from "../../context/useCurrentUser";
 import {
   getGetMyCompanyProfileQueryKey,
   getGetMyCompanyQueryKey,
+  previewMyCompanyBookletPage,
   useGetMyCompanyMembers,
   useGetMyCompanyProfile,
   useUpdateMyCompanyProfile,
@@ -178,6 +180,20 @@ const CompanyProfileEdit = () => {
                 form={form}
                 disabled={isSaving}
                 members={members}
+              />
+            </CompanyProfileSection>
+
+            <CompanyProfileSection
+              title={t("company_profile_form.section_booklet")}
+            >
+              <CompanyBookletPage
+                scope="me"
+                ready={
+                  form.getInitialValues() !== emptyCompanyProfileFormValues
+                }
+                values={form.values}
+                logoUrl={profile.logo_url ?? null}
+                render={previewMyCompanyBookletPage}
               />
             </CompanyProfileSection>
 

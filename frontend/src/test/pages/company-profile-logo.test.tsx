@@ -10,6 +10,7 @@ import type {
 } from "../../orval/generated/fastAPI.schemas";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
+import { installBookletPageHandler } from "../fixtures/company-profile";
 import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
 
@@ -60,6 +61,7 @@ const createLogoFile = () =>
 beforeEach(() => {
   logoUploads = [];
   localStorage.setItem("token", createToken(3600));
+  installBookletPageHandler();
   server.use(
     http.get(`${testBackendUrl}/api/csrftoken`, () =>
       HttpResponse.json({ token: "csrf-1" }),
