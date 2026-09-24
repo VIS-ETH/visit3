@@ -75,7 +75,6 @@ export const companyProfileSchema = z.object({
     .email("validation.invalid_email")
     .trim()
     .min(1, "validation.required"),
-  shipping_address: z.string().trim(),
 });
 
 export type CompanyProfileFormValues = z.infer<typeof companyProfileSchema>;
@@ -104,7 +103,6 @@ export const emptyCompanyProfileFormValues: CompanyProfileFormValues = {
   billing_country: "",
   billing_vat_number: "",
   billing_email: "",
-  shipping_address: "",
 };
 
 export const toCompanyProfileFormValues = (
@@ -133,7 +131,6 @@ export const toCompanyProfileFormValues = (
   billing_country: profile.billing_country ?? "",
   billing_vat_number: profile.billing_vat_number ?? "",
   billing_email: profile.billing_email ?? "",
-  shipping_address: profile.shipping_address ?? "",
 });
 
 const trimmedOrNull = (value: string) => (isBlank(value) ? null : value.trim());
@@ -166,5 +163,4 @@ export const toCompanyProfileRequest = (
   billing_country: values.billing_country.trim().toUpperCase(),
   billing_vat_number: trimmedOrNull(values.billing_vat_number),
   billing_email: trimmedOrNull(values.billing_email),
-  shipping_address: values.shipping_address.trim(),
 });

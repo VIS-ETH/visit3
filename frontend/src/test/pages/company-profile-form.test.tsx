@@ -50,7 +50,6 @@ const storedProfile: CompanyProfileResponse = {
   billing_country: "CH",
   billing_vat_number: "CHE-123.456.789",
   billing_email: "billing@example.com",
-  shipping_address: "Example AG, Bahnhofstrasse 1, 8001 Zurich",
   kp_contact_user_id: "user-1",
   logo_url: null,
   industries: [{ id: "industry-1", name: "Software" }],
@@ -279,7 +278,6 @@ describe("Company profile form", () => {
       billing_country: "CH",
       billing_vat_number: "CHE-123.456.789",
       billing_email: "billing@example.com",
-      shipping_address: "Example AG, Bahnhofstrasse 1, 8001 Zurich",
     });
   });
 

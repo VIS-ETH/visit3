@@ -23,7 +23,6 @@ import CompanyOfferFields from "../../components/company/CompanyOfferFields";
 import CompanyProfileBadge from "../../components/company/CompanyProfileBadge";
 import CompanyProfileMissingFields from "../../components/company/CompanyProfileMissingFields";
 import CompanyProfileSection from "../../components/company/CompanyProfileSection";
-import CompanyShippingFields from "../../components/company/CompanyShippingFields";
 import {
   getGetCompanyProfileQueryKey,
   useGetCompanyProfile,
@@ -172,12 +171,6 @@ const CompanyProfileAdmin = () => {
               title={t("company_profile_form.section_billing")}
             >
               <CompanyBillingFields form={form} disabled={isSaving} />
-            </CompanyProfileSection>
-
-            <CompanyProfileSection
-              title={t("company_profile_form.section_shipping")}
-            >
-              <CompanyShippingFields form={form} disabled={isSaving} />
             </CompanyProfileSection>
 
             <Group justify="flex-end" gap="sm" align="center">

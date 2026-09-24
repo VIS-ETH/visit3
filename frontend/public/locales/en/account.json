@@ -96,7 +96,6 @@
     "section_offers": "Offers for students",
     "section_contact": "Contact",
     "section_billing": "Billing address",
-    "section_shipping": "Delivery address",
     "logo": "Logo",
     "logo_hint": "PNG, JPEG, GIF or WebP, up to 5 MB.",
     "logo_alt": "Company logo",
@@ -142,9 +141,6 @@
     "billing_country_placeholder": "Select a country",
     "billing_vat_number": "VAT number",
     "billing_email": "Billing email",
-    "shipping_address": "Delivery address",
-    "shipping_address_hint": "Where goods for your booth should be delivered.",
-    "shipping_address_placeholder": "Company, street, postal code, city",
     "errors": {
       "country": "Please select a country."
     }

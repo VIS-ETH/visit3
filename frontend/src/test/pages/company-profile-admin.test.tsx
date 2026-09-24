@@ -41,7 +41,6 @@ const storedProfile: CompanyProfileResponse = {
   billing_country: "CH",
   billing_vat_number: "CHE-123.456.789",
   billing_email: "billing@acme.test",
-  shipping_address: "Acme AG, Bahnhofstrasse 1",
   kp_contact_user_id: memberUser.id,
   logo_url: null,
   industries: [softwareIndustry],

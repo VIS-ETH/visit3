@@ -96,7 +96,6 @@
     "section_offers": "Angebote für Studierende",
     "section_contact": "Kontakt",
     "section_billing": "Rechnungsadresse",
-    "section_shipping": "Lieferadresse",
     "logo": "Logo",
     "logo_hint": "PNG, JPEG, GIF oder WebP, bis 5 MB.",
     "logo_alt": "Unternehmenslogo",
@@ -142,9 +141,6 @@
     "billing_country_placeholder": "Land auswählen",
     "billing_vat_number": "MwSt-Nummer",
     "billing_email": "Rechnungs-E-Mail",
-    "shipping_address": "Lieferadresse",
-    "shipping_address_hint": "Wohin Waren für Ihren Stand geliefert werden sollen.",
-    "shipping_address_placeholder": "Unternehmen, Strasse, Postleitzahl, Ort",
     "errors": {
       "country": "Bitte wählen Sie ein Land aus."
     }
