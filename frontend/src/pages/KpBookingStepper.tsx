@@ -49,6 +49,7 @@ import {
 import type {
   BookingResponse,
   BoothZoneWithAvailabilityResponse,
+  CompanyMemberResult,
   CompanyProfileResponse,
   IncludedServiceResponse,
   KpResponse,
@@ -64,6 +65,7 @@ import {
   useGetMyBooking,
   useListAvailableServices,
 } from "../orval/generated/kp/kp";
+import { getFullName } from "../utils/display";
 import { getEventStatus } from "../utils/kp-utils";
 import { activeBooking } from "../utils/my-booking";
 import type {
@@ -99,6 +101,15 @@ const joinProfileParts = (parts: (string | null | undefined)[]) =>
   parts
     .map((part) => part?.trim())
     .filter((part): part is string => Boolean(part));
+
+const contactLines = (contact: CompanyMemberResult | null | undefined) =>
+  contact
+    ? joinProfileParts([
+        getFullName(contact.first_name, contact.last_name),
+        contact.email,
+        contact.phone_number,
+      ])
+    : [];
 
 const billingAddressLines = (profile: CompanyProfileResponse) =>
   joinProfileParts([
@@ -199,10 +210,13 @@ function KpBookingProfileStep({
           />
           <ProfileSummaryField
             label={t("kp.booking.profile_contact")}
+            lines={contactLines(profile.kp_contact_user)}
+          />
+          <ProfileSummaryField
+            label={t("kp.booking.profile_general_contact")}
             lines={joinProfileParts([
-              profile.contact_person,
-              profile.contact_email,
-              profile.contact_phone,
+              profile.general_email,
+              profile.general_phone,
             ])}
           />
           <ProfileSummaryField

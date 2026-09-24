@@ -106,11 +106,14 @@ describe("booking wizard company profile step", () => {
     expect(
       screen.getByText(testCompanyProfile.brand_name!),
     ).toBeInTheDocument();
+    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+    expect(screen.getByText("ada@acme.test")).toBeInTheDocument();
+    expect(screen.getByText("+41 79 000 00 00")).toBeInTheDocument();
     expect(
-      screen.getByText(testCompanyProfile.contact_person!),
+      screen.getByText(testCompanyProfile.general_email!),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(testCompanyProfile.contact_email!),
+      screen.getByText(testCompanyProfile.general_phone!),
     ).toBeInTheDocument();
     expect(screen.getByText("Bahnhofstrasse 1")).toBeInTheDocument();
     expect(screen.getByText("8001 Zuerich")).toBeInTheDocument();
@@ -141,9 +144,14 @@ describe("booking wizard company profile step", () => {
       company: {
         ...testCompany,
         profile_complete: false,
-        missing_profile_fields: ["billing_city", "contact_email"],
+        missing_profile_fields: ["kp_contact_user_id", "billing_city"],
       },
-      profile: { ...testCompanyProfile, billing_city: "", contact_email: null },
+      profile: {
+        ...testCompanyProfile,
+        billing_city: "",
+        kp_contact_user_id: null,
+        kp_contact_user: null,
+      },
     });
     renderWithProviders(<KpBookingStepper event={event} />);
 
@@ -153,7 +161,7 @@ describe("booking wizard company profile step", () => {
       screen.getByText("kp.booking.profile_field.billing_city"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("kp.booking.profile_field.contact_email"),
+      screen.getByText("kp.booking.profile_field.kp_contact_user_id"),
     ).toBeInTheDocument();
     expect(profileEditLink()).toHaveAttribute("href", profileEditHref);
     expect(checkbox).toBeDisabled();
