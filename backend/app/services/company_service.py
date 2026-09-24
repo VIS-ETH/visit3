@@ -39,6 +39,7 @@ from app.repositories.company_repository import CompanyRepository
 from app.schemas.company import (
     CompanyAssignedUserResult,
     CompanyListResult,
+    CompanyMemberResult,
     CompanyPageResult,
     CompanyProfileResult,
     CompanyWithUsersResult,
@@ -55,6 +56,16 @@ logger = logging.getLogger(__name__)
 INVITE_EXPIRE = timedelta(days=7)
 LOGO_CONTEXT = "company_profile_logo"
 LOGO_MIME_TYPES = {"image/png", "image/jpeg", "image/webp"}
+
+
+def member_result(user: User) -> CompanyMemberResult:
+    return CompanyMemberResult(
+        id=user.id,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        phone_number=user.phone_number,
+    )
 
 
 class CompanyService:
@@ -333,9 +344,8 @@ class CompanyService:
             website=profile.website,
             logo_url=await self._logo_url(profile),
             brand_name=profile.brand_name,
-            contact_person=profile.contact_person,
-            contact_email=profile.contact_email,
-            contact_phone=profile.contact_phone,
+            general_email=profile.general_email,
+            general_phone=profile.general_phone,
             places_of_work=profile.places_of_work,
             employee_count_switzerland=profile.employee_count_switzerland,
             employee_count_worldwide=profile.employee_count_worldwide,
@@ -354,6 +364,9 @@ class CompanyService:
             billing_email=profile.billing_email,
             shipping_address=profile.shipping_address,
             kp_contact_user_id=profile.kp_contact_user_id,
+            kp_contact_user=member_result(profile.kp_contact_user)
+            if profile.kp_contact_user is not None
+            else None,
             industries=[
                 IndustryResult(id=link.industry.id, name=link.industry.name)
                 for link in profile.industry_links

@@ -20,8 +20,7 @@ from app.services.company_service import CompanyService
 def make_profile_input(**overrides: object) -> UpdateCompanyProfileInput:
     values: dict[str, object] = {
         "description": "We build the best anvils in Switzerland.",
-        "contact_person": "Ada Lovelace",
-        "contact_email": "contact@example.com",
+        "general_email": "info@example.com",
         "billing_company_name": "Acme AG",
         "billing_street": "Invoice street",
         "billing_postal_code": "8000",
@@ -46,13 +45,15 @@ def test_missing_profile_fields_ignores_blank_values():
         **make_profile_input(billing_city="   ").model_dump(exclude={"industry_ids"}),
     )
 
-    assert profile.missing_profile_fields() == ["billing_city"]
+    assert profile.missing_profile_fields() == ["kp_contact_user_id", "billing_city"]
 
 
 def test_missing_profile_fields_is_empty_for_a_complete_profile():
     profile = KpCompanyProfile(
         company_id=uuid4(),
-        **make_profile_input().model_dump(exclude={"industry_ids"}),
+        **make_profile_input(kp_contact_user_id=uuid4()).model_dump(
+            exclude={"industry_ids"}
+        ),
     )
 
     assert profile.missing_profile_fields() == []
@@ -123,6 +124,36 @@ async def test_update_my_profile_rejects_a_contact_user_outside_the_company(
         await service.update_my_profile(make_profile_input(kp_contact_user_id=uuid4()))
 
     company_repo.upsert_kp_profile.assert_not_awaited()
+
+
+async def test_update_my_profile_returns_the_contact_member(
+    company_repo,
+    mail_template_service,
+    storage_service,
+    make_user,
+    make_company,
+    make_company_profile: Callable[..., KpCompanyProfile],
+):
+    company = make_company()
+    user = make_user(company_id=company.id)
+    user.first_name = "Ada"
+    user.phone_number = "+41 44 000 00 00"
+    profile = make_company_profile(company_id=company.id, kp_contact_user_id=user.id)
+    profile.kp_contact_user = user
+    company_repo.get_by_id.return_value = company
+    company_repo.get_users.return_value = [user]
+    company_repo.upsert_kp_profile.return_value = profile
+    service = CompanyService(company_repo, mail_template_service, storage_service, user)
+
+    result = await service.update_my_profile(
+        make_profile_input(kp_contact_user_id=user.id)
+    )
+
+    assert result.kp_contact_user_id == user.id
+    assert result.kp_contact_user is not None
+    assert result.kp_contact_user.first_name == "Ada"
+    assert result.kp_contact_user.email == user.email
+    assert result.kp_contact_user.phone_number == "+41 44 000 00 00"
 
 
 async def test_update_my_profile_rejects_an_unknown_industry(

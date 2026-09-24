@@ -62,8 +62,7 @@ async def move_event_into_the_past(db_session: AsyncSession, event_id: str) -> N
 def company_profile_payload(**overrides: object) -> dict[str, object]:
     return {
         "description": "We build the best anvils in Switzerland.",
-        "contact_person": "Ada Lovelace",
-        "contact_email": "contact@example.com",
+        "general_email": "info@example.com",
         "billing_company_name": "Acme AG",
         "billing_street": "Invoice street",
         "billing_house_number": "1",
@@ -73,6 +72,11 @@ def company_profile_payload(**overrides: object) -> dict[str, object]:
         "billing_email": "billing@example.com",
         **overrides,
     }
+
+
+async def first_member_id(client: AsyncClient, headers: dict[str, str]) -> str:
+    members = await client.get("/api/company/me/members", headers=headers)
+    return members.json()[0]["id"]
 
 
 def kp_payload(name: str = "Kontaktparty") -> dict[str, str]:
@@ -317,7 +321,10 @@ def complete_company_profile(
     ) -> Response:
         return await client.put(
             "/api/company/me/profile",
-            json=company_profile_payload(**overrides),
+            json=company_profile_payload(
+                kp_contact_user_id=await first_member_id(client, headers),
+                **overrides,
+            ),
             headers=headers,
         )
 

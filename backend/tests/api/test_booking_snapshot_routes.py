@@ -10,7 +10,7 @@ from sqlmodel import col, select
 from app.models.industry import Industry
 from app.models.kp_event import KpBookingCompanyDetails
 from app.repositories.base import rel
-from tests.api.conftest import KpSetup, company_profile_payload
+from tests.api.conftest import KpSetup
 
 PROFILE = "/api/company/me/profile"
 
@@ -96,22 +96,20 @@ async def test_snapshot_matches_the_profile_at_registration(
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     industry: Industry,
+    complete_company_profile: Callable[..., Awaitable[Response]],
 ):
-    await client.put(
-        PROFILE,
-        json=company_profile_payload(
-            brand_name="Acme Labs",
-            website="https://acme.example",
-            contact_phone="+41 44 000 00 00",
-            employee_count_switzerland=12,
-            employee_count_worldwide=34,
-            offers_internships=True,
-            offers_graduate_positions=True,
-            languages=["ENGLISH", "GERMAN"],
-            shipping_address="Shipping street 5",
-            industry_ids=[str(industry.id)],
-        ),
-        headers=company_headers,
+    await complete_company_profile(
+        company_headers,
+        brand_name="Acme Labs",
+        website="https://acme.example",
+        general_phone="+41 44 000 00 00",
+        employee_count_switzerland=12,
+        employee_count_worldwide=34,
+        offers_internships=True,
+        offers_graduate_positions=True,
+        languages=["ENGLISH", "GERMAN"],
+        shipping_address="Shipping street 5",
+        industry_ids=[str(industry.id)],
     )
 
     booking = await register(client, company_headers, kp_setup, confirm_profile=True)
@@ -120,9 +118,11 @@ async def test_snapshot_matches_the_profile_at_registration(
     assert booking.status_code == 200
     assert snapshot.brand_name == "Acme Labs"
     assert snapshot.website == "https://acme.example"
-    assert snapshot.contact_person == "Ada Lovelace"
-    assert snapshot.contact_email == "contact@example.com"
-    assert snapshot.contact_phone == "+41 44 000 00 00"
+    assert snapshot.contact_person == "Test User"
+    assert snapshot.contact_email == "company@example.com"
+    assert snapshot.contact_phone is None
+    assert snapshot.general_email == "info@example.com"
+    assert snapshot.general_phone == "+41 44 000 00 00"
     assert snapshot.employee_count_switzerland == 12
     assert snapshot.employee_count_worldwide == 34
     assert snapshot.offers_internships is True

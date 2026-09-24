@@ -467,6 +467,8 @@ class KpBookingCompanyDetails(BaseEntity, table=True):
     contact_person: str = Field(default="")
     contact_email: EmailStr | None = Field(default=None)
     contact_phone: str | None = Field(default=None)
+    general_email: EmailStr | None = Field(default=None)
+    general_phone: str | None = Field(default=None)
     places_of_work: str = Field(default="")
 
     employee_count_switzerland: int | None = Field(default=None, ge=0)

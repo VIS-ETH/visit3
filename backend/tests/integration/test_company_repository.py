@@ -217,7 +217,7 @@ async def test_upsert_kp_profile_creates_then_updates_profile(
         UpdateCompanyProfileInput(
             billing_street="Invoice",
             shipping_address="Shipping",
-            contact_email="contact@example.com",
+            general_email="info@example.com",
             kp_contact_user_id=contact.id,
         ),
     )
@@ -226,14 +226,14 @@ async def test_upsert_kp_profile_creates_then_updates_profile(
         UpdateCompanyProfileInput(
             billing_street="Updated Invoice",
             shipping_address="Updated Shipping",
-            contact_email="updated@example.com",
+            general_email="updated@example.com",
         ),
     )
 
     assert updated.id == created.id
     assert updated.billing_street == "Updated Invoice"
     assert updated.shipping_address == "Updated Shipping"
-    assert updated.contact_email == "updated@example.com"
+    assert updated.general_email == "updated@example.com"
     assert updated.kp_contact_user_id is None
     assert updated.profile_completed_at is None
 

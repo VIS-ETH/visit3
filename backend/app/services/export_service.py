@@ -96,6 +96,8 @@ COMPANY_DETAILS_EXPORT_FIELDS = [
     "contact_person",
     "contact_email",
     "contact_phone",
+    "general_email",
+    "general_phone",
     "places_of_work",
     "industries",
     "employee_count_switzerland",
@@ -142,11 +144,12 @@ BOOTH_ZONE_CAPACITY_EXPORT_FIELDS = [
 CONTACT_EXPORT_FIELDS = [
     "company",
     "booking_id",
-    "contact_email",
-    "contact_person",
+    "general_email",
+    "general_phone",
     "kp_contact_user_email",
     "kp_contact_user_first_name",
     "kp_contact_user_last_name",
+    "kp_contact_user_phone",
     "billing_company_name",
     "billing_address",
     "billing_email",
@@ -633,6 +636,8 @@ class ExportService:
             "contact_person": snapshot.contact_person,
             "contact_email": snapshot.contact_email or "",
             "contact_phone": snapshot.contact_phone or "",
+            "general_email": snapshot.general_email or "",
+            "general_phone": snapshot.general_phone or "",
             "places_of_work": snapshot.places_of_work,
             "industries": ", ".join(snapshot.industry_names),
             "employee_count_switzerland": snapshot.employee_count_switzerland
@@ -779,7 +784,8 @@ class ExportService:
                 {
                     "company": booking.company.name,
                     "booking_id": booking.id,
-                    "contact_email": profile.contact_email if profile else "",
+                    "general_email": profile.general_email if profile else "",
+                    "general_phone": profile.general_phone if profile else "",
                     "kp_contact_user_email": contact_user.email if contact_user else "",
                     "kp_contact_user_first_name": contact_user.first_name
                     if contact_user
@@ -787,7 +793,9 @@ class ExportService:
                     "kp_contact_user_last_name": contact_user.last_name
                     if contact_user
                     else "",
-                    "contact_person": profile.contact_person if profile else "",
+                    "kp_contact_user_phone": contact_user.phone_number
+                    if contact_user
+                    else "",
                     "billing_company_name": profile.billing_company_name
                     if profile
                     else "",

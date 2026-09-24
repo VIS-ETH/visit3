@@ -42,8 +42,7 @@ def complete_company_profile(
 ) -> KpCompanyProfile:
     values: dict[str, object] = {
         "description": "We build the best anvils in Switzerland.",
-        "contact_person": "Ada Lovelace",
-        "contact_email": "contact@example.com",
+        "kp_contact_user_id": uuid4(),
         "billing_company_name": "Acme AG",
         "billing_street": "Invoice street",
         "billing_house_number": "1",

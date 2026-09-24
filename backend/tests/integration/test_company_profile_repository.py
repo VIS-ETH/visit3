@@ -7,17 +7,18 @@ from sqlmodel import select
 from app.models.company import KpCompanyLanguage
 from app.models.industry import Industry, KpCompanyProfileIndustryLink
 from app.models.storage import StoredFile
+from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
 from app.repositories.industry_repository import IndustryRepository
 from app.repositories.kp_repository import KpRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.company import UpdateCompanyProfileInput
 
 
 def complete_profile_input(**overrides: object) -> UpdateCompanyProfileInput:
     values: dict[str, object] = {
         "description": "We build the best anvils in Switzerland.",
-        "contact_person": "Ada Lovelace",
-        "contact_email": "contact@example.com",
+        "general_email": "info@example.com",
         "billing_company_name": "Acme AG",
         "billing_street": "Invoice street",
         "billing_postal_code": "8000",
@@ -31,11 +32,15 @@ def complete_profile_input(**overrides: object) -> UpdateCompanyProfileInput:
 
 async def test_complete_profile_gets_a_completion_timestamp(
     company_repository: CompanyRepository,
+    user_repository: UserRepository,
 ):
     company = await company_repository.create_company("Acme AG")
+    contact = await user_repository.create_user(
+        User(email="contact@example.com", password="hash", company_id=company.id)
+    )
 
     profile = await company_repository.upsert_kp_profile(
-        company.id, complete_profile_input()
+        company.id, complete_profile_input(kp_contact_user_id=contact.id)
     )
 
     assert profile.profile_completed_at is not None

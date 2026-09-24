@@ -24,7 +24,12 @@ from app.models.kp_event import (
 )
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
-from tests.api.conftest import PNG_UPLOAD, company_profile_payload, kp_payload
+from tests.api.conftest import (
+    PNG_UPLOAD,
+    company_profile_payload,
+    first_member_id,
+    kp_payload,
+)
 
 EVENT_NAME = 'KP "2026"/Süd'
 SAFE_PREFIX = "KP -2026-Süd"
@@ -32,7 +37,8 @@ ASCII_PREFIX = "KP -2026-Sud"
 OWN_COMPANY = "Acme AG"
 OTHER_COMPANY = "Beta GmbH"
 OTHER_COMPANY_EMAIL = "beta@example.com"
-CONTACT_EMAIL = "billing@acme.ch"
+GENERAL_EMAIL = "info@acme.ch"
+GENERAL_PHONE = "044 000 00 00"
 INVOICE_ADDRESS = "Invoice street 1"
 TEXT_ANSWER = "Two tables and a screen"
 ALLOWED_UNTIL = date.today() + timedelta(days=3)
@@ -111,6 +117,8 @@ EXPORT_HEADERS: dict[str, list[str]] = {
         "contact_person",
         "contact_email",
         "contact_phone",
+        "general_email",
+        "general_phone",
         "places_of_work",
         "industries",
         "employee_count_switzerland",
@@ -157,11 +165,12 @@ EXPORT_HEADERS: dict[str, list[str]] = {
     "contacts/download": [
         "company",
         "booking_id",
-        "contact_email",
-        "contact_person",
+        "general_email",
+        "general_phone",
         "kp_contact_user_email",
         "kp_contact_user_first_name",
         "kp_contact_user_last_name",
+        "kp_contact_user_phone",
         "billing_company_name",
         "billing_address",
         "billing_email",
@@ -300,7 +309,8 @@ async def export_world(
         profile=company_profile_payload(
             brand_name="Acme",
             description="We build anvils.",
-            contact_email=CONTACT_EMAIL,
+            general_email=GENERAL_EMAIL,
+            general_phone=GENERAL_PHONE,
             employee_count_switzerland=42,
             employee_count_worldwide=99,
             offers_internships=True,
@@ -414,7 +424,11 @@ async def register(
     ok(
         await client.put(
             "/api/company/me/profile",
-            json=profile if profile is not None else company_profile_payload(),
+            json=profile
+            if profile is not None
+            else company_profile_payload(
+                kp_contact_user_id=await first_member_id(client, headers)
+            ),
             headers=headers,
         )
     )
@@ -519,8 +533,10 @@ async def test_contacts_export_excludes_cancelled_bookings(
     _, rows = read_csv(await export(client, export_world, "contacts/download"))
 
     assert [row["company"] for row in rows] == [OWN_COMPANY]
-    assert rows[0]["contact_email"] == CONTACT_EMAIL
+    assert rows[0]["general_email"] == GENERAL_EMAIL
+    assert rows[0]["general_phone"] == GENERAL_PHONE
     assert rows[0]["kp_contact_user_email"] == "company@example.com"
+    assert rows[0]["kp_contact_user_phone"] == ""
     assert rows[0]["billing_company_name"] == "Acme AG"
     assert rows[0]["billing_address"] == f"{INVOICE_ADDRESS} 1, 8000 Zurich, CH"
     assert rows[0]["billing_email"] == "billing@example.com"
@@ -584,6 +600,10 @@ async def test_company_details_export_rows(
     by_company = {row["company"]: row for row in rows}
     assert by_company[OWN_COMPANY]["brand_name"] == "Acme"
     assert by_company[OWN_COMPANY]["description"] == "We build anvils."
+    assert by_company[OWN_COMPANY]["contact_person"] == "Test User"
+    assert by_company[OWN_COMPANY]["contact_email"] == "company@example.com"
+    assert by_company[OWN_COMPANY]["general_email"] == GENERAL_EMAIL
+    assert by_company[OWN_COMPANY]["general_phone"] == GENERAL_PHONE
     assert by_company[OWN_COMPANY]["employee_count_switzerland"] == "42"
     assert by_company[OWN_COMPANY]["employee_count_worldwide"] == "99"
     assert by_company[OWN_COMPANY]["offers_internships"] == "yes"

@@ -31,9 +31,8 @@ class CompanyProfileFields(BaseModel):
     description: str = Field(default="", max_length=PROFILE_DESCRIPTION_MAX_LENGTH)
     website: str | None = None
     brand_name: str = ""
-    contact_person: str = ""
-    contact_email: EmailStr | None = None
-    contact_phone: str | None = None
+    general_email: EmailStr | None = None
+    general_phone: str | None = None
     places_of_work: str = ""
     employee_count_switzerland: int | None = Field(default=None, ge=0)
     employee_count_worldwide: int | None = Field(default=None, ge=0)
@@ -67,11 +66,20 @@ class UpdateCompanyProfileRequest(UpdateCompanyProfileInput):
     pass
 
 
+class CompanyMemberResult(BaseModel):
+    id: UUID
+    email: str
+    first_name: str | None = None
+    last_name: str | None = None
+    phone_number: str | None = None
+
+
 class CompanyProfileResult(CompanyProfileFields):
     id: UUID | None = None
     company_id: UUID
     logo_url: str | None = None
     kp_contact_user_id: UUID | None = None
+    kp_contact_user: CompanyMemberResult | None = None
     industries: list[IndustryResult] = Field(default_factory=lambda: [])
     profile_completed_at: datetime | None = None
     profile_complete: bool = False
@@ -115,12 +123,7 @@ class InviteInfoResponse(InviteInfoResult):
     pass
 
 
-class CompanyAssignedUserResult(BaseModel):
-    id: UUID
-    email: str
-    first_name: str | None = None
-    last_name: str | None = None
-    phone_number: str | None = None
+class CompanyAssignedUserResult(CompanyMemberResult):
     user_confirmed: bool
     email_confirmed: bool
 

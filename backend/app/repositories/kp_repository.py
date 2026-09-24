@@ -87,9 +87,8 @@ COMPANY_SNAPSHOT_FIELDS = (
     "description",
     "website",
     "brand_name",
-    "contact_person",
-    "contact_email",
-    "contact_phone",
+    "general_email",
+    "general_phone",
     "places_of_work",
     "employee_count_switzerland",
     "employee_count_worldwide",
@@ -815,9 +814,10 @@ class KpRepository(BaseRepository[KpEvent]):
             select(KpCompanyProfile)
             .where(col(KpCompanyProfile.company_id) == company_id)
             .options(
+                selectinload(rel(KpCompanyProfile.kp_contact_user)),
                 selectinload(rel(KpCompanyProfile.industry_links)).selectinload(
                     rel(KpCompanyProfileIndustryLink.industry)
-                )
+                ),
             )
         )
         result = await self.session.execute(statement)
@@ -829,12 +829,16 @@ class KpRepository(BaseRepository[KpEvent]):
         company_profile: KpCompanyProfile,
         confirmed_at: datetime,
     ) -> None:
+        contact = company_profile.kp_contact_user
         snapshot = self._clone_model(
             KpBookingCompanyDetails,
             company_profile,
             COMPANY_SNAPSHOT_FIELDS,
             booking_id=booking_id,
             confirmed_at=confirmed_at,
+            contact_person=contact.display_name if contact else "",
+            contact_email=contact.email if contact else None,
+            contact_phone=contact.phone_number if contact else None,
         )
         for link in company_profile.industry_links:
             self.session.add(

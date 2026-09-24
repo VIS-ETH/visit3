@@ -1,7 +1,7 @@
 from collections.abc import Awaitable, Callable
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.company import MANDATORY_PROFILE_FIELDS
@@ -54,10 +54,12 @@ async def test_empty_profile_lists_every_mandatory_field(
 
 
 async def test_my_company_reports_the_profile_state(
-    client: AsyncClient, company_headers: dict[str, str]
+    client: AsyncClient,
+    company_headers: dict[str, str],
+    complete_company_profile: Callable[..., Awaitable[Response]],
 ):
     before = await client.get("/api/company/me", headers=company_headers)
-    await client.put(PROFILE, json=company_profile_payload(), headers=company_headers)
+    await complete_company_profile(company_headers)
     after = await client.get("/api/company/me", headers=company_headers)
 
     assert before.json()["profile_complete"] is False
@@ -68,18 +70,17 @@ async def test_my_company_reports_the_profile_state(
 
 
 async def test_complete_profile_is_stored_and_marked_complete(
-    client: AsyncClient, company_headers: dict[str, str], industry: Industry
+    company_headers: dict[str, str],
+    industry: Industry,
+    complete_company_profile: Callable[..., Awaitable[Response]],
 ):
-    response = await client.put(
-        PROFILE,
-        json=company_profile_payload(
-            billing_country="ch",
-            languages=["ENGLISH", "FRENCH"],
-            offers_theses=True,
-            employee_count_worldwide=120,
-            industry_ids=[str(industry.id)],
-        ),
-        headers=company_headers,
+    response = await complete_company_profile(
+        company_headers,
+        billing_country="ch",
+        languages=["ENGLISH", "FRENCH"],
+        offers_theses=True,
+        employee_count_worldwide=120,
+        industry_ids=[str(industry.id)],
     )
 
     assert response.status_code == 200
@@ -93,28 +94,22 @@ async def test_complete_profile_is_stored_and_marked_complete(
 
 
 async def test_incomplete_profile_keeps_the_completion_timestamp_empty(
-    client: AsyncClient, company_headers: dict[str, str]
+    company_headers: dict[str, str],
+    complete_company_profile: Callable[..., Awaitable[Response]],
 ):
-    response = await client.put(
-        PROFILE, json=company_profile_payload(billing_city=""), headers=company_headers
-    )
+    response = await complete_company_profile(company_headers, billing_city="")
 
     assert response.json()["missing_profile_fields"] == ["billing_city"]
     assert response.json()["profile_completed_at"] is None
 
 
 async def test_the_completion_timestamp_marks_the_first_completion(
-    client: AsyncClient, company_headers: dict[str, str]
+    company_headers: dict[str, str],
+    complete_company_profile: Callable[..., Awaitable[Response]],
 ):
-    first = await client.put(
-        PROFILE, json=company_profile_payload(), headers=company_headers
-    )
+    first = await complete_company_profile(company_headers)
 
-    second = await client.put(
-        PROFILE,
-        json=company_profile_payload(billing_city="Bern"),
-        headers=company_headers,
-    )
+    second = await complete_company_profile(company_headers, billing_city="Bern")
 
     assert first.json()["profile_completed_at"] is not None
     assert second.json()["profile_completed_at"] == first.json()["profile_completed_at"]
@@ -163,6 +158,58 @@ async def test_profile_rejects_a_contact_user_of_another_company(
 
     assert response.status_code == 400
     assert response.json()["code"] == "error.company_user_not_found"
+
+
+async def test_profile_without_a_contact_member_is_incomplete(
+    client: AsyncClient, company_headers: dict[str, str]
+):
+    response = await client.put(
+        PROFILE, json=company_profile_payload(), headers=company_headers
+    )
+
+    assert response.status_code == 200
+    assert response.json()["missing_profile_fields"] == ["kp_contact_user_id"]
+    assert response.json()["kp_contact_user"] is None
+
+
+async def test_profile_returns_the_contact_member_and_the_general_contact(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    company_user: User,
+    company_headers: dict[str, str],
+    create_user: Callable[..., Awaitable[User]],
+):
+    colleague = await create_user(
+        email="grace@example.com",
+        first_name="Grace",
+        last_name="Hopper",
+        phone_number="+41 44 111 11 11",
+    )
+    colleague.company_id = company_user.company_id
+    db_session.add(colleague)
+    await db_session.commit()
+
+    response = await client.put(
+        PROFILE,
+        json=company_profile_payload(
+            kp_contact_user_id=str(colleague.id),
+            general_email="info@acme.example",
+            general_phone="+41 44 000 00 00",
+        ),
+        headers=company_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["general_email"] == "info@acme.example"
+    assert response.json()["general_phone"] == "+41 44 000 00 00"
+    assert response.json()["kp_contact_user"] == {
+        "id": str(colleague.id),
+        "email": "grace@example.com",
+        "first_name": "Grace",
+        "last_name": "Hopper",
+        "phone_number": "+41 44 111 11 11",
+    }
+    assert response.json()["profile_complete"] is True
 
 
 async def test_logo_upload_replace_and_delete(

@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 from pydantic import EmailStr, field_validator
@@ -22,8 +22,7 @@ PROFILE_DESCRIPTION_MAX_LENGTH = 600
 
 MANDATORY_PROFILE_FIELDS = (
     "description",
-    "contact_person",
-    "contact_email",
+    "kp_contact_user_id",
     "billing_company_name",
     "billing_street",
     "billing_postal_code",
@@ -83,9 +82,8 @@ class KpCompanyProfile(BaseEntity, table=True):
     )
 
     brand_name: str = Field(default="")
-    contact_person: str = Field(default="")
-    contact_email: EmailStr | None = Field(default=None)
-    contact_phone: str | None = Field(default=None)
+    general_email: EmailStr | None = Field(default=None)
+    general_phone: str | None = Field(default=None)
     places_of_work: str = Field(default="")
 
     employee_count_switzerland: int | None = Field(default=None, ge=0)
@@ -117,7 +115,9 @@ class KpCompanyProfile(BaseEntity, table=True):
     )
 
     company: Company = Relationship(back_populates="kp_profile")
-    kp_contact_user: "User" = Relationship(back_populates="kp_company_profiles")
+    kp_contact_user: Optional["User"] = Relationship(
+        back_populates="kp_company_profiles"
+    )
     logo_stored_file: StoredFile | None = Relationship()
     industry_links: list["KpCompanyProfileIndustryLink"] = Relationship(
         back_populates="profile"
