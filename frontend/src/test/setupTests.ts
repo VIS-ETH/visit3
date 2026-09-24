@@ -1,6 +1,6 @@
-import "@testing-library/jest-dom/vitest";
+import * as jestDomMatchers from "@testing-library/jest-dom/matchers";
 import { cleanup } from "@testing-library/react";
-import { afterAll, afterEach, beforeAll, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, expect, vi } from "vitest";
 import { notificationsShow, resetNotificationsMock } from "./notifications";
 import { server } from "./server";
 import { testBackendUrl, testStaticBase, testVisWebsiteUrl } from "./constants";
@@ -71,6 +71,7 @@ const mountServerData = () => {
   document.head.appendChild(element);
 };
 
+expect.extend(jestDomMatchers);
 installBrowserApisMissingFromJsdom();
 mountOrgConfig();
 mountServerData();
