@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import VenueLayoutEditor from "../../components/venue/VenueLayoutEditor";
 import {
   MAX_LAYOUT_BOOTHS,
@@ -63,6 +63,14 @@ const pointerAt = (target: Element, type: string, x: number, y: number) =>
     clientY: y,
     pointerId: 1,
   });
+
+const pointerDownAtGridPoint = (target: Element, index: number) =>
+  pointerAt(
+    target,
+    "pointerDown",
+    10 + (index % 50) * 10,
+    10 + Math.floor(index / 50) * 10,
+  );
 
 const saveButton = () => screen.getByRole("button", { name: "kp.venue.save" });
 
@@ -135,13 +143,18 @@ describe("the venue polygon point limit", () => {
     await user.click(
       screen.getByRole("radio", { name: "kp.venue.tool_polygon" }),
     );
-    for (let index = 0; index < MAX_POLYGON_POINTS + 5; index += 1) {
-      pointerAt(
-        canvas(),
-        "pointerDown",
-        10 + (index % 50) * 10,
-        10 + Math.floor(index / 50) * 10,
-      );
+    const target = canvas();
+    act(() => {
+      for (let index = 0; index < MAX_POLYGON_POINTS; index += 1) {
+        pointerDownAtGridPoint(target, index);
+      }
+    });
+    for (
+      let index = MAX_POLYGON_POINTS;
+      index < MAX_POLYGON_POINTS + 5;
+      index += 1
+    ) {
+      pointerDownAtGridPoint(target, index);
     }
 
     expect(
