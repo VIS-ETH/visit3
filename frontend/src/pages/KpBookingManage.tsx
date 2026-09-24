@@ -41,6 +41,7 @@ import { KpBookingCompletion } from "../components/KpBookingCompletion";
 import {
   KpEventServiceRequirementType,
   KpServiceCategory,
+  type BookingResponse,
   type BookingServiceResponse,
   type ServiceRequirementResponse,
   type ServiceResponse,
@@ -602,7 +603,7 @@ const AddServicesForm = ({
   bookingServices: BookingServiceResponse[];
   editable: boolean;
   eventId: string;
-  onAdded: () => void;
+  onAdded: (booking: BookingResponse, serviceIds: string[]) => void;
   vatRatePercent: number;
 }) => {
   const { t } = useTranslation();
@@ -640,13 +641,16 @@ const AddServicesForm = ({
       quantity: item.quantity,
     }));
     if (!payload.length) return;
-    await addServices({
+    const updated = await addServices({
       bookingId,
       data: { services: payload },
     });
     setQuantities({});
     setConfirmOpen(false);
-    onAdded();
+    onAdded(
+      updated,
+      payload.map((item) => item.service_id),
+    );
     notifications.show({
       color: "green",
       message: t("kp.booking_manage.services_added"),
@@ -810,6 +814,9 @@ const KpBookingManage = () => {
   >({});
   const [requirementCompletion, setRequirementCompletion] =
     useState<RequirementCompletion>({});
+  const [promptedServices, setPromptedServices] = useState<
+    BookingServiceResponse[]
+  >([]);
   const { id = "", bookingId = "" } = useParams<{
     id: string;
     bookingId: string;
@@ -868,6 +875,33 @@ const KpBookingManage = () => {
       queryKey: getGetMyBookingQueryKey(eventId),
     });
   };
+
+  const handleServicesAdded = (
+    updated: BookingResponse,
+    serviceIds: string[],
+  ) => {
+    refreshBooking();
+    setPromptedServices(
+      (updated.services ?? []).filter(
+        (bookingService) =>
+          serviceIds.includes(bookingService.service_id) &&
+          bookingService.service.requirements.length > 0,
+      ),
+    );
+  };
+
+  const listedBookingServices = bookingServices.filter(
+    (bookingService) =>
+      !promptedServices.some((prompted) => prompted.id === bookingService.id),
+  );
+
+  const promptedChangeCount = promptedServices.filter((bookingService) =>
+    bookingService.service.requirements.some(
+      (requirement) =>
+        requirementChangeKey(bookingService.id, requirement.id) in
+        pendingRequirementChanges,
+    ),
+  ).length;
 
   const handleRequirementChange = (
     bookingServiceId: string,
@@ -961,6 +995,7 @@ const KpBookingManage = () => {
     setPendingRequirementChanges(failedChanges);
     if (Object.keys(failedChanges).length === 0) {
       setConfirmRequirementsOpen(false);
+      setPromptedServices([]);
       notifications.show({
         color: "green",
         message: t("kp.booking_manage.requirements_saved"),
@@ -1095,6 +1130,42 @@ const KpBookingManage = () => {
           </Group>
         </Stack>
       </Modal>
+      <Modal
+        centered
+        size="xl"
+        opened={promptedServices.length > 0}
+        onClose={() => setPromptedServices([])}
+        title={t("kp.booking_manage.requirements_prompt_title")}
+      >
+        <Stack gap="md">
+          {promptedServices.map((bookingService) => (
+            <BookedServiceCard
+              bookingService={bookingService}
+              completion={requirementCompletion}
+              editable={isEditable}
+              key={bookingService.id}
+              onRequirementCompletionChange={handleRequirementCompletionChange}
+              onRequirementChange={handleRequirementChange}
+              pendingChanges={pendingRequirementChanges}
+            />
+          ))}
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setPromptedServices([])}>
+              {t("kp.booking_manage.requirements_prompt_later")}
+            </Button>
+            <Button
+              disabled={promptedChangeCount === 0}
+              leftSection={<IconDeviceFloppy size={16} />}
+              loading={isSavingRequirements}
+              onClick={() => {
+                void handleSaveRequirementChanges();
+              }}
+            >
+              {t("kp.booking_manage.requirements_prompt_save")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
       <ActionIcon
         aria-label={t("kp.booking_manage.back_to_manage")}
         radius="md"
@@ -1149,7 +1220,7 @@ const KpBookingManage = () => {
         bookingServices={bookingServices}
         editable={isEditable}
         eventId={eventId}
-        onAdded={refreshBooking}
+        onAdded={handleServicesAdded}
         vatRatePercent={event.vat_rate_percent}
       />
 
@@ -1205,7 +1276,7 @@ const KpBookingManage = () => {
         ) : null}
         {bookingServices.length ? (
           <Stack gap="sm">
-            {bookingServices.map((bookingService) => (
+            {listedBookingServices.map((bookingService) => (
               <BookedServiceCard
                 bookingService={bookingService}
                 completion={requirementCompletion}
