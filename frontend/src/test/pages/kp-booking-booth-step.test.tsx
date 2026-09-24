@@ -128,14 +128,12 @@ const registeredBooking: BookingResponse = {
   price: { net: 0, vat: 0, gross: 0 },
 };
 
-let zoneResponse: BoothZoneWithAvailabilityResponse = zone;
-
 const openServicesStep = async (user: UserEvent) => {
   await confirmProfileStep(user);
   await user.click(
     await screen.findByRole(
       "button",
-      { name: new RegExp(zoneResponse.name) },
+      { name: new RegExp(zone.name) },
       SLOW_WAIT,
     ),
   );
@@ -164,14 +162,13 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-  zoneResponse = zone;
   localStorage.setItem("token", createToken(3600));
   installCompanyProfileHandlers();
   server.use(
     emptyVenueHandler,
     http.get(csrfUrl, () => HttpResponse.json({ token: "csrf-1" })),
     http.get(myBookingUrl, () => HttpResponse.json(null)),
-    http.get(zonesUrl, () => HttpResponse.json([zoneResponse])),
+    http.get(zonesUrl, () => HttpResponse.json([zone])),
     http.get(servicesUrl, () => HttpResponse.json([powerSocket, table, chair])),
   );
 });
@@ -187,7 +184,7 @@ describe("the booth step of the booking wizard", () => {
     expect(screen.queryByText(chair.name)).not.toBeInTheDocument();
   });
 
-  it("lists only booth elements with their unit, inclusions and layout", async () => {
+  it("lists only booth elements with their unit and inclusions", async () => {
     const { user } = renderWithProviders(<KpBookingStepper event={event} />);
 
     await openServicesStep(user);
@@ -199,11 +196,9 @@ describe("the booth step of the booking wizard", () => {
     expect(screen.getByText("2 included")).toBeInTheDocument();
     expect(boothQuantityInputs()).toHaveLength(2);
     expect(
-      screen.getByText(zone.layout_description as string),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByAltText("kp.booking.booth_layout_preview_alt"),
-    ).toHaveAttribute("src", zone.layout_url);
+      screen.queryByText(zone.layout_description as string),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
 
   it("starts the included booth element at its included quantity", async () => {
@@ -215,24 +210,6 @@ describe("the booth step of the booking wizard", () => {
     const [tableInput, chairInput] = boothQuantityInputs();
     expect(tableInput).toHaveValue("0");
     expect(chairInput).toHaveValue(String(includedChairs));
-  });
-
-  it("links the layout as a pdf when the zone stores one", async () => {
-    zoneResponse = {
-      ...zone,
-      layout_url: "https://files.test/zone-1/layout.pdf?token=abc",
-    };
-    const { user } = renderWithProviders(<KpBookingStepper event={event} />);
-
-    await openServicesStep(user);
-    await continueToBoothStep(user);
-
-    expect(
-      screen.getByRole("link", { name: /kp\.booking\.booth_layout_open_pdf/ }),
-    ).toHaveAttribute("href", zoneResponse.layout_url);
-    expect(
-      screen.queryByAltText("kp.booking.booth_layout_preview_alt"),
-    ).not.toBeInTheDocument();
   });
 
   it("groups the summary lines and totals both categories", async () => {

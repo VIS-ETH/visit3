@@ -1,6 +1,5 @@
 import {
   Alert,
-  Anchor,
   Badge,
   Button,
   Card,
@@ -30,7 +29,6 @@ import {
   IconBuilding,
   IconCheck,
   IconClipboardList,
-  IconExternalLink,
   IconFile,
   IconFileTypePdf,
   IconInfoCircle,
@@ -88,7 +86,6 @@ import { formatPrice } from "../utils/price-utils";
 import {
   acceptForRequirement,
   allowedFormatsLabel,
-  isPdfSource,
 } from "../utils/upload-formats";
 
 const NO_INCLUDED_SERVICES: IncludedServiceResponse[] = [];
@@ -666,52 +663,7 @@ function KpBookingServicesStep(props: {
   );
 }
 
-function KpBoothLayoutCard({
-  zone,
-}: {
-  zone: BoothZoneWithAvailabilityResponse | null;
-}) {
-  const { t } = useTranslation();
-  const layoutUrl = zone?.layout_url ?? null;
-  const layoutDescription = zone?.layout_description ?? null;
-
-  return (
-    <Card withBorder radius="md" p="lg">
-      <Stack gap="sm">
-        <Title order={5}>{t("kp.booking.booth_layout_title")}</Title>
-        {layoutDescription ? <Text size="sm">{layoutDescription}</Text> : null}
-        {layoutUrl ? (
-          isPdfSource(layoutUrl) ? (
-            <Anchor href={layoutUrl} target="_blank" rel="noopener noreferrer">
-              <Group gap={6} wrap="nowrap">
-                <IconExternalLink size={16} />
-                <Text size="sm">{t("kp.booking.booth_layout_open_pdf")}</Text>
-              </Group>
-            </Anchor>
-          ) : (
-            <Image
-              alt={t("kp.booking.booth_layout_preview_alt")}
-              fit="contain"
-              radius="sm"
-              src={layoutUrl}
-            />
-          )
-        ) : null}
-        {!layoutDescription && !layoutUrl ? (
-          <Text c="dimmed" size="sm">
-            {t("kp.booking.booth_layout_none")}
-          </Text>
-        ) : null}
-      </Stack>
-    </Card>
-  );
-}
-
-function KpBookingBoothStep({
-  zone,
-  ...gridProps
-}: {
-  zone: BoothZoneWithAvailabilityResponse | null;
+function KpBookingBoothStep(props: {
   services: ServiceResponse[];
   includedQuantities: Map<string, number>;
   selectedServices: DraftBookingService[];
@@ -721,26 +673,19 @@ function KpBookingBoothStep({
   const { t } = useTranslation();
 
   return (
-    <Grid mt="xs" gap="lg">
-      <Grid.Col span={{ base: 12, md: 8 }}>
-        <Card withBorder radius="md" p="lg">
-          <Group gap="sm" mb="sm">
-            <IconArmchair size={20} />
-            <Title order={4}>{t("kp.booking.booth_title")}</Title>
-          </Group>
-          <Text c="dimmed" size="sm">
-            {t("kp.booking.booth_description")}
-          </Text>
-          <KpBookingServiceGrid
-            {...gridProps}
-            emptyLabel={t("kp.booking.booth_none_available")}
-          />
-        </Card>
-      </Grid.Col>
-      <Grid.Col span={{ base: 12, md: 4 }}>
-        <KpBoothLayoutCard zone={zone} />
-      </Grid.Col>
-    </Grid>
+    <Card withBorder radius="md" p="lg" mt="xs">
+      <Group gap="sm" mb="sm">
+        <IconArmchair size={20} />
+        <Title order={4}>{t("kp.booking.booth_title")}</Title>
+      </Group>
+      <Text c="dimmed" size="sm">
+        {t("kp.booking.booth_description")}
+      </Text>
+      <KpBookingServiceGrid
+        {...props}
+        emptyLabel={t("kp.booking.booth_none_available")}
+      />
+    </Card>
   );
 }
 
@@ -991,7 +936,6 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
           icon={<IconArmchair size={18} />}
         >
           <KpBookingBoothStep
-            zone={selectedZone}
             services={boothElements}
             includedQuantities={includedQuantities}
             selectedServices={draftServices}
