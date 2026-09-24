@@ -187,7 +187,7 @@
       "profile_industries": "Industries",
       "profile_value_missing": "Not provided yet",
       "profile_incomplete": "Your company profile is missing mandatory information. Please complete it before you continue.",
-      "profile_open": "Open company profile",
+      "profile_edit": "Edit company profile",
       "profile_confirm_checkbox": "The details above are current and correct.",
       "profile_field": {
         "description": "Company description",

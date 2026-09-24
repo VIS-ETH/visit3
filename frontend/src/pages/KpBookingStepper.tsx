@@ -35,6 +35,7 @@ import {
   IconFileTypePdf,
   IconInfoCircle,
   IconMapPin,
+  IconPencil,
   IconPhoto,
   IconTrash,
   IconUpload,
@@ -150,10 +151,12 @@ function ProfileSummaryField({
 }
 
 function KpBookingProfileStep({
+  eventId,
   company,
   isConfirmed,
   onConfirmedChange,
 }: {
+  eventId: string;
   company: MyCompanyResponse | undefined;
   isConfirmed: boolean;
   onConfirmedChange: (isConfirmed: boolean) => void;
@@ -173,9 +176,21 @@ function KpBookingProfileStep({
   return (
     <Card withBorder radius="md" p="lg" mt="xs">
       <Stack gap="md">
-        <Group gap="sm">
-          <IconBuilding size={20} />
-          <Title order={4}>{t("kp.booking.profile_title")}</Title>
+        <Group justify="space-between" align="center">
+          <Group gap="sm">
+            <IconBuilding size={20} />
+            <Title order={4}>{t("kp.booking.profile_title")}</Title>
+          </Group>
+          <Button
+            component={NavLink}
+            to={`${COMPANY_PROFILE_PATH}?next=${encodeURIComponent(
+              `/kp/${eventId}/booking`,
+            )}`}
+            variant="light"
+            leftSection={<IconPencil size={16} />}
+          >
+            {t("kp.booking.profile_edit")}
+          </Button>
         </Group>
         <Text c="dimmed" size="sm">
           {t("kp.booking.profile_description")}
@@ -213,9 +228,6 @@ function KpBookingProfileStep({
                   </List.Item>
                 ))}
               </List>
-              <Anchor component={NavLink} size="sm" to={COMPANY_PROFILE_PATH}>
-                {t("kp.booking.profile_open")}
-              </Anchor>
             </Stack>
           </Alert>
         ) : null}
@@ -943,6 +955,7 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
           icon={<IconBuilding size={18} />}
         >
           <KpBookingProfileStep
+            eventId={event.id}
             company={company}
             isConfirmed={isProfileConfirmed}
             onConfirmedChange={setIsProfileConfirmed}

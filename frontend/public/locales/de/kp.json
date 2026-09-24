@@ -187,7 +187,7 @@
       "profile_industries": "Branchen",
       "profile_value_missing": "Noch nicht erfasst",
       "profile_incomplete": "In Ihrem Unternehmensprofil fehlen Pflichtangaben. Bitte ergänzen Sie diese, bevor Sie fortfahren.",
-      "profile_open": "Unternehmensprofil öffnen",
+      "profile_edit": "Unternehmensprofil bearbeiten",
       "profile_confirm_checkbox": "Die Angaben sind aktuell und korrekt.",
       "profile_field": {
         "description": "Unternehmensbeschreibung",

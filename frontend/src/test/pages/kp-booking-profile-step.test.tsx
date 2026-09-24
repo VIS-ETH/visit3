@@ -67,6 +67,13 @@ const registeredBooking: BookingResponse = {
   price: { net: 100000, vat: 8100, gross: 108100 },
 };
 
+const profileEditHref = `/company/profile?next=${encodeURIComponent(
+  `/kp/${eventId}/booking`,
+)}`;
+
+const profileEditLink = () =>
+  screen.getByRole("link", { name: "kp.booking.profile_edit" });
+
 const registerUrl = `${testBackendUrl}/api/kp/events/${eventId}/bookings/register`;
 
 beforeEach(() => {
@@ -110,6 +117,14 @@ describe("booking wizard company profile step", () => {
     expect(screen.getByText("Software")).toBeInTheDocument();
   });
 
+  it("links to the company profile editor and back to the wizard", async () => {
+    renderWithProviders(<KpBookingStepper event={event} />);
+
+    await profileConfirmCheckbox();
+
+    expect(profileEditLink()).toHaveAttribute("href", profileEditHref);
+  });
+
   it("blocks the wizard until the profile is confirmed", async () => {
     const { user } = renderWithProviders(<KpBookingStepper event={event} />);
 
@@ -140,9 +155,7 @@ describe("booking wizard company profile step", () => {
     expect(
       screen.getByText("kp.booking.profile_field.contact_email"),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "kp.booking.profile_open" }),
-    ).toHaveAttribute("href", "/company/profile");
+    expect(profileEditLink()).toHaveAttribute("href", profileEditHref);
     expect(checkbox).toBeDisabled();
     expect(continueToZoneButton()).toBeDisabled();
   });
