@@ -20,51 +20,43 @@ const CompanyContactFields = ({
 
   return (
     <Stack gap="md">
+      <Select
+        id={profileFieldId("kp_contact_user_id")}
+        label={t("company_profile_form.kp_contact_user")}
+        placeholder={t("company_profile_form.kp_contact_user_placeholder")}
+        description={t("company_profile_form.kp_contact_user_hint")}
+        data={members.map((member) => ({
+          value: member.id,
+          label: getDisplayName(
+            member.first_name,
+            member.last_name,
+            member.email,
+          ),
+        }))}
+        withAsterisk
+        searchable
+        clearable
+        disabled={disabled}
+        value={form.values.kp_contact_user_id}
+        error={form.errors.kp_contact_user_id}
+        onChange={(value) =>
+          form.setFieldValue("kp_contact_user_id", value ?? "")
+        }
+      />
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
         <TextInput
-          id={profileFieldId("contact_person")}
-          label={t("company_profile_form.contact_person")}
-          withAsterisk
-          disabled={disabled}
-          {...form.getInputProps("contact_person")}
-        />
-        <TextInput
-          id={profileFieldId("contact_email")}
-          label={t("company_profile_form.contact_email")}
-          withAsterisk
+          id={profileFieldId("general_email")}
+          label={t("company_profile_form.general_email")}
+          placeholder={t("company_profile_form.general_email_placeholder")}
           autoComplete="email"
           disabled={disabled}
-          {...form.getInputProps("contact_email")}
+          {...form.getInputProps("general_email")}
         />
-      </SimpleGrid>
-      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
         <TextInput
-          id={profileFieldId("contact_phone")}
-          label={t("company_profile_form.contact_phone")}
+          id={profileFieldId("general_phone")}
+          label={t("company_profile_form.general_phone")}
           disabled={disabled}
-          {...form.getInputProps("contact_phone")}
-        />
-        <Select
-          id={profileFieldId("kp_contact_user_id")}
-          label={t("company_profile_form.kp_contact_user")}
-          placeholder={t("company_profile_form.kp_contact_user_placeholder")}
-          description={t("company_profile_form.kp_contact_user_hint")}
-          data={members.map((member) => ({
-            value: member.id,
-            label: getDisplayName(
-              member.first_name,
-              member.last_name,
-              member.email,
-            ),
-          }))}
-          searchable
-          clearable
-          disabled={disabled}
-          value={form.values.kp_contact_user_id}
-          error={form.errors.kp_contact_user_id}
-          onChange={(value) =>
-            form.setFieldValue("kp_contact_user_id", value ?? "")
-          }
+          {...form.getInputProps("general_phone")}
         />
       </SimpleGrid>
     </Stack>

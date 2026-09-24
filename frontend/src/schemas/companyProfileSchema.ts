@@ -37,12 +37,14 @@ export const companyProfileSchema = z.object({
       "validation.invalid_url",
     ),
   brand_name: z.string().trim(),
-  contact_person: z.string().trim().min(1, "validation.required"),
-  contact_email: z
-    .email("validation.invalid_email")
+  general_email: z
+    .string()
     .trim()
-    .min(1, "validation.required"),
-  contact_phone: z
+    .refine(
+      (value) => isBlank(value) || z.email().safeParse(value).success,
+      "validation.invalid_email",
+    ),
+  general_phone: z
     .string()
     .trim()
     .refine(
@@ -58,7 +60,7 @@ export const companyProfileSchema = z.object({
   offers_graduate_positions: z.boolean(),
   languages: z.array(z.enum(KpCompanyLanguage)),
   industry_ids: z.array(z.string()),
-  kp_contact_user_id: z.string(),
+  kp_contact_user_id: z.string().min(1, "validation.required"),
   billing_company_name: z.string().trim().min(1, "validation.required"),
   billing_street: z.string().trim().min(1, "validation.required"),
   billing_house_number: z.string().trim(),
@@ -82,9 +84,8 @@ export const emptyCompanyProfileFormValues: CompanyProfileFormValues = {
   description: "",
   website: "",
   brand_name: "",
-  contact_person: "",
-  contact_email: "",
-  contact_phone: "",
+  general_email: "",
+  general_phone: "",
   places_of_work: "",
   employee_count_switzerland: "",
   employee_count_worldwide: "",
@@ -112,9 +113,8 @@ export const toCompanyProfileFormValues = (
   description: profile.description ?? "",
   website: profile.website ?? "",
   brand_name: profile.brand_name ?? "",
-  contact_person: profile.contact_person ?? "",
-  contact_email: profile.contact_email ?? "",
-  contact_phone: profile.contact_phone ?? "",
+  general_email: profile.general_email ?? "",
+  general_phone: profile.general_phone ?? "",
   places_of_work: profile.places_of_work ?? "",
   employee_count_switzerland: profile.employee_count_switzerland ?? "",
   employee_count_worldwide: profile.employee_count_worldwide ?? "",
@@ -146,9 +146,8 @@ export const toCompanyProfileRequest = (
   description: values.description.trim(),
   website: trimmedOrNull(values.website),
   brand_name: values.brand_name.trim(),
-  contact_person: values.contact_person.trim(),
-  contact_email: trimmedOrNull(values.contact_email),
-  contact_phone: trimmedOrNull(values.contact_phone),
+  general_email: trimmedOrNull(values.general_email),
+  general_phone: trimmedOrNull(values.general_phone),
   places_of_work: values.places_of_work.trim(),
   employee_count_switzerland: countOrNull(values.employee_count_switzerland),
   employee_count_worldwide: countOrNull(values.employee_count_worldwide),

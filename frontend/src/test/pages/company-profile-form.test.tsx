@@ -32,9 +32,8 @@ const storedProfile: CompanyProfileResponse = {
   description: "We build things.",
   website: "https://example.com",
   brand_name: "Examplify",
-  contact_person: "Alice Example",
-  contact_email: "alice@example.com",
-  contact_phone: "+41791234567",
+  general_email: "info@example.com",
+  general_phone: "+41791234567",
   places_of_work: "Zurich",
   employee_count_switzerland: 42,
   employee_count_worldwide: 420,
@@ -176,11 +175,36 @@ describe("Company profile form", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not submit when the contact email is invalid", async () => {
+  it("does not submit without a contact person", async () => {
+    mockProfile({
+      ...storedProfile,
+      kp_contact_user_id: null,
+      profile_complete: false,
+      missing_profile_fields: ["kp_contact_user_id"],
+    });
+
+    const { user } = renderProfile();
+
+    expect(
+      await screen.findByRole("link", {
+        name: "company_profile_form.kp_contact_user",
+      }),
+    ).toHaveAttribute("href", "#company-profile-kp-contact-user-id");
+    await user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+
+    expect(
+      await screen.findByText("validation.required"),
+    ).toBeInTheDocument();
+    expect(putBodies).toHaveLength(0);
+  });
+
+  it("does not submit when the general email is invalid", async () => {
     const { user } = renderProfile();
 
     const email = await screen.findByLabelText(
-      labelOf("company_profile_form.contact_email"),
+      labelOf("company_profile_form.general_email"),
     );
     await user.clear(email);
     await user.paste("alice-at-example");
@@ -235,9 +259,8 @@ describe("Company profile form", () => {
       description: "We build things.",
       website: "https://example.com",
       brand_name: "Examplify Group",
-      contact_person: "Alice Example",
-      contact_email: "alice@example.com",
-      contact_phone: "+41791234567",
+      general_email: "info@example.com",
+      general_phone: "+41791234567",
       places_of_work: "Zurich",
       employee_count_switzerland: 42,
       employee_count_worldwide: 420,

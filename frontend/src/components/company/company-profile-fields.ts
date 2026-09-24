@@ -8,8 +8,7 @@ export interface CompanyProfileFieldsProps {
 
 export const MANDATORY_PROFILE_FIELDS = [
   "description",
-  "contact_person",
-  "contact_email",
+  "kp_contact_user_id",
   "billing_company_name",
   "billing_street",
   "billing_postal_code",
@@ -25,8 +24,7 @@ export const profileFieldId = (field: string) =>
 
 const MANDATORY_FIELD_LABEL_KEYS: Record<MandatoryProfileField, string> = {
   description: "company_profile_form.description",
-  contact_person: "company_profile_form.contact_person",
-  contact_email: "company_profile_form.contact_email",
+  kp_contact_user_id: "company_profile_form.kp_contact_user",
   billing_company_name: "company_profile_form.billing_company_name",
   billing_street: "company_profile_form.billing_street",
   billing_postal_code: "company_profile_form.billing_postal_code",
