@@ -294,23 +294,29 @@ describe("the zone switch card", () => {
     ).toBeInTheDocument();
   });
 
-  it("disables the switch while the booking is no longer registered", async () => {
-    renderCard(openEvent, {
-      ...testBooking,
-      status: KpBookingStatus.CONFIRMED,
-    });
+  it.each([
+    ["before", () => openEvent],
+    ["after", () => closedEvent],
+  ])(
+    "locks the zone once VIS confirmed the booking %s the deadline",
+    async (_, event) => {
+      renderCard(event(), {
+        ...testBooking,
+        status: KpBookingStatus.CONFIRMED,
+      });
 
-    expect(
-      await screen.findByRole(
-        "button",
-        { name: "kp.zone_switch.open" },
-        SLOW_WAIT,
-      ),
-    ).toBeDisabled();
-    expect(
-      screen.getByText("kp.zone_switch.disabled_status"),
-    ).toBeInTheDocument();
-  });
+      expect(
+        await screen.findByRole(
+          "button",
+          { name: "kp.zone_switch.open" },
+          SLOW_WAIT,
+        ),
+      ).toBeDisabled();
+      expect(
+        screen.getByText("kp.zone_switch.disabled_confirmed"),
+      ).toBeInTheDocument();
+    },
+  );
 
   it("disables the switch once the finalization deadline has passed", async () => {
     renderCard(closedEvent);

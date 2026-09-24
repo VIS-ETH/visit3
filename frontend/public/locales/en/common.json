@@ -78,6 +78,7 @@
     "kp_registration_closed": "Registration for this event is currently closed.",
     "kp_booth_zone_at_capacity": "The selected booth zone has no remaining spots.",
     "kp_booth_zone_full": "The selected booth zone is full. You can join its waitlist instead.",
+    "kp_booking_zone_locked": "VIS has confirmed this booking, so the booth zone can no longer be changed.",
     "kp_booking_zone_switch_not_allowed": "This booking can no longer switch its booth zone.",
     "kp_waitlist_zone_has_capacity": "The selected booth zone still has free spots. Please switch to it instead of waiting.",
     "kp_booking_already_exists": "Your company already has an active booking for this event.",

@@ -12,6 +12,9 @@ const toCalendarDate = (date: Date) =>
 export const isFinalizationDeadlinePassed = (event: KpResponse) =>
   event.finalization_deadline.slice(0, 10) < toCalendarDate(new Date());
 
+export const isBoothZoneLocked = (booking: BookingResponse) =>
+  booking.status === KpBookingStatus.CONFIRMED;
+
 export const canSwitchBoothZone = (
   event: KpResponse,
   booking: BookingResponse,

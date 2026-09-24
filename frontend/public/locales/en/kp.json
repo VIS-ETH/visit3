@@ -670,7 +670,7 @@
       "waitlist_action": "Join waitlist",
       "switched": "Your booking moved to {{zone}}.",
       "waitlist_added": "{{zone}} was added to your waitlist.",
-      "disabled_status": "Only a registered booking can change its booth zone.",
+      "disabled_confirmed": "VIS has confirmed your booking, so the booth zone can no longer be changed.",
       "disabled_deadline": "The deadline for changing your booking has passed.",
       "company_hint": "You can still switch your booth zone or join the waitlist of a full zone.",
       "zone_list": "Available booth zones"

@@ -670,7 +670,7 @@
       "waitlist_action": "Auf Warteliste setzen",
       "switched": "Ihre Buchung wurde nach {{zone}} verschoben.",
       "waitlist_added": "{{zone}} wurde auf Ihre Warteliste gesetzt.",
-      "disabled_status": "Nur eine registrierte Buchung kann die Standzone wechseln.",
+      "disabled_confirmed": "Der VIS hat Ihre Buchung bestätigt, daher kann die Standzone nicht mehr geändert werden.",
       "disabled_deadline": "Die Frist für Änderungen an Ihrer Buchung ist abgelaufen.",
       "company_hint": "Sie können Ihre Standzone noch wechseln oder sich auf die Warteliste einer ausgebuchten Zone setzen.",
       "zone_list": "Verfügbare Standzonen"

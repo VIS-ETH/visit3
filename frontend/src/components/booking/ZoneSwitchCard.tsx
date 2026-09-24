@@ -40,7 +40,7 @@ import { KpBoothZoneColorSwatch } from "../KpBoothZoneColorSwatch";
 import VenueMapViewer from "../venue/VenueMapViewer";
 import {
   canSwitchBoothZone,
-  isFinalizationDeadlinePassed,
+  isBoothZoneLocked,
 } from "./booking-zone-access";
 
 const signedPrice = (cents: number) =>
@@ -210,9 +210,9 @@ const ZoneSwitchCard = ({ event, booking }: ZoneSwitchCardProps) => {
         {canSwitch ? null : (
           <Text size="sm" c="dimmed">
             {t(
-              isFinalizationDeadlinePassed(event)
-                ? "kp.zone_switch.disabled_deadline"
-                : "kp.zone_switch.disabled_status",
+              isBoothZoneLocked(booking)
+                ? "kp.zone_switch.disabled_confirmed"
+                : "kp.zone_switch.disabled_deadline",
             )}
           </Text>
         )}
