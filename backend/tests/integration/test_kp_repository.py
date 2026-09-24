@@ -1212,55 +1212,6 @@ async def test_rejected_booking_frees_the_zone_and_its_capacity(
     )
 
 
-async def test_only_registered_bookings_past_the_deadline_are_listed(
-    kp_repository,
-    company_repository,
-    db_session,
-):
-    context = await create_booking_context(
-        kp_repository, company_repository, db_session
-    )
-    due = await kp_repository.create_booking(
-        event_id=context.event_id,
-        company_id=context.company_id,
-        booth_zone_id=context.zone_id,
-        create_booking_input=CreateBookingInput(),
-    )
-    finalized_company = await company_repository.create_company("Finalized AG")
-    await kp_repository.create_booking(
-        event_id=context.event_id,
-        company_id=finalized_company.id,
-        booth_zone_id=context.zone_id,
-        create_booking_input=CreateBookingInput(status=KpBookingStatus.FINALIZED),
-    )
-    today = date.today()
-    upcoming = await kp_repository.create_kp(
-        CreateKpInput(
-            name="Kontaktparty 2027",
-            registration_open=today - timedelta(days=1),
-            registration_end=today + timedelta(days=5),
-            finalization_deadline=today + timedelta(days=6),
-            nametags_deadline=today + timedelta(days=7),
-            event_date=today + timedelta(days=30),
-        )
-    )
-    upcoming_zone = await kp_repository.create_booth_zone(
-        upcoming.id, CreateBoothZoneInput(name="Main")
-    )
-    await kp_repository.create_booking(
-        event_id=upcoming.id,
-        company_id=context.company_id,
-        booth_zone_id=upcoming_zone.id,
-        create_booking_input=CreateBookingInput(),
-    )
-
-    bookings = await kp_repository.list_registered_bookings_past_finalization_deadline(
-        today
-    )
-
-    assert [booking.id for booking in bookings] == [due.id]
-
-
 async def test_booth_numbers_are_unique_among_active_bookings_only(
     kp_repository,
     company_repository,

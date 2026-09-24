@@ -25,8 +25,6 @@ EXPECTED_SUBJECTS = {
     " / VISIT: Booking for Kontaktparty confirmed",
     "booking_rejected": "VISIT: Buchung für Kontaktparty abgelehnt"
     " / VISIT: Booking for Kontaktparty rejected",
-    "booking_incomplete_at_deadline": "VISIT: Buchung für Kontaktparty ist unvollständig"
-    " / VISIT: Your booking for Kontaktparty is incomplete",
     "booking_incomplete_reminder": "VISIT: Buchung für Kontaktparty ist unvollständig"
     " / VISIT: Your booking for Kontaktparty is incomplete",
     "waitlist_promoted": "VISIT: Platz in Main hall frei geworden"
@@ -43,9 +41,6 @@ NOTIFICATIONS: dict[
     "booking_accepted": lambda notifier, booking: notifier.booking_accepted(booking),
     "booking_rejected": lambda notifier, booking: notifier.booking_rejected(
         booking, REJECTION_REASON
-    ),
-    "booking_incomplete_at_deadline": (
-        lambda notifier, booking: notifier.booking_incomplete_at_deadline(booking, [])
     ),
     "booking_incomplete_reminder": (
         lambda notifier, booking: notifier.booking_incomplete_reminder(booking)

@@ -14,7 +14,6 @@ from app.mail_templates.keys import MailTemplateKey
 from app.models.kp_event import KpEventBooking
 from app.models.user import User
 from app.services.auth_service import AuthService
-from app.services.booking_completeness import MissingItem
 from app.services.mail_template_service import MailTemplateService
 
 logger = logging.getLogger(__name__)
@@ -43,10 +42,6 @@ class BookingNotifier(Protocol):
 
     async def booking_rejected(self, booking: KpEventBooking, reason: str) -> None: ...
 
-    async def booking_incomplete_at_deadline(
-        self, booking: KpEventBooking, missing_items: Sequence[MissingItem]
-    ) -> None: ...
-
     async def booking_incomplete_reminder(self, booking: KpEventBooking) -> None:
         return None
 
@@ -62,11 +57,6 @@ class SilentBookingNotifier(BookingNotifier):
         return None
 
     async def booking_rejected(self, booking: KpEventBooking, reason: str) -> None:
-        return None
-
-    async def booking_incomplete_at_deadline(
-        self, booking: KpEventBooking, missing_items: Sequence[MissingItem]
-    ) -> None:
         return None
 
 
@@ -149,7 +139,7 @@ class MailBookingNotifier:
             ),
         )
 
-    async def _send_incomplete_reminder(self, booking: KpEventBooking) -> None:
+    async def booking_incomplete_reminder(self, booking: KpEventBooking) -> None:
         deadline = booking.event.finalization_deadline.isoformat()
         await self._send_to_company(
             booking,
@@ -158,14 +148,6 @@ class MailBookingNotifier:
                 **context.variables(), finalization_deadline=deadline
             ),
         )
-
-    async def booking_incomplete_at_deadline(
-        self, booking: KpEventBooking, missing_items: Sequence[MissingItem]
-    ) -> None:
-        await self._send_incomplete_reminder(booking)
-
-    async def booking_incomplete_reminder(self, booking: KpEventBooking) -> None:
-        await self._send_incomplete_reminder(booking)
 
     async def waitlist_promoted(self, booking: KpEventBooking) -> None:
         await self._send_to_company(booking, MailTemplateKey.WAITLIST_PROMOTED)

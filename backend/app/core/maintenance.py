@@ -16,7 +16,6 @@ from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
-from app.services.booking_finalization import auto_finalize_bookings
 from app.services.booking_notifier import MailBookingNotifier
 from app.services.booking_reminders import send_incomplete_booking_reminders
 from app.services.invite_service import InviteService
@@ -69,15 +68,6 @@ def _booking_notifier(session: AsyncSession) -> MailBookingNotifier:
     return MailBookingNotifier(mail_template_service, auth_service)
 
 
-async def finalize_bookings_at_deadline() -> None:
-    async with SessionLocal() as session:
-        await auto_finalize_bookings(
-            KpRepository(session),
-            _booking_notifier(session),
-            datetime.now(timezone.utc),
-        )
-
-
 async def remind_incomplete_bookings() -> None:
     async with SessionLocal() as session:
         await send_incomplete_booking_reminders(
@@ -92,7 +82,6 @@ def create_scheduler() -> Scheduler:
     scheduler.add(cleanup_expired_tokens, interval=HOURLY)
     scheduler.add(cleanup_expired_invites, interval=HOURLY)
     scheduler.add(cleanup_orphaned_stored_files, interval=HOURLY)
-    scheduler.add(finalize_bookings_at_deadline, interval=HOURLY)
     scheduler.add(remind_incomplete_bookings, interval=DAILY)
     return scheduler
 

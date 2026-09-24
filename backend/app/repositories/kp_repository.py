@@ -679,21 +679,6 @@ class KpRepository(BaseRepository[KpEvent]):
         result = await self.session.execute(statement)
         return result.scalars().all()
 
-    async def list_registered_bookings_past_finalization_deadline(
-        self, today: date
-    ) -> Sequence[KpEventBooking]:
-        statement = (
-            self._booking_select()
-            .join(KpEvent, col(KpEvent.id) == col(KpEventBooking.event_id))
-            .where(
-                col(KpEventBooking.status) == KpBookingStatus.REGISTERED,
-                col(KpEvent.finalization_deadline) < today,
-            )
-            .order_by(col(KpEventBooking.created_at).asc())
-        )
-        result = await self.session.execute(statement)
-        return result.scalars().all()
-
     async def list_registered_bookings_awaiting_reminder(
         self, today: date
     ) -> Sequence[KpEventBooking]:
