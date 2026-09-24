@@ -15,10 +15,10 @@ from app.core.exceptions import (
     CompanyProfileIncomplete,
     CompanyProfileUnconfirmed,
     KpBookingAlreadyExists,
-    KpBookingConfirmedReadonly,
     KpBookingDeleteRequiresForce,
     KpBookingNotFound,
     KpBookingNotOwned,
+    KpBookingReadonly,
     KpBookingStatusTransitionInvalid,
     KpBookingZoneSwitchNotAllowed,
     KpBoothNumberTaken,
@@ -747,10 +747,8 @@ class KpService:
     def _ensure_booking_editable_by_company(
         self, booking: KpEventBooking, context: str
     ) -> None:
-        if booking.status == KpBookingStatus.CONFIRMED or not booking.is_active:
-            raise KpBookingConfirmedReadonly(
-                f"{context}:readonly:{booking.id}:{booking.status}"
-            )
+        if not booking.is_active:
+            raise KpBookingReadonly(f"{context}:readonly:{booking.id}:{booking.status}")
         self._ensure_finalization_deadline_open(booking, context)
 
     async def _build_booking_response(self, booking: KpEventBooking) -> BookingResponse:
@@ -1069,9 +1067,7 @@ class KpService:
 
     def _ensure_nametags_editable(self, booking: KpEventBooking, context: str) -> None:
         if not booking.is_active:
-            raise KpBookingConfirmedReadonly(
-                f"{context}:readonly:{booking.id}:{booking.status}"
-            )
+            raise KpBookingReadonly(f"{context}:readonly:{booking.id}:{booking.status}")
         if booking.event.is_nametags_deadline_passed():
             raise KpNametagsDeadlinePassed(
                 f"{context}:deadline_passed:{booking.id}:"

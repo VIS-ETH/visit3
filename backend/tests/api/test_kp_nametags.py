@@ -216,7 +216,7 @@ async def test_nametags_of_a_cancelled_booking_are_read_only(
     response = await put_nametags(client, company_headers, booking_id, [ADA])
 
     assert response.status_code == 403
-    assert response.json()["code"] == "error.kp_booking_confirmed_readonly"
+    assert response.json()["code"] == "error.kp_booking_readonly"
 
 
 async def test_nametags_do_not_belong_to_the_missing_items(

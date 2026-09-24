@@ -354,11 +354,11 @@ class KpBookingDeleteRequiresForce(AppError):
         )
 
 
-class KpBookingConfirmedReadonly(AppError):
+class KpBookingReadonly(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "Confirmed KP bookings can no longer be changed by the company",
-            "error.kp_booking_confirmed_readonly",
+            "Cancelled or rejected KP bookings can no longer be changed",
+            "error.kp_booking_readonly",
             identifier,
             403,
         )

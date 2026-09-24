@@ -187,6 +187,25 @@ async def test_staff_confirms_a_registered_booking(
     assert accepted.json()["confirmed_at"] is not None
 
 
+async def test_a_confirmed_booking_still_accepts_more_services(
+    client: AsyncClient, booking_world: BookingWorld
+):
+    await client.post(
+        f"/api/kp/bookings/{booking_world.booking_id}/accept",
+        headers=booking_world.staff_headers,
+    )
+
+    response = await client.post(
+        f"/api/kp/bookings/{booking_world.booking_id}/services",
+        json={"services": [{"service_id": booking_world.service_id, "quantity": 1}]},
+        headers=booking_world.company_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "CONFIRMED"
+    assert response.json()["services"][0]["quantity"] == MAX_QUANTITY_PER_BOOKING
+
+
 async def test_staff_undoes_an_acceptance(
     client: AsyncClient, booking_world: BookingWorld
 ):
