@@ -3,13 +3,20 @@ from uuid import UUID
 
 from fastapi import APIRouter, File, Query, Request, UploadFile
 
-from app.core.deps import CompanyServiceDep, CsrfDep, InviteServiceDep
+from app.core.deps import (
+    BookletServiceDep,
+    CompanyServiceDep,
+    CsrfDep,
+    InviteServiceDep,
+)
 from app.core.rate_limit import user_rate_limit
 from app.core.uploads import upload_size
 from app.models.company import Company
 from app.models.user import User
 from app.schemas.company import (
     AddCompanyMemberRequest,
+    BookletPageResponse,
+    BookletPageResult,
     CompanyListResponse,
     CompanyListResult,
     CompanyPageResponse,
@@ -115,6 +122,18 @@ async def delete_my_company_profile_logo(
     return await company_service.delete_my_profile_logo()
 
 
+@router.post(
+    "/me/profile/booklet-page",
+    operation_id="previewMyCompanyBookletPage",
+    response_model=BookletPageResponse,
+)
+async def preview_my_company_booklet_page(
+    booklet_service: BookletServiceDep,
+    request: UpdateCompanyProfileRequest,
+) -> BookletPageResult:
+    return await booklet_service.preview_my_company_page(request)
+
+
 @router.get(
     "/{company_id}/profile",
     operation_id="getCompanyProfile",
@@ -138,6 +157,19 @@ async def update_company_profile(
     request: UpdateCompanyProfileRequest,
 ) -> CompanyProfileResult:
     return await company_service.update_company_profile(company_id, request)
+
+
+@router.post(
+    "/{company_id}/profile/booklet-page",
+    operation_id="previewCompanyBookletPage",
+    response_model=BookletPageResponse,
+)
+async def preview_company_booklet_page(
+    booklet_service: BookletServiceDep,
+    company_id: UUID,
+    request: UpdateCompanyProfileRequest,
+) -> BookletPageResult:
+    return await booklet_service.preview_company_page(company_id, request)
 
 
 @router.post(

@@ -175,3 +175,12 @@ class CompanyWithUsersResult(CompanyBase):
 
 class CompanyWithUsersResponse(CompanyWithUsersResult):
     pass
+
+
+class BookletPageResult(BaseModel):
+    png_base64: str
+    overflow: bool
+
+
+class BookletPageResponse(BookletPageResult):
+    pass

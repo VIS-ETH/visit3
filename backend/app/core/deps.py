@@ -24,6 +24,7 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.venue_repository import VenueRepository
 from app.services.auth_service import AuthService
 from app.services.booking_notifier import MailBookingNotifier
+from app.services.booklet_service import BookletService
 from app.services.company_service import CompanyService
 from app.services.csv_service import CsvService
 from app.services.export_service import ExportService
@@ -396,3 +397,18 @@ async def get_export_service(
 
 
 ExportServiceDep = Annotated[ExportService, Depends(get_export_service)]
+
+
+async def get_booklet_service(
+    company_repository: CompanyRepositoryDep,
+    kp_repository: KpRepositoryDep,
+    storage_service: StorageServiceDep,
+    pdf_service: PdfServiceDep,
+    current_user: CurrentUserDep,
+):
+    return BookletService(
+        company_repository, kp_repository, storage_service, pdf_service, current_user
+    )
+
+
+BookletServiceDep = Annotated[BookletService, Depends(get_booklet_service)]
