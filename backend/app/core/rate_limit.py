@@ -65,10 +65,15 @@ def reset_rate_limiters() -> None:
         limiter.reset()
 
 
-def _new_limiter() -> SlidingWindowRateLimiter:
+def _new_limiter(
+    limit: int | None = None, window_seconds: float | None = None
+) -> SlidingWindowRateLimiter:
     settings = get_settings()
     limiter = SlidingWindowRateLimiter(
-        settings.RATE_LIMIT_MAX_REQUESTS, settings.RATE_LIMIT_WINDOW_SECONDS
+        limit if limit is not None else settings.RATE_LIMIT_MAX_REQUESTS,
+        window_seconds
+        if window_seconds is not None
+        else settings.RATE_LIMIT_WINDOW_SECONDS,
     )
     _limiters.append(limiter)
     return limiter
@@ -101,8 +106,10 @@ def client_rate_limit(scope: str):
     return Depends(dependency)
 
 
-def user_rate_limit(scope: str):
-    limiter = _new_limiter()
+def user_rate_limit(
+    scope: str, limit: int | None = None, window_seconds: float | None = None
+):
+    limiter = _new_limiter(limit, window_seconds)
 
     async def dependency(current_user: CurrentUserDep) -> None:
         _enforce(limiter, scope, str(current_user.id))

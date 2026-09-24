@@ -71,6 +71,8 @@ class Settings(BaseSettings):
     RATE_LIMIT_MAX_REQUESTS: int = 5
     RATE_LIMIT_WINDOW_SECONDS: int = 900
     RATE_LIMIT_TRUSTED_PROXIES: list[str] = []
+    BOOKLET_PAGE_RATE_LIMIT_MAX_REQUESTS: int = 60
+    BOOKLET_PAGE_RATE_LIMIT_WINDOW_SECONDS: int = 60
     DEBUG_KEYCLOAK_ADMIN: bool = False
     DEBUG: bool = False
 

@@ -3,6 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, File, Query, Request, UploadFile
 
+from app.core.config import get_settings
 from app.core.deps import (
     BookletServiceDep,
     CompanyServiceDep,
@@ -38,6 +39,11 @@ from app.schemas.company import (
 from app.schemas.user import UserResponse
 
 MAX_PAGE_SIZE = 100
+BOOKLET_PAGE_RATE_LIMIT = user_rate_limit(
+    "booklet_page",
+    get_settings().BOOKLET_PAGE_RATE_LIMIT_MAX_REQUESTS,
+    get_settings().BOOKLET_PAGE_RATE_LIMIT_WINDOW_SECONDS,
+)
 
 public_router = APIRouter(prefix="/company", tags=["company"])
 router = APIRouter(prefix="/company", tags=["company"], dependencies=[CsrfDep])
@@ -126,6 +132,7 @@ async def delete_my_company_profile_logo(
     "/me/profile/booklet-page",
     operation_id="previewMyCompanyBookletPage",
     response_model=BookletPageResponse,
+    dependencies=[BOOKLET_PAGE_RATE_LIMIT],
 )
 async def preview_my_company_booklet_page(
     booklet_service: BookletServiceDep,
@@ -163,6 +170,7 @@ async def update_company_profile(
     "/{company_id}/profile/booklet-page",
     operation_id="previewCompanyBookletPage",
     response_model=BookletPageResponse,
+    dependencies=[BOOKLET_PAGE_RATE_LIMIT],
 )
 async def preview_company_booklet_page(
     booklet_service: BookletServiceDep,
