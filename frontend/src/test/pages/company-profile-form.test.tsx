@@ -72,13 +72,24 @@ const mockProfile = (profile: CompanyProfileResponse) => {
   );
 };
 
-const renderProfile = (user: UserResponse = companyUser) =>
+const renderProfile = (
+  user: UserResponse = companyUser,
+  route = "/company/profile",
+) =>
   renderWithProviders(
     <UserProvider user={user} isLoading={false}>
       <CompanyProfileEdit />
     </UserProvider>,
-    { route: "/company/profile" },
+    { route },
   );
+
+const backLinkHref = async () => {
+  await screen.findByText("company_profile_form.title");
+  return screen
+    .getAllByRole("link")
+    .find((link) => link.querySelector("svg.tabler-icon-arrow-back-up"))
+    ?.getAttribute("href");
+};
 
 beforeEach(() => {
   putBodies = [];
@@ -256,5 +267,20 @@ describe("Company profile form", () => {
       await screen.findByLabelText(labelOf("company_profile_form.brand_name")),
     ).toHaveValue("Examplify");
     expect(memberRequests).toBe(0);
+  });
+
+  it("goes back to the company overview by default", async () => {
+    renderProfile();
+
+    expect(await backLinkHref()).toBe("/company");
+  });
+
+  it("goes back to the page it was opened from", async () => {
+    renderProfile(
+      companyUser,
+      `/company/profile?next=${encodeURIComponent("/kp/event-1/booking")}`,
+    );
+
+    expect(await backLinkHref()).toBe("/kp/event-1/booking");
   });
 });

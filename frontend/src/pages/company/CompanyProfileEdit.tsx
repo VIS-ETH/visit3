@@ -13,6 +13,7 @@ import { IconAlertCircle } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router";
 import BackButton from "../../components/BackButton";
 import CompanyBillingFields from "../../components/company/CompanyBillingFields";
 import CompanyContactFields from "../../components/company/CompanyContactFields";
@@ -39,12 +40,15 @@ import {
   toCompanyProfileRequest,
   type CompanyProfileFormValues,
 } from "../../schemas/companyProfileSchema";
+import { getSafeNextPath } from "../../utils/navigation";
 import { useTranslatedForm } from "../../utils/translator";
 
 const CompanyProfileEdit = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
+  const location = useLocation();
+  const backPath = getSafeNextPath(location.search) ?? "/company";
 
   const {
     data: profile,
@@ -129,7 +133,7 @@ const CompanyProfileEdit = () => {
       <Stack w="100%" maw={860} gap="lg" px="md">
         <Group justify="space-between" align="center">
           <Group gap="xs" align="center">
-            <BackButton to="/company" />
+            <BackButton to={backPath} />
             <Title order={2}>{t("company_profile_form.title")}</Title>
           </Group>
           <CompanyProfileBadge complete={profile.profile_complete === true} />
