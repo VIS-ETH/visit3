@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
-ENV_FILE = BACKEND_DIR / ".env"
 EXAMPLE_ENV_FILE = BACKEND_DIR / ".env.example"
 
 
@@ -17,13 +16,11 @@ def read_env_file(path: Path) -> dict[str, str]:
     return values
 
 
-def _load_test_env_defaults() -> None:
-    env_file = ENV_FILE if ENV_FILE.exists() else EXAMPLE_ENV_FILE
-    for key, value in read_env_file(env_file).items():
-        os.environ.setdefault(key, value)
+def _load_test_env() -> None:
+    os.environ.update(read_env_file(EXAMPLE_ENV_FILE))
 
 
-_load_test_env_defaults()
+_load_test_env()
 os.environ["DEBUG"] = "false"
 os.environ["SECRET_KEY"] = "test-secret-key-6d1b0a4f9c2e7a3b5d8f1c6e0a9b4d72"
 
