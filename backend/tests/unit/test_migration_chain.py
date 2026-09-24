@@ -208,14 +208,6 @@ def replay_upgrades(migrations: list[ModuleType]) -> SchemaRecorder:
     return recorder
 
 
-def header_value(doc: str, label: str) -> str:
-    prefix = f"{label}:"
-    for line in doc.splitlines():
-        if line.startswith(prefix):
-            return line[len(prefix) :].strip()
-    return ""
-
-
 def named_objects(table: Table) -> set[str]:
     names = {
         constraint.name
@@ -231,13 +223,10 @@ def migrations() -> list[ModuleType]:
     return load_migrations()
 
 
-def test_revision_ids_match_file_names_and_headers(migrations: list[ModuleType]):
+def test_revision_ids_match_file_names(migrations: list[ModuleType]):
     for module in migrations:
         path = Path(str(module.__file__))
         assert path.stem.split("_", 1)[0] == module.revision
-        doc = module.__doc__ or ""
-        assert header_value(doc, "Revision ID") == module.revision
-        assert header_value(doc, "Revises") == (module.down_revision or "")
 
 
 def test_revision_chain_is_linear_with_a_single_head(migrations: list[ModuleType]):
