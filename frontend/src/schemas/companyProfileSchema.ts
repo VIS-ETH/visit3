@@ -6,7 +6,7 @@ import type {
 } from "../orval/generated/fastAPI.schemas";
 import { zPhone } from "./utils";
 
-export const PROFILE_DESCRIPTION_MAX_LENGTH = 600;
+export const PROFILE_DESCRIPTION_MAX_LENGTH = 2500;
 
 const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
 

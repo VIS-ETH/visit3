@@ -217,6 +217,25 @@ describe("Company profile form", () => {
     expect(putBodies).toHaveLength(0);
   });
 
+  it("submits a description that fills a booklet page", async () => {
+    const { user } = renderProfile();
+
+    const description = await screen.findByLabelText(
+      labelOf("company_profile_form.description"),
+    );
+    expect(description).toHaveAttribute("maxlength", "2500");
+    await user.clear(description);
+    await user.paste("x".repeat(2500));
+    await user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+
+    await waitFor(() => {
+      expect(putBodies).toHaveLength(1);
+    });
+    expect(putBodies[0]).toMatchObject({ description: "x".repeat(2500) });
+  });
+
   it("does not submit when the billing country is missing", async () => {
     mockProfile({
       ...storedProfile,
