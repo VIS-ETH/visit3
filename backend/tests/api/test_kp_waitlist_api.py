@@ -179,12 +179,13 @@ async def test_waitlist_reports_availability_and_queue_position(
         client, waitlist_api_world.second_headers, waitlist_api_world.second_booking_id
     )
 
-    assert [
-        (entry["available_spots"], entry["position"]) for entry in first.json()
-    ] == [(0, 1)]
-    assert [
-        (entry["available_spots"], entry["position"]) for entry in second.json()
-    ] == [(0, 2)]
+    assert [(entry["is_full"], entry["position"]) for entry in first.json()] == [
+        (True, 1)
+    ]
+    assert [(entry["is_full"], entry["position"]) for entry in second.json()] == [
+        (True, 2)
+    ]
+    assert all("available_spots" not in entry for entry in first.json())
 
 
 async def test_staff_reads_the_waitlist_of_a_booking_of_any_company(
@@ -200,7 +201,11 @@ async def test_staff_reads_the_waitlist_of_a_booking_of_any_company(
     )
 
     assert staff.status_code == 200
-    assert staff.json() == owner.json()
+    assert [entry["available_spots"] for entry in staff.json()] == [0]
+    assert [
+        {key: value for key, value in entry.items() if key != "available_spots"}
+        for entry in staff.json()
+    ] == owner.json()
 
 
 async def test_company_cannot_read_the_staff_waitlist(

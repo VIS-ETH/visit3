@@ -480,7 +480,8 @@ async def test_venue_zones_match_the_available_booth_zones(
 
     assert venue.json()["zones"] == available.json()
     assert available.json()[0]["layout_url"] == "https://storage.test/download"
-    assert available.json()[0]["available_spots"] == 4
+    assert available.json()[0]["is_full"] is False
+    assert "available_spots" not in available.json()[0]
 
 
 async def test_company_venue_read_feeds_the_map_in_one_call(
@@ -515,7 +516,8 @@ async def test_company_venue_read_feeds_the_map_in_one_call(
     assert venue["layouts"][0]["zone_shapes"][0]["shape"] == TRIANGLE
     assert venue["layouts"][0]["booths"][0]["is_own_booking"] is False
     assert [zone["name"] for zone in venue["zones"]] == ["Main hall"]
-    assert venue["zones"][0]["available_spots"] == 5
+    assert venue["zones"][0]["is_full"] is False
+    assert "available_spots" not in venue["zones"][0]
     assert venue["zones"][0]["color"] == "#000000"
 
 

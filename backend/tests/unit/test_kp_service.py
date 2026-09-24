@@ -841,8 +841,8 @@ async def test_replace_booking_upgrade_waitlist_deduplicates_target_zones(
         [target_zone_a.id, target_zone_a.id, target_zone_b.id],
     )
 
-    assert [(item.id, item.available_spots, item.position) for item in result] == [
-        (entry.id, 0, 1)
+    assert [(item.id, item.is_full, item.position) for item in result] == [
+        (entry.id, True, 1)
     ]
     kp_repo.replace_booking_upgrade_waitlist_entries.assert_awaited_once_with(
         booking=booking,

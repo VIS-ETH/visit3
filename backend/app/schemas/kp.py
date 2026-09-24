@@ -369,7 +369,7 @@ class BookingAdditionalServiceChargeResponse(BaseModel):
 
 
 class BoothZoneWithAvailabilityResult(BoothZoneResponse):
-    available_spots: int
+    is_full: bool
 
 
 class BoothZoneWithAvailabilityResponse(BoothZoneWithAvailabilityResult):
@@ -531,9 +531,17 @@ class BookingUpgradeWaitlistEntryResult(BaseModel):
     target_booth_zone_id: UUID
     priority_rank: int | None
     target_booth_zone: BoothZoneResponse
-    available_spots: int
+    is_full: bool
     position: int
 
 
 class BookingUpgradeWaitlistEntryResponse(BookingUpgradeWaitlistEntryResult):
+    pass
+
+
+class StaffBookingUpgradeWaitlistEntryResult(BookingUpgradeWaitlistEntryResult):
+    available_spots: int
+
+
+class StaffBookingUpgradeWaitlistEntryResponse(StaffBookingUpgradeWaitlistEntryResult):
     pass

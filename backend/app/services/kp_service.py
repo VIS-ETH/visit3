@@ -94,6 +94,7 @@ from app.schemas.kp import (
     ServiceRequirementResponse,
     ServiceResponse,
     StaffBookingServiceInput,
+    StaffBookingUpgradeWaitlistEntryResult,
     StaffUpdateBookingInput,
     StoredFileResponse,
     UpdateBookingBoothNumberInput,
@@ -1134,19 +1135,29 @@ class KpService:
         replaced = await self.kp_repository.replace_name_tags(booking, name_tags)
         return [self._name_tag_result(name_tag) for name_tag in replaced]
 
-    async def _build_waitlist_entry(
+    async def _build_staff_waitlist_entry(
         self, entry: KpEventBookingUpgradeWaitlist
-    ) -> BookingUpgradeWaitlistEntryResult:
+    ) -> StaffBookingUpgradeWaitlistEntryResult:
         zone = entry.target_booth_zone
         queue = await self.kp_repository.list_waitlist_entries_for_zone(zone.id)
-        return BookingUpgradeWaitlistEntryResult(
+        free_spots = await self._free_spots_in_zone(zone)
+        return StaffBookingUpgradeWaitlistEntryResult(
             id=entry.id,
             booking_id=entry.booking_id,
             target_booth_zone_id=entry.target_booth_zone_id,
             priority_rank=entry.priority_rank,
             target_booth_zone=await self._build_booth_zone_response(zone),
-            available_spots=await self._free_spots_in_zone(zone),
+            is_full=free_spots == 0,
+            available_spots=free_spots,
             position=waitlist_position(queue, entry.id),
+        )
+
+    async def _build_waitlist_entry(
+        self, entry: KpEventBookingUpgradeWaitlist
+    ) -> BookingUpgradeWaitlistEntryResult:
+        staff_entry = await self._build_staff_waitlist_entry(entry)
+        return BookingUpgradeWaitlistEntryResult.model_validate(
+            staff_entry.model_dump(exclude={"available_spots"})
         )
 
     async def list_booking_upgrade_waitlist(
@@ -1163,13 +1174,13 @@ class KpService:
 
     async def list_booking_upgrade_waitlist_for_staff(
         self, booking_id: UUID
-    ) -> list[BookingUpgradeWaitlistEntryResult]:
+    ) -> list[StaffBookingUpgradeWaitlistEntryResult]:
         require_staff_user(self.current_user)
         booking = await self._get_booking(booking_id)
         entries = await self.kp_repository.list_booking_upgrade_waitlist_entries(
             booking.id
         )
-        return [await self._build_waitlist_entry(entry) for entry in entries]
+        return [await self._build_staff_waitlist_entry(entry) for entry in entries]
 
     async def replace_booking_upgrade_waitlist(
         self, booking_id: UUID, target_booth_zone_ids: list[UUID]

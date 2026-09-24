@@ -44,6 +44,8 @@ from app.schemas.kp import (
     RequirementTextResponse,
     ServiceResponse,
     StaffBookingResponse,
+    StaffBookingUpgradeWaitlistEntryResponse,
+    StaffBookingUpgradeWaitlistEntryResult,
     StaffUpdateBookingRequest,
     SwitchBookingZoneRequest,
     UpdateBookingBoothNumberRequest,
@@ -433,11 +435,11 @@ async def list_staff_booking_nametags(
 @router.get(
     "/staff/bookings/{booking_id}/upgrade-waitlist",
     operation_id="listStaffBookingUpgradeWaitlist",
-    response_model=list[BookingUpgradeWaitlistEntryResponse],
+    response_model=list[StaffBookingUpgradeWaitlistEntryResponse],
 )
 async def list_staff_booking_upgrade_waitlist(
     kp_service: KpServiceDep, booking_id: UUID
-) -> list[BookingUpgradeWaitlistEntryResult]:
+) -> list[StaffBookingUpgradeWaitlistEntryResult]:
     return await kp_service.list_booking_upgrade_waitlist_for_staff(booking_id)
 
 

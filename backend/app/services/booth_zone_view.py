@@ -25,7 +25,7 @@ async def booth_zones_with_availability(
         availability.append(
             BoothZoneWithAvailabilityResult(
                 **zone_response.model_dump(),
-                available_spots=max(zone.capacity - taken, 0),
+                is_full=taken >= zone.capacity,
             )
         )
     return availability
