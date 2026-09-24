@@ -11,6 +11,7 @@ from app.core.exceptions import (
     KpBookingNotFound,
     KpBookingReadonly,
     KpBookingStatusTransitionInvalid,
+    KpBookingZoneLocked,
     KpBoothZoneAtCapacity,
     KpBoothZoneEventMismatch,
     KpEventNotFound,
@@ -1869,6 +1870,22 @@ async def test_add_booking_services_measures_total_limit_on_charged_quantity(
     kp_repo.count_active_charged_service_quantity.assert_awaited_once_with(
         service_model.id
     )
+
+
+async def test_replace_booking_upgrade_waitlist_rejects_confirmed_booking(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(company_id=company_id, status=KpBookingStatus.CONFIRMED)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+
+    with pytest.raises(KpBookingZoneLocked):
+        await service.replace_booking_upgrade_waitlist(booking.id, [uuid4()])
+
+    kp_repo.replace_booking_upgrade_waitlist_entries.assert_not_awaited()
 
 
 async def test_replace_booking_upgrade_waitlist_rejects_cancelled_booking(

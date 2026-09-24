@@ -181,7 +181,22 @@ async def test_switching_is_refused_once_the_booking_is_confirmed(
     response = await switch_zone(client, switch_world, switch_world.target_zone_id)
 
     assert response.status_code == 409
-    assert response.json()["code"] == "error.kp_booking_zone_switch_not_allowed"
+    assert response.json()["code"] == "error.kp_booking_zone_locked"
+
+
+async def test_switching_works_again_once_the_confirmation_is_undone(
+    client: AsyncClient, switch_world: SwitchWorld
+):
+    for action in ("accept", "undo-accept"):
+        await client.post(
+            f"/api/kp/bookings/{switch_world.booking_id}/{action}",
+            headers=switch_world.staff_headers,
+        )
+
+    response = await switch_zone(client, switch_world, switch_world.spare_zone_id)
+
+    assert response.status_code == 200
+    assert response.json()["booth_zone_id"] == switch_world.spare_zone_id
 
 
 async def test_switching_is_refused_after_the_finalization_deadline(

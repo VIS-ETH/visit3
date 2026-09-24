@@ -307,6 +307,26 @@ async def test_the_lowest_priority_rank_is_promoted_first(
     )
 
 
+async def test_a_confirmed_booking_keeps_its_zone_when_a_spot_frees_up(
+    client: AsyncClient, waitlist_world: WaitlistWorld
+):
+    await client.post(
+        f"/api/kp/bookings/{waitlist_world.first_booking_id}/accept",
+        headers=waitlist_world.staff_headers,
+    )
+
+    await cancel_holder(client, waitlist_world)
+
+    assert (
+        await booth_zone_of(client, waitlist_world, waitlist_world.first_booking_id)
+        == waitlist_world.home_zone_id
+    )
+    assert (
+        await booth_zone_of(client, waitlist_world, waitlist_world.second_booking_id)
+        == waitlist_world.upgrade_zone_id
+    )
+
+
 async def test_waitlist_entries_of_cancelled_bookings_are_skipped_and_dropped(
     client: AsyncClient, waitlist_world: WaitlistWorld
 ):

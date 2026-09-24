@@ -20,6 +20,7 @@ from app.core.exceptions import (
     KpBookingNotOwned,
     KpBookingReadonly,
     KpBookingStatusTransitionInvalid,
+    KpBookingZoneLocked,
     KpBookingZoneSwitchNotAllowed,
     KpBoothNumberTaken,
     KpBoothZoneAtCapacity,
@@ -751,6 +752,10 @@ class KpService:
             raise KpBookingReadonly(f"{context}:readonly:{booking.id}:{booking.status}")
         self._ensure_finalization_deadline_open(booking, context)
 
+    def _ensure_zone_unlocked(self, booking: KpEventBooking, context: str) -> None:
+        if booking.status == KpBookingStatus.CONFIRMED:
+            raise KpBookingZoneLocked(f"{context}:zone_locked:{booking.id}")
+
     async def _build_booking_response(self, booking: KpEventBooking) -> BookingResponse:
         services, additional_service_charges = await self._build_booking_services(
             booking
@@ -1174,6 +1179,7 @@ class KpService:
         self._ensure_booking_editable_by_company(
             booking, "replace_booking_upgrade_waitlist"
         )
+        self._ensure_zone_unlocked(booking, "replace_booking_upgrade_waitlist")
 
         unique_target_ids = list(dict.fromkeys(target_booth_zone_ids))
         for target_booth_zone_id in unique_target_ids:
@@ -1219,6 +1225,7 @@ class KpService:
         booking = await self._get_owned_booking(
             booking_id, company_user.company_id, "switch_booking_zone"
         )
+        self._ensure_zone_unlocked(booking, "switch_booking_zone")
         if booking.status != KpBookingStatus.REGISTERED:
             raise KpBookingZoneSwitchNotAllowed(
                 f"switch_booking_zone:status:{booking_id}:{booking.status}"

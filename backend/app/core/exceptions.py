@@ -304,6 +304,16 @@ class KpBoothZoneFull(AppError):
         )
 
 
+class KpBookingZoneLocked(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Confirmed KP bookings can no longer change their booth zone",
+            "error.kp_booking_zone_locked",
+            identifier,
+            409,
+        )
+
+
 class KpBookingZoneSwitchNotAllowed(AppError):
     def __init__(self, identifier: str):
         super().__init__(

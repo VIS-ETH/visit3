@@ -277,3 +277,22 @@ async def test_waitlist_answer_reports_the_new_entries(
         (entry["target_booth_zone_id"], entry["priority_rank"], entry["position"])
         for entry in response.json()
     ] == [(waitlist_api_world.full_zone_id, 1, 2)]
+
+
+async def test_a_confirmed_booking_cannot_join_the_waitlist(
+    client: AsyncClient, waitlist_api_world: WaitlistApiWorld
+):
+    await client.post(
+        f"/api/kp/bookings/{waitlist_api_world.second_booking_id}/accept",
+        headers=waitlist_api_world.staff_headers,
+    )
+
+    response = await put_waitlist(
+        client,
+        waitlist_api_world.second_headers,
+        waitlist_api_world.second_booking_id,
+        [waitlist_api_world.full_zone_id],
+    )
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "error.kp_booking_zone_locked"
