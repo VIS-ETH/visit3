@@ -1,7 +1,7 @@
 from sqlmodel import col, select
 
 from app.core.deleted_filter import include_deleted
-from app.models.company import Company
+from app.models.company import Company, KpCompanyProfile
 from app.models.user import User, UserRole
 from app.schemas.user import (
     UpdateCompanyUserInput,
@@ -49,6 +49,23 @@ async def test_deleted_user_is_hidden_by_default(user_repository, db_session):
         "delete-me@example.com"
     ]
     assert deleted_users[0].deleted_at is not None
+
+
+async def test_delete_user_clears_the_kp_contact(
+    user_repository, company_repository, db_session
+):
+    company = await company_repository.create_company("Acme AG")
+    user = await user_repository.create_user(
+        User(email="contact@example.com", password="hash", company_id=company.id)
+    )
+    db_session.add(KpCompanyProfile(company_id=company.id, kp_contact_user_id=user.id))
+    await db_session.commit()
+
+    await user_repository.delete_user(user)
+
+    profile = await company_repository.get_kp_profile(company.id)
+    assert profile is not None
+    assert profile.kp_contact_user_id is None
 
 
 async def _stored_password(db_session, user_id):

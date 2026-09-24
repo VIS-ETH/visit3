@@ -9,7 +9,7 @@ from sqlalchemy.sql.selectable import Select
 from sqlmodel import col, or_, select
 
 from app.core.utils import normalize_email
-from app.models.company import Company
+from app.models.company import Company, KpCompanyProfile
 from app.models.user import Role, User
 from app.repositories.base import BaseRepository, rel
 from app.schemas.user import UserFilter, UserProfileFieldsInput
@@ -164,6 +164,11 @@ class UserRepository(BaseRepository[User]):
 
     async def delete_user(self, user: User):
         try:
+            await self.update_where(
+                KpCompanyProfile,
+                col(KpCompanyProfile.kp_contact_user_id) == user.id,
+                kp_contact_user_id=None,
+            )
             self.delete(user)
             await self.session.commit()
         except Exception as e:
