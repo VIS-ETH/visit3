@@ -17,7 +17,9 @@ from app.services.storage_service import StorageService, UploadKind, sniff_mime_
 
 def make_storage_service(client=None, **settings_overrides) -> StorageService:
     service = StorageService.__new__(StorageService)
-    service.settings = get_settings().model_copy(update=settings_overrides)
+    service.settings = get_settings().model_copy(
+        update={"S3_PUBLIC_ENDPOINT_URL": None, **settings_overrides}
+    )
     service.client = client or Mock()
     return service
 
@@ -326,6 +328,16 @@ async def test_generate_download_url_sanitizes_content_disposition_filename():
     assert "filename*=UTF-8''K%C3%A4pp-report.pdf" in disposition
     assert "\r" not in disposition
     assert "/" not in disposition
+
+
+async def test_generate_download_url_keeps_the_storage_endpoint_by_default():
+    settings = get_settings().model_copy(update={"S3_PUBLIC_ENDPOINT_URL": None})
+
+    url = await StorageService(settings).generate_download_url(
+        "kp/plan.png", "plan.png"
+    )
+
+    assert url.startswith(f"{settings.S3_ENDPOINT_URL}/")
 
 
 async def test_generate_download_url_is_signed_for_the_public_endpoint():

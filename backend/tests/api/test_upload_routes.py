@@ -64,7 +64,10 @@ def s3_client() -> FakeS3Client:
 def storage_service(s3_client: FakeS3Client) -> StorageService:
     service = StorageService.__new__(StorageService)
     service.settings = get_settings().model_copy(
-        update={"STORAGE_IMAGE_MAX_SIZE_BYTES": IMAGE_LIMIT_BYTES}
+        update={
+            "STORAGE_IMAGE_MAX_SIZE_BYTES": IMAGE_LIMIT_BYTES,
+            "S3_PUBLIC_ENDPOINT_URL": None,
+        }
     )
     service.client = s3_client
     return service
