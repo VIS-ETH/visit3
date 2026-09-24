@@ -31,7 +31,7 @@ interface VenueCanvasZone {
   id: string;
   name: string;
   color: string;
-  availableSpots?: number;
+  caption?: string;
   descriptionId?: string;
 }
 
@@ -405,13 +405,7 @@ const VenueMapCanvas = ({
                   fill="var(--mantine-color-text)"
                   style={{ pointerEvents: "none", userSelect: "none" }}
                 >
-                  {zone?.availableSpots === undefined
-                    ? ""
-                    : zone.availableSpots > 0
-                      ? t("kp.venue.zone_free_spots", {
-                          spots: zone.availableSpots,
-                        })
-                      : t("kp.venue.zone_full")}
+                  {zone?.caption ?? ""}
                 </text>
               </g>
             );

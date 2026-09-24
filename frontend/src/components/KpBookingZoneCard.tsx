@@ -18,7 +18,7 @@ const KpBookingZoneCard = ({
   onSelect,
 }: KpBookingZoneCardProps) => {
   const { t } = useTranslation();
-  const isFull = zone.available_spots <= 0;
+  const isFull = zone.is_full;
 
   return (
     <UnstyledButton
@@ -68,10 +68,7 @@ const KpBookingZoneCard = ({
           <Text size="xs" fw={500} c={isFull ? "red" : "green"}>
             {isFull
               ? t("kp.booking.zone_full")
-              : t("kp.booking.zone_available", {
-                  available: zone.available_spots,
-                  total: zone.capacity,
-                })}
+              : t("kp.booth_size", { size: zone.booth_size })}
           </Text>
           <Text size="xs" c="dimmed">
             CHF {formatPrice(zone.base_price)}

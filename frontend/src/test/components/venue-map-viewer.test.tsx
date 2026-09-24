@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import VenueMapViewer from "../../components/venue/VenueMapViewer";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
+import i18n from "../i18n";
 import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
 import { testEventId } from "../fixtures/kp-booking";
@@ -17,6 +18,10 @@ import {
 const venueUrl = `${testBackendUrl}/api/kp/events/${testEventId}/venue`;
 
 let venueResponse = testVenueMap;
+
+beforeAll(() => {
+  i18n.addResource("en", "common", "kp.booth_size", "{{size}} m²");
+});
 
 beforeEach(() => {
   venueResponse = testVenueMap;
@@ -40,7 +45,7 @@ describe("the venue map viewer", () => {
       screen.getByRole("button", { name: testSideZone.name }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(testMainZone.name).length).toBeGreaterThan(1);
-    expect(screen.getByText("kp.venue.legend_spots")).toBeInTheDocument();
+    expect(screen.getAllByText(`${testMainZone.booth_size} m²`)).toHaveLength(2);
   });
 
   it("marks a zone without free spots as full", async () => {

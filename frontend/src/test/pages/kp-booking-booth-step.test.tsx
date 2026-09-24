@@ -113,7 +113,7 @@ const zone: BoothZoneWithAvailabilityResponse = {
   included_services: [
     { service_id: chair.id, included_quantity: includedChairs },
   ],
-  available_spots: 3,
+  is_full: false,
 };
 
 const registeredBooking: BookingResponse = {

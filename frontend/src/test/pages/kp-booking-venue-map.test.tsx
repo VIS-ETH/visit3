@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import KpBookingStepper from "../../pages/KpBookingStepper";
 import type { KpResponse } from "../../orval/generated/fastAPI.schemas";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
+import i18n from "../i18n";
 import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
 import { testEventId } from "../fixtures/kp-booking";
@@ -37,7 +38,13 @@ const mapZoneButton = (name: string) =>
   screen.getByRole("button", { name, hidden: true });
 
 const listZoneButton = () =>
-  screen.getByRole("button", { name: /kp\.booking\.zone_available/ });
+  screen.getByRole("button", {
+    name: new RegExp(`${testMainZone.booth_size} m²`),
+  });
+
+beforeAll(() => {
+  i18n.addResource("en", "common", "kp.booth_size", "{{size}} m²");
+});
 
 beforeEach(() => {
   localStorage.setItem("token", createToken(3600));

@@ -48,7 +48,7 @@ const zone: BoothZoneWithAvailabilityResponse = {
   booth_size: 4,
   base_price: 100000,
   included_services: [],
-  available_spots: 3,
+  is_full: false,
 };
 
 const openSummary = async (user: UserEvent) => {

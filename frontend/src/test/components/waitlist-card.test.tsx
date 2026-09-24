@@ -30,7 +30,7 @@ const einsteinEntry: BookingUpgradeWaitlistEntryResponse = {
   target_booth_zone_id: testMainZone.id,
   priority_rank: 1,
   target_booth_zone: { ...testMainZone, base_price: 60000 },
-  available_spots: 0,
+  is_full: true,
   position: 1,
 };
 
@@ -40,7 +40,7 @@ const polymensaEntry: BookingUpgradeWaitlistEntryResponse = {
   target_booth_zone_id: testSideZone.id,
   priority_rank: 2,
   target_booth_zone: testSideZone,
-  available_spots: 0,
+  is_full: true,
   position: 3,
 };
 
@@ -61,6 +61,7 @@ beforeAll(() => {
     "kp.waitlist.position",
     "Platz {{position}}",
   );
+  i18n.addResource("en", "common", "kp.booth_size", "{{size}} m²");
 });
 
 beforeEach(() => {
@@ -91,6 +92,16 @@ describe("the waitlist card", () => {
     expect(screen.getAllByText("kp.waitlist.zone_full")).toHaveLength(2);
     expect(actions("kp.waitlist.move_up")[0]).toBeDisabled();
     expect(actions("kp.waitlist.move_down")[1]).toBeDisabled();
+  });
+
+  it("shows the booth size once a queued zone has free spots", async () => {
+    waitlist = [{ ...einsteinEntry, is_full: false }];
+    renderCard();
+
+    expect(
+      await screen.findByText(`${testMainZone.booth_size} m²`, undefined, SLOW_WAIT),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("kp.waitlist.zone_full")).not.toBeInTheDocument();
   });
 
   it("sends the reordered zones when an entry is moved down", async () => {

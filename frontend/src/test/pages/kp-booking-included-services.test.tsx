@@ -61,7 +61,7 @@ const zoneDefaults = {
   capacity: 10,
   booth_size: 4,
   base_price: 100000,
-  available_spots: 3,
+  is_full: false,
 };
 
 const includedZone: BoothZoneWithAvailabilityResponse = {

@@ -159,16 +159,12 @@ const WaitlistCard = ({ event, booking }: WaitlistCardProps) => {
                   <Text size="xs" fw={500}>
                     {t("kp.waitlist.position", { position: entry.position })}
                   </Text>
-                  <Text
-                    size="xs"
-                    c={entry.available_spots > 0 ? "green" : "dimmed"}
-                  >
-                    {entry.available_spots > 0
-                      ? t("kp.waitlist.spots_free", {
-                          free: entry.available_spots,
-                          capacity: entry.target_booth_zone.capacity,
-                        })
-                      : t("kp.waitlist.zone_full")}
+                  <Text size="xs" c={entry.is_full ? "dimmed" : "green"}>
+                    {entry.is_full
+                      ? t("kp.waitlist.zone_full")
+                      : t("kp.booth_size", {
+                          size: entry.target_booth_zone.booth_size,
+                        })}
                   </Text>
                   <Text size="xs" c="dimmed">
                     {t("kp.waitlist.price_net", {

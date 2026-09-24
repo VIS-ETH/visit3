@@ -200,7 +200,7 @@ const KpBookingSummaryStep = ({
     if (!draftZone || isSubmitting) {
       return;
     }
-    if (draftZone.available_spots <= 0) {
+    if (draftZone.is_full) {
       notifications.show({
         color: "red",
         title: t("error.title"),

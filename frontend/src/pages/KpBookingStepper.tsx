@@ -885,7 +885,7 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
     Boolean(company?.profile_complete) && isProfileConfirmed;
   const canContinueFromZone =
     Boolean(selectedZone) &&
-    (selectedZone?.available_spots ?? 0) > 0 &&
+    !selectedZone?.is_full &&
     (isRegistrationOpen || Boolean(myBooking));
 
   const backLabel =

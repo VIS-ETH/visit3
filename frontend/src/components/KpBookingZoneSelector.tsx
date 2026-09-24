@@ -62,7 +62,7 @@ const KpBookingZoneSelector = ({
             <Stack gap="sm" pr={8}>
               {availableZones?.map((zone) => {
                 const isSelected = selectedZone?.id === zone.id;
-                const isFull = zone.available_spots <= 0;
+                const isFull = zone.is_full;
                 const isDisabled = isZoneLocked ? !isSelected : isFull;
 
                 return (

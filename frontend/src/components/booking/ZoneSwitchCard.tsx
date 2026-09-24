@@ -199,16 +199,10 @@ const ZoneSwitchCard = ({ event, booking }: ZoneSwitchCardProps) => {
             })}
           </Text>
           {currentZone ? (
-            <Text
-              size="sm"
-              c={currentZone.available_spots > 0 ? "green" : "red"}
-            >
-              {currentZone.available_spots > 0
-                ? t("kp.zone_switch.spots_free", {
-                    free: currentZone.available_spots,
-                    capacity: currentZone.capacity,
-                  })
-                : t("kp.zone_switch.zone_full")}
+            <Text size="sm" c={currentZone.is_full ? "red" : "green"}>
+              {currentZone.is_full
+                ? t("kp.zone_switch.zone_full")
+                : t("kp.booth_size", { size: currentZone.booth_size })}
             </Text>
           ) : null}
         </Group>
@@ -276,7 +270,7 @@ const ZoneSwitchCard = ({ event, booking }: ZoneSwitchCardProps) => {
                 aria-label={t("kp.zone_switch.zone_list")}
               >
                 {otherZones.map((zone) => {
-                  const isFull = zone.available_spots <= 0;
+                  const isFull = zone.is_full;
                   const isSelected = zone.id === selectedZoneId;
                   return (
                     <UnstyledButton
@@ -310,9 +304,8 @@ const ZoneSwitchCard = ({ event, booking }: ZoneSwitchCardProps) => {
                           <Text size="xs" c={isFull ? "red" : "green"}>
                             {isFull
                               ? t("kp.zone_switch.zone_full")
-                              : t("kp.zone_switch.spots_free", {
-                                  free: zone.available_spots,
-                                  capacity: zone.capacity,
+                              : t("kp.booth_size", {
+                                  size: zone.booth_size,
                                 })}
                           </Text>
                         </Group>
@@ -335,7 +328,7 @@ const ZoneSwitchCard = ({ event, booking }: ZoneSwitchCardProps) => {
             </ScrollArea.Autosize>
           )}
 
-          {selectedZone === null ? null : selectedZone.available_spots > 0 ? (
+          {selectedZone === null ? null : !selectedZone.is_full ? (
             isConfirming ? (
               <Stack gap="xs">
                 <Text size="sm">

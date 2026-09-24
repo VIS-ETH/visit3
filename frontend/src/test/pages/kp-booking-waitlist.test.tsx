@@ -3,7 +3,7 @@ import { screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { Route, Routes } from "react-router";
 import KpBookingDetails from "../../pages/KpBookingDetails";
-import type { BookingUpgradeWaitlistEntryResponse } from "../../orval/generated/fastAPI.schemas";
+import type { StaffBookingUpgradeWaitlistEntryResponse } from "../../orval/generated/fastAPI.schemas";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
@@ -20,13 +20,14 @@ import {
 const detailsPath = "/kp/:id/bookings/:bookingId";
 const detailsRoute = `/kp/${testEventId}/bookings/${acmeBookingId}`;
 
-const waitlistEntries: BookingUpgradeWaitlistEntryResponse[] = [
+const waitlistEntries: StaffBookingUpgradeWaitlistEntryResponse[] = [
   {
     id: "waitlist-1",
     booking_id: acmeBookingId,
     target_booth_zone_id: testMainHallZone.id,
     target_booth_zone: testMainHallZone,
     priority_rank: 1,
+    is_full: false,
     available_spots: 2,
     position: 3,
   },
@@ -36,6 +37,7 @@ const waitlistEntries: BookingUpgradeWaitlistEntryResponse[] = [
     target_booth_zone_id: testSideHallZone.id,
     target_booth_zone: testSideHallZone,
     priority_rank: 2,
+    is_full: true,
     available_spots: 0,
     position: 1,
   },

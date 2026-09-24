@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -12,6 +12,7 @@ import {
 import { getGetMyBookingQueryKey } from "../../orval/generated/kp/kp";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
+import i18n from "../i18n";
 import { createToken } from "../jwt";
 import { notificationsShow } from "../notifications";
 import { createTestQueryClient, renderWithProviders } from "../render";
@@ -52,19 +53,19 @@ const currentZone: BoothZoneWithAvailabilityResponse = {
   booth_size: 6,
   base_price: 50000,
   included_services: [],
-  available_spots: 2,
+  is_full: false,
 };
 
 const freeZone: BoothZoneWithAvailabilityResponse = {
   ...testMainZone,
   capacity: 8,
-  available_spots: 3,
+  is_full: false,
   base_price: 60000,
 };
 
 const fullZone: BoothZoneWithAvailabilityResponse = {
   ...testSideZone,
-  available_spots: 0,
+  is_full: true,
   base_price: 30000,
 };
 
@@ -72,7 +73,7 @@ const queuedZone: BoothZoneWithAvailabilityResponse = {
   ...testSideZone,
   id: "99999999-9999-9999-9999-999999999999",
   name: "Hoenggerberg",
-  available_spots: 0,
+  is_full: true,
   base_price: 40000,
 };
 
@@ -82,7 +83,7 @@ const queuedEntry: BookingUpgradeWaitlistEntryResponse = {
   target_booth_zone_id: queuedZone.id,
   priority_rank: 1,
   target_booth_zone: queuedZone,
-  available_spots: 0,
+  is_full: true,
   position: 2,
 };
 
@@ -126,6 +127,10 @@ const openModal = async (user: UserEvent) => {
 const zoneOption = (list: HTMLElement, name: string) =>
   within(list).getByRole("button", { name: new RegExp(name) });
 
+beforeAll(() => {
+  i18n.addResource("en", "common", "kp.booth_size", "{{size}} m²");
+});
+
 beforeEach(() => {
   waitlist = [];
   localStorage.setItem("token", createToken(3600));
@@ -139,7 +144,12 @@ describe("the zone switch card", () => {
 
     const list = await openModal(user);
     expect(within(list).queryByText(currentZone.name)).not.toBeInTheDocument();
-    expect(zoneOption(list, freeZone.name)).toBeInTheDocument();
+    expect(zoneOption(list, freeZone.name)).toHaveTextContent(
+      `${freeZone.booth_size} m²`,
+    );
+    expect(zoneOption(list, fullZone.name)).toHaveTextContent(
+      "kp.zone_switch.zone_full",
+    );
 
     await user.click(zoneOption(list, freeZone.name));
     expect(

@@ -24,7 +24,7 @@ export const testMainZone: BoothZoneWithAvailabilityResult = {
   booth_size: 6,
   base_price: 50000,
   included_services: [],
-  available_spots: 4,
+  is_full: false,
 };
 
 export const testSideZone: BoothZoneWithAvailabilityResult = {
@@ -38,7 +38,7 @@ export const testSideZone: BoothZoneWithAvailabilityResult = {
   booth_size: 4,
   base_price: 30000,
   included_services: [],
-  available_spots: 0,
+  is_full: true,
 };
 
 const testVenueLayout: VenueMapLayoutResult = {

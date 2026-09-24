@@ -11,7 +11,10 @@ import {
 import { IconAlertCircle, IconMap } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { VenueMapLayoutResult } from "../../orval/generated/fastAPI.schemas";
+import type {
+  BoothZoneWithAvailabilityResult,
+  VenueMapLayoutResult,
+} from "../../orval/generated/fastAPI.schemas";
 import { useGetEventVenue } from "../../orval/generated/kp/kp";
 import { formatPrice } from "../../utils/price-utils";
 import { KpBoothZoneColorSwatch } from "../KpBoothZoneColorSwatch";
@@ -70,11 +73,16 @@ const VenueMapViewer = ({
     if (match) setPickedLayoutId(match.id);
   }, [selectedZoneId, layout, layouts]);
 
+  const zoneCaption = (zone: BoothZoneWithAvailabilityResult) =>
+    zone.is_full
+      ? t("kp.venue.zone_full")
+      : t("kp.booth_size", { size: zone.booth_size });
+
   const canvasZones = zones.map((zone) => ({
     id: zone.id,
     name: zone.name,
     color: zone.color,
-    availableSpots: zone.available_spots,
+    caption: zoneCaption(zone),
     descriptionId: legendItemId(zone.id),
   }));
 
@@ -166,12 +174,7 @@ const VenueMapViewer = ({
               {zone.name}
             </Text>
             <Text c="dimmed" size="xs">
-              {zone.available_spots > 0
-                ? t("kp.venue.legend_spots", {
-                    free: zone.available_spots,
-                    capacity: zone.capacity,
-                  })
-                : t("kp.venue.zone_full")}
+              {zoneCaption(zone)}
             </Text>
             <Text c="dimmed" size="xs">
               CHF {formatPrice(zone.base_price)}

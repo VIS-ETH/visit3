@@ -49,12 +49,12 @@ const currentZone: BoothZoneWithAvailabilityResponse = {
   booth_size: 6,
   base_price: 50000,
   included_services: [],
-  available_spots: 2,
+  is_full: false,
 };
 
 const freeZone: BoothZoneWithAvailabilityResponse = {
   ...testMainZone,
-  available_spots: 3,
+  is_full: false,
   base_price: 60000,
 };
 

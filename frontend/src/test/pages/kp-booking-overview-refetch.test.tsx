@@ -60,9 +60,9 @@ beforeEach(() => {
           {
             ...testMainZone,
             id: testBooking.booth_zone_id,
-            available_spots: 2,
+            is_full: false,
           },
-          { ...testMainZone, available_spots: 3 },
+          { ...testMainZone, is_full: false },
         ]),
     ),
     http.get(
