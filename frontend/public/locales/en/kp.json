@@ -102,6 +102,7 @@
       "service_line_total": "Line total (net)",
       "service_included_note": "{{included}} included",
       "service_requirements": "Requirements",
+      "service_requirements_later": "You can also add these after booking.",
       "requirement_upload_file": "Upload file",
       "requirement_upload_image": "Upload image",
       "requirement_upload_pdf": "Upload PDF",

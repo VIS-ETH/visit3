@@ -102,6 +102,7 @@
       "service_line_total": "Zeilensumme (netto)",
       "service_included_note": "{{included}} inklusive",
       "service_requirements": "Anforderungen",
+      "service_requirements_later": "Sie können diese auch nach der Buchung ergänzen.",
       "requirement_upload_file": "Datei hochladen",
       "requirement_upload_image": "Bild hochladen",
       "requirement_upload_pdf": "PDF hochladen",

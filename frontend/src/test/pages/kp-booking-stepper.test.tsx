@@ -361,6 +361,44 @@ describe("booking registration", () => {
     expect(registerRequests).toBe(1);
   });
 
+  it("registers without the requirement answers so they can follow later", async () => {
+    server.use(
+      http.post(registerUrl, () => {
+        registerRequests += 1;
+        return HttpResponse.json(registeredBooking);
+      }),
+      http.put(requirementTextUrl, () => {
+        requirementTextRequests += 1;
+        return HttpResponse.json(null);
+      }),
+    );
+    const { user } = renderStepper();
+
+    await selectZoneAndContinue(user);
+    const quantity = screen.getByLabelText("kp.booking.service_quantity");
+    await user.clear(quantity);
+    await user.type(quantity, "1");
+    expect(
+      await screen.findByLabelText(
+        service.requirements[0].name,
+        undefined,
+        SLOW_WAIT,
+      ),
+    ).toHaveValue("");
+    expect(
+      screen.getByText("kp.booking.service_requirements_later"),
+    ).toBeInTheDocument();
+    await continueToSummaryStep(user);
+    await acceptConsents(user);
+    await user.click(registerButton());
+
+    await waitFor(() => {
+      expect(currentPath()).toBe(`${bookingRoute}/${registeredBooking.id}`);
+    }, SLOW_WAIT);
+    expect(registerRequests).toBe(1);
+    expect(requirementTextRequests).toBe(0);
+  });
+
   it("registers once when the confirm button is double clicked", async () => {
     server.use(
       http.post(registerUrl, async () => {

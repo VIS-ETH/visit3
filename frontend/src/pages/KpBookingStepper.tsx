@@ -124,14 +124,6 @@ const billingAddressLines = (profile: CompanyProfileResponse) =>
     profile.billing_country,
   ]);
 
-const isRequirementAnswered = (
-  requirement: ServiceRequirementResponse,
-  value: DraftBookingRequirementValue | undefined,
-) =>
-  requirement.type === KpEventServiceRequirementType.text
-    ? Boolean(value?.text?.trim())
-    : Boolean(value?.file);
-
 function ProfileSummaryField({
   label,
   lines,
@@ -623,9 +615,14 @@ function KpBookingServiceGrid({
               ) : null}
               {quantity > 0 && service.requirements.length > 0 ? (
                 <Stack gap="sm" mt="xs">
-                  <Text size="sm" fw={600}>
-                    {t("kp.booking.service_requirements")}
-                  </Text>
+                  <div>
+                    <Text size="sm" fw={600}>
+                      {t("kp.booking.service_requirements")}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {t("kp.booking.service_requirements_later")}
+                    </Text>
+                  </div>
                   {service.requirements
                     .slice()
                     .sort((a, b) => a.order - b.order)
@@ -783,20 +780,6 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
     setDraftServices([...clamped, ...seeded]);
   }, [allServices, includedQuantities, draftServices]);
 
-  const isCategoryComplete = (category: KpServiceCategory) =>
-    draftServices.every((selected) => {
-      const service = allServices.find(
-        (item) => item.id === selected.serviceId,
-      );
-      if (service?.category !== category) return true;
-      return service.requirements.every((requirement) =>
-        isRequirementAnswered(
-          requirement,
-          selected.requirements?.[requirement.id],
-        ),
-      );
-    });
-
   const handleSummaryConfirmStateChange = useCallback(
     (state: BookingConfirmState | null) => {
       summaryConfirmActionRef.current = state?.onConfirm ?? null;
@@ -887,11 +870,9 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
     onForward = () => setActiveStep(2);
   } else if (activeStep === 2) {
     forwardLabel = t("kp.booking.continue_to_booth");
-    forwardDisabled = !isCategoryComplete(KpServiceCategory.SERVICE);
     onForward = () => setActiveStep(3);
   } else if (activeStep === 3) {
     forwardLabel = t("kp.booking.continue_to_summary");
-    forwardDisabled = !isCategoryComplete(KpServiceCategory.BOOTH_ELEMENT);
     onForward = () => setActiveStep(4);
   } else if (activeStep === 4 && summaryConfirmUiState.visible) {
     forwardLabel = t("kp.booking.summary_confirm_register");
