@@ -801,7 +801,6 @@ def test_update_booking_status_input_rejects_draft():
 def test_booking_status_enum_has_no_draft():
     assert [status.value for status in KpBookingStatus] == [
         "REGISTERED",
-        "FINALIZED",
         "CONFIRMED",
         "CANCELLED",
         "REJECTED",

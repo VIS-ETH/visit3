@@ -271,9 +271,7 @@ class UpdateBookingInput(BaseModel):
     status_note: str | None = None
     status_changed_at: datetime | None = None
     rejection_reason: str | None = None
-    finalized_at: datetime | None = None
     confirmed_at: datetime | None = None
-    auto_finalize_blocked_at: datetime | None = None
     reminder_sent_at: datetime | None = None
 
 
@@ -385,7 +383,6 @@ class BookingBase(BaseModel):
     booth_nr: int | None
     status: KpBookingStatus
     status_changed_at: datetime | None = None
-    finalized_at: datetime | None = None
     confirmed_at: datetime | None = None
     rejection_reason: str | None = None
     missing_items: list[str] = Field(default_factory=lambda: [])

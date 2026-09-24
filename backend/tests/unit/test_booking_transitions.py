@@ -31,7 +31,6 @@ REJECTION_REASON = "The booth zone is not available for this company."
 
 EXPECTED_COMPANY_TRANSITIONS = {
     KpBookingStatus.REGISTERED: {KpBookingStatus.CANCELLED},
-    KpBookingStatus.FINALIZED: {KpBookingStatus.CANCELLED},
     KpBookingStatus.CONFIRMED: set[KpBookingStatus](),
     KpBookingStatus.CANCELLED: set[KpBookingStatus](),
     KpBookingStatus.REJECTED: set[KpBookingStatus](),
@@ -39,7 +38,6 @@ EXPECTED_COMPANY_TRANSITIONS = {
 
 EXPECTED_STAFF_TRANSITIONS = {
     KpBookingStatus.REGISTERED: {KpBookingStatus.CONFIRMED, KpBookingStatus.REJECTED},
-    KpBookingStatus.FINALIZED: {KpBookingStatus.CONFIRMED, KpBookingStatus.REJECTED},
     KpBookingStatus.CONFIRMED: {KpBookingStatus.REGISTERED},
     KpBookingStatus.CANCELLED: set[KpBookingStatus](),
     KpBookingStatus.REJECTED: set[KpBookingStatus](),
@@ -232,7 +230,6 @@ async def test_cancel_records_only_the_status_change(
 
     update = kp_repo.update_booking.await_args.args[1]
     assert update.status_changed_at is not None
-    assert "finalized_at" not in update.model_dump(exclude_unset=True)
 
 
 async def test_accept_records_the_confirmed_timestamp(
@@ -274,7 +271,6 @@ async def test_undo_accept_clears_the_confirmed_timestamp(
 
     update = kp_repo.update_booking.await_args.args[1]
     assert update.confirmed_at is None
-    assert "finalized_at" not in update.model_fields_set
 
 
 async def test_reject_stores_the_reason(

@@ -162,6 +162,18 @@ async def test_my_booking_lists_the_missing_items(
     assert "billing_address" in body["missing_items"]
 
 
+async def test_finalized_is_no_longer_a_booking_status(
+    client: AsyncClient, booking_world: BookingWorld
+):
+    response = await client.patch(
+        f"/api/kp/bookings/{booking_world.booking_id}/status",
+        json={"status": "FINALIZED"},
+        headers=booking_world.company_headers,
+    )
+
+    assert response.status_code == 422
+
+
 async def test_staff_confirms_a_registered_booking(
     client: AsyncClient, booking_world: BookingWorld
 ):

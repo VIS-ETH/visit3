@@ -143,7 +143,6 @@ class KpEvent(BaseEntity, table=True):
 
 class KpBookingStatus(str, Enum):
     REGISTERED = "REGISTERED"
-    FINALIZED = "FINALIZED"
     CONFIRMED = "CONFIRMED"
     CANCELLED = "CANCELLED"
     REJECTED = "REJECTED"
@@ -180,13 +179,7 @@ class KpEventBooking(BaseEntity, table=True):
     )
     status_note: str | None = Field(default=None)
     rejection_reason: str | None = Field(default=None)
-    finalized_at: datetime | None = Field(
-        default=None, nullable=True, sa_type=TIMESTAMPTZ
-    )
     confirmed_at: datetime | None = Field(
-        default=None, nullable=True, sa_type=TIMESTAMPTZ
-    )
-    auto_finalize_blocked_at: datetime | None = Field(
         default=None, nullable=True, sa_type=TIMESTAMPTZ
     )
     reminder_sent_at: datetime | None = Field(
@@ -217,10 +210,6 @@ class KpEventBooking(BaseEntity, table=True):
         back_populates="booking",
         sa_relationship_kwargs={"uselist": False},
     )
-
-    @property
-    def is_finalized(self) -> bool:
-        return self.status == KpBookingStatus.FINALIZED
 
     @property
     def is_active(self) -> bool:

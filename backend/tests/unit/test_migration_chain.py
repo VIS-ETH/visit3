@@ -12,7 +12,11 @@ from sqlalchemy.sql.schema import MetaData
 from sqlmodel import SQLModel
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
-DELETES_ALLOWED_IN_UPGRADES: dict[str, str] = {}
+DELETES_ALLOWED_IN_UPGRADES: dict[str, str] = {
+    "DELETE FROM mailtemplate WHERE key = 'booking_finalized'": (
+        "the finalized booking mail left together with the finalized status"
+    ),
+}
 FORBIDDEN_RAW_DDL = (
     "CREATE TABLE",
     "DROP TABLE",

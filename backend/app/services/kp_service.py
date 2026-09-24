@@ -132,7 +132,6 @@ BookingTransitions = dict[KpBookingStatus, frozenset[KpBookingStatus]]
 
 COMPANY_BOOKING_TRANSITIONS: BookingTransitions = {
     KpBookingStatus.REGISTERED: frozenset({KpBookingStatus.CANCELLED}),
-    KpBookingStatus.FINALIZED: frozenset({KpBookingStatus.CANCELLED}),
     KpBookingStatus.CONFIRMED: frozenset(),
     KpBookingStatus.CANCELLED: frozenset(),
     KpBookingStatus.REJECTED: frozenset(),
@@ -140,9 +139,6 @@ COMPANY_BOOKING_TRANSITIONS: BookingTransitions = {
 
 STAFF_BOOKING_TRANSITIONS: BookingTransitions = {
     KpBookingStatus.REGISTERED: frozenset(
-        {KpBookingStatus.CONFIRMED, KpBookingStatus.REJECTED}
-    ),
-    KpBookingStatus.FINALIZED: frozenset(
         {KpBookingStatus.CONFIRMED, KpBookingStatus.REJECTED}
     ),
     KpBookingStatus.CONFIRMED: frozenset({KpBookingStatus.REGISTERED}),
@@ -778,7 +774,6 @@ class KpService:
             booth_nr=booking.booth_nr,
             status=booking.status,
             status_changed_at=booking.status_changed_at,
-            finalized_at=booking.finalized_at,
             confirmed_at=booking.confirmed_at,
             rejection_reason=booking.rejection_reason,
             missing_items=missing_items,
@@ -854,7 +849,6 @@ class KpService:
             booth_nr=booking.booth_nr,
             status=booking.status,
             status_changed_at=booking.status_changed_at,
-            finalized_at=booking.finalized_at,
             confirmed_at=booking.confirmed_at,
             rejection_reason=booking.rejection_reason,
             missing_items=missing_items,
