@@ -136,7 +136,6 @@ EXPORT_HEADERS: dict[str, list[str]] = {
         "billing_country",
         "billing_vat_number",
         "billing_email",
-        "shipping_address",
     ],
     "service-requirements/download": [
         "company",
@@ -174,7 +173,6 @@ EXPORT_HEADERS: dict[str, list[str]] = {
         "billing_company_name",
         "billing_address",
         "billing_email",
-        "shipping_address",
         "company_user_emails",
     ],
     "registration-exceptions/download": ["company", "company_id", "allowed_until"],
@@ -316,7 +314,6 @@ async def export_world(
             offers_internships=True,
             languages=["ENGLISH", "GERMAN"],
             billing_street=INVOICE_ADDRESS,
-            shipping_address="Shipping street 2",
             kp_contact_user_id=str(company_user.id),
             industry_ids=[str(industry.id)],
         ),

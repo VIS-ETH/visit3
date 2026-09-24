@@ -115,7 +115,6 @@ COMPANY_DETAILS_EXPORT_FIELDS = [
     "billing_country",
     "billing_vat_number",
     "billing_email",
-    "shipping_address",
 ]
 SERVICE_REQUIREMENT_EXPORT_FIELDS = [
     "company",
@@ -153,7 +152,6 @@ CONTACT_EXPORT_FIELDS = [
     "billing_company_name",
     "billing_address",
     "billing_email",
-    "shipping_address",
     "company_user_emails",
 ]
 REGISTRATION_EXCEPTION_EXPORT_FIELDS = [
@@ -659,7 +657,6 @@ class ExportService:
             "billing_country": snapshot.billing_country,
             "billing_vat_number": snapshot.billing_vat_number or "",
             "billing_email": snapshot.billing_email or "",
-            "shipping_address": snapshot.shipping_address,
         }
 
     async def export_company_details_csv(self, event_id: UUID) -> RenderedExport:
@@ -801,7 +798,6 @@ class ExportService:
                     else "",
                     "billing_address": self._billing_address(profile),
                     "billing_email": profile.billing_email if profile else "",
-                    "shipping_address": profile.shipping_address if profile else "",
                     "company_user_emails": ", ".join(
                         user.email for user in company_users
                     ),

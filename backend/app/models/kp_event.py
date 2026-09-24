@@ -482,8 +482,6 @@ class KpBookingCompanyDetails(BaseEntity, table=True):
     billing_vat_number: str | None = Field(default=None)
     billing_email: EmailStr | None = Field(default=None)
 
-    shipping_address: str = Field(default="")
-
     booking: "KpEventBooking" = Relationship(back_populates="company_details")
     industry_links: list["KpBookingCompanyDetailsIndustryLink"] = Relationship(
         back_populates="booking_company_details",

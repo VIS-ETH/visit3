@@ -362,7 +362,6 @@ class CompanyService:
             billing_country=profile.billing_country,
             billing_vat_number=profile.billing_vat_number,
             billing_email=profile.billing_email,
-            shipping_address=profile.shipping_address,
             kp_contact_user_id=profile.kp_contact_user_id,
             kp_contact_user=member_result(profile.kp_contact_user)
             if profile.kp_contact_user is not None

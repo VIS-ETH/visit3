@@ -108,7 +108,6 @@ class KpCompanyProfile(BaseEntity, table=True):
     billing_vat_number: str | None = Field(default=None)
     billing_email: EmailStr | None = Field(default=None)
 
-    shipping_address: str = Field(default="")
     kp_contact_user_id: UUID | None = Field(default=None, foreign_key="user.id")
     profile_completed_at: datetime | None = Field(
         default=None, nullable=True, sa_type=TIMESTAMPTZ

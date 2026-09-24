@@ -105,7 +105,6 @@ COMPANY_SNAPSHOT_FIELDS = (
     "billing_country",
     "billing_vat_number",
     "billing_email",
-    "shipping_address",
 )
 
 VENUE_LAYOUT_CLONE_FIELDS = (

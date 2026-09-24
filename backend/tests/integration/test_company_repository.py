@@ -168,7 +168,6 @@ async def test_remove_user_from_company_clears_kp_contact(
     )
     profile = KpCompanyProfile(
         company_id=company.id,
-        shipping_address="Shipping",
         kp_contact_user_id=user.id,
     )
     db_session.add(profile)
@@ -216,7 +215,6 @@ async def test_upsert_kp_profile_creates_then_updates_profile(
         company.id,
         UpdateCompanyProfileInput(
             billing_street="Invoice",
-            shipping_address="Shipping",
             general_email="info@example.com",
             kp_contact_user_id=contact.id,
         ),
@@ -225,14 +223,12 @@ async def test_upsert_kp_profile_creates_then_updates_profile(
         company.id,
         UpdateCompanyProfileInput(
             billing_street="Updated Invoice",
-            shipping_address="Updated Shipping",
             general_email="updated@example.com",
         ),
     )
 
     assert updated.id == created.id
     assert updated.billing_street == "Updated Invoice"
-    assert updated.shipping_address == "Updated Shipping"
     assert updated.general_email == "updated@example.com"
     assert updated.kp_contact_user_id is None
     assert updated.profile_completed_at is None
@@ -276,7 +272,6 @@ async def test_delete_company_with_users_soft_deletes_owned_rows(
     )
     profile = KpCompanyProfile(
         company_id=company.id,
-        shipping_address="Shipping",
     )
     db_session.add(profile)
     await db_session.commit()

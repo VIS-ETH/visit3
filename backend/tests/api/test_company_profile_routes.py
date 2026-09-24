@@ -91,6 +91,7 @@ async def test_complete_profile_is_stored_and_marked_complete(
     assert [entry["name"] for entry in response.json()["industries"]] == ["Software"]
     assert response.json()["profile_complete"] is True
     assert response.json()["profile_completed_at"] is not None
+    assert "shipping_address" not in response.json()
 
 
 async def test_incomplete_profile_keeps_the_completion_timestamp_empty(

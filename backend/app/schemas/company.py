@@ -49,7 +49,6 @@ class CompanyProfileFields(BaseModel):
     billing_country: str = ""
     billing_vat_number: str | None = None
     billing_email: EmailStr | None = None
-    shipping_address: str = ""
 
 
 class UpdateCompanyProfileInput(CompanyProfileFields):

@@ -108,7 +108,6 @@ async def test_snapshot_matches_the_profile_at_registration(
         offers_internships=True,
         offers_graduate_positions=True,
         languages=["ENGLISH", "GERMAN"],
-        shipping_address="Shipping street 5",
         industry_ids=[str(industry.id)],
     )
 
@@ -139,7 +138,6 @@ async def test_snapshot_matches_the_profile_at_registration(
     assert snapshot.billing_city == "Zurich"
     assert snapshot.billing_country == "CH"
     assert snapshot.billing_email == "billing@example.com"
-    assert snapshot.shipping_address == "Shipping street 5"
     assert snapshot.confirmed_at is not None
     assert [link.industry_id for link in snapshot.industry_links] == [industry.id]
     assert snapshot.industry_names == ["Software"]
