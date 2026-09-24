@@ -130,6 +130,49 @@ async def test_completeness_survives_a_later_profile_edit(
     assert response.json()["is_complete"] is True
 
 
+async def test_requirements_can_be_answered_after_the_booking(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    kp_setup: KpSetup,
+    company_headers: dict[str, str],
+    staff_headers: dict[str, str],
+    register_booking: Callable[..., Awaitable[Response]],
+):
+    requirement = KpEventServiceRequirement(
+        service_id=UUID(kp_setup.service_id),
+        type=KpEventServiceRequirementType.TEXT,
+        name="Booth layout",
+        description=REQUIREMENT_DESCRIPTION,
+    )
+    db_session.add(requirement)
+    await db_session.commit()
+    missing_item = f"requirement:{requirement.id}"
+
+    registered = await register_booking(company_headers, kp_setup)
+
+    assert registered.status_code == 200
+    assert registered.json()["missing_items"] == [missing_item]
+    staff_view = await client.get(
+        f"/api/kp/events/{kp_setup.event_id}/bookings/{registered.json()['id']}",
+        headers=staff_headers,
+    )
+    assert staff_view.json()["missing_items"] == [missing_item]
+
+    booking_service_id = registered.json()["services"][0]["id"]
+    answered = await client.put(
+        f"/api/kp/booking-services/{booking_service_id}/requirements/{requirement.id}/text",
+        json={"text_value": "Two tables and a banner"},
+        headers=company_headers,
+    )
+    booking = await client.get(
+        f"/api/kp/events/{kp_setup.event_id}/my-booking", headers=company_headers
+    )
+
+    assert answered.status_code == 200
+    assert booking.json()["missing_items"] == []
+    assert booking.json()["is_complete"] is True
+
+
 async def test_my_booking_lists_the_missing_items(
     client: AsyncClient,
     db_session: AsyncSession,
