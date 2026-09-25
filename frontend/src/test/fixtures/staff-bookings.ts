@@ -1,8 +1,8 @@
 import {
   KpBookingStatus,
   type BookingServiceResponse,
-  type BoothZoneResponse,
   type StaffBookingResponse,
+  type StaffBoothZoneResponse,
 } from "../../orval/generated/fastAPI.schemas";
 import {
   testEventId,
@@ -21,7 +21,7 @@ const zone = (
   id: string,
   name: string,
   capacity: number,
-): BoothZoneResponse => ({
+): StaffBoothZoneResponse => ({
   id,
   event_id: testEventId,
   name,

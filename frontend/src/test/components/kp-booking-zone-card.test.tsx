@@ -20,14 +20,11 @@ beforeAll(() => {
 });
 
 describe("the booking zone card", () => {
-  it("shows the booth size instead of the free spots", () => {
+  it("shows the booth size", () => {
     renderCard();
 
     expect(screen.getByRole("button")).toHaveTextContent(
       `${testMainZone.booth_size} m²`,
-    );
-    expect(screen.getByRole("button")).not.toHaveTextContent(
-      String(testMainZone.capacity),
     );
   });
 

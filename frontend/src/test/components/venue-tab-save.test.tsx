@@ -24,7 +24,6 @@ const zone: BoothZoneResponse = {
   description: testMainZone.description,
   color: testMainZone.color,
   order: testMainZone.order,
-  capacity: testMainZone.capacity,
   booth_size: testMainZone.booth_size,
   base_price: testMainZone.base_price,
   included_services: [],

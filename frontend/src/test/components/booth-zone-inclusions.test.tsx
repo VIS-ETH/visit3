@@ -4,7 +4,7 @@ import { http, HttpResponse } from "msw";
 import BoothZonesTab from "../../components/BoothZonesTab";
 import { KpServiceCategory } from "../../orval/generated/fastAPI.schemas";
 import type {
-  BoothZoneResponse,
+  StaffBoothZoneResponse,
   ServiceResponse,
 } from "../../orval/generated/fastAPI.schemas";
 import { server } from "../server";
@@ -50,7 +50,7 @@ const table: ServiceResponse = {
   max_quantity_per_booking: 2,
 };
 
-const zone: BoothZoneResponse = {
+const zone: StaffBoothZoneResponse = {
   id: "zone-1",
   event_id: testEventId,
   name: "Main Hall",

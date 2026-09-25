@@ -57,7 +57,6 @@ const zone: BoothZoneWithAvailabilityResponse = {
   description: "",
   color: "#112233",
   order: 1,
-  capacity: 10,
   booth_size: 4,
   base_price: 100000,
   included_services: [],

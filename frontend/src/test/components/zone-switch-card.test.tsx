@@ -49,7 +49,6 @@ const currentZone: BoothZoneWithAvailabilityResponse = {
   description: "Main hall zone",
   color: "#112233",
   order: 1,
-  capacity: 20,
   booth_size: 6,
   base_price: 50000,
   included_services: [],
@@ -58,7 +57,6 @@ const currentZone: BoothZoneWithAvailabilityResponse = {
 
 const freeZone: BoothZoneWithAvailabilityResponse = {
   ...testMainZone,
-  capacity: 8,
   is_full: false,
   base_price: 60000,
 };

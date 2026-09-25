@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import BoothZonesTab from "../../components/BoothZonesTab";
-import type { BoothZoneResponse } from "../../orval/generated/fastAPI.schemas";
+import type { StaffBoothZoneResponse } from "../../orval/generated/fastAPI.schemas";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
@@ -16,7 +16,7 @@ vi.setConfig({ testTimeout: SLOW_TEST_TIMEOUT });
 const zonesUrl = `${testBackendUrl}/api/kp/events/${testEventId}/booth-zones`;
 const servicesUrl = `${testBackendUrl}/api/kp/events/${testEventId}/services`;
 
-const zone: BoothZoneResponse = {
+const zone: StaffBoothZoneResponse = {
   id: "zone-1",
   event_id: testEventId,
   name: "Main Hall",
