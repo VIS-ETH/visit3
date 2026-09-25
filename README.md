@@ -27,9 +27,9 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-Before starting the backend, configure the shared `SIP_AUTH_OIDC_*` client and TLS notification
-endpoint described in the Backend section below. The default local plaintext
-notification service does not meet those requirements.
+Before starting the backend, configure the shared `SIP_AUTH_OIDC_*` client and notification
+endpoint described in the Backend section below. The local plaintext
+notification service requires `NOTIFICATION_API_TLS=false`.
 
 Yarn is managed by Corepack from `frontend/package.json`.
 
@@ -128,8 +128,12 @@ Configure these required backend environment variables before starting the app:
 - `SIP_AUTH_OIDC_CLIENT_SECRET`: that client's secret, supplied through the existing environment/secret mechanism.
 - `NOTIFICATION_API_URL`: the separate notification API host and port.
 
-`NOTIFICATION_API_TLS` must be `true` (the default). TLS certificate and hostname
-verification remain enabled. `NOTIFICATION_API_CA_FILE` can point to a trusted
+`NOTIFICATION_API_TLS=true` (the default) enables TLS with certificate and hostname
+verification. For an internal plaintext gRPC listener, explicitly set
+`NOTIFICATION_API_TLS=false`. OAuth bearer authentication stays enabled in both
+modes. Plaintext mode sends bearer tokens unencrypted on that connection unless
+the infrastructure supplies encryption; use it only for the intended internal
+service. TLS handshake failures never trigger an automatic plaintext fallback. `NOTIFICATION_API_CA_FILE` can point to a trusted
 private CA for the notification service. The HTTPS token client uses normal
 system/environment CA configuration supported by HTTPX.
 
@@ -165,10 +169,12 @@ The service-account requirements are validated at application startup, even with
 Schema generation does not start the application lifecycle and requires neither
 real client credentials nor network access. The example environment intentionally
 leaves the shared client secret blank.
-The bundled plaintext, unauthenticated Compose notification service
-is insufficient for this authenticated backend: use a TLS-enabled notification
-endpoint and an HTTPS authorization server with an application registration, or
-configure TLS for the local services. Unit tests use local mocks and need no
+For the bundled plaintext Compose notification service, set
+`NOTIFICATION_API_URL=notifications-api:6781` and `NOTIFICATION_API_TLS=false`.
+The backend still requires an HTTPS authorization server and service-account
+credentials at startup, even when the local notification server does not enforce
+authentication. The notification transport setting does not disable HTTPS
+verification for the token endpoint. Unit tests use local mocks and need no
 external credentials. The local gRPC TLS tests additionally check bearer delivery
 and rejection of untrusted certificates and incorrect hostnames.
 

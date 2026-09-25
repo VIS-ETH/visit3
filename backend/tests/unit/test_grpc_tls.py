@@ -95,3 +95,38 @@ async def test_actual_tls_and_bearer_authentication(
             )
     finally:
         await channel.close()
+
+
+async def test_plaintext_listener_receives_bearer_authentication(monkeypatch):
+    received_metadata = []
+
+    class MailServer(mail_pb2_grpc.MailServiceServicer):
+        async def SendMail(self, request, context):
+            received_metadata.append(dict(context.invocation_metadata()))
+            return mail_pb2.MailResponse()
+
+        async def QueueMail(self, request, context):
+            received_metadata.append(dict(context.invocation_metadata()))
+            return mail_pb2.QueueResponse()
+
+    settings = get_settings().model_copy(update={"NOTIFICATION_API_TLS": False})
+    monkeypatch.setattr(grpc_module, "get_settings", lambda: settings)
+    source = AsyncMock()
+    source.get_access_token.return_value = "local-test-token"
+    server = grpc.aio.server()
+    mail_pb2_grpc.add_MailServiceServicer_to_server(MailServer(), server)
+    port = server.add_insecure_port("127.0.0.1:0")
+    await server.start()
+    try:
+        async with grpc_module._create_channel(f"127.0.0.1:{port}", source) as channel:
+            await asyncio.wait_for(channel.channel_ready(), timeout=3)
+            stub = mail_pb2_grpc.MailServiceStub(channel)
+            await stub.SendMail(mail_pb2.Mail(subject="test"), timeout=3)
+            await stub.QueueMail(mail_pb2.Mail(subject="test"), timeout=3)
+            assert len(received_metadata) == 2
+            assert all(
+                metadata["authorization"] == "Bearer local-test-token"
+                for metadata in received_metadata
+            )
+    finally:
+        await server.stop(0)

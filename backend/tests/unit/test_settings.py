@@ -106,9 +106,14 @@ def test_oauth_endpoint_must_be_https_without_embedded_credentials(url):
         _oauth_settings(SIP_AUTH_OIDC_TOKEN_ENDPOINT=url)
 
 
-def test_plaintext_notification_api_is_rejected():
-    with pytest.raises(ValueError, match="NOTIFICATION_API_TLS must be enabled"):
-        _settings(NOTIFICATION_API_TLS=False)
+def test_plaintext_notification_api_requires_explicit_configuration():
+    assert Settings.model_fields["NOTIFICATION_API_TLS"].default is True
+    assert _settings(NOTIFICATION_API_TLS=False).NOTIFICATION_API_TLS is False
+
+
+def test_plaintext_notification_api_rejects_unused_ca_configuration():
+    with pytest.raises(ValueError, match="NOTIFICATION_API_CA_FILE requires"):
+        _settings(NOTIFICATION_API_TLS=False, NOTIFICATION_API_CA_FILE="ca.pem")
 
 
 def test_configuration_errors_and_repr_hide_secret():

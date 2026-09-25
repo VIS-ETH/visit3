@@ -71,7 +71,7 @@ async def test_startup_token_failure_closes_source_and_never_opens_channel(conne
 
 
 async def test_channel_failure_closes_both_clients(connection):
-    channel, source, _, _, _ = connection
+    channel, source, _, insecure_channel, _ = connection
     channel.channel_ready.side_effect = TimeoutError()
     client = grpc_module.GRPCClient()
     with pytest.raises(RuntimeError, match="connection timed out"):
@@ -79,17 +79,27 @@ async def test_channel_failure_closes_both_clients(connection):
     channel.close.assert_awaited_once()
     source.close.assert_awaited_once()
     assert client.stub is None
+    insecure_channel.assert_not_called()
 
 
-async def test_plaintext_channel_is_rejected(connection, monkeypatch):
-    _, source, secure_channel, insecure_channel, _ = connection
+async def test_explicit_plaintext_channel_keeps_oauth_authentication(
+    connection, monkeypatch
+):
+    channel, source, secure_channel, insecure_channel, ssl_credentials = connection
+    insecure_channel.return_value = channel
     settings = get_settings().model_copy(update={"NOTIFICATION_API_TLS": False})
     monkeypatch.setattr(grpc_module, "get_settings", lambda: settings)
     client = grpc_module.GRPCClient()
-    with pytest.raises(RuntimeError, match="requires TLS"):
-        await client.connect("notifications.example.org:443")
+    await client.connect("notifications.internal:6781")
+    source.start.assert_awaited_once()
     secure_channel.assert_not_called()
-    insecure_channel.assert_not_called()
+    ssl_credentials.assert_not_called()
+    call = insecure_channel.call_args
+    assert call.args == ("notifications.internal:6781",)
+    assert call.kwargs["interceptors"][0].credentials is source
+    assert client.stub is not None
+    await client.disconnect()
+    channel.close.assert_awaited_once()
     source.close.assert_awaited_once()
 
 

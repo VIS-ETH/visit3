@@ -87,9 +87,9 @@ class Settings(BaseSettings):
     def validate_notification_configuration(self) -> "Settings":
         if not self.NOTIFICATION_API_URL.strip():
             raise ValueError("NOTIFICATION_API_URL must not be empty")
-        if not self.NOTIFICATION_API_TLS:
+        if not self.NOTIFICATION_API_TLS and self.NOTIFICATION_API_CA_FILE:
             raise ValueError(
-                "NOTIFICATION_API_TLS must be enabled for authenticated RPCs"
+                "NOTIFICATION_API_CA_FILE requires NOTIFICATION_API_TLS=true"
             )
         return self
 

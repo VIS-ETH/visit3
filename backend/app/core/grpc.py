@@ -46,17 +46,16 @@ def _create_channel(
     target: str, credentials: ServiceAccountCredential
 ) -> grpc.aio.Channel:
     settings = get_settings()
+    interceptors = [OAuthInterceptor(credentials)]
     if not settings.NOTIFICATION_API_TLS:
-        raise RuntimeError("notification API requires TLS for OAuth credentials")
+        return grpc.aio.insecure_channel(target, interceptors=interceptors)
     root_certificates = (
         Path(settings.NOTIFICATION_API_CA_FILE).read_bytes()
         if settings.NOTIFICATION_API_CA_FILE
         else None
     )
     tls_credentials = grpc.ssl_channel_credentials(root_certificates=root_certificates)
-    return grpc.aio.secure_channel(
-        target, tls_credentials, interceptors=[OAuthInterceptor(credentials)]
-    )
+    return grpc.aio.secure_channel(target, tls_credentials, interceptors=interceptors)
 
 
 class GRPCClient:
