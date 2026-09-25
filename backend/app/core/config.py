@@ -1,7 +1,15 @@
 from functools import lru_cache
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, HttpUrl, SecretStr, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    HttpUrl,
+    SecretStr,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 EXAMPLE_SECRET_KEY = "5fcfacda13cd6e44e358f1109094a82d3319dd3631f2def507e5af4b4679a65c"
@@ -44,6 +52,7 @@ class Settings(BaseSettings):
     NOTIFICATION_API_URL: str
     NOTIFICATION_API_TLS: bool = True
     NOTIFICATION_API_CA_FILE: str | None = None
+    NOTIFICATION_SENDER_EMAIL: EmailStr = Field(default="visit@vis.ethz.ch")
     VISIT_FRONTEND_SERVER_URL: str
     DEFAULT_NOTIFICATION_EMAIL: str = "kontaktparty@vis.ethz.ch"
     SIP_AUTH_OIDC_ISSUER: str

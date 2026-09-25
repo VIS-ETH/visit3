@@ -128,6 +128,14 @@ Configure these required backend environment variables before starting the app:
 - `SIP_AUTH_OIDC_CLIENT_SECRET`: that client's secret, supplied through the existing environment/secret mechanism.
 - `NOTIFICATION_API_URL`: the separate notification API host and port.
 
+`NOTIFICATION_SENDER_EMAIL` defaults to `visit@vis.ethz.ch` and is explicitly
+included as the sender on outgoing mail. It is separate from
+`DEFAULT_NOTIFICATION_EMAIL`, which controls the staff notification recipient.
+In Keycloak, grant the application's service account the notification API client
+role `mail` as well as `mail-sender:visit@vis.ethz.ch` (or the configured sender).
+Both roles must appear under the notification API's client in the issued access
+token. A sender role alone does not grant permission to send mail.
+
 `NOTIFICATION_API_TLS=true` (the default) enables TLS with certificate and hostname
 verification. For an internal plaintext gRPC listener, explicitly set
 `NOTIFICATION_API_TLS=false`. OAuth bearer authentication stays enabled in both

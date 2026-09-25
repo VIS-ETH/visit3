@@ -105,6 +105,7 @@ async def test_send_builds_a_plain_text_message(
     mail_stub.SendMail.assert_awaited_once()
     message = mail_stub.SendMail.await_args.args[0]
     assert message.to[0].mail_address.address == "user@example.com"
+    assert getattr(message, "from").mail_address.address == "visit@vis.ethz.ch"
     assert message.WhichOneof("body_oneof") == "plain_text"
     assert "https://visit.test/reset/abc" in message.plain_text
 
