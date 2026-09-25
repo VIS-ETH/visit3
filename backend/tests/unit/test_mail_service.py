@@ -1,5 +1,7 @@
 from unittest.mock import AsyncMock
 
+from google.protobuf.json_format import MessageToDict
+
 from app.core.config import get_settings
 from app.services import mail_service as mail_module
 from app.services.mail_service import MailService
@@ -35,7 +37,12 @@ def test_construct_mail_uses_the_authorized_default_sender():
     )
     assert message is not None
     assert message.HasField("from")
-    assert getattr(message, "from").mail_address.address == "visit@vis.ethz.ch"
+    assert MessageToDict(message)["from"] == {
+        "mailAddress": {
+            "name": "VISIT MAIL SERVICE",
+            "address": "visit@vis.ethz.ch",
+        }
+    }
 
 
 def test_construct_mail_uses_the_configured_sender(monkeypatch):

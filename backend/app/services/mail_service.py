@@ -62,7 +62,9 @@ class MailService:
         sender = getattr(mail, SENDER_FIELD_NAME_IS_A_PYTHON_KEYWORD)
         sender.CopyFrom(
             mail_pb.MailAddress(
-                mail_address=mail_pb.MailAddress.Address(address=sender_address)
+                mail_address=mail_pb.MailAddress.Address(
+                    name="VISIT MAIL SERVICE", address=sender_address
+                )
             )
         )
 
