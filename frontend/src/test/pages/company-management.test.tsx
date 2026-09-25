@@ -2,9 +2,12 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse, type DefaultBodyType } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 import { UserProvider } from "../../context/UserContext";
-import type {
-  CompanyListResult,
-  UserResponse,
+import {
+  KpBookingStatus,
+  type CompanyListResult,
+  type KpResponse,
+  type StaffBookingResponse,
+  type UserResponse,
 } from "../../orval/generated/fastAPI.schemas";
 import CompanyManagement from "../../pages/CompanyManagement";
 import { testBackendUrl } from "../constants";
@@ -17,6 +20,7 @@ import {
   staffUser,
 } from "../fixtures/admin";
 import { createToken } from "../jwt";
+import { testOpenEvent, testStaffBooking } from "../fixtures/kp-booking";
 import { renderWithProviders } from "../render";
 import { server } from "../server";
 
@@ -29,6 +33,21 @@ let companies: CompanyListResult[] = [];
 let companyTotal = 2;
 let companyMembers: UserResponse[] = [];
 let deleteResponse: () => HttpResponse<DefaultBodyType>;
+let latestEvent: KpResponse | null = null;
+let eventBookings: StaffBookingResponse[] = [];
+let bookingActions: string[] = [];
+
+const acmeBooking = (status: KpBookingStatus): StaffBookingResponse => ({
+  ...testStaffBooking,
+  company_id: acmeCompany.id,
+  company: { id: acmeCompany.id, name: acmeCompany.name },
+  status,
+});
+
+const setAcmeStatus = (status: KpBookingStatus) => {
+  eventBookings = [acmeBooking(status)];
+  return HttpResponse.json(eventBookings[0]);
+};
 
 const lastListParams = () => {
   const url = listRequests[listRequests.length - 1];
@@ -49,6 +68,9 @@ beforeEach(() => {
   companyTotal = 2;
   companyMembers = [memberUser];
   deleteResponse = () => new HttpResponse(null, { status: 204 });
+  latestEvent = null;
+  eventBookings = [];
+  bookingActions = [];
   localStorage.setItem("token", createToken(3600));
 
   server.use(
@@ -73,6 +95,23 @@ beforeEach(() => {
           body: await request.json(),
         });
         return HttpResponse.json({ id: params.companyId, name: "Renamed AG" });
+      },
+    ),
+    http.get(`${testBackendUrl}/api/kp/latest`, () =>
+      HttpResponse.json(latestEvent),
+    ),
+    http.get(`${testBackendUrl}/api/kp/events/:eventId/bookings`, () =>
+      HttpResponse.json(eventBookings),
+    ),
+    http.post(`${testBackendUrl}/api/kp/bookings/:bookingId/accept`, () => {
+      bookingActions.push("accept");
+      return setAcmeStatus(KpBookingStatus.CONFIRMED);
+    }),
+    http.post(
+      `${testBackendUrl}/api/kp/bookings/:bookingId/undo-accept`,
+      () => {
+        bookingActions.push("undo-accept");
+        return setAcmeStatus(KpBookingStatus.REGISTERED);
       },
     ),
     http.get(`${testBackendUrl}/api/company/:companyId/users`, () =>
@@ -333,5 +372,91 @@ describe("the company management page", () => {
     expect(
       await screen.findByText("error.company_has_upcoming_bookings"),
     ).toBeInTheDocument();
+  });
+});
+
+describe("confirming bookings from the company management", () => {
+  const globexRow = async () => {
+    const cell = await screen.findByText(globexCompany.name);
+    const row = cell.closest("tr");
+    if (!row) throw new Error("row not found");
+    return within(row);
+  };
+
+  it("confirms the pending booking of the upcoming event", async () => {
+    latestEvent = testOpenEvent;
+    eventBookings = [acmeBooking(KpBookingStatus.REGISTERED)];
+    const { user } = renderPage(staffUser);
+    const row = await acmeRow();
+
+    expect(
+      await row.findByText("kp.booking.status.registered.label"),
+    ).toBeInTheDocument();
+    await user.click(
+      row.getByRole("button", { name: "kp.manage.booking_action_accept" }),
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: "kp.manage.booking_accept_submit",
+      }),
+    );
+
+    expect(
+      await row.findByText("kp.booking.status.confirmed.label"),
+    ).toBeInTheDocument();
+    expect(bookingActions).toEqual(["accept"]);
+    expect(
+      row.getByRole("button", { name: "kp.manage.booking_action_undo_accept" }),
+    ).toBeInTheDocument();
+  });
+
+  it("undoes a confirmation like the booking page", async () => {
+    latestEvent = testOpenEvent;
+    eventBookings = [acmeBooking(KpBookingStatus.CONFIRMED)];
+    const { user } = renderPage(staffUser);
+    const row = await acmeRow();
+
+    await user.click(
+      await row.findByRole("button", {
+        name: "kp.manage.booking_action_undo_accept",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: "kp.manage.booking_undo_accept_submit",
+      }),
+    );
+
+    expect(
+      await row.findByText("kp.booking.status.registered.label"),
+    ).toBeInTheDocument();
+    expect(bookingActions).toEqual(["undo-accept"]);
+  });
+
+  it("shows no action for a company without a booking", async () => {
+    latestEvent = testOpenEvent;
+    eventBookings = [acmeBooking(KpBookingStatus.REGISTERED)];
+    renderPage(staffUser);
+    await (await acmeRow()).findByText("kp.booking.status.registered.label");
+    const row = await globexRow();
+
+    expect(
+      row.queryByRole("button", { name: "kp.manage.booking_action_accept" }),
+    ).not.toBeInTheDocument();
+    expect(
+      row.queryByText("kp.booking.status.registered.label"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("ignores bookings of an event that is already over", async () => {
+    latestEvent = { ...testOpenEvent, event_date: "2000-01-02" };
+    eventBookings = [acmeBooking(KpBookingStatus.REGISTERED)];
+    renderPage(staffUser);
+    const row = await acmeRow();
+
+    await waitFor(() => expect(listRequests.length).toBeGreaterThan(0));
+    expect(
+      row.queryByRole("button", { name: "kp.manage.booking_action_accept" }),
+    ).not.toBeInTheDocument();
   });
 });

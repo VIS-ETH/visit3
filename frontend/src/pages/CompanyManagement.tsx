@@ -29,6 +29,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
+import CompanyBookingActions from "../components/admin/CompanyBookingActions";
 import CompanyDeleteModal from "../components/admin/CompanyDeleteModal";
 import CompanyMembersDrawer from "../components/admin/CompanyMembersDrawer";
 import { useCurrentUser } from "../context/useCurrentUser";
@@ -37,7 +38,13 @@ import {
   useSearchCompanies,
   useUpdateCompany,
 } from "../orval/generated/company/company";
-import type { CompanyListResult } from "../orval/generated/fastAPI.schemas";
+import type {
+  CompanyListResult,
+  StaffBookingResponse,
+} from "../orval/generated/fastAPI.schemas";
+import { useGetLatestKp, useListEventBookings } from "../orval/generated/kp/kp";
+import { isActiveBookingStatus } from "../utils/booking-status";
+import { getEventStatus } from "../utils/kp-utils";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const PAGE_SIZE = 25;
@@ -62,6 +69,26 @@ const CompanyManagement = () => {
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch]);
+
+  const { data: latestKp } = useGetLatestKp();
+  const bookingEvent =
+    latestKp && getEventStatus(latestKp) !== "past" ? latestKp : null;
+  const { data: eventBookings } = useListEventBookings(bookingEvent?.id ?? "", {
+    query: { enabled: bookingEvent !== null },
+  });
+  const activeBookingByCompanyId = new Map<string, StaffBookingResponse>(
+    (eventBookings ?? [])
+      .filter((booking) => isActiveBookingStatus(booking.status))
+      .map((booking) => [booking.company_id, booking]),
+  );
+
+  const bookingActionsFor = (companyId: string) => {
+    const booking = activeBookingByCompanyId.get(companyId);
+    if (!booking || !bookingEvent) return null;
+    return (
+      <CompanyBookingActions booking={booking} eventId={bookingEvent.id} />
+    );
+  };
 
   const { data, isLoading, isError } = useSearchCompanies({
     query: debouncedSearch.trim() || undefined,
@@ -151,6 +178,9 @@ const CompanyManagement = () => {
                         <Table.Th>
                           {t("company_management.bookings_count")}
                         </Table.Th>
+                        {bookingEvent ? (
+                          <Table.Th>{bookingEvent.name}</Table.Th>
+                        ) : null}
                         <Table.Th>{t("company_management.actions")}</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -215,6 +245,9 @@ const CompanyManagement = () => {
                           </Table.Td>
                           <Table.Td>{company.users_count}</Table.Td>
                           <Table.Td>{company.bookings_count}</Table.Td>
+                          {bookingEvent ? (
+                            <Table.Td>{bookingActionsFor(company.id)}</Table.Td>
+                          ) : null}
                           <Table.Td>
                             <Group gap="xs" wrap="nowrap">
                               <Tooltip
