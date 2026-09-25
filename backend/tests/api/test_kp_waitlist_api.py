@@ -200,12 +200,13 @@ async def test_staff_reads_the_waitlist_of_a_booking_of_any_company(
         client, plain_staff_headers, waitlist_api_world.first_booking_id
     )
 
+    staff_entries = staff.json()
     assert staff.status_code == 200
-    assert [entry["available_spots"] for entry in staff.json()] == [0]
-    assert [
-        {key: value for key, value in entry.items() if key != "available_spots"}
-        for entry in staff.json()
-    ] == owner.json()
+    assert [entry.pop("available_spots") for entry in staff_entries] == [0]
+    assert [entry["target_booth_zone"].pop("capacity") for entry in staff_entries] == [
+        FULL_ZONE_CAPACITY
+    ]
+    assert staff_entries == owner.json()
 
 
 async def test_company_cannot_read_the_staff_waitlist(
@@ -296,3 +297,49 @@ async def test_a_confirmed_booking_cannot_join_the_waitlist(
 
     assert response.status_code == 409
     assert response.json()["code"] == "error.kp_booking_zone_locked"
+
+
+async def test_company_zone_reads_leave_out_the_capacity(
+    client: AsyncClient, waitlist_api_world: WaitlistApiWorld
+):
+    headers = waitlist_api_world.first_headers
+    event_id = waitlist_api_world.event_id
+    available = await client.get(
+        f"/api/kp/events/{event_id}/booth-zones/available", headers=headers
+    )
+    venue = await client.get(f"/api/kp/events/{event_id}/venue", headers=headers)
+    my_booking = await client.get(
+        f"/api/kp/events/{event_id}/my-booking", headers=headers
+    )
+    waitlist = await get_waitlist(client, headers, waitlist_api_world.first_booking_id)
+
+    zones = [
+        *available.json(),
+        *venue.json()["zones"],
+        my_booking.json()["booth_zone"],
+        *[entry["target_booth_zone"] for entry in waitlist.json()],
+    ]
+    assert len(zones) == 8
+    assert all("capacity" not in zone for zone in zones)
+
+
+async def test_staff_zone_reads_keep_the_capacity(
+    client: AsyncClient, waitlist_api_world: WaitlistApiWorld
+):
+    headers = waitlist_api_world.staff_headers
+    event_id = waitlist_api_world.event_id
+    zones = await client.get(f"/api/kp/events/{event_id}/booth-zones", headers=headers)
+    bookings = await client.get(f"/api/kp/events/{event_id}/bookings", headers=headers)
+    waitlist = await get_staff_waitlist(
+        client, headers, waitlist_api_world.first_booking_id
+    )
+
+    assert {zone["name"]: zone["capacity"] for zone in zones.json()} == {
+        "Main hall": 5,
+        "Gold": FULL_ZONE_CAPACITY,
+        "Silver": FULL_ZONE_CAPACITY,
+    }
+    assert all(booking["booth_zone"]["capacity"] for booking in bookings.json())
+    assert [entry["target_booth_zone"]["capacity"] for entry in waitlist.json()] == [
+        FULL_ZONE_CAPACITY
+    ]

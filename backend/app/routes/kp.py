@@ -19,7 +19,6 @@ from app.schemas.kp import (
     BookingUpgradeWaitlistEntryResponse,
     BookingUpgradeWaitlistEntryResult,
     BookingWithCompanyAndBoothZoneResponse,
-    BoothZoneResponse,
     BoothZoneWithAvailabilityResponse,
     BoothZoneWithAvailabilityResult,
     CloneKpRequest,
@@ -46,6 +45,7 @@ from app.schemas.kp import (
     StaffBookingResponse,
     StaffBookingUpgradeWaitlistEntryResponse,
     StaffBookingUpgradeWaitlistEntryResult,
+    StaffBoothZoneResponse,
     StaffUpdateBookingRequest,
     SwitchBookingZoneRequest,
     UpdateBookingBoothNumberRequest,
@@ -132,35 +132,35 @@ async def clone_kp(
 @router.get(
     "/events/{event_id}/booth-zones",
     operation_id="listBoothZones",
-    response_model=list[BoothZoneResponse],
+    response_model=list[StaffBoothZoneResponse],
 )
 async def list_booth_zones(
     kp_service: KpServiceDep, event_id: UUID
-) -> list[BoothZoneResponse]:
+) -> list[StaffBoothZoneResponse]:
     return await kp_service.list_booth_zones(event_id)
 
 
 @router.post(
     "/events/{event_id}/booth-zones",
     operation_id="createBoothZone",
-    response_model=BoothZoneResponse,
+    response_model=StaffBoothZoneResponse,
 )
 async def create_booth_zone(
     kp_service: KpServiceDep, event_id: UUID, request: CreateBoothZoneRequest
-) -> BoothZoneResponse:
+) -> StaffBoothZoneResponse:
     return await kp_service.create_booth_zone(event_id, request)
 
 
 @router.patch(
     "/booth-zones/{booth_zone_id}",
     operation_id="updateBoothZone",
-    response_model=BoothZoneResponse,
+    response_model=StaffBoothZoneResponse,
 )
 async def update_booth_zone(
     kp_service: KpServiceDep,
     booth_zone_id: UUID,
     request: UpdateBoothZoneRequest,
-) -> BoothZoneResponse:
+) -> StaffBoothZoneResponse:
     return await kp_service.update_booth_zone(booth_zone_id, request)
 
 
@@ -172,14 +172,14 @@ async def delete_booth_zone(kp_service: KpServiceDep, booth_zone_id: UUID) -> No
 @router.put(
     "/booth-zones/{booth_zone_id}/layout-file",
     operation_id="uploadBoothZoneLayoutFile",
-    response_model=BoothZoneResponse,
+    response_model=StaffBoothZoneResponse,
 )
 async def upload_booth_zone_layout_file(
     kp_service: KpServiceDep,
     request: Request,
     booth_zone_id: UUID,
     file: UploadFile = File(...),
-) -> BoothZoneResponse:
+) -> StaffBoothZoneResponse:
     return await kp_service.upload_booth_zone_layout_file(
         booth_zone_id=booth_zone_id,
         filename=file.filename or "booth-zone-layout",
@@ -192,12 +192,12 @@ async def upload_booth_zone_layout_file(
 @router.delete(
     "/booth-zones/{booth_zone_id}/layout-file",
     operation_id="deleteBoothZoneLayoutFile",
-    response_model=BoothZoneResponse,
+    response_model=StaffBoothZoneResponse,
 )
 async def delete_booth_zone_layout_file(
     kp_service: KpServiceDep,
     booth_zone_id: UUID,
-) -> BoothZoneResponse:
+) -> StaffBoothZoneResponse:
     return await kp_service.delete_booth_zone_layout_file(booth_zone_id)
 
 
@@ -446,13 +446,13 @@ async def list_staff_booking_upgrade_waitlist(
 @router.patch(
     "/bookings/{booking_id}/status",
     operation_id="updateMyBookingStatus",
-    response_model=StaffBookingResponse,
+    response_model=BookingResponse,
 )
 async def update_my_booking_status(
     kp_service: KpServiceDep,
     booking_id: UUID,
     request: UpdateBookingStatusRequest,
-) -> BookingWithCompanyAndBoothZoneResponse:
+) -> BookingResponse:
     return await kp_service.update_my_booking_status(booking_id, request)
 
 

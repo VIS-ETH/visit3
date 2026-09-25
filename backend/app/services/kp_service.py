@@ -95,6 +95,7 @@ from app.schemas.kp import (
     ServiceResponse,
     StaffBookingServiceInput,
     StaffBookingUpgradeWaitlistEntryResult,
+    StaffBoothZoneResponse,
     StaffUpdateBookingInput,
     StoredFileResponse,
     UpdateBookingBoothNumberInput,
@@ -114,6 +115,7 @@ from app.services.booking_notifier import (
 from app.services.booth_zone_view import (
     booth_zone_response,
     booth_zones_with_availability,
+    staff_booth_zone_response,
 )
 from app.services.download_urls import DownloadUrls
 from app.services.pricing import price_breakdown
@@ -237,16 +239,21 @@ class KpService:
             event=event, update_kp_input=update_kp_input
         )
 
-    async def list_booth_zones(self, event_id: UUID) -> list[BoothZoneResponse]:
+    async def list_booth_zones(self, event_id: UUID) -> list[StaffBoothZoneResponse]:
         require_staff_user(self.current_user)
         await self._get_event(event_id)
         zones = await self.kp_repository.list_booth_zones(event_id)
-        return [await self._build_booth_zone_response(zone) for zone in zones]
+        return [await self._build_staff_booth_zone_response(zone) for zone in zones]
 
     async def _build_booth_zone_response(
         self, zone: KpEventBoothZone
     ) -> BoothZoneResponse:
         return await booth_zone_response(zone, self.download_urls)
+
+    async def _build_staff_booth_zone_response(
+        self, zone: KpEventBoothZone
+    ) -> StaffBoothZoneResponse:
+        return await staff_booth_zone_response(zone, self.download_urls)
 
     async def _get_booth_zone(self, booth_zone_id: UUID) -> KpEventBoothZone:
         zone = await self.kp_repository.get_booth_zone_by_id(booth_zone_id)
@@ -298,7 +305,7 @@ class KpService:
 
     async def create_booth_zone(
         self, event_id: UUID, create_booth_zone_input: CreateBoothZoneInput
-    ) -> BoothZoneResponse:
+    ) -> StaffBoothZoneResponse:
         require_kp_president_user(self.current_user)
         await self._get_event(event_id)
         await self._ensure_booth_zone_identity_free(
@@ -313,11 +320,11 @@ class KpService:
         zone = await self.kp_repository.create_booth_zone(
             event_id, create_booth_zone_input
         )
-        return await self._build_booth_zone_response(zone)
+        return await self._build_staff_booth_zone_response(zone)
 
     async def update_booth_zone(
         self, booth_zone_id: UUID, update_booth_zone_input: UpdateBoothZoneInput
-    ) -> BoothZoneResponse:
+    ) -> StaffBoothZoneResponse:
         require_kp_president_user(self.current_user)
         zone = await self._get_booth_zone(booth_zone_id)
         updates = update_booth_zone_input.model_dump(exclude_unset=True)
@@ -342,7 +349,7 @@ class KpService:
         )
         if updated.capacity > previous_capacity:
             await self._promote_waitlist(updated.event_id, updated.id)
-        return await self._build_booth_zone_response(updated)
+        return await self._build_staff_booth_zone_response(updated)
 
     async def delete_booth_zone(self, booth_zone_id: UUID) -> None:
         require_kp_president_user(self.current_user)
@@ -367,7 +374,7 @@ class KpService:
         upload: UploadStream,
         content_length: int | None,
         content_type: str | None,
-    ) -> BoothZoneResponse:
+    ) -> StaffBoothZoneResponse:
         require_kp_president_user(self.current_user)
         zone = await self._get_booth_zone(booth_zone_id)
         error_context = f"{LAYOUT_FILE_CONTEXT}:{booth_zone_id}"
@@ -412,22 +419,22 @@ class KpService:
         if old_stored_file is not None:
             await self.storage_service.delete_object(old_stored_file.storage_key)
             await self.kp_repository.delete_stored_file(old_stored_file)
-        return await self._build_booth_zone_response(updated)
+        return await self._build_staff_booth_zone_response(updated)
 
     async def delete_booth_zone_layout_file(
         self, booth_zone_id: UUID
-    ) -> BoothZoneResponse:
+    ) -> StaffBoothZoneResponse:
         require_kp_president_user(self.current_user)
         zone = await self._get_booth_zone(booth_zone_id)
         stored_file = zone.layout_stored_file
         if stored_file is None:
-            return await self._build_booth_zone_response(zone)
+            return await self._build_staff_booth_zone_response(zone)
         updated = await self.kp_repository.set_booth_zone_layout_stored_file_id(
             zone, None
         )
         await self.storage_service.delete_object(stored_file.storage_key)
         await self.kp_repository.delete_stored_file(stored_file)
-        return await self._build_booth_zone_response(updated)
+        return await self._build_staff_booth_zone_response(updated)
 
     async def _service_image_url(self, service: KpEventService) -> str | None:
         return await self.download_urls.of(service.image_stored_file)
@@ -840,7 +847,7 @@ class KpService:
         services, additional_service_charges = await self._build_booking_services(
             booking
         )
-        booth_zone = await self._build_booth_zone_response(booking.booth_zone)
+        booth_zone = await self._build_staff_booth_zone_response(booking.booth_zone)
         net_total = self._booking_net_total(booking)
         missing_items = booking_completeness(booking)
         return BookingWithCompanyAndBoothZoneResponse(
@@ -1133,7 +1140,7 @@ class KpService:
             booking_id=entry.booking_id,
             target_booth_zone_id=entry.target_booth_zone_id,
             priority_rank=entry.priority_rank,
-            target_booth_zone=await self._build_booth_zone_response(zone),
+            target_booth_zone=await self._build_staff_booth_zone_response(zone),
             is_full=free_spots == 0,
             available_spots=free_spots,
             position=waitlist_position(queue, entry.id),
@@ -1144,7 +1151,9 @@ class KpService:
     ) -> BookingUpgradeWaitlistEntryResult:
         staff_entry = await self._build_staff_waitlist_entry(entry)
         return BookingUpgradeWaitlistEntryResult.model_validate(
-            staff_entry.model_dump(exclude={"available_spots"})
+            staff_entry.model_dump(
+                exclude={"available_spots": True, "target_booth_zone": {"capacity"}}
+            )
         )
 
     async def list_booking_upgrade_waitlist(
@@ -1276,14 +1285,14 @@ class KpService:
 
     async def update_my_booking_status(
         self, booking_id: UUID, update_booking_input: UpdateBookingStatusInput
-    ) -> BookingWithCompanyAndBoothZoneResponse:
+    ) -> BookingResponse:
         company_user = require_assigned_company_user(self.current_user)
         booking = await self._get_owned_booking(
             booking_id, company_user.company_id, "update_my_booking_status"
         )
         next_status = update_booking_input.status
         if booking.status == next_status:
-            return await self._build_staff_booking_response(booking)
+            return await self._build_booking_response(booking)
         ensure_booking_transition(
             COMPANY_BOOKING_TRANSITIONS,
             booking,
@@ -1297,7 +1306,7 @@ class KpService:
             ),
         )
         await self._promote_waitlist(updated.event_id, updated.booth_zone_id)
-        return await self._build_staff_booking_response(updated)
+        return await self._build_booking_response(updated)
 
     async def update_booking_booth_number(
         self, booking_id: UUID, update_booking_input: UpdateBookingBoothNumberInput

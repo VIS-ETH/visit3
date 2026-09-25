@@ -179,12 +179,15 @@ class BoothZoneResponse(BaseModel):
     description: str
     color: str
     order: int
-    capacity: int
     booth_size: float
     base_price: int
     layout_description: str | None = None
     layout_url: str | None = None
     included_services: list[IncludedServiceResponse]
+
+
+class StaffBoothZoneResponse(BoothZoneResponse):
+    capacity: int
 
 
 class ServiceRequirementInput(BaseModel):
@@ -404,7 +407,7 @@ class MyBookingResponse(BookingResponse):
 
 
 class BookingWithBoothZoneBase(BookingBase):
-    booth_zone: BoothZoneResponse
+    booth_zone: StaffBoothZoneResponse
     services: list[BookingServiceResponse] = Field(default_factory=lambda: [])
     additional_service_charges: list[BookingAdditionalServiceChargeResponse] = Field(
         default_factory=lambda: []
@@ -522,21 +525,25 @@ class NametagExportTargetsResponse(NametagExportTargetsResult):
     pass
 
 
-class BookingUpgradeWaitlistEntryResult(BaseModel):
+class BookingUpgradeWaitlistEntryBase(BaseModel):
     id: UUID
     booking_id: UUID
     target_booth_zone_id: UUID
     priority_rank: int | None
-    target_booth_zone: BoothZoneResponse
     is_full: bool
     position: int
+
+
+class BookingUpgradeWaitlistEntryResult(BookingUpgradeWaitlistEntryBase):
+    target_booth_zone: BoothZoneResponse
 
 
 class BookingUpgradeWaitlistEntryResponse(BookingUpgradeWaitlistEntryResult):
     pass
 
 
-class StaffBookingUpgradeWaitlistEntryResult(BookingUpgradeWaitlistEntryResult):
+class StaffBookingUpgradeWaitlistEntryResult(BookingUpgradeWaitlistEntryBase):
+    target_booth_zone: StaffBoothZoneResponse
     available_spots: int
 
 

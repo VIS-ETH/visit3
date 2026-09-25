@@ -2,16 +2,29 @@ from uuid import UUID
 
 from app.models.kp_event import KpEventBoothZone
 from app.repositories.kp_repository import KpRepository
-from app.schemas.kp import BoothZoneResponse, BoothZoneWithAvailabilityResult
+from app.schemas.kp import (
+    BoothZoneResponse,
+    BoothZoneWithAvailabilityResult,
+    StaffBoothZoneResponse,
+)
 from app.services.download_urls import DownloadUrls
+
+
+async def staff_booth_zone_response(
+    zone: KpEventBoothZone, download_urls: DownloadUrls
+) -> StaffBoothZoneResponse:
+    response = StaffBoothZoneResponse.model_validate(zone, from_attributes=True)
+    return response.model_copy(
+        update={"layout_url": await download_urls.of(zone.layout_stored_file)}
+    )
 
 
 async def booth_zone_response(
     zone: KpEventBoothZone, download_urls: DownloadUrls
 ) -> BoothZoneResponse:
-    response = BoothZoneResponse.model_validate(zone, from_attributes=True)
-    return response.model_copy(
-        update={"layout_url": await download_urls.of(zone.layout_stored_file)}
+    staff_response = await staff_booth_zone_response(zone, download_urls)
+    return BoothZoneResponse.model_validate(
+        staff_response.model_dump(exclude={"capacity"})
     )
 
 
