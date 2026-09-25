@@ -14,7 +14,7 @@
       "event_date": "Event date",
       "none": "No KP event found.",
       "name": "Name",
-      "finalization_deadline": "Finalization deadline",
+      "finalization_deadline": "Change deadline",
       "nametags_deadline": "Nametags deadline"
     },
     "history": {
@@ -23,7 +23,7 @@
       "event_date": "Event date",
       "none": "No KP events available yet.",
       "name": "Name",
-      "finalization_deadline": "Finalization deadline",
+      "finalization_deadline": "Change deadline",
       "nametags_deadline": "Nametags deadline"
     },
     "company_view": {
@@ -35,7 +35,7 @@
       "registration_open": "Registration opens",
       "registration_end": "Registration ends",
       "event_date": "Event date",
-      "finalization_deadline": "Finalization deadline",
+      "finalization_deadline": "Change deadline",
       "nametags_deadline": "Nametags deadline",
       "status_upcoming": "Upcoming",
       "status_registration_open": "Registration open",
@@ -292,7 +292,7 @@
       "event_date": "Event date",
       "no_event": "No active KP event available.",
       "name": "Name",
-      "finalization_deadline": "Finalization deadline",
+      "finalization_deadline": "Change deadline",
       "nametags_deadline": "Nametags deadline"
     },
     "dashboard": {
@@ -303,7 +303,7 @@
       "create_button": "Create KP event",
       "registration_window_label": "Registration",
       "event_date_label": "Event date",
-      "finalization_deadline_label": "Finalization deadline",
+      "finalization_deadline_label": "Change deadline",
       "nametags_deadline_label": "Nametags deadline",
       "latest_badge": "Latest",
       "manage_button": "Manage",
@@ -321,15 +321,15 @@
       "invalid_name": "Please enter a valid event name.",
       "invalid_date": "Please enter a valid date in DD.MM.YYYY format.",
       "registration_end_after_open": "Registration end must be after registration start.",
-      "finalization_deadline_after_registration_end": "Finalization deadline must be on or after registration end.",
+      "finalization_deadline_after_registration_end": "Change deadline must be on or after registration end.",
       "nametags_deadline_after_registration_end": "Nametags deadline must be on or after registration end.",
       "event_date_after_registration_end": "Event date must be after registration end.",
-      "finalization_deadline_before_event": "Finalization deadline must be before the event date.",
+      "finalization_deadline_before_event": "Change deadline must be before the event date.",
       "nametags_deadline_before_event": "Nametags deadline must be before the event date.",
       "date_input_placeholder": "DD.MM.YYYY",
       "date_input_hint": "Format: DD.MM.YYYY",
       "name": "Name",
-      "finalization_deadline": "Finalization deadline",
+      "finalization_deadline": "Change deadline",
       "nametags_deadline": "Nametags deadline",
       "status_label": "Status",
       "name_input_placeholder": "Event name",

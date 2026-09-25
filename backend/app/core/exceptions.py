@@ -377,7 +377,7 @@ class KpBookingReadonly(AppError):
 class KpFinalizationDeadlinePassed(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "The finalization deadline for this KP event has passed",
+            "The change deadline for this KP event has passed",
             "error.kp_finalization_deadline_passed",
             identifier,
             403,

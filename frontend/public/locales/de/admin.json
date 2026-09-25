@@ -103,7 +103,7 @@
     "vat_rate_hint": "Gilt für jede Buchung dieses Events.",
     "vat_rate_range": "Der MwSt.-Satz muss zwischen 0 und 100 liegen.",
     "vat_rate_decimals": "Der MwSt.-Satz erlaubt höchstens eine Nachkommastelle.",
-    "reminder_days": "Erinnerung vor der Abschlussfrist",
+    "reminder_days": "Erinnerung vor der Änderungsfrist",
     "reminder_days_hint": "Tage vor der Frist, an denen die Erinnerungs-E-Mail verschickt wird.",
     "reminder_days_invalid": "Geben Sie eine ganze Zahl von Tagen an, null oder mehr.",
     "terms_url": "Link zu den AGB",

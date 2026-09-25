@@ -14,7 +14,7 @@
       "event_date": "Eventdatum",
       "none": "Kein KP-Event gefunden.",
       "name": "Name",
-      "finalization_deadline": "Finalisierungsfrist",
+      "finalization_deadline": "Änderungsfrist",
       "nametags_deadline": "Namensschildfrist"
     },
     "history": {
@@ -23,7 +23,7 @@
       "event_date": "Eventdatum",
       "none": "Noch keine KP-Events verfügbar.",
       "name": "Name",
-      "finalization_deadline": "Finalisierungsfrist",
+      "finalization_deadline": "Änderungsfrist",
       "nametags_deadline": "Namensschildfrist"
     },
     "company_view": {
@@ -35,7 +35,7 @@
       "registration_open": "Anmeldung offen ab",
       "registration_end": "Anmeldung endet",
       "event_date": "Eventdatum",
-      "finalization_deadline": "Finalisierungsfrist",
+      "finalization_deadline": "Änderungsfrist",
       "nametags_deadline": "Namensschildfrist",
       "status_upcoming": "Bevorstehend",
       "status_registration_open": "Anmeldung offen",
@@ -292,7 +292,7 @@
       "event_date": "Eventdatum",
       "no_event": "Kein aktives KP-Event verfügbar.",
       "name": "Name",
-      "finalization_deadline": "Finalisierungsfrist",
+      "finalization_deadline": "Änderungsfrist",
       "nametags_deadline": "Namensschildfrist"
     },
     "dashboard": {
@@ -303,7 +303,7 @@
       "create_button": "KP-Event erstellen",
       "registration_window_label": "Anmeldung",
       "event_date_label": "Eventdatum",
-      "finalization_deadline_label": "Finalisierungsfrist",
+      "finalization_deadline_label": "Änderungsfrist",
       "nametags_deadline_label": "Namensschildfrist",
       "latest_badge": "Aktuell",
       "manage_button": "Verwalten",
@@ -321,15 +321,15 @@
       "invalid_name": "Bitte einen gültigen Eventnamen eingeben.",
       "invalid_date": "Bitte ein gültiges Datum im Format TT.MM.JJJJ eingeben.",
       "registration_end_after_open": "Das Ende der Anmeldung muss nach dem Beginn liegen.",
-      "finalization_deadline_after_registration_end": "Die Finalisierungsfrist muss am oder nach dem Anmeldungsende liegen.",
+      "finalization_deadline_after_registration_end": "Die Änderungsfrist muss am oder nach dem Anmeldungsende liegen.",
       "nametags_deadline_after_registration_end": "Die Namensschildfrist muss am oder nach dem Anmeldungsende liegen.",
       "event_date_after_registration_end": "Das Eventdatum muss nach dem Anmeldungsende liegen.",
-      "finalization_deadline_before_event": "Die Finalisierungsfrist muss vor dem Eventdatum liegen.",
+      "finalization_deadline_before_event": "Die Änderungsfrist muss vor dem Eventdatum liegen.",
       "nametags_deadline_before_event": "Die Namensschildfrist muss vor dem Eventdatum liegen.",
       "date_input_placeholder": "TT.MM.JJJJ",
       "date_input_hint": "Format: TT.MM.JJJJ",
       "name": "Name",
-      "finalization_deadline": "Finalisierungsfrist",
+      "finalization_deadline": "Änderungsfrist",
       "nametags_deadline": "Namensschildfrist",
       "status_label": "Status",
       "name_input_placeholder": "Eventname",

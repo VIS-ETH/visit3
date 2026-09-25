@@ -103,7 +103,7 @@
     "vat_rate_hint": "Applied to every booking of this event.",
     "vat_rate_range": "The VAT rate must be between 0 and 100.",
     "vat_rate_decimals": "The VAT rate allows at most one decimal place.",
-    "reminder_days": "Reminder before the finalization deadline",
+    "reminder_days": "Reminder before the change deadline",
     "reminder_days_hint": "Days before the deadline the reminder email is sent.",
     "reminder_days_invalid": "Enter a whole number of days, zero or more.",
     "terms_url": "Terms and conditions link",
