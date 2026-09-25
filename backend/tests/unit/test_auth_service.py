@@ -1,8 +1,11 @@
 from dataclasses import dataclass
 from unittest.mock import AsyncMock
+from urllib.parse import parse_qs
 
+import httpx
 import pytest
 
+from app.core.config import get_oauth_settings
 from app.core.exceptions import (
     EmailUsed,
     InvalidCredentials,
@@ -20,6 +23,7 @@ from app.models.user import (
     Role,
     User,
 )
+from app.services import auth_service as auth_module
 from app.services.auth_service import AuthService
 
 
@@ -31,6 +35,36 @@ class AuthServiceHarness:
     role_repo: AsyncMock
     mail_template_service: AsyncMock
     invite_service: AsyncMock
+
+
+async def test_keycloak_callback_uses_the_shared_client_secret(auth, monkeypatch):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json={"access_token": "login-access-token"})
+
+    client_class = httpx.AsyncClient
+    monkeypatch.setattr(
+        auth_module.httpx,
+        "AsyncClient",
+        lambda: client_class(transport=httpx.MockTransport(handler)),
+    )
+    monkeypatch.setattr(auth_module, "decode_token", lambda token: {"sub": "user"})
+    auth.service.login_keycloak_user = AsyncMock(return_value="local-login-token")
+
+    assert (
+        await auth.service.keycloak_callback("authorization-code")
+        == "local-login-token"
+    )
+    shared = get_oauth_settings()
+    assert str(requests[0].url) == str(shared.SIP_AUTH_OIDC_TOKEN_ENDPOINT)
+    payload = parse_qs(requests[0].content.decode())
+    assert payload["grant_type"] == ["authorization_code"]
+    assert payload["client_id"] == [shared.SIP_AUTH_OIDC_CLIENT_ID]
+    assert payload["client_secret"] == [
+        shared.SIP_AUTH_OIDC_CLIENT_SECRET.get_secret_value()
+    ]
 
 
 @pytest.fixture

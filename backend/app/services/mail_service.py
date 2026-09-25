@@ -31,8 +31,9 @@ class MailService:
             await cast(Any, self.mail).SendMail(request)
             logger.info("MailService gRPC send completed")
         except grpc.RpcError as e:
-            logger.error("gRPC Error")
-            raise e
+            # Do not propagate remote error details that might echo credentials.
+            code = e.code() if isinstance(e, grpc.aio.AioRpcError) else None
+            raise RuntimeError(f"notification API SendMail failed ({code})") from None
 
     def construct_mail(
         self,

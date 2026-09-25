@@ -1,8 +1,8 @@
 from functools import lru_cache
 from typing import Any
 
-from pydantic import model_validator
-from pydantic_settings import BaseSettings
+from pydantic import BaseModel, ConfigDict, HttpUrl, SecretStr, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 EXAMPLE_SECRET_KEY = "5fcfacda13cd6e44e358f1109094a82d3319dd3631f2def507e5af4b4679a65c"
 MIN_SECRET_KEY_LENGTH = 32
@@ -20,6 +20,8 @@ class WeakSecretKey(RuntimeError):
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(hide_input_in_errors=True)
+
     @classmethod
     def from_environment(cls) -> "Settings":
         no_explicit_overrides: dict[str, Any] = {}
@@ -40,14 +42,14 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str
     NOTIFICATION_API_URL: str
-    NOTIFICATION_API_TLS: bool = False
+    NOTIFICATION_API_TLS: bool = True
     NOTIFICATION_API_CA_FILE: str | None = None
     VISIT_FRONTEND_SERVER_URL: str
     DEFAULT_NOTIFICATION_EMAIL: str = "kontaktparty@vis.ethz.ch"
     SIP_AUTH_OIDC_ISSUER: str
     SIP_AUTH_OIDC_CLIENT_ID: str
     KEYCLOAK_CALLBACK: str
-    SIP_AUTH_OIDC_CLIENT_SECRET: str
+    SIP_AUTH_OIDC_CLIENT_SECRET: SecretStr
     SIP_AUTH_OIDC_TOKEN_ENDPOINT: str
     SIP_AUTH_OIDC_AUTH_ENDPOINT: str
     SIP_AUTH_OIDC_JWKS_URL: str
@@ -82,6 +84,16 @@ class Settings(BaseSettings):
         return f"{scheme}://{self.SIP_S3_FILES_HOST}:{self.SIP_S3_FILES_PORT}"
 
     @model_validator(mode="after")
+    def validate_notification_configuration(self) -> "Settings":
+        if not self.NOTIFICATION_API_URL.strip():
+            raise ValueError("NOTIFICATION_API_URL must not be empty")
+        if not self.NOTIFICATION_API_TLS:
+            raise ValueError(
+                "NOTIFICATION_API_TLS must be enabled for authenticated RPCs"
+            )
+        return self
+
+    @model_validator(mode="after")
     def reject_weak_secret_key(self) -> "Settings":
         if self.DEBUG:
             return self
@@ -96,3 +108,49 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings.from_environment()
+
+
+class OAuthSettings(BaseModel):
+    """Startup validation of the shared OIDC client for service-account use."""
+
+    model_config = ConfigDict(hide_input_in_errors=True)
+
+    SIP_AUTH_OIDC_TOKEN_ENDPOINT: HttpUrl
+    SIP_AUTH_OIDC_CLIENT_ID: str
+    SIP_AUTH_OIDC_CLIENT_SECRET: SecretStr
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> "OAuthSettings":
+        return cls.model_validate(
+            {
+                "SIP_AUTH_OIDC_TOKEN_ENDPOINT": settings.SIP_AUTH_OIDC_TOKEN_ENDPOINT,
+                "SIP_AUTH_OIDC_CLIENT_ID": settings.SIP_AUTH_OIDC_CLIENT_ID,
+                "SIP_AUTH_OIDC_CLIENT_SECRET": settings.SIP_AUTH_OIDC_CLIENT_SECRET,
+            }
+        )
+
+    @model_validator(mode="after")
+    def validate_oauth_configuration(self) -> "OAuthSettings":
+        if (
+            self.SIP_AUTH_OIDC_TOKEN_ENDPOINT.scheme != "https"
+            or self.SIP_AUTH_OIDC_TOKEN_ENDPOINT.username is not None
+            or self.SIP_AUTH_OIDC_TOKEN_ENDPOINT.password is not None
+            or self.SIP_AUTH_OIDC_TOKEN_ENDPOINT.query is not None
+            or self.SIP_AUTH_OIDC_TOKEN_ENDPOINT.fragment is not None
+        ):
+            raise ValueError(
+                "SIP_AUTH_OIDC_TOKEN_ENDPOINT must be HTTPS without credentials, query, or fragment"
+            )
+        if (
+            not self.SIP_AUTH_OIDC_CLIENT_ID.strip()
+            or not self.SIP_AUTH_OIDC_CLIENT_SECRET.get_secret_value().strip()
+        ):
+            raise ValueError(
+                "SIP_AUTH_OIDC_CLIENT_ID and SIP_AUTH_OIDC_CLIENT_SECRET must not be empty"
+            )
+        return self
+
+
+@lru_cache
+def get_oauth_settings() -> OAuthSettings:
+    return OAuthSettings.from_settings(get_settings())

@@ -27,6 +27,10 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
+Before starting the backend, configure the shared `SIP_AUTH_OIDC_*` client and TLS notification
+endpoint described in the Backend section below. The default local plaintext
+notification service does not meet those requirements.
+
 Yarn is managed by Corepack from `frontend/package.json`.
 
 Install frontend dependencies when you want to run the frontend outside Docker:
@@ -115,6 +119,58 @@ The backend follows `routes -> services -> repositories`.
 - `app/repositories/` handles database access
 
 Migrations run automatically when the backend container starts.
+
+Application-to-application authentication uses OAuth 2.0 client credentials.
+Configure these required backend environment variables before starting the app:
+
+- `SIP_AUTH_OIDC_TOKEN_ENDPOINT`: the shared HTTPS token endpoint, without URL credentials, query, or fragment.
+- `SIP_AUTH_OIDC_CLIENT_ID`: the existing registered OIDC client, with service accounts enabled.
+- `SIP_AUTH_OIDC_CLIENT_SECRET`: that client's secret, supplied through the existing environment/secret mechanism.
+- `NOTIFICATION_API_URL`: the separate notification API host and port.
+
+`NOTIFICATION_API_TLS` must be `true` (the default). TLS certificate and hostname
+verification remain enabled. `NOTIFICATION_API_CA_FILE` can point to a trusted
+private CA for the notification service. The HTTPS token client uses normal
+system/environment CA configuration supported by HTTPX.
+
+The backend obtains its first token during startup, then a connection-level gRPC
+interceptor authenticates every notification RPC, including scheduled mail.
+[Authlib](https://docs.authlib.org/en/v1.7.0/oauth2/client/http/index.html) manages
+in-memory token caching and renewal using the token response's expiry and a
+five-second renewal margin, so short-lived tokens are reused. Opaque access
+tokens work too. Token responses must contain a bearer `access_token` and expiry
+(`expires_in` or `expires_at`). Responses are validated before replacing the
+cached token; an invalid renewal fails that request and allows the next request
+to retry. Client authentication tries HTTP Basic,
+then request-body credentials if client authentication is rejected, and reuses
+the selected method. No scopes, audiences, resource parameters, interactive login,
+or ID tokens are requested. Token acquisition failures stop startup or propagate
+to the caller without logging response bodies or credentials. Clients close on
+shutdown and failed startup.
+
+Register this application for the client-credentials grant with the authorization
+server, configure its resource mappers for the intended downstream API, and grant
+the required API permissions in the deployment. The receiving API must validate
+tokens and enforce authorization independently; obtaining a token does not prove
+access. This repository currently connects only to the notification gRPC API.
+If another API is added, share this lifecycle-owned token source only if the
+issued token is authorized for both targets.
+
+User login and mail authentication share these client credentials and token
+endpoint. Login uses the authorization-code grant; mail uses the client-credentials
+grant and gets its own service-account access token. No separate `OAUTH_*` or
+`SIP_MAILAPI_SA_*` variables are needed.
+The service-account requirements are validated at application startup, even with
+`DEBUG=true`, using the values already loaded by the existing settings mechanism.
+Schema generation does not start the application lifecycle and requires neither
+real client credentials nor network access. The example environment intentionally
+leaves the shared client secret blank.
+The bundled plaintext, unauthenticated Compose notification service
+is insufficient for this authenticated backend: use a TLS-enabled notification
+endpoint and an HTTPS authorization server with an application registration, or
+configure TLS for the local services. Unit tests use local mocks and need no
+external credentials. The local gRPC TLS tests additionally check bearer delivery
+and rejection of untrusted certificates and incorrect hostnames.
 
 ```bash
 docker compose exec backend alembic revision --autogenerate -m "description"

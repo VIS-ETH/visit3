@@ -23,6 +23,9 @@ def _load_test_env() -> None:
 _load_test_env()
 os.environ["DEBUG"] = "false"
 os.environ["SECRET_KEY"] = "test-secret-key-6d1b0a4f9c2e7a3b5d8f1c6e0a9b4d72"
+os.environ["SIP_AUTH_OIDC_TOKEN_ENDPOINT"] = "https://identity.example.org/oauth/token"
+os.environ["SIP_AUTH_OIDC_CLIENT_ID"] = "test-application"
+os.environ["SIP_AUTH_OIDC_CLIENT_SECRET"] = "test-application-secret"
 
 from collections.abc import AsyncIterator, Callable
 

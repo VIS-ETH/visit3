@@ -91,9 +91,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     scheduler = create_scheduler()
 
     await grpc_client.connect(get_settings().NOTIFICATION_API_URL)
-    await scheduler.start()
-
-    yield
-
-    await scheduler.stop()
-    await grpc_client.disconnect()
+    try:
+        await scheduler.start()
+        try:
+            yield
+        finally:
+            await scheduler.stop()
+    finally:
+        await grpc_client.disconnect()

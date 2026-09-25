@@ -374,7 +374,7 @@ class AuthService:
             "grant_type": "authorization_code",
             "code": code,
             "client_id": settings.SIP_AUTH_OIDC_CLIENT_ID,
-            "client_secret": settings.SIP_AUTH_OIDC_CLIENT_SECRET,
+            "client_secret": settings.SIP_AUTH_OIDC_CLIENT_SECRET.get_secret_value(),
             "redirect_uri": settings.KEYCLOAK_CALLBACK,
         }
 
