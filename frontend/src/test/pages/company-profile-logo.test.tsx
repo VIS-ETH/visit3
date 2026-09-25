@@ -88,6 +88,14 @@ beforeEach(() => {
   );
 });
 
+const renderProfileEdit = () =>
+  renderWithProviders(
+    <UserProvider user={companyUser} isLoading={false}>
+      <CompanyProfileEdit />
+    </UserProvider>,
+    { route: "/company/profile" },
+  );
+
 describe("Company logo upload", () => {
   it("posts the chosen file as multipart form data", async () => {
     const { user, container } = renderWithProviders(
@@ -112,5 +120,27 @@ describe("Company logo upload", () => {
     expect(
       await screen.findByAltText("company_profile_form.logo_alt"),
     ).toHaveAttribute("src", uploadedLogoUrl);
+  });
+
+  it("retries the upload when the same file is picked again after a failure", async () => {
+    let attempts = 0;
+    server.use(
+      http.post(`${testBackendUrl}/api/company/me/profile/logo`, () => {
+        attempts += 1;
+        return HttpResponse.json({ detail: "storage down" }, { status: 500 });
+      }),
+    );
+    const { user, container } = renderProfileEdit();
+
+    await screen.findByText("company_profile_form.logo");
+    const fileInput =
+      container.querySelector<HTMLInputElement>('input[type="file"]');
+    const logo = createLogoFile();
+
+    await user.upload(fileInput!, logo);
+    await waitFor(() => expect(attempts).toBe(1));
+    await user.upload(fileInput!, logo);
+
+    await waitFor(() => expect(attempts).toBe(2));
   });
 });

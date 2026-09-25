@@ -1,4 +1,4 @@
-import { Button, FileButton, Group, Image, Stack, Text } from "@mantine/core";
+import { Button, Group, Image, Stack, Text } from "@mantine/core";
 import { IconPhotoUp, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -6,6 +6,7 @@ import {
   IMAGE_UPLOAD_ACCEPT,
   isAllowedImageType,
 } from "../../utils/upload-formats";
+import RepickableFileButton from "../RepickableFileButton";
 
 const MAX_LOGO_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -58,7 +59,10 @@ const CompanyLogoControls = ({
         />
       ) : null}
       <Group gap="sm">
-        <FileButton accept={IMAGE_UPLOAD_ACCEPT} onChange={handleFile}>
+        <RepickableFileButton
+          accept={IMAGE_UPLOAD_ACCEPT}
+          onChange={handleFile}
+        >
           {(props) => (
             <Button
               {...props}
@@ -72,7 +76,7 @@ const CompanyLogoControls = ({
                 : t("company_profile_form.logo_upload")}
             </Button>
           )}
-        </FileButton>
+        </RepickableFileButton>
         {logoUrl ? (
           <Button
             color="red"

@@ -5,7 +5,6 @@ import {
   Card,
   Center,
   Checkbox,
-  FileButton,
   Grid,
   Group,
   Image,
@@ -89,6 +88,7 @@ import {
   acceptForRequirement,
   allowedFormatsLabel,
 } from "../utils/upload-formats";
+import RepickableFileButton from "../components/RepickableFileButton";
 
 const NO_INCLUDED_SERVICES: IncludedServiceResponse[] = [];
 const NO_SERVICES: ServiceResponse[] = [];
@@ -447,7 +447,7 @@ function KpBookingServiceGrid({
           {allowedFormatsLabel(requirement.type, t)}
         </Text>
         <Group gap="xs" wrap="nowrap">
-          <FileButton
+          <RepickableFileButton
             accept={acceptForRequirement(requirement.type)}
             onChange={(file) =>
               updateRequirement(service.id, requirement.id, { file })
@@ -464,7 +464,7 @@ function KpBookingServiceGrid({
                   : requirementUploadLabel(requirement.type)}
               </Button>
             )}
-          </FileButton>
+          </RepickableFileButton>
           {value?.file ? (
             <>
               <Text size="sm" truncate="end">

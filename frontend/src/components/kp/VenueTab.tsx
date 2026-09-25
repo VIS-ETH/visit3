@@ -2,7 +2,6 @@ import {
   ActionIcon,
   Button,
   Center,
-  FileButton,
   Group,
   Loader,
   NumberInput,
@@ -34,6 +33,7 @@ import {
 import ManageEntityModal from "../ManageEntityModal";
 import VenueLayoutEditor from "../venue/VenueLayoutEditor";
 import { VENUE_BACKGROUND_ACCEPT } from "../venue/venue-uploads";
+import RepickableFileButton from "../RepickableFileButton";
 
 const DEFAULT_LAYOUT_WIDTH = 1000;
 const DEFAULT_LAYOUT_HEIGHT = 700;
@@ -331,7 +331,7 @@ const VenueTab = ({ eventId }: { eventId: string }) => {
                 {t("kp.venue.background_formats")}
               </Text>
               <Group gap="sm">
-                <FileButton
+                <RepickableFileButton
                   accept={VENUE_BACKGROUND_ACCEPT}
                   onChange={(file) => {
                     if (!file) return;
@@ -353,7 +353,7 @@ const VenueTab = ({ eventId }: { eventId: string }) => {
                         : t("kp.venue.background_upload")}
                     </Button>
                   )}
-                </FileButton>
+                </RepickableFileButton>
                 {selectedLayout.background_url ? (
                   <Button
                     color="red"

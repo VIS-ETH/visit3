@@ -5,7 +5,6 @@ import {
   Button,
   ColorInput,
   Divider,
-  FileButton,
   Group,
   Image,
   NumberInput,
@@ -56,6 +55,7 @@ import {
   isPdfSource,
 } from "../utils/upload-formats";
 import DataTable, { type DataTableColumn } from "./DataTable";
+import RepickableFileButton from "./RepickableFileButton";
 
 type BoothZoneRow = ListBoothZonesQueryResult[number];
 
@@ -377,7 +377,7 @@ const BoothZonesTab = ({ eventId }: { eventId: string }) => {
             {t("kp.manage.zone_layout_allowed_formats")}
           </Text>
           <Group align="center" gap="sm">
-            <FileButton
+            <RepickableFileButton
               accept={LAYOUT_UPLOAD_ACCEPT}
               onChange={chooseLayoutFile}
             >
@@ -395,7 +395,7 @@ const BoothZonesTab = ({ eventId }: { eventId: string }) => {
                     : t("kp.manage.zone_layout_upload")}
                 </Button>
               )}
-            </FileButton>
+            </RepickableFileButton>
             {(layoutFile ?? storedLayoutUrl) ? (
               <Button
                 color="red"
