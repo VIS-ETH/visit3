@@ -40,7 +40,7 @@ REFRESH_TOKEN_EXPIRE = timedelta(days=7)
 REFRESH_TOKEN_REUSE_GRACE = timedelta(seconds=10)
 RESET_PASSWORD_TOKEN_EXPIRE = timedelta(minutes=10)
 CONFIRM_EMAIL_TOKEN_EXPIRE = timedelta(days=3)
-LOGIN_LINK_TOKEN_EXPIRE = timedelta(minutes=15)
+LOGIN_LINK_TOKEN_EXPIRE = timedelta(hours=24)
 LOGIN_LINK_MAX_USES = 3
 
 

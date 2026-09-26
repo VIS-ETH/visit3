@@ -71,14 +71,14 @@ async def test_a_link_works_three_times_and_then_never_again(
     assert "refresh_token" not in uses[3].headers.get("set-cookie", "")
 
 
-async def test_a_link_expires_after_fifteen_minutes(
+async def test_a_link_expires_after_twenty_four_hours(
     client: AsyncClient, login_url: str, db_session: AsyncSession
 ):
     stored = await stored_token(db_session, token_of(login_url))
     lifetime = stored.expires_at.replace(tzinfo=timezone.utc) - datetime.now(
         timezone.utc
     )
-    assert timedelta(minutes=14) < lifetime <= timedelta(minutes=15)
+    assert timedelta(hours=23, minutes=59) < lifetime <= timedelta(hours=24)
     stored.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
     db_session.add(stored)
     await db_session.commit()
