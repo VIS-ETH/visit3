@@ -6,6 +6,7 @@ import {
   Loader,
   NumberInput,
   Paper,
+  Select,
   Stack,
   Switch,
   Text,
@@ -15,7 +16,7 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconEdit, IconPlus, IconTrash, IconUpload } from "@tabler/icons-react";
+import { IconEdit, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,16 +25,14 @@ import {
   getListVenueLayoutsQueryKey,
   useCreateVenueLayout,
   useDeleteVenueLayout,
-  useDeleteVenueLayoutBackground,
   useListBoothZones,
   useListVenueLayouts,
   useUpdateVenueLayout,
-  useUploadVenueLayoutBackground,
 } from "../../orval/generated/kp/kp";
 import ManageEntityModal from "../ManageEntityModal";
+import type { KpVenueFloorPlan } from "../../orval/generated/fastAPI.schemas";
 import VenueLayoutEditor from "../venue/VenueLayoutEditor";
-import { VENUE_BACKGROUND_ACCEPT } from "../venue/venue-uploads";
-import RepickableFileButton from "../RepickableFileButton";
+import { FLOOR_PLANS } from "../venue/floor-plans";
 
 const DEFAULT_LAYOUT_WIDTH = 1000;
 const DEFAULT_LAYOUT_HEIGHT = 700;
@@ -43,6 +42,7 @@ interface LayoutFormValues {
   width: number;
   height: number;
   order: number;
+  floorPlan: KpVenueFloorPlan | null;
 }
 
 const emptyLayoutForm: LayoutFormValues = {
@@ -50,6 +50,7 @@ const emptyLayoutForm: LayoutFormValues = {
   width: DEFAULT_LAYOUT_WIDTH,
   height: DEFAULT_LAYOUT_HEIGHT,
   order: 0,
+  floorPlan: null,
 };
 
 const toNumber = (value: string | number) =>
@@ -130,26 +131,6 @@ const VenueTab = ({ eventId }: { eventId: string }) => {
     },
   });
 
-  const { mutate: uploadBackground, isPending: isUploading } =
-    useUploadVenueLayoutBackground({
-      mutation: {
-        onSuccess: async () => {
-          await invalidate();
-          notifySuccess(t("kp.venue.background_updated"));
-        },
-      },
-    });
-
-  const { mutate: removeBackground, isPending: isRemovingBackground } =
-    useDeleteVenueLayoutBackground({
-      mutation: {
-        onSuccess: async () => {
-          await invalidate();
-          notifySuccess(t("kp.venue.background_removed"));
-        },
-      },
-    });
-
   const openCreateModal = () => {
     setEditingLayoutId(null);
     setForm({ ...emptyLayoutForm, order: sortedLayouts.length });
@@ -163,6 +144,7 @@ const VenueTab = ({ eventId }: { eventId: string }) => {
       width: layout.width,
       height: layout.height,
       order: layout.order,
+      floorPlan: layout.floor_plan,
     });
     open();
   };
@@ -170,9 +152,11 @@ const VenueTab = ({ eventId }: { eventId: string }) => {
   const submitModal = () => {
     const data = {
       name: form.name.trim(),
-      width: form.width,
-      height: form.height,
       order: form.order,
+      floor_plan: form.floorPlan,
+      ...(form.floorPlan === null
+        ? { width: form.width, height: form.height }
+        : {}),
     };
     if (editingLayoutId !== null) {
       updateLayout({ layoutId: editingLayoutId, data });
@@ -207,20 +191,42 @@ const VenueTab = ({ eventId }: { eventId: string }) => {
           }
           value={form.name}
         />
-        <Group grow>
-          <NumberInput
-            label={t("kp.venue.layout_width")}
-            min={1}
-            onChange={(value) => setForm({ ...form, width: toNumber(value) })}
-            value={form.width}
-          />
-          <NumberInput
-            label={t("kp.venue.layout_height")}
-            min={1}
-            onChange={(value) => setForm({ ...form, height: toNumber(value) })}
-            value={form.height}
-          />
-        </Group>
+        <Select
+          allowDeselect={false}
+          data={[
+            { value: "", label: t("kp.venue.floor_plan_none") },
+            ...FLOOR_PLANS.map((floorPlan) => ({
+              value: floorPlan,
+              label: t(`kp.venue.floor_plan_${floorPlan}`),
+            })),
+          ]}
+          label={t("kp.venue.floor_plan")}
+          onChange={(value) =>
+            setForm({
+              ...form,
+              floorPlan: FLOOR_PLANS.find((plan) => plan === value) ?? null,
+            })
+          }
+          value={form.floorPlan ?? ""}
+        />
+        {form.floorPlan === null ? (
+          <Group grow>
+            <NumberInput
+              label={t("kp.venue.layout_width")}
+              min={1}
+              onChange={(value) => setForm({ ...form, width: toNumber(value) })}
+              value={form.width}
+            />
+            <NumberInput
+              label={t("kp.venue.layout_height")}
+              min={1}
+              onChange={(value) =>
+                setForm({ ...form, height: toNumber(value) })
+              }
+              value={form.height}
+            />
+          </Group>
+        ) : null}
         <NumberInput
           label={t("kp.venue.layout_order")}
           min={0}
@@ -322,55 +328,6 @@ const VenueTab = ({ eventId }: { eventId: string }) => {
             )}
           </Stack>
         </Paper>
-
-        {selectedLayout ? (
-          <Paper withBorder p="lg" radius="md">
-            <Stack gap="sm">
-              <Title order={5}>{t("kp.venue.background_title")}</Title>
-              <Text c="dimmed" size="xs">
-                {t("kp.venue.background_formats")}
-              </Text>
-              <Group gap="sm">
-                <RepickableFileButton
-                  accept={VENUE_BACKGROUND_ACCEPT}
-                  onChange={(file) => {
-                    if (!file) return;
-                    uploadBackground({
-                      layoutId: selectedLayout.id,
-                      data: { file },
-                    });
-                  }}
-                >
-                  {(props) => (
-                    <Button
-                      {...props}
-                      leftSection={<IconUpload size={16} />}
-                      loading={isUploading}
-                      variant="light"
-                    >
-                      {selectedLayout.background_url
-                        ? t("kp.venue.background_replace")
-                        : t("kp.venue.background_upload")}
-                    </Button>
-                  )}
-                </RepickableFileButton>
-                {selectedLayout.background_url ? (
-                  <Button
-                    color="red"
-                    leftSection={<IconTrash size={16} />}
-                    loading={isRemovingBackground}
-                    onClick={() =>
-                      removeBackground({ layoutId: selectedLayout.id })
-                    }
-                    variant="subtle"
-                  >
-                    {t("kp.venue.background_remove")}
-                  </Button>
-                ) : null}
-              </Group>
-            </Stack>
-          </Paper>
-        ) : null}
 
         {selectedLayout ? (
           <VenueLayoutEditor

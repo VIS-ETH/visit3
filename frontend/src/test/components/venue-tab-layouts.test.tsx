@@ -77,8 +77,61 @@ describe("the venue layout list", () => {
         width: 1200,
         height: 700,
         order: 1,
+        floor_plan: null,
       });
     });
+  });
+
+  it("creates a layout on a floor plan without asking for its size", async () => {
+    const { user } = renderWithProviders(<VenueTab eventId={testEventId} />);
+
+    await screen.findByText(testEditableLayout.name);
+    await user.click(
+      screen.getByRole("button", { name: "kp.venue.layout_add" }),
+    );
+    await user.type(
+      await screen.findByLabelText("kp.venue.layout_name"),
+      "Main hall",
+    );
+    await user.click(
+      screen.getByLabelText("kp.venue.floor_plan", { selector: "input" }),
+    );
+    await user.click(
+      await screen.findByRole("option", {
+        name: "kp.venue.floor_plan_main_hall",
+      }),
+    );
+
+    expect(
+      screen.queryByLabelText("kp.venue.layout_width"),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "kp.venue.layout_add",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(createdPayload).toEqual({
+        name: "Main hall",
+        order: 1,
+        floor_plan: "main_hall",
+      });
+    });
+  });
+
+  it("offers no background upload", async () => {
+    const { container } = renderWithProviders(
+      <VenueTab eventId={testEventId} />,
+    );
+
+    await screen.findByText(testEditableLayout.name);
+
+    expect(container.querySelector('input[type="file"]')).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /background/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("hides a layout from companies when the switch is turned off", async () => {
