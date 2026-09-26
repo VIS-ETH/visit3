@@ -2,18 +2,27 @@ import { Card, Image, Stack, Text, Title } from "@mantine/core";
 import { Link } from "react-router";
 import type { ReactNode } from "react";
 
+export interface FeatureImage {
+  src: string;
+  srcSet: string;
+  width: number;
+  height: number;
+}
+
 interface LinkFeatureCardProps {
   to: string;
-  imageSrc: string;
+  image: FeatureImage;
   imageAlt: string;
   title: string;
   description: string;
   action?: ReactNode;
 }
 
+const IMAGE_SIZES = "(max-width: 1100px) 100vw, 1060px";
+
 const LinkFeatureCard = ({
   to,
-  imageSrc,
+  image,
   imageAlt,
   title,
   description,
@@ -25,13 +34,23 @@ const LinkFeatureCard = ({
       to={to}
       withBorder
       radius="lg"
-      p="lg"
+      padding="lg"
       style={{
         boxShadow: "var(--visit-feature-shadow)",
       }}
     >
       <Card.Section>
-        <Image src={imageSrc} alt={imageAlt} h={180} />
+        <Image
+          src={image.src}
+          srcSet={image.srcSet}
+          sizes={IMAGE_SIZES}
+          width={image.width}
+          height={image.height}
+          alt={imageAlt}
+          h="auto"
+          fit="contain"
+          style={{ aspectRatio: `${image.width} / ${image.height}` }}
+        />
       </Card.Section>
       <Stack gap={6} mt="md">
         <Title order={4} className="section-title">

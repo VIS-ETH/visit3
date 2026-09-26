@@ -1,6 +1,7 @@
 import { Badge, Group, Stack, Title } from "@mantine/core";
 import { useCurrentUser } from "../context/useCurrentUser";
 import LinkFeatureCard from "../components/LinkFeatureCard";
+import { KONTAKTPARTY_BANNER } from "../components/home/kontaktparty-banner";
 import { useTranslation } from "react-i18next";
 
 const Home = () => {
@@ -22,7 +23,7 @@ const Home = () => {
 
       <LinkFeatureCard
         to="/kp"
-        imageSrc="https://placehold.co/1200x600?text=Kontaktparty"
+        image={KONTAKTPARTY_BANNER}
         imageAlt={t("home.kp.image_alt")}
         title={t("home.kp.title")}
         description={t("home.kp.description")}
