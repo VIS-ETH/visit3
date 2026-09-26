@@ -78,6 +78,16 @@ MIME_SIGNATURES = (
 )
 
 
+def upload_limit_bytes(settings: Settings, kind: UploadKind) -> int:
+    if kind is UploadKind.IMAGE:
+        return settings.STORAGE_IMAGE_MAX_SIZE_BYTES
+    if kind is UploadKind.PDF:
+        return settings.STORAGE_PDF_MAX_SIZE_BYTES
+    if kind is UploadKind.VIDEO:
+        return settings.STORAGE_VIDEO_MAX_SIZE_BYTES
+    return settings.STORAGE_FILE_MAX_SIZE_BYTES
+
+
 def sniff_mime_type(content: bytes) -> str | None:
     for signature in MIME_SIGNATURES:
         if all(
@@ -131,13 +141,7 @@ class StorageService:
         return hashlib.sha256(content).hexdigest()
 
     def max_upload_size_bytes(self, kind: UploadKind) -> int:
-        if kind is UploadKind.IMAGE:
-            return self.settings.STORAGE_IMAGE_MAX_SIZE_BYTES
-        if kind is UploadKind.PDF:
-            return self.settings.STORAGE_PDF_MAX_SIZE_BYTES
-        if kind is UploadKind.VIDEO:
-            return self.settings.STORAGE_VIDEO_MAX_SIZE_BYTES
-        return self.settings.STORAGE_FILE_MAX_SIZE_BYTES
+        return upload_limit_bytes(self.settings, kind)
 
     async def read_upload(
         self,

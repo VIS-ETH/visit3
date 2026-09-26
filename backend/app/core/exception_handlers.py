@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.core.body_limit import RequestBodyTooLarge, request_body_too_large_handler
 from app.core.exceptions import AppError, ConcurrentChange
 from app.core.request_id import current_request_id
 
@@ -58,6 +59,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.exception_handler(AppError)(app_error_handler)
     app.exception_handler(RequestValidationError)(request_validation_error_handler)
     app.exception_handler(IntegrityError)(integrity_error_handler)
+    app.exception_handler(RequestBodyTooLarge)(request_body_too_large_handler)
 
 
 async def integrity_error_handler(

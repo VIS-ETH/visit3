@@ -12,7 +12,6 @@ from tests.images import decompression_bomb
 HTML_BYTES = b"<!DOCTYPE html><html><body><script>alert(document.domain)</script>"
 SVG_BYTES = b'<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>'
 STREAM_LIMIT_BYTES = 64 * 1024
-STREAMED_BYTES = 8 * 1024 * 1024
 STREAM_CHUNK_BYTES = 64 * 1024
 BOUNDARY = "sec-boundary"
 BOMB_SIDE = 30_000
@@ -120,14 +119,14 @@ async def test_logo_upload_rejects_a_decompression_bomb(
     assert s3_client.objects == {}
 
 
+@pytest.mark.parametrize("declare_length", [True, False], ids=["declared", "chunked"])
 async def test_upload_size_limit_stops_reading_an_oversized_body(
     client: AsyncClient,
-    storage_service: StorageService,
     company_headers: dict[str, str],
+    declare_length: bool,
 ):
-    storage_service.settings = storage_service.settings.model_copy(
-        update={"STORAGE_IMAGE_MAX_SIZE_BYTES": STREAM_LIMIT_BYTES}
-    )
+    image_limit = get_settings().STORAGE_IMAGE_MAX_SIZE_BYTES
+    streamed_bytes = 3 * image_limit
     prefix = (
         f"--{BOUNDARY}\r\n"
         'Content-Disposition: form-data; name="file"; filename="logo.png"\r\n'
@@ -140,22 +139,24 @@ async def test_upload_size_limit_stops_reading_an_oversized_body(
         nonlocal consumed
         for part in (
             prefix,
-            *[b"\x00" * STREAM_CHUNK_BYTES] * (STREAMED_BYTES // STREAM_CHUNK_BYTES),
+            *[b"\x00" * STREAM_CHUNK_BYTES] * (streamed_bytes // STREAM_CHUNK_BYTES),
             suffix,
         ):
             consumed += len(part)
             yield part
 
-    total = len(prefix) + STREAMED_BYTES + len(suffix)
+    total = len(prefix) + streamed_bytes + len(suffix)
+    length_header = {"Content-Length": str(total)} if declare_length else {}
     response = await client.post(
         "/api/company/me/profile/logo",
         content=body(),
         headers={
             **company_headers,
+            **length_header,
             "Content-Type": f"multipart/form-data; boundary={BOUNDARY}",
-            "Content-Length": str(total),
         },
     )
 
-    assert response.status_code in (400, 413)
-    assert consumed < STREAMED_BYTES // 4
+    assert response.status_code == 413
+    assert response.json()["code"] == "error.storage_file_too_large"
+    assert consumed <= image_limit + STREAM_LIMIT_BYTES + 2 * STREAM_CHUNK_BYTES

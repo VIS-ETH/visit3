@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi_csrf_protect import CsrfProtect
 from pydantic import BaseModel, Field
 
+from app.core.body_limit import BodyLimitMiddleware
 from app.core.config import get_settings
 from app.core.cookies import secure_cookies
 from app.core.csrf import (
@@ -22,6 +23,7 @@ from app.core.exception_handlers import (
 from app.core.maintenance import lifespan
 from app.core.request_id import REQUEST_ID_HEADER, RequestIdMiddleware
 from app.routes.router import router as api_router
+from app.routes.upload_limits import upload_route_limits
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
@@ -54,6 +56,7 @@ register_exception_handlers(app)
 origins = [get_settings().VISIT_FRONTEND_SERVER_URL]
 
 app.add_middleware(UnexpectedErrorMiddleware)
+app.add_middleware(BodyLimitMiddleware, upload_limits=upload_route_limits)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
