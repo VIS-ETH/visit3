@@ -74,7 +74,7 @@ async def integrity_error_handler(
     )
 
 
-async def app_error_handler(_request: Request, exc: AppError) -> JSONResponse:
+async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
     content: dict[str, object] = {
         "statusCode": exc.status_code,
         "code": exc.code,
@@ -83,6 +83,18 @@ async def app_error_handler(_request: Request, exc: AppError) -> JSONResponse:
     }
     if exc.details is not None:
         content["details"] = exc.details
+    if exc.status_code >= 500:
+        request_id = current_request_id()
+        logger.error(
+            "Server error %s on %s %s (request %s): %s",
+            exc.code,
+            request.method,
+            request.url.path,
+            request_id,
+            exc.identifier,
+            exc_info=exc,
+        )
+        content["requestId"] = request_id
     return JSONResponse(status_code=exc.status_code, content=content)
 
 

@@ -1,3 +1,4 @@
+import logging
 from base64 import b64encode
 from collections.abc import Mapping, Sequence
 from datetime import date
@@ -12,6 +13,7 @@ from app.core.exceptions import (
     BookletBackgroundRejected,
     CompanyNotFound,
     KpEventNotFound,
+    StorageDeleteFailed,
 )
 from app.core.rich_text import rich_text_blocks
 from app.models.company import Company, KpCompanyLanguage
@@ -31,6 +33,7 @@ from app.services.pdf_service import PdfService, PdfUnreadable
 from app.services.storage_service import StorageService, UploadKind, UploadStream
 
 COMPANY_PAGE_TEMPLATE = "company_page.typ"
+logger = logging.getLogger(__name__)
 BACKGROUND_FILE = "background.pdf"
 BACKGROUND_CONTEXT = "booklet_background"
 BOOKLET_BACKGROUND_MAX_BYTES = 900 * 1024
@@ -297,7 +300,13 @@ class BookletService:
         stored_file = await self.kp_repository.get_stored_file(stored_file_id)
         if stored_file is None:
             return
-        await self.storage_service.delete_object(stored_file.storage_key)
+        try:
+            await self.storage_service.delete_object(stored_file.storage_key)
+        except StorageDeleteFailed:
+            logger.warning(
+                "Booklet background cleanup failed for %s", stored_file.storage_key
+            )
+            return
         await self.kp_repository.delete_stored_file(stored_file)
 
     async def _read_background(
