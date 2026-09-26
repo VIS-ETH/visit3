@@ -3,7 +3,9 @@ from io import BytesIO
 from unittest.mock import Mock
 
 import pytest
+from botocore.awsrequest import AWSPreparedRequest, AWSResponse
 from botocore.exceptions import ClientError
+from urllib3 import HTTPHeaderDict
 
 from app.core.config import get_settings
 from app.core.exceptions import (
@@ -350,6 +352,59 @@ async def test_generate_download_url_is_signed_for_the_public_endpoint():
     )
 
     assert url.startswith("http://localhost:9000/")
+
+
+def https_storage_service() -> StorageService:
+    return StorageService(
+        get_settings().model_copy(
+            update={
+                "SIP_S3_FILES_HOST": "s3.example.org",
+                "SIP_S3_FILES_PORT": "443",
+                "SIP_S3_FILES_USE_SSL": True,
+                "S3_PUBLIC_ENDPOINT_URL": None,
+            }
+        )
+    )
+
+
+class EmptyRawResponse:
+    def stream(self, *_: object, **__: object):
+        yield b""
+
+
+def captured_put_request(service: StorageService, content: bytes) -> AWSPreparedRequest:
+    captured: list[AWSPreparedRequest] = []
+
+    def capture(request: AWSPreparedRequest, **_: object) -> AWSResponse:
+        captured.append(request)
+        return AWSResponse(
+            request.url, 200, HTTPHeaderDict({"ETag": '"etag"'}), EmptyRawResponse()
+        )
+
+    service.client.meta.events.register("before-send.s3.PutObject", capture)
+    service.client.put_object(
+        Bucket="visit", Key="logo.png", Body=content, ContentType="image/png"
+    )
+    return captured[0]
+
+
+def test_uploads_over_https_send_a_plain_body_with_its_length():
+    content = PNG_BYTES + b"\x00" * 2048
+
+    request = captured_put_request(https_storage_service(), content)
+
+    assert request.headers.get("Content-Encoding") is None
+    assert request.headers.get("Transfer-Encoding") is None
+    assert request.headers["Content-Length"] == str(len(content))
+    assert request.headers["x-amz-content-sha256"] != (
+        "STREAMING-UNSIGNED-PAYLOAD-TRAILER"
+    )
+
+
+async def test_download_urls_are_signed_with_signature_version_4():
+    url = await https_storage_service().generate_download_url("kp/plan.png", "plan.png")
+
+    assert "X-Amz-Algorithm=AWS4-HMAC-SHA256" in url
 
 
 def test_validate_image_file_rejects_heic_with_its_sniffed_mime_type():

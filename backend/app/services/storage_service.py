@@ -7,6 +7,7 @@ from functools import cached_property
 from typing import Any, Protocol, cast
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import (
     BotoCoreError,
     ClientError,
@@ -23,6 +24,12 @@ from app.core.exceptions import (
 )
 
 UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024
+
+S3_CLIENT_CONFIG = Config(
+    signature_version="s3v4",
+    request_checksum_calculation="when_required",
+    response_checksum_validation="when_required",
+)
 
 IMAGE_OR_PDF_MIME_TYPES = {
     "image/png",
@@ -93,6 +100,7 @@ def s3_client(settings: Settings, endpoint_url: str) -> Any:
         region_name=settings.S3_REGION,
         aws_access_key_id=settings.SIP_S3_FILES_ACCESS_KEY,
         aws_secret_access_key=settings.SIP_S3_FILES_SECRET_KEY,
+        config=S3_CLIENT_CONFIG,
     )
 
 
