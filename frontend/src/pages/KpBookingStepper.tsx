@@ -223,7 +223,11 @@ function KpBookingProfileStep({
         {missingFields.length > 0 ? (
           <Alert icon={<IconAlertCircle />} color="yellow">
             <Stack gap="xs">
-              <Text size="sm">{t("kp.booking.profile_incomplete")}</Text>
+              <Text size="sm">
+                {company.profile_bookable
+                  ? t("kp.booking.profile_incomplete_deferred")
+                  : t("kp.booking.profile_incomplete")}
+              </Text>
               <List size="sm" withPadding>
                 {missingFields.map((field) => (
                   <List.Item key={field}>
@@ -236,7 +240,7 @@ function KpBookingProfileStep({
         ) : null}
         <Checkbox
           checked={isConfirmed}
-          disabled={!company.profile_complete}
+          disabled={!company.profile_bookable}
           label={t("kp.booking.profile_confirm_checkbox")}
           onChange={(event) => onConfirmedChange(event.currentTarget.checked)}
         />
@@ -824,7 +828,7 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
   }
 
   const canContinueFromProfile =
-    Boolean(company?.profile_complete) && isProfileConfirmed;
+    Boolean(company?.profile_bookable) && isProfileConfirmed;
   const canContinueFromZone =
     Boolean(selectedZone) &&
     !selectedZone?.is_full &&

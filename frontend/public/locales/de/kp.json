@@ -181,6 +181,7 @@
       "profile_industries": "Branchen",
       "profile_value_missing": "Noch nicht erfasst",
       "profile_incomplete": "In Ihrem Unternehmensprofil fehlen Pflichtangaben. Bitte ergänzen Sie diese, bevor Sie fortfahren.",
+      "profile_incomplete_deferred": "In Ihrem Unternehmensprofil fehlen noch Angaben. Sie können jetzt buchen und sie später ergänzen.",
       "profile_edit": "Unternehmensprofil bearbeiten",
       "profile_confirm_checkbox": "Die Angaben sind aktuell und korrekt.",
       "profile_field": {
@@ -206,6 +207,7 @@
       "completeness_incomplete_body": "Diese Angaben fehlen noch:",
       "missing_item_requirement": "Eine Angabe zu einem gebuchten Service fehlt",
       "missing_item_company_profile": "Angaben im Unternehmensprofil fehlen",
+      "missing_item_company_description": "Unternehmensbeschreibung fehlt",
       "missing_item_billing_address": "Rechnungsadresse fehlt",
       "missing_item_unknown": "Weitere Angaben fehlen",
       "rejected_title": "Buchung abgelehnt",
@@ -564,6 +566,7 @@
       "booking_updated": "Buchung aktualisiert.",
       "booking_missing_item_requirement": "Ein Upload für einen gebuchten Service fehlt",
       "booking_missing_item_company_profile": "Angaben im Unternehmensprofil fehlen",
+      "booking_missing_item_company_description": "Unternehmensbeschreibung fehlt",
       "booking_missing_item_billing_address": "Rechnungsadresse fehlt",
       "booking_missing_item_unknown": "Es fehlt noch etwas",
       "booking_timeline_title": "Statusverlauf",

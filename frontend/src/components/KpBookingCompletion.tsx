@@ -28,7 +28,13 @@ import { COMPANY_PROFILE_PATH } from "../utils/navigation";
 
 const REQUIREMENT_ITEM_PREFIX = "requirement:";
 const COMPANY_PROFILE_ITEM = "company_profile";
+const COMPANY_DESCRIPTION_ITEM = "company_description";
 const BILLING_ADDRESS_ITEM = "billing_address";
+const PROFILE_ITEMS = [
+  COMPANY_PROFILE_ITEM,
+  COMPANY_DESCRIPTION_ITEM,
+  BILLING_ADDRESS_ITEM,
+];
 
 const requirementNamesById = (booking: BookingResponse) =>
   new Map(
@@ -118,14 +124,16 @@ export const KpBookingCompletion = ({
     if (item === COMPANY_PROFILE_ITEM) {
       return t("kp.booking.missing_item_company_profile");
     }
+    if (item === COMPANY_DESCRIPTION_ITEM) {
+      return t("kp.booking.missing_item_company_description");
+    }
     if (item === BILLING_ADDRESS_ITEM) {
       return t("kp.booking.missing_item_billing_address");
     }
     return t("kp.booking.missing_item_unknown");
   };
 
-  const isProfileItem = (item: string) =>
-    item === COMPANY_PROFILE_ITEM || item === BILLING_ADDRESS_ITEM;
+  const isProfileItem = (item: string) => PROFILE_ITEMS.includes(item);
 
   const missingItemsList = (items: string[]) => (
     <List size="sm" withPadding>

@@ -181,6 +181,7 @@
       "profile_industries": "Industries",
       "profile_value_missing": "Not provided yet",
       "profile_incomplete": "Your company profile is missing mandatory information. Please complete it before you continue.",
+      "profile_incomplete_deferred": "Your company profile is still missing information. You can book now and complete it later.",
       "profile_edit": "Edit company profile",
       "profile_confirm_checkbox": "The details above are current and correct.",
       "profile_field": {
@@ -206,6 +207,7 @@
       "completeness_incomplete_body": "The following information is still missing:",
       "missing_item_requirement": "An answer for a booked service is missing",
       "missing_item_company_profile": "Company profile details are missing",
+      "missing_item_company_description": "Company description is missing",
       "missing_item_billing_address": "Billing address is missing",
       "missing_item_unknown": "Further information is missing",
       "rejected_title": "Booking rejected",
@@ -564,6 +566,7 @@
       "booking_updated": "Booking updated.",
       "booking_missing_item_requirement": "An upload for a booked service is missing",
       "booking_missing_item_company_profile": "Company profile details are missing",
+      "booking_missing_item_company_description": "Company description is missing",
       "booking_missing_item_billing_address": "Billing address is missing",
       "booking_missing_item_unknown": "Something is still missing",
       "booking_timeline_title": "Status history",

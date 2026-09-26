@@ -53,6 +53,23 @@ describe("KpBookingCompletion", () => {
     ).toHaveAttribute("href", "/company/profile");
   });
 
+  it("links a missing description to the company profile", () => {
+    renderWithProviders(
+      <KpBookingCompletion
+        booking={{
+          ...incompleteBooking,
+          missing_items: ["company_description"],
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", {
+        name: "kp.booking.missing_item_company_description",
+      }),
+    ).toHaveAttribute("href", "/company/profile");
+  });
+
   it("falls back to a generic label for an unknown requirement", () => {
     renderWithProviders(
       <KpBookingCompletion

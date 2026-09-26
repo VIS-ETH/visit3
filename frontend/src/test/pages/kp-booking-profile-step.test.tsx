@@ -143,6 +143,7 @@ describe("booking wizard company profile step", () => {
       company: {
         ...testCompany,
         profile_complete: false,
+        profile_bookable: false,
         missing_profile_fields: ["kp_contact_user_id", "billing_city"],
       },
       profile: {
@@ -165,6 +166,33 @@ describe("booking wizard company profile step", () => {
     expect(profileEditLink()).toHaveAttribute("href", profileEditHref);
     expect(checkbox).toBeDisabled();
     expect(continueToZoneButton()).toBeDisabled();
+  });
+
+  it("lets a company book before it has written its description", async () => {
+    installCompanyProfileHandlers({
+      company: {
+        ...testCompany,
+        profile_complete: false,
+        profile_bookable: true,
+        missing_profile_fields: ["description"],
+      },
+      profile: { ...testCompanyProfile, description: "" },
+    });
+    const { user } = renderWithProviders(<KpBookingStepper event={event} />);
+
+    const checkbox = await profileConfirmCheckbox();
+
+    expect(
+      screen.getByText("kp.booking.profile_field.description"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("kp.booking.profile_incomplete_deferred"),
+    ).toBeInTheDocument();
+    expect(checkbox).toBeEnabled();
+
+    await user.click(checkbox);
+
+    expect(continueToZoneButton()).toBeEnabled();
   });
 
   it("registers with the profile confirmation flag", async () => {

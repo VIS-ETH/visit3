@@ -3,6 +3,7 @@ import type { BookingServiceResponse } from "../../orval/generated/fastAPI.schem
 
 const REQUIREMENT_ITEM_PREFIX = "requirement:";
 const COMPANY_PROFILE_ITEM = "company_profile";
+const COMPANY_DESCRIPTION_ITEM = "company_description";
 const BILLING_ADDRESS_ITEM = "billing_address";
 
 const requirementLabelsById = (services: BookingServiceResponse[]) =>
@@ -31,6 +32,9 @@ export const useMissingItemLabel = (services: BookingServiceResponse[]) => {
     }
     if (item === COMPANY_PROFILE_ITEM) {
       return t("kp.manage.booking_missing_item_company_profile");
+    }
+    if (item === COMPANY_DESCRIPTION_ITEM) {
+      return t("kp.manage.booking_missing_item_company_description");
     }
     if (item === BILLING_ADDRESS_ITEM) {
       return t("kp.manage.booking_missing_item_billing_address");

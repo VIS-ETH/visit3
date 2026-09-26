@@ -14,6 +14,7 @@ export const testCompany: MyCompanyResponse = {
   id: "99999999-9999-9999-9999-999999999999",
   name: "Acme AG",
   profile_complete: true,
+  profile_bookable: true,
   missing_profile_fields: [],
 };
 
