@@ -20,6 +20,7 @@ class MailTemplateResult(BaseModel):
     default_body_en: str
     variables: list[str]
     is_customized: bool
+    is_valid: bool
     updated_at: datetime | None = None
     updated_by_user_id: UUID | None = None
 

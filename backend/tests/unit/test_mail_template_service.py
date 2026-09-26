@@ -1,4 +1,6 @@
+import logging
 from datetime import date, timedelta
+from email.header import decode_header, make_header
 from unittest.mock import AsyncMock
 
 import pytest
@@ -17,6 +19,12 @@ from app.services.mail_template_service import MailTemplateService
 from app.services.notification_recipients import NotificationRecipients
 
 CONTEXT = PasswordResetContext(name="Ada", reset_url="https://visit.test/reset/abc")
+
+
+def decoded(subject: str) -> str:
+    return str(make_header(decode_header(subject)))
+
+
 STAFF_KEY = MailTemplateKey.ACCOUNT_AWAITING_CONFIRMATION
 STAFF_CONTEXT = AccountAwaitingConfirmationContext(
     name="Ada", email="ada@example.com", admin_url="https://visit.test/admin"
@@ -160,3 +168,59 @@ async def test_notification_email_falls_back_without_events(kp_repo: AsyncMock):
     recipients = NotificationRecipients(kp_repo)
 
     assert await recipients.staff_notification_email() == "kontaktparty@vis.ethz.ch"
+
+
+LOOPING_BODY = "<p>{% for c in name %}{{ c }}{% endfor %}</p>"
+
+
+async def test_an_invalid_stored_template_sends_the_default_and_logs_an_error(
+    template_service: MailTemplateService,
+    mail_template_repo: AsyncMock,
+    mail_stub: AsyncMock,
+    caplog: pytest.LogCaptureFixture,
+):
+    mail_template_repo.get_by_key.return_value = MailTemplate(
+        key=str(MailTemplateKey.PASSWORD_RESET),
+        subject_de="Eigener Betreff",
+        subject_en="Custom subject",
+        body_de=LOOPING_BODY,
+        body_en="<p>EN {{ name }}</p>",
+    )
+
+    with caplog.at_level(logging.ERROR):
+        await template_service.send(
+            MailTemplateKey.PASSWORD_RESET, ["user@example.com"], CONTEXT
+        )
+
+    message = mail_stub.SendMail.await_args.args[0]
+    default_subject = MAIL_TEMPLATE_DEFAULTS[MailTemplateKey.PASSWORD_RESET].subject_en
+    assert default_subject in decoded(message.subject)
+    assert "https://visit.test/reset/abc" in message.plain_text
+    [record] = [r for r in caplog.records if r.levelno == logging.ERROR]
+    assert str(MailTemplateKey.PASSWORD_RESET) in record.getMessage()
+    assert "request" in record.getMessage()
+
+
+async def test_a_valid_stored_template_is_still_sent(
+    template_service: MailTemplateService,
+    mail_template_repo: AsyncMock,
+    mail_stub: AsyncMock,
+    caplog: pytest.LogCaptureFixture,
+):
+    mail_template_repo.get_by_key.return_value = MailTemplate(
+        key=str(MailTemplateKey.PASSWORD_RESET),
+        subject_de="Eigener Betreff",
+        subject_en="Custom subject",
+        body_de="<p>{% if name %}DE {{ name }}{% endif %}</p>",
+        body_en="<p>EN {{ name }}</p>",
+    )
+
+    with caplog.at_level(logging.ERROR):
+        await template_service.send(
+            MailTemplateKey.PASSWORD_RESET, ["user@example.com"], CONTEXT
+        )
+
+    message = mail_stub.SendMail.await_args.args[0]
+    assert decoded(message.subject) == "Eigener Betreff / Custom subject"
+    assert "DE Ada" in message.plain_text
+    assert not [r for r in caplog.records if r.levelno == logging.ERROR]

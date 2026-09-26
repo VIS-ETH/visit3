@@ -3,11 +3,14 @@ from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.mail_templates.defaults import MAIL_TEMPLATE_DEFAULTS
 from app.mail_templates.keys import MailTemplateKey
 from app.mail_templates.renderer import MAX_TEMPLATE_CHARACTERS
+from app.mail_templates.texts import MailTemplateTexts
 from app.models.user import User
+from app.repositories.mail_repository import MailTemplateRepository
 from tests.api.conftest import decoded_subject
 
 KEY = str(MailTemplateKey.PASSWORD_RESET)
@@ -331,3 +334,41 @@ async def test_company_user_cannot_trigger_a_test_send(
 
     assert response.status_code == 403
     mail_stub.SendMail.assert_not_awaited()
+
+
+async def test_staff_see_which_stored_templates_are_no_longer_valid(
+    client: AsyncClient,
+    plain_staff_headers: dict[str, str],
+    staff_user: User,
+    db_session: AsyncSession,
+):
+    await client.put(
+        f"/api/mail-templates/{KEY}", json=VALID_BODY, headers=plain_staff_headers
+    )
+    await MailTemplateRepository(db_session).upsert(
+        str(MailTemplateKey.COMPANY_INVITE),
+        MailTemplateTexts(
+            subject_de="Einladung",
+            subject_en="Invitation",
+            body_de="<p>{% for c in company_name %}{{ c }}{% endfor %}</p>",
+            body_en="<p>{{ company_name|join(', ') }}</p>",
+        ),
+        staff_user.id,
+    )
+
+    listing = await client.get("/api/mail-templates", headers=plain_staff_headers)
+    detail = await client.get(
+        f"/api/mail-templates/{MailTemplateKey.COMPANY_INVITE}",
+        headers=plain_staff_headers,
+    )
+
+    validity = {template["key"]: template["is_valid"] for template in listing.json()}
+    assert validity[str(MailTemplateKey.COMPANY_INVITE)] is False
+    assert validity[KEY] is True
+    assert all(
+        valid
+        for key, valid in validity.items()
+        if key != str(MailTemplateKey.COMPANY_INVITE)
+    )
+    assert detail.json()["is_valid"] is False
+    assert detail.json()["is_customized"] is True

@@ -1,19 +1,57 @@
 import asyncio
+import logging
 from collections.abc import Sequence
 
-from app.core.exceptions import MailUnavailable
-from app.mail_templates.context import MailContext
+from app.core.exceptions import MailTemplateInvalid, MailUnavailable
+from app.core.request_id import current_request_id
+from app.mail_templates.context import SAMPLE_CONTEXTS, MailContext, allowed_variables
 from app.mail_templates.defaults import MAIL_TEMPLATE_DEFAULTS
 from app.mail_templates.keys import MailTemplateKey
-from app.mail_templates.renderer import RenderedMail, render_mail
+from app.mail_templates.renderer import (
+    RenderedMail,
+    render_fragment,
+    render_mail,
+    unknown_variables,
+)
 from app.mail_templates.texts import MailTemplateTexts
 from app.repositories.mail_repository import MailTemplateRepository
 from app.services.mail_service import MailDeliveryFailed, MailService
 from app.services.notification_recipients import NotificationRecipients
 
+logger = logging.getLogger(__name__)
+
 
 def template_identifier(key: MailTemplateKey) -> str:
     return f"mail_template:{key}"
+
+
+def validate_texts(key: MailTemplateKey, texts: MailTemplateTexts) -> None:
+    identifier = template_identifier(key)
+    allowed = allowed_variables(key)
+    sample = SAMPLE_CONTEXTS[key].variables()
+    for field, source in (
+        ("subject_de", texts.subject_de),
+        ("subject_en", texts.subject_en),
+        ("body_de", texts.body_de),
+        ("body_en", texts.body_en),
+    ):
+        unknown = sorted(unknown_variables(source, allowed, identifier, field))
+        if unknown:
+            raise MailTemplateInvalid(
+                identifier,
+                f"unknown variable '{unknown[0]}' in {field}",
+                field,
+                unknown[0],
+            )
+        render_fragment(source, sample, identifier, field)
+
+
+def texts_are_valid(key: MailTemplateKey, texts: MailTemplateTexts) -> bool:
+    try:
+        validate_texts(key, texts)
+    except MailTemplateInvalid:
+        return False
+    return True
 
 
 class MailTemplateService:
@@ -40,8 +78,21 @@ class MailTemplateService:
 
     async def render(self, key: MailTemplateKey, context: MailContext) -> RenderedMail:
         texts = await self.texts_for(key)
+        identifier = template_identifier(key)
+        try:
+            return await asyncio.to_thread(render_mail, texts, context, identifier)
+        except MailTemplateInvalid as error:
+            if texts == MAIL_TEMPLATE_DEFAULTS[key]:
+                raise
+            logger.error(
+                "Stored mail template %s is invalid, sending the default "
+                "(request %s): %r",
+                key,
+                current_request_id(),
+                error.message,
+            )
         return await asyncio.to_thread(
-            render_mail, texts, context, template_identifier(key)
+            render_mail, MAIL_TEMPLATE_DEFAULTS[key], context, identifier
         )
 
     async def send(

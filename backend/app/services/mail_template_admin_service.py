@@ -4,11 +4,10 @@ from datetime import datetime
 from uuid import UUID
 
 from app.core.auth_context import require_staff_user
-from app.core.exceptions import MailTemplateInvalid, MailTemplateNotFound
+from app.core.exceptions import MailTemplateNotFound
 from app.mail_templates.context import SAMPLE_CONTEXTS, allowed_variables
 from app.mail_templates.defaults import MAIL_TEMPLATE_DEFAULTS
 from app.mail_templates.keys import MailTemplateKey
-from app.mail_templates.renderer import render_fragment, unknown_variables
 from app.mail_templates.texts import MailTemplateTexts
 from app.models.mail import MailTemplate
 from app.models.user import User
@@ -18,7 +17,11 @@ from app.schemas.mail import (
     MailTemplateResult,
     UpdateMailTemplateInput,
 )
-from app.services.mail_template_service import MailTemplateService, template_identifier
+from app.services.mail_template_service import (
+    MailTemplateService,
+    texts_are_valid,
+    validate_texts,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +65,7 @@ class MailTemplateAdminService:
             default_body_en=defaults.body_en,
             variables=sorted(allowed_variables(key)),
             is_customized=is_customized,
+            is_valid=texts_are_valid(key, texts),
             updated_at=updated_at,
             updated_by_user_id=updated_by_user_id,
         )
@@ -109,30 +113,13 @@ class MailTemplateAdminService:
     def _validated_texts(
         self, key: MailTemplateKey, update: UpdateMailTemplateInput
     ) -> MailTemplateTexts:
-        identifier = template_identifier(key)
-        allowed = allowed_variables(key)
-        sample = SAMPLE_CONTEXTS[key].variables()
         texts = MailTemplateTexts(
             subject_de=update.subject_de,
             subject_en=update.subject_en,
             body_de=update.body_de,
             body_en=update.body_en,
         )
-        for field, source in (
-            ("subject_de", texts.subject_de),
-            ("subject_en", texts.subject_en),
-            ("body_de", texts.body_de),
-            ("body_en", texts.body_en),
-        ):
-            unknown = sorted(unknown_variables(source, allowed, identifier, field))
-            if unknown:
-                raise MailTemplateInvalid(
-                    identifier,
-                    f"unknown variable '{unknown[0]}' in {field}",
-                    field,
-                    unknown[0],
-                )
-            render_fragment(source, sample, identifier, field)
+        validate_texts(key, texts)
         return texts
 
     async def update_template(
