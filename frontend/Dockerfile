@@ -1,6 +1,6 @@
 FROM python:3.12-slim AS grpc-and-openapi-generator
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.17@sha256:10787c682e4184e4f290de1171fd4703dc63de99221f10fe1c99002ce7fa9acc /uv /uvx /bin/
 
 ENV UV_PROJECT_ENVIRONMENT="/opt/venv"
 ENV UV_COMPILE_BYTECODE=1
@@ -25,7 +25,6 @@ RUN find ./backend/app/generated -type d -exec touch {}/__init__.py \;
 RUN /opt/venv/bin/python ./scripts/fix_imports.py ./backend/app/generated app.generated
 
 COPY --from=common scripts/extract_docs.py ./scripts/extract_docs.py
-# Schema generation uses example settings so CI does not require a local .env.
 COPY --from=common backend/.env.example ./backend/.env.example
 RUN /opt/venv/bin/python ./scripts/extract_docs.py /repo/visit.json
 

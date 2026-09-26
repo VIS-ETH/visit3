@@ -1,6 +1,6 @@
 FROM python:3.12-slim AS grpc-generator
 
-COPY --from=ghcr.io/astral-sh/uv:0.12.17 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.17@sha256:10787c682e4184e4f290de1171fd4703dc63de99221f10fe1c99002ce7fa9acc /uv /uvx /bin/
 
 ENV UV_PROJECT_ENVIRONMENT="/opt/gen-venv"
 ENV UV_COMPILE_BYTECODE=1
@@ -26,7 +26,7 @@ RUN /opt/gen-venv/bin/python ./fix_imports.py app/generated app.generated
 
 FROM python:3.12-slim AS compiler
 
-COPY --from=ghcr.io/astral-sh/uv:0.12.17 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.17@sha256:10787c682e4184e4f290de1171fd4703dc63de99221f10fe1c99002ce7fa9acc /uv /uvx /bin/
 
 ENV UV_PROJECT_ENVIRONMENT="/opt/venv"
 ENV UV_COMPILE_BYTECODE=1
@@ -51,6 +51,7 @@ COPY migrations ./migrations
 COPY --from=grpc-generator /build/app/generated ./app/generated
 
 RUN python -m compileall -q app migrations
+
 
 ENV FORWARDED_ALLOW_IPS="127.0.0.1"
 
