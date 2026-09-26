@@ -90,6 +90,9 @@ class KpEvent(BaseEntity, table=True):
     max_nametags_per_booking: int = Field(
         default=DEFAULT_MAX_NAMETAGS_PER_BOOKING, ge=1, le=MAX_SERVICE_QUANTITY
     )
+    booklet_background_stored_file_id: UUID | None = Field(
+        default=None, foreign_key="storedfile.id"
+    )
 
     booth_zones: list["KpEventBoothZone"] = Relationship(back_populates="event")
     bookings: list["KpEventBooking"] = Relationship(back_populates="event")

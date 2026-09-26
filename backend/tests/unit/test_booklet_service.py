@@ -49,6 +49,7 @@ def prepared_repos(
     company_repo.get_kp_profile.return_value = None
     company_repo.get_industries_by_ids.return_value = []
     kp_repo.list_bookings_for_company.return_value = []
+    kp_repo.get_latest_kp.return_value = None
     return company_repo, kp_repo
 
 
@@ -181,7 +182,43 @@ async def test_the_page_shows_the_unsaved_form_values(
         "logo_path": None,
         "zone_color": None,
         "booth_number": None,
+        "background_path": None,
     }
+
+
+async def test_without_a_booking_the_latest_event_background_is_used(
+    prepared_repos, storage_service, pdf_service, company_user, company
+):
+    _, kp_repo = prepared_repos
+    stored_file = StoredFile(
+        storage_key="kp/booklet.pdf",
+        original_filename="booklet.pdf",
+        mime_type="application/pdf",
+        size_bytes=3,
+        sha256="abc",
+    )
+    event = KpEvent(
+        id=uuid4(),
+        name="KP",
+        registration_open=date.today(),
+        registration_end=date.today() + timedelta(days=10),
+        finalization_deadline=date.today() + timedelta(days=20),
+        nametags_deadline=date.today() + timedelta(days=20),
+        event_date=date.today() + timedelta(days=30),
+        booklet_background_stored_file_id=stored_file.id,
+    )
+    kp_repo.get_latest_kp.return_value = event
+    kp_repo.get_stored_file.return_value = stored_file
+    storage_service.download_bytes.return_value = b"%PDF-background"
+    service = make_service(prepared_repos, storage_service, pdf_service, company_user)
+
+    await service.preview_my_company_page(UpdateCompanyProfileInput())
+
+    assert rendered_entry(pdf_service)["background_path"] == "background.pdf"
+    assert pdf_service.render_png.await_args.kwargs["files"] == {
+        "background.pdf": b"%PDF-background"
+    }
+    storage_service.download_bytes.assert_awaited_once_with("kp/booklet.pdf")
 
 
 async def test_the_next_active_booking_colours_the_banner(

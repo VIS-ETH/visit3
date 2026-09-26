@@ -574,6 +574,19 @@ class StorageDownloadFailed(AppError):
         )
 
 
+class BookletBackgroundRejected(AppError):
+    def __init__(
+        self, reason: str, identifier: str, details: dict[str, object] | None = None
+    ):
+        super().__init__(
+            "The booklet background was rejected",
+            f"error.booklet_background_{reason}",
+            identifier,
+            400,
+            details,
+        )
+
+
 class StorageFileTooLarge(AppError):
     def __init__(self, identifier: str):
         super().__init__(

@@ -271,7 +271,12 @@ class KpRepository(BaseRepository[KpEvent]):
             if source_event is None:
                 return None
 
-            cloned_event = KpEvent(**kp_event_columns(clone_kp_input.model_dump()))
+            cloned_event = KpEvent(
+                **kp_event_columns(clone_kp_input.model_dump()),
+                booklet_background_stored_file_id=(
+                    source_event.booklet_background_stored_file_id
+                ),
+            )
             self._validate_model(
                 cloned_event,
                 exclude={
@@ -1497,6 +1502,28 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
+    async def get_stored_file(self, stored_file_id: UUID) -> Optional[StoredFile]:
+        return await self.session.get(StoredFile, stored_file_id)
+
+    async def set_booklet_background(
+        self, event: KpEvent, stored_file_id: UUID | None
+    ) -> KpEvent:
+        try:
+            event.booklet_background_stored_file_id = stored_file_id
+            self.session.add(event)
+            await self.session.commit()
+            await self.session.refresh(event)
+            return event
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def count_events_with_booklet_background(self, stored_file_id: UUID) -> int:
+        statement = select(func.count(col(KpEvent.id))).where(
+            col(KpEvent.booklet_background_stored_file_id) == stored_file_id
+        )
+        return (await self.session.execute(statement)).scalar_one()
+
     async def delete_stored_file(self, stored_file: StoredFile) -> None:
         try:
             await self.session.delete(stored_file)
@@ -1520,6 +1547,10 @@ class KpRepository(BaseRepository[KpEvent]):
                 col(KpEventNametagBackground.stored_file_id) == col(StoredFile.id),
             )
             .outerjoin(
+                KpEvent,
+                col(KpEvent.booklet_background_stored_file_id) == col(StoredFile.id),
+            )
+            .outerjoin(
                 KpEventService,
                 col(KpEventService.image_stored_file_id) == col(StoredFile.id),
             )
@@ -1539,6 +1570,7 @@ class KpRepository(BaseRepository[KpEvent]):
                 and_(
                     col(KpEventBookingServiceFileLink.id).is_(None),
                     col(KpEventNametagBackground.id).is_(None),
+                    col(KpEvent.id).is_(None),
                     col(KpEventService.id).is_(None),
                     col(KpCompanyProfile.id).is_(None),
                     col(KpVenueLayout.id).is_(None),

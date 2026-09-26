@@ -16,7 +16,16 @@
 
 #let banner-color(entry) = {
   let color = field(entry, "zone_color")
-  if color == "" { neutral-banner } else { rgb(color) }
+  if field(entry, "background_path") != "" { none } else if color == "" {
+    neutral-banner
+  } else { rgb(color) }
+}
+
+#let page-background(entry) = {
+  let background = field(entry, "background_path")
+  if background == "" { none } else {
+    image(background, width: page-width, height: page-height, fit: "stretch")
+  }
 }
 
 #let sidebar-label(label) = text(
@@ -158,7 +167,12 @@
 
 #if data != none {
   let entry = json(bytes(data))
-  set page(width: page-width, height: page-height, margin: 0mm)
+  set page(
+    width: page-width,
+    height: page-height,
+    margin: 0mm,
+    background: page-background(entry),
+  )
   context [#metadata(company-page-overflows(entry)) <overflow>]
   company-page(entry)
 }

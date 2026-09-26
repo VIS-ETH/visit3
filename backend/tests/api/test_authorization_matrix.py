@@ -192,6 +192,10 @@ ROUTE_ACCESS: dict[str, Access] = {
     "GET /api/kp/staff/events/{event_id}/bookings/{booking_id}/requirement-files": Access.STAFF,
     "POST /api/kp/events/{event_id}/exports/nametags/background": Access.STAFF,
     "GET /api/kp/events/{event_id}/exports/nametags/background": Access.STAFF,
+    "GET /api/kp/events/{event_id}/booklet/background": Access.ADMIN,
+    "PUT /api/kp/events/{event_id}/booklet/background": Access.ADMIN,
+    "DELETE /api/kp/events/{event_id}/booklet/background": Access.ADMIN,
+    "POST /api/kp/events/{event_id}/booklet/preview": Access.ADMIN,
     "GET /api/kp/events/{event_id}/exports/nametags/targets": Access.STAFF,
     "GET /api/kp/events/{event_id}/exports/nametags/download": Access.STAFF,
     "GET /api/kp/bookings/{booking_id}/nametags/download": Access.STAFF,
@@ -343,6 +347,7 @@ UPLOAD_ROUTES = frozenset(
         "POST /api/kp/services/{service_id}/image",
         "POST /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
         "POST /api/kp/events/{event_id}/exports/nametags/background",
+        "PUT /api/kp/events/{event_id}/booklet/background",
         "PUT /api/kp/venue-layouts/{layout_id}/background",
         "PUT /api/kp/booth-zones/{booth_zone_id}/layout-file",
     }

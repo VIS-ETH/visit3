@@ -192,5 +192,15 @@ class BookletPageResult(BaseModel):
     overflow: bool
 
 
+class BookletBackgroundResult(BaseModel):
+    filename: str
+    size_bytes: int
+    download_url: str
+
+
+class BookletBackgroundResponse(BookletBackgroundResult):
+    pass
+
+
 class BookletPageResponse(BookletPageResult):
     pass

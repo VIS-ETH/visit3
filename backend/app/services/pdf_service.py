@@ -11,6 +11,20 @@ import typst
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 FONTS_DIR = TEMPLATES_DIR / "fonts"
 PREVIEW_PPI = 110
+PROBE_TEMPLATE = "pdf_probe.typ"
+PROBE_SOURCE = "source.pdf"
+PROBE_PPI = 1
+
+
+class PdfUnreadable(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class PdfPage:
+    width_mm: float
+    height_mm: float
+    has_more_pages: bool
 
 
 @dataclass(frozen=True)
@@ -46,7 +60,43 @@ def _render_png(
     return RenderedImage(png=png, metadata=metadata)
 
 
+def _probe_page(root: Path, page: int) -> dict[str, float]:
+    compiler = typst.Compiler(
+        str(root / PROBE_TEMPLATE),
+        root=str(root),
+        font_paths=[str(FONTS_DIR)],
+        ignore_system_fonts=True,
+        sys_inputs={"source": PROBE_SOURCE, "page": str(page)},
+    )
+    compiler.compile(format="png", ppi=PROBE_PPI)
+    return json.loads(compiler.query("<size>", field="value", one=True))
+
+
+def _inspect_pdf(content: bytes) -> PdfPage:
+    with tempfile.TemporaryDirectory() as workspace:
+        root = Path(workspace)
+        copyfile(TEMPLATES_DIR / PROBE_TEMPLATE, root / PROBE_TEMPLATE)
+        (root / PROBE_SOURCE).write_bytes(content)
+        try:
+            first = _probe_page(root, 1)
+        except Exception as error:
+            raise PdfUnreadable(str(error)) from None
+        try:
+            _probe_page(root, 2)
+            has_more_pages = True
+        except Exception:
+            has_more_pages = False
+    return PdfPage(
+        width_mm=float(first["width"]),
+        height_mm=float(first["height"]),
+        has_more_pages=has_more_pages,
+    )
+
+
 class PdfService:
+    async def inspect_pdf(self, content: bytes) -> PdfPage:
+        return await asyncio.to_thread(_inspect_pdf, content)
+
     async def render(
         self,
         template_name: str,
