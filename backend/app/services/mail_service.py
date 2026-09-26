@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 SENDER_FIELD_NAME_IS_A_PYTHON_KEYWORD = "from"
 
 
+class MailDeliveryFailed(RuntimeError):
+    pass
+
+
 class MailService:
     def __init__(self, mail: MailServiceStub) -> None:
         self.mail = mail
@@ -34,7 +38,9 @@ class MailService:
         except grpc.RpcError as e:
             # Do not propagate remote error details that might echo credentials.
             code = e.code() if isinstance(e, grpc.aio.AioRpcError) else None
-            raise RuntimeError(f"notification API SendMail failed ({code})") from None
+            raise MailDeliveryFailed(
+                f"notification API SendMail failed ({code})"
+            ) from None
 
     def construct_mail(
         self,

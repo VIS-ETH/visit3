@@ -2,7 +2,6 @@ import logging
 import secrets
 from typing import Annotated
 
-import grpc
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
@@ -30,6 +29,7 @@ from app.schemas.user import (
     Token,
     UserResponse,
 )
+from app.services.mail_service import MailDeliveryFailed
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +112,7 @@ async def request_password_reset(
 ) -> None:
     try:
         return await auth_service.request_password_reset(request.email)
-    except grpc.RpcError:
+    except MailDeliveryFailed:
         raise HTTPException(status_code=500, detail="gRPC call failed")
 
 
