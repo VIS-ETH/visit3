@@ -26,6 +26,7 @@ from app.core.exceptions import (
 from app.core.images import image_size
 
 UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024
+UNKNOWN_MIME_TYPE = "application/octet-stream"
 
 S3_CLIENT_CONFIG = Config(
     signature_version="s3v4",
@@ -124,7 +125,7 @@ class StorageService:
         if content_type:
             return content_type
         guessed_type, _ = mimetypes.guess_type(filename)
-        return guessed_type or "application/octet-stream"
+        return guessed_type or UNKNOWN_MIME_TYPE
 
     def compute_sha256(self, content: bytes) -> str:
         return hashlib.sha256(content).hexdigest()
@@ -173,9 +174,7 @@ class StorageService:
         restricted = allowed_mime_types is not None or mime_prefix is not None
         if sniffed_mime_type is None and restricted:
             raise StorageFileInvalidMimeType(f"{error_context}:signature")
-        mime_type = sniffed_mime_type or self._normalize_mime_type(
-            filename, content_type
-        )
+        mime_type = sniffed_mime_type or UNKNOWN_MIME_TYPE
         if allowed_mime_types is not None and mime_type not in allowed_mime_types:
             raise StorageFileInvalidMimeType(f"{error_context}:mime:{mime_type}")
         if mime_prefix is not None and not mime_type.startswith(mime_prefix):

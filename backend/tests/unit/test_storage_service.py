@@ -216,19 +216,6 @@ def test_validate_image_file_rejects_pdf_bytes_for_nametag_background():
         )
 
 
-def test_validate_generic_file_falls_back_to_declared_type():
-    service = make_storage_service()
-
-    mime_type = service.validate_generic_file(
-        "notes.txt",
-        b"plain notes",
-        "text/plain",
-        error_context="notes",
-    )
-
-    assert mime_type == "text/plain"
-
-
 def test_validate_file_rejects_wrong_mime_type():
     service = make_storage_service()
 
@@ -507,3 +494,26 @@ def test_validate_image_or_pdf_file_limits_image_dimensions():
         service.validate_image_or_pdf_file(
             "layout.png", raster(8001, 1), "image/png", error_context="layout"
         )
+
+
+@pytest.mark.parametrize(
+    ("filename", "declared_type"),
+    [
+        ("page.html", "text/html"),
+        ("drawing.svg", "image/svg+xml"),
+        ("feed.xml", "application/xml"),
+        ("script.js", "text/javascript"),
+        ("page.xhtml", None),
+        ("notes.txt", "text/plain"),
+    ],
+)
+def test_validate_generic_file_never_keeps_an_unsniffed_type(
+    filename: str, declared_type: str | None
+):
+    service = make_storage_service()
+
+    mime_type = service.validate_generic_file(
+        filename, b"<svg onload=alert(1)>", declared_type, error_context="artwork"
+    )
+
+    assert mime_type == "application/octet-stream"
