@@ -59,6 +59,21 @@ describe("the venue layout editor", () => {
     );
   });
 
+  it("names a drawn zone only on hover over the floor plan", async () => {
+    const { user } = renderWithProviders(
+      <VenueLayoutEditor
+        layout={{ ...testEditableLayout, floor_plan: "red_hall" }}
+        zones={zones}
+      />,
+    );
+
+    await drawRectangle(user);
+
+    const shape = screen.getByRole("button", { name: testMainZone.name });
+    expect(shape.querySelectorAll("text")).toHaveLength(0);
+    expect(shape.querySelector("title")).toHaveTextContent(testMainZone.name);
+  });
+
   it("draws a rectangle from a pointer drag", async () => {
     const { user } = renderEditor();
 

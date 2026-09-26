@@ -32,6 +32,7 @@ interface VenueCanvasZone {
   name: string;
   color: string;
   caption?: string;
+  isFull?: boolean;
   descriptionId?: string;
 }
 
@@ -77,6 +78,7 @@ interface VenueMapCanvasProps {
 }
 
 const BOOTH_MARKER_SIZE = 18;
+const FULL_HATCH_ID = "venue-full-hatch";
 
 const capturePointer = (target: Element, pointerId: number) => {
   if (typeof target.setPointerCapture !== "function") return;
@@ -239,13 +241,23 @@ const VenueMapCanvas = ({
     return isActive ? 0.85 : 0.35;
   };
 
-  const renderShapeBody = (shape: VenueCanvasShape, color: string) => {
-    const common = {
-      fill: color,
-      fillOpacity: shapeOpacity(shape),
-      stroke: color,
-      strokeWidth: 2 / view.scale,
-    };
+  const shapeStyle = (shape: VenueCanvasShape, color: string) => ({
+    fill: color,
+    fillOpacity: shapeOpacity(shape),
+    stroke: color,
+    strokeWidth: 2 / view.scale,
+  });
+
+  const hatchStyle = {
+    fill: `url(#${FULL_HATCH_ID})`,
+    stroke: "none",
+    "data-full-hatch": true,
+  };
+
+  const renderShapeBody = (
+    shape: VenueCanvasShape,
+    common: ReturnType<typeof shapeStyle> | typeof hatchStyle,
+  ) => {
     if (shape.shape.type === "rect") {
       return (
         <rect
@@ -333,6 +345,25 @@ const VenueMapCanvas = ({
           cursor: panEnabled ? "grab" : "crosshair",
         }}
       >
+        <defs>
+          <pattern
+            id={FULL_HATCH_ID}
+            width={12}
+            height={12}
+            patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)"
+          >
+            <line
+              x1={0}
+              y1={0}
+              x2={0}
+              y2={12}
+              stroke="var(--mantine-color-black)"
+              strokeOpacity={0.45}
+              strokeWidth={3}
+            />
+          </pattern>
+        </defs>
         <g transform={venueViewTransform(view)}>
           {floorPlanUrl ? (
             <image
@@ -359,12 +390,13 @@ const VenueMapCanvas = ({
             const color = zone?.color ?? "var(--mantine-color-gray-5)";
             const [labelX, labelY] =
               shape.labelPosition ?? shapeCentroid(shape.shape);
+            const zoneName = zone?.name ?? t("kp.venue.shape_unassigned");
             return (
               <g
                 key={shape.key}
                 role="button"
                 tabIndex={0}
-                aria-label={zone?.name ?? t("kp.venue.shape_unassigned")}
+                aria-label={zoneName}
                 aria-describedby={zone?.descriptionId}
                 aria-pressed={
                   selectedShapeKey === shape.key ||
@@ -388,28 +420,36 @@ const VenueMapCanvas = ({
                 onMouseLeave={() => setHoveredShapeKey(null)}
                 style={{ cursor: "pointer" }}
               >
-                {renderShapeBody(shape, color)}
-                <text
-                  x={labelX}
-                  y={labelY}
-                  textAnchor="middle"
-                  fontSize={fontSize}
-                  fontWeight={600}
-                  fill="currentColor"
-                  style={{ pointerEvents: "none", userSelect: "none" }}
-                >
-                  {zone?.name ?? t("kp.venue.shape_unassigned")}
-                </text>
-                <text
-                  x={labelX}
-                  y={labelY + fontSize * 1.2}
-                  textAnchor="middle"
-                  fontSize={fontSize * 0.8}
-                  fill="currentColor"
-                  style={{ pointerEvents: "none", userSelect: "none" }}
-                >
-                  {zone?.caption ?? ""}
-                </text>
+                <title>
+                  {zone?.caption ? `${zoneName} · ${zone.caption}` : zoneName}
+                </title>
+                {renderShapeBody(shape, shapeStyle(shape, color))}
+                {zone?.isFull ? renderShapeBody(shape, hatchStyle) : null}
+                {floorPlanUrl ? null : (
+                  <>
+                    <text
+                      x={labelX}
+                      y={labelY}
+                      textAnchor="middle"
+                      fontSize={fontSize}
+                      fontWeight={600}
+                      fill="currentColor"
+                      style={{ pointerEvents: "none", userSelect: "none" }}
+                    >
+                      {zoneName}
+                    </text>
+                    <text
+                      x={labelX}
+                      y={labelY + fontSize * 1.2}
+                      textAnchor="middle"
+                      fontSize={fontSize * 0.8}
+                      fill="currentColor"
+                      style={{ pointerEvents: "none", userSelect: "none" }}
+                    >
+                      {zone?.caption ?? ""}
+                    </text>
+                  </>
+                )}
               </g>
             );
           })}

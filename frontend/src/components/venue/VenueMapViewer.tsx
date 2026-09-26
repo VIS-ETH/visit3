@@ -84,6 +84,7 @@ const VenueMapViewer = ({
     name: zone.name,
     color: zone.color,
     caption: zoneCaption(zone),
+    isFull: zone.is_full,
     descriptionId: legendItemId(zone.id),
   }));
 

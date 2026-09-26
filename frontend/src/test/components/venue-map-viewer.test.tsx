@@ -132,6 +132,57 @@ describe("the venue map viewer", () => {
     ).toHaveStyle({ color: "var(--mantine-color-black)" });
   });
 
+  it("leaves the zone names to the printed floor plan", async () => {
+    const [layout] = testVenueMap.layouts;
+    venueResponse = {
+      ...testVenueMap,
+      layouts: [{ ...layout, floor_plan: "main_hall" }],
+    };
+    renderWithProviders(<VenueMapViewer eventId={testEventId} />);
+
+    const shape = await screen.findByRole("button", {
+      name: testMainZone.name,
+    });
+    expect(shape.querySelectorAll("text")).toHaveLength(0);
+    expect(shape.querySelector("title")).toHaveTextContent(
+      `${testMainZone.name} · ${testMainZone.booth_size} m²`,
+    );
+    expect(screen.getAllByText(`${testMainZone.booth_size} m²`)).toHaveLength(
+      1,
+    );
+  });
+
+  it("hatches a full zone on the floor plan", async () => {
+    const [layout] = testVenueMap.layouts;
+    venueResponse = {
+      ...testVenueMap,
+      layouts: [{ ...layout, floor_plan: "main_hall" }],
+    };
+    renderWithProviders(<VenueMapViewer eventId={testEventId} />);
+
+    const fullShape = await screen.findByRole("button", {
+      name: testSideZone.name,
+    });
+    const freeShape = screen.getByRole("button", { name: testMainZone.name });
+
+    expect(fullShape.querySelector("[data-full-hatch]")).not.toBeNull();
+    expect(freeShape.querySelector("[data-full-hatch]")).toBeNull();
+    expect(fullShape.querySelector("title")).toHaveTextContent(
+      `${testSideZone.name} · kp.venue.zone_full`,
+    );
+  });
+
+  it("keeps the zone labels on a map without a floor plan", async () => {
+    renderWithProviders(<VenueMapViewer eventId={testEventId} />);
+
+    await screen.findByRole("button", { name: testMainZone.name });
+    const map = screen.getByRole("group", { name: "kp.venue.map_label" });
+
+    expect(
+      Array.from(map.querySelectorAll("text")).map((text) => text.textContent),
+    ).toContain(testMainZone.name);
+  });
+
   it("ignores an uploaded background", async () => {
     const [layout] = testVenueMap.layouts;
     venueResponse = {
