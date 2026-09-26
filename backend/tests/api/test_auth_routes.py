@@ -136,6 +136,33 @@ async def test_login_with_wrong_password_returns_invalid_credentials(
     assert body["identifier"] == f"login:{company_user.email}"
 
 
+async def test_login_throttles_unknown_accounts_like_known_ones(
+    client: AsyncClient, csrf_headers: dict[str, str]
+):
+    responses = [
+        await login(client, csrf_headers, "nobody@example.com", "wrong-password")
+        for _ in range(get_settings().LOGIN_FAILURES_BEFORE_BACKOFF + 1)
+    ]
+
+    assert responses[-2].status_code == 400
+    assert responses[-1].status_code == 429
+
+
+async def test_a_successful_login_resets_the_failure_count(
+    client: AsyncClient, csrf_headers: dict[str, str], company_user: User
+):
+    allowed = get_settings().LOGIN_FAILURES_BEFORE_BACKOFF - 1
+    for _ in range(allowed):
+        await login(client, csrf_headers, company_user.email, "wrong-password")
+    await login(client, csrf_headers, company_user.email)
+    for _ in range(allowed):
+        await login(client, csrf_headers, company_user.email, "wrong-password")
+
+    response = await login(client, csrf_headers, company_user.email)
+
+    assert response.status_code == 200
+
+
 async def test_login_sets_refresh_token_cookie(
     client: AsyncClient,
     csrf_headers: dict[str, str],

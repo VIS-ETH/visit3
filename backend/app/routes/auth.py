@@ -2,7 +2,7 @@ import logging
 import secrets
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, Response
+from fastapi import APIRouter, Cookie, Depends, Request, Response
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -13,13 +13,14 @@ from app.core.exceptions import (
     AppError,
     EmailTakenLocally,
     EmailUsed,
+    InvalidCredentials,
     KeycloakExchangeFailed,
     NotVisMember,
     ResetPasswordError,
     TokenInvalid,
     Unauthenticated,
 )
-from app.core.rate_limit import client_rate_limit
+from app.core.rate_limit import client_rate_limit, login_throttle, request_client
 from app.models.user import User
 from app.repositories.token_repository import REFRESH_TOKEN_EXPIRE
 from app.schemas.user import (
@@ -72,12 +73,20 @@ async def register_user(
 @router.post("/login", operation_id="loginUser")
 async def login_user(
     auth_service: AuthServiceDep,
+    request: Request,
     response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
-    (access_token, refresh_token) = await auth_service.login_user(
-        form_data.username, form_data.password
-    )
+    client = request_client(request)
+    login_throttle.check(client, form_data.username)
+    try:
+        (access_token, refresh_token) = await auth_service.login_user(
+            form_data.username, form_data.password
+        )
+    except InvalidCredentials:
+        login_throttle.record_failure(client, form_data.username)
+        raise
+    login_throttle.record_success(form_data.username)
 
     set_refresh_cookie(response, refresh_token)
     return Token(access_token=access_token, token_type="bearer")
