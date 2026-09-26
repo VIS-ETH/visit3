@@ -7,6 +7,7 @@ from app.core.config import (
     MIN_SECRET_KEY_LENGTH,
     OAuthSettings,
     Settings,
+    UnsafeDebugSetting,
     WeakSecretKey,
     get_oauth_settings,
     get_settings,
@@ -27,7 +28,7 @@ def _oauth_settings(**overrides: Any) -> OAuthSettings:
 
 
 def _settings_from_example_env() -> Settings:
-    values = read_env_file(EXAMPLE_ENV_FILE)
+    values = {**read_env_file(EXAMPLE_ENV_FILE), "SECRET_KEY": STRONG_SECRET_KEY}
     return Settings.model_validate(
         {key: value for key, value in values.items() if key in Settings.model_fields}
     )
@@ -49,14 +50,52 @@ def test_production_accepts_a_strong_secret_key():
     )
 
 
-def test_debug_accepts_the_example_secret_key():
-    assert _settings(DEBUG=True, SECRET_KEY=EXAMPLE_SECRET_KEY).SECRET_KEY == (
-        EXAMPLE_SECRET_KEY
-    )
+@pytest.mark.parametrize("secret_key", [EXAMPLE_SECRET_KEY, ""])
+def test_debug_rejects_the_example_or_an_empty_secret_key(secret_key: str):
+    with pytest.raises(WeakSecretKey):
+        _settings(DEBUG=True, SECRET_KEY=secret_key)
+
+
+def test_debug_accepts_a_generated_secret_key():
+    assert _settings(DEBUG=True, SECRET_KEY=STRONG_SECRET_KEY).DEBUG is True
+
+
+def test_the_example_env_ships_no_secret_key():
+    assert read_env_file(EXAMPLE_ENV_FILE)["SECRET_KEY"] == ""
 
 
 def test_general_settings_load_without_application_credentials():
     assert _settings_from_example_env().DEBUG is True
+
+
+def test_debug_keycloak_admin_is_refused_outside_debug():
+    with pytest.raises(UnsafeDebugSetting, match="DEBUG_KEYCLOAK_ADMIN"):
+        _settings(DEBUG=False, DEBUG_KEYCLOAK_ADMIN=True)
+
+
+def test_debug_keycloak_admin_is_allowed_in_debug():
+    assert _settings(
+        DEBUG=True, SECRET_KEY=STRONG_SECRET_KEY, DEBUG_KEYCLOAK_ADMIN=True
+    ).DEBUG_KEYCLOAK_ADMIN
+
+
+@pytest.mark.parametrize(
+    "url", ["https://visit.vis.ethz.ch", "http://localhost.example.org:3000"]
+)
+def test_debug_is_refused_for_a_public_frontend(url: str):
+    with pytest.raises(UnsafeDebugSetting, match="VISIT_FRONTEND_SERVER_URL"):
+        _settings(
+            DEBUG=True, SECRET_KEY=STRONG_SECRET_KEY, VISIT_FRONTEND_SERVER_URL=url
+        )
+
+
+@pytest.mark.parametrize(
+    "url", ["http://localhost:3000", "http://127.0.0.1:5173", "http://[::1]:3000"]
+)
+def test_debug_is_allowed_for_a_local_frontend(url: str):
+    assert _settings(
+        DEBUG=True, SECRET_KEY=STRONG_SECRET_KEY, VISIT_FRONTEND_SERVER_URL=url
+    ).DEBUG
 
 
 def test_example_oauth_settings_require_application_credentials():

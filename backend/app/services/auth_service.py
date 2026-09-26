@@ -405,8 +405,9 @@ class AuthService:
         return await self.create_refresh_token(user)
 
     async def map_keycloak_to_user(self, decoded_token: dict[str, Any]) -> User:
-        if get_settings().DEBUG_KEYCLOAK_ADMIN:
-            keycloak_roles = [get_settings().ADMIN_GROUP]
+        settings = get_settings()
+        if settings.DEBUG and settings.DEBUG_KEYCLOAK_ADMIN:
+            keycloak_roles = [settings.ADMIN_GROUP]
         else:
             keycloak_roles = (
                 decoded_token.get("resource_access", {})

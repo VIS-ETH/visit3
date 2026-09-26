@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import Any
+from urllib.parse import urlsplit
 
 from pydantic import (
     BaseModel,
@@ -16,15 +17,25 @@ EXAMPLE_SECRET_KEY = "5fcfacda13cd6e44e358f1109094a82d3319dd3631f2def507e5af4b46
 MIN_SECRET_KEY_LENGTH = 32
 
 
+LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def is_local_url(url: str) -> bool:
+    return urlsplit(url).hostname in LOCAL_HOSTS
+
+
 class WeakSecretKey(RuntimeError):
     def __init__(self) -> None:
         super().__init__(
             "SECRET_KEY must be a unique random value of at least "
-            f"{MIN_SECRET_KEY_LENGTH} characters when DEBUG is disabled. "
-            "For a local dev stack set DEBUG=true in backend/.env. Otherwise put "
-            "a fresh key from `openssl rand -hex 32` into SECRET_KEY and never "
-            "reuse the value from backend/.env.example."
+            f"{MIN_SECRET_KEY_LENGTH} characters, also with DEBUG=true. "
+            "Generate one with `openssl rand -hex 32` and put it into SECRET_KEY "
+            "in backend/.env."
         )
+
+
+class UnsafeDebugSetting(RuntimeError):
+    pass
 
 
 class Settings(BaseSettings):
@@ -109,13 +120,25 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def reject_weak_secret_key(self) -> "Settings":
-        if self.DEBUG:
-            return self
         if (
             self.SECRET_KEY == EXAMPLE_SECRET_KEY
             or len(self.SECRET_KEY) < MIN_SECRET_KEY_LENGTH
         ):
             raise WeakSecretKey()
+        return self
+
+    @model_validator(mode="after")
+    def reject_unsafe_debug_settings(self) -> "Settings":
+        if self.DEBUG_KEYCLOAK_ADMIN and not self.DEBUG:
+            raise UnsafeDebugSetting(
+                "DEBUG_KEYCLOAK_ADMIN=true makes every SSO account an admin and is "
+                "only allowed together with DEBUG=true."
+            )
+        if self.DEBUG and not is_local_url(self.VISIT_FRONTEND_SERVER_URL):
+            raise UnsafeDebugSetting(
+                "DEBUG=true is only allowed when VISIT_FRONTEND_SERVER_URL points to "
+                "localhost."
+            )
         return self
 
 
