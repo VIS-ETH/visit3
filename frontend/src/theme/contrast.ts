@@ -1,6 +1,6 @@
-import { darken, luminance } from "@mantine/core";
+import { darken, lighten, luminance } from "@mantine/core";
 
-const DARKEN_STEP = 0.02;
+const SHIFT_STEP = 0.02;
 const MAX_STEPS = 50;
 
 export const contrastRatio = (foreground: string, background: string) => {
@@ -10,7 +10,8 @@ export const contrastRatio = (foreground: string, background: string) => {
   return (lighter + 0.05) / (darker + 0.05);
 };
 
-export const readableInk = (
+const shiftUntilReadable = (
+  shift: (color: string, alpha: number) => string,
   color: string,
   backgrounds: string[],
   minimumRatio: number,
@@ -20,8 +21,20 @@ export const readableInk = (
       (background) => contrastRatio(candidate, background) >= minimumRatio,
     );
   for (let step = 0; step <= MAX_STEPS; step += 1) {
-    const candidate = darken(color, step * DARKEN_STEP);
+    const candidate = shift(color, step * SHIFT_STEP);
     if (isReadable(candidate)) return candidate;
   }
-  return darken(color, 1);
+  return shift(color, 1);
 };
+
+export const readableInk = (
+  color: string,
+  backgrounds: string[],
+  minimumRatio: number,
+) => shiftUntilReadable(darken, color, backgrounds, minimumRatio);
+
+export const readableGlow = (
+  color: string,
+  backgrounds: string[],
+  minimumRatio: number,
+) => shiftUntilReadable(lighten, color, backgrounds, minimumRatio);
