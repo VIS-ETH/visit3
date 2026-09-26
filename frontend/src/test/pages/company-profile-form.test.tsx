@@ -15,6 +15,7 @@ import { SLOW_WAIT } from "../timeouts";
 import { renderWithProviders } from "../render";
 import {
   installBookletPageHandler,
+  RENDER_TIMEOUT,
   testBookletPage,
   type BookletPageRequest,
 } from "../fixtures/company-profile";
@@ -511,6 +512,39 @@ describe("Company booklet page", () => {
         brand_name: "Examplify Group",
       });
     }, SLOW_WAIT);
+    expect(
+      screen.getByRole("img", {
+        name: "company_profile_form.booklet_page_alt",
+      }),
+    ).toBe(page);
+    expect(notificationsShow).not.toHaveBeenCalled();
+  });
+
+  it("keeps the last page quietly when a render takes too long", async () => {
+    bookletRequests = installBookletPageHandler(testBookletPage, {
+      allowedRequests: 1,
+      rejection: RENDER_TIMEOUT,
+    });
+    const { user } = renderProfile();
+
+    const page = await screen.findByRole(
+      "img",
+      { name: "company_profile_form.booklet_page_alt" },
+      SLOW_WAIT,
+    );
+    const brandName = screen.getByLabelText(
+      labelOf("company_profile_form.brand_name"),
+    );
+    await user.clear(brandName);
+    await user.paste("Examplify Group");
+
+    await waitFor(() => {
+      expect(lastBookletBody()).toMatchObject({
+        brand_name: "Examplify Group",
+      });
+    }, SLOW_WAIT);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(bookletRequests).toHaveLength(2);
     expect(
       screen.getByRole("img", {
         name: "company_profile_form.booklet_page_alt",

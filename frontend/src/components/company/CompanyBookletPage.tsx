@@ -21,7 +21,10 @@ const PAGE_ASPECT_RATIO = "148.5 / 210";
 const RATE_LIMITED = 429;
 const RATE_LIMIT_RETRY_DELAY_MS = 10_000;
 const RATE_LIMIT_RETRIES = 6;
-const QUIET_REQUEST: AxiosRequestConfig = { quietStatuses: [RATE_LIMITED] };
+const RENDER_TIMEOUT = 503;
+const QUIET_REQUEST: AxiosRequestConfig = {
+  quietStatuses: [RATE_LIMITED, RENDER_TIMEOUT],
+};
 
 interface CompanyBookletPageProps {
   scope: string;

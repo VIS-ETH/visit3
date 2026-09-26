@@ -71,9 +71,25 @@ export interface BookletPageRequest {
   body: Record<string, unknown>;
 }
 
+export const RATE_LIMITED = {
+  status: 429,
+  code: "error.rate_limited",
+};
+
+export const RENDER_TIMEOUT = {
+  status: 503,
+  code: "error.booklet_page_render_timeout",
+};
+
 export const installBookletPageHandler = (
   page: BookletPageResponse = testBookletPage,
-  { allowedRequests = Infinity }: { allowedRequests?: number } = {},
+  {
+    allowedRequests = Infinity,
+    rejection = RATE_LIMITED,
+  }: {
+    allowedRequests?: number;
+    rejection?: { status: number; code: string };
+  } = {},
 ) => {
   const requests: BookletPageRequest[] = [];
   server.use(
@@ -86,8 +102,8 @@ export const installBookletPageHandler = (
         });
         if (requests.length > allowedRequests) {
           return HttpResponse.json(
-            { code: "error.rate_limited", message: "Too many requests" },
-            { status: 429 },
+            { code: rejection.code, message: rejection.code },
+            { status: rejection.status },
           );
         }
         return HttpResponse.json(page);
