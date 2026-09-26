@@ -374,15 +374,14 @@
         "download_person_nametag": "Namensschild der Person herunterladen",
         "data_title": "Datenexporte",
         "downloads": {
+          "companies": "Unternehmen (Excel)",
           "bookings": "Alle Buchungen",
           "bookings_by_zone": "Buchungen nach Zone",
           "waitlist": "Wartelisten-Unternehmen",
           "booked_services": "Gebuchte Services",
           "nametags_data": "Namensschild-Daten",
-          "company_details": "Unternehmensdetails",
           "service_requirements": "Serviceanforderungen",
           "booth_zone_capacity": "Standzonen-Kapazität",
-          "contacts": "Kontakte",
           "registration_exceptions": "Registrierungsausnahmen"
         },
         "background_allowed_formats": "Erlaubte Formate: PNG, JPEG"

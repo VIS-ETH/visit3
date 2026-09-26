@@ -374,15 +374,14 @@
         "download_person_nametag": "Download person nametag",
         "data_title": "Data exports",
         "downloads": {
+          "companies": "Companies (Excel)",
           "bookings": "Bookings all",
           "bookings_by_zone": "Bookings by zone",
           "waitlist": "Waitlist companies",
           "booked_services": "Booked services",
           "nametags_data": "Nametag data",
-          "company_details": "Company details",
           "service_requirements": "Service requirements",
           "booth_zone_capacity": "Booth zone capacity",
-          "contacts": "Contacts",
           "registration_exceptions": "Registration exceptions"
         },
         "background_allowed_formats": "Allowed formats: PNG, JPEG"

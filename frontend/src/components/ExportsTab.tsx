@@ -25,8 +25,7 @@ import {
   downloadEventBookingsByZoneZip,
   downloadEventBookingsCsv,
   downloadEventBoothZoneCapacityCsv,
-  downloadEventCompanyDetailsCsv,
-  downloadEventContactsCsv,
+  downloadEventCompaniesXlsx,
   downloadEventNametags,
   downloadEventNametagsDataCsv,
   downloadEventRegistrationExceptionsCsv,
@@ -38,11 +37,24 @@ import {
   useListNametagExportTargets,
   useUploadNametagExportBackground,
 } from "../orval/generated/kp/kp";
+import { ExportLanguage } from "../orval/generated/fastAPI.schemas";
 import { downloadBlob, safeFilenamePart } from "../utils/download";
 import { NAMETAG_BACKGROUND_ACCEPT } from "../utils/upload-formats";
 import { useWarnOnLeave } from "../utils/use-warn-on-leave";
 
 const downloadRequestOptions = { responseType: "blob" as const };
+const COMPANY_WORKBOOK_NAMES: Record<ExportLanguage, string> = {
+  [ExportLanguage.de]: "unternehmen",
+  [ExportLanguage.en]: "companies",
+};
+
+const todayIsoDate = () => {
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${today.getFullYear()}-${month}-${day}`;
+};
+
 type EventDownloadFunction = (eventId: string) => unknown;
 type NametagExportScope = "event" | "company" | "person";
 
@@ -53,8 +65,11 @@ const ExportsTab = ({
   eventId: string;
   eventName: string;
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
+  const exportLanguage = i18n.language.startsWith("de")
+    ? ExportLanguage.de
+    : ExportLanguage.en;
   const [nametagExportScope, setNametagExportScope] =
     useState<NametagExportScope>("event");
   const [selectedNametagBookingId, setSelectedNametagBookingId] = useState<
@@ -125,6 +140,17 @@ const ExportsTab = ({
 
   const exportDownloads = [
     {
+      key: "companies",
+      label: t("kp.dashboard.exports.downloads.companies"),
+      filename: `${eventSlug}-${COMPANY_WORKBOOK_NAMES[exportLanguage]}-${todayIsoDate()}.xlsx`,
+      download: (targetEventId: string) =>
+        downloadEventCompaniesXlsx(
+          targetEventId,
+          { language: exportLanguage },
+          downloadRequestOptions,
+        ),
+    },
+    {
       key: "bookings",
       label: t("kp.dashboard.exports.downloads.bookings"),
       filename: `${eventSlug}-bookings-all.csv`,
@@ -163,13 +189,6 @@ const ExportsTab = ({
         downloadEventNametagsDataCsv(targetEventId, downloadRequestOptions),
     },
     {
-      key: "company_details",
-      label: t("kp.dashboard.exports.downloads.company_details"),
-      filename: `${eventSlug}-company-details.csv`,
-      download: (targetEventId: string) =>
-        downloadEventCompanyDetailsCsv(targetEventId, downloadRequestOptions),
-    },
-    {
       key: "service_requirements",
       label: t("kp.dashboard.exports.downloads.service_requirements"),
       filename: `${eventSlug}-service-requirements-status.csv`,
@@ -188,13 +207,6 @@ const ExportsTab = ({
           targetEventId,
           downloadRequestOptions,
         ),
-    },
-    {
-      key: "contacts",
-      label: t("kp.dashboard.exports.downloads.contacts"),
-      filename: `${eventSlug}-contacts.csv`,
-      download: (targetEventId: string) =>
-        downloadEventContactsCsv(targetEventId, downloadRequestOptions),
     },
     {
       key: "registration_exceptions",
