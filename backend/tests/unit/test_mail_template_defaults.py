@@ -28,3 +28,10 @@ def test_defaults_render_with_the_sample_context(key: MailTemplateKey):
     assert rendered.subject
     assert rendered.text
     assert "{{" not in rendered.html
+
+
+def test_the_confirmation_mail_explains_what_can_still_change():
+    texts = MAIL_TEMPLATE_DEFAULTS[MailTemplateKey.BOOKING_ACCEPTED]
+
+    assert "but no longer change the booth zone" in texts.body_en
+    assert "die Standzone aber nicht mehr ändern" in texts.body_de

@@ -140,7 +140,7 @@
         },
         "confirmed": {
           "label": "Bestätigt",
-          "description": "Der VIS hat Ihre Buchung bestätigt."
+          "description": "Der VIS hat Ihre Buchung bestätigt. Sie können weiterhin Services hinzufügen, die Standzone aber nicht mehr ändern."
         },
         "cancelled": {
           "label": "Storniert",
@@ -216,8 +216,9 @@
       "rejected_title": "Buchung abgelehnt",
       "rejected_body": "Die KP-Organisatoren haben diese Buchung abgelehnt. Bitte kontaktieren Sie sie bei Fragen.",
       "confirmed_title": "Buchung bestätigt",
-      "confirmed_body": "Der VIS hat diese Buchung bestätigt. Sie können weiterhin Services hinzufügen, die Standzone aber nicht mehr ändern.",
+      "confirmed_body": "Der VIS hat Ihre Buchung bestätigt. Sie können weiterhin Services hinzufügen, die Standzone aber nicht mehr ändern.",
       "cancel_action": "Buchung stornieren",
+      "cancel_hint": "Sie können stornieren, solange die Buchung nicht bestätigt ist.",
       "cancel_confirm_title": "Buchung stornieren?",
       "cancel_confirm_body": "Mit der Stornierung wird Ihr Standplatz für andere Unternehmen freigegeben und kann hier nicht rückgängig gemacht werden. Gebuchte Services und hochgeladene Unterlagen gehen verloren, und Sie müssen sich neu anmelden, falls Sie es sich anders überlegen.",
       "cancel_confirm_keep": "Buchung behalten",
@@ -685,7 +686,7 @@
       "waitlist_action": "Auf Warteliste setzen",
       "switched": "Ihre Buchung wurde nach {{zone}} verschoben.",
       "waitlist_added": "{{zone}} wurde auf Ihre Warteliste gesetzt.",
-      "disabled_confirmed": "Der VIS hat Ihre Buchung bestätigt, daher kann die Standzone nicht mehr geändert werden.",
+      "disabled_confirmed": "Der VIS hat Ihre Buchung bestätigt. Sie können weiterhin Services hinzufügen, die Standzone aber nicht mehr ändern.",
       "disabled_deadline": "Die Frist für Änderungen an Ihrer Buchung ist abgelaufen.",
       "company_hint": "Sie können Ihre Standzone noch wechseln oder sich auf die Warteliste einer ausgebuchten Zone setzen.",
       "zone_list": "Verfügbare Standzonen"

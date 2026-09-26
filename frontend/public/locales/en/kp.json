@@ -140,7 +140,7 @@
         },
         "confirmed": {
           "label": "Confirmed",
-          "description": "VIS has confirmed your booking."
+          "description": "VIS has confirmed your booking. You can still add services, but no longer change the booth zone."
         },
         "cancelled": {
           "label": "Cancelled",
@@ -216,8 +216,9 @@
       "rejected_title": "Booking rejected",
       "rejected_body": "The KP organizers rejected this booking. Please contact them if you have questions.",
       "confirmed_title": "Booking confirmed",
-      "confirmed_body": "VIS has confirmed this booking. You can still add services, but no longer change the booth zone.",
+      "confirmed_body": "VIS has confirmed your booking. You can still add services, but no longer change the booth zone.",
       "cancel_action": "Cancel booking",
+      "cancel_hint": "You can cancel as long as the booking is not confirmed.",
       "cancel_confirm_title": "Cancel this booking?",
       "cancel_confirm_body": "Cancelling releases your booth spot to other companies and cannot be undone here. Booked services and uploaded requirements are lost, and you have to register again if you change your mind.",
       "cancel_confirm_keep": "Keep booking",
@@ -685,7 +686,7 @@
       "waitlist_action": "Join waitlist",
       "switched": "Your booking moved to {{zone}}.",
       "waitlist_added": "{{zone}} was added to your waitlist.",
-      "disabled_confirmed": "VIS has confirmed your booking, so the booth zone can no longer be changed.",
+      "disabled_confirmed": "VIS has confirmed your booking. You can still add services, but no longer change the booth zone.",
       "disabled_deadline": "The deadline for changing your booking has passed.",
       "company_hint": "You can still switch your booth zone or join the waitlist of a full zone.",
       "zone_list": "Available booth zones"

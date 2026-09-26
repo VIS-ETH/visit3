@@ -80,7 +80,7 @@
     "kp_registration_closed": "Die Anmeldung für dieses Event ist derzeit geschlossen.",
     "kp_booth_zone_at_capacity": "Die ausgewählte Standzone hat keine verfügbaren Plätze mehr.",
     "kp_booth_zone_full": "Die ausgewählte Standzone ist ausgebucht. Sie können sich stattdessen auf die Warteliste setzen.",
-    "kp_booking_zone_locked": "Der VIS hat diese Buchung bestätigt, daher kann die Standzone nicht mehr geändert werden.",
+    "kp_booking_zone_locked": "Der VIS hat Ihre Buchung bestätigt. Sie können weiterhin Services hinzufügen, die Standzone aber nicht mehr ändern.",
     "kp_booking_zone_switch_not_allowed": "Diese Buchung kann die Standzone nicht mehr wechseln.",
     "kp_waitlist_zone_has_capacity": "Die ausgewählte Standzone hat noch freie Plätze. Bitte wechseln Sie direkt, statt zu warten.",
     "kp_booking_already_exists": "Ihr Unternehmen hat bereits eine aktive Buchung für dieses Event.",

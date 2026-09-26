@@ -248,4 +248,31 @@ describe("KpBookingCompletion", () => {
       screen.getByText("Booth package · Company slogan"),
     ).toBeInTheDocument();
   });
+
+  it("offers the cancel action with its hint only before the confirmation", () => {
+    const { unmount } = renderWithProviders(
+      <KpBookingCompletion
+        booking={completeBooking}
+        changeDeadline={openDeadline}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "kp.booking.cancel_action" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("kp.booking.cancel_hint")).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(
+      <KpBookingCompletion
+        booking={{ ...completeBooking, status: KpBookingStatus.CONFIRMED }}
+        changeDeadline={openDeadline}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "kp.booking.cancel_action" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("kp.booking.cancel_hint"),
+    ).not.toBeInTheDocument();
+  });
 });

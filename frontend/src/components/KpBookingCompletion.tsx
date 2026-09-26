@@ -235,7 +235,10 @@ export const KpBookingCompletion = ({
         </Alert>
       )}
       {canCancel ? (
-        <Group justify="flex-end">
+        <Group justify="flex-end" gap="sm">
+          <Text c="dimmed" size="sm">
+            {t("kp.booking.cancel_hint")}
+          </Text>
           <Button
             color="red"
             loading={isCancelling}

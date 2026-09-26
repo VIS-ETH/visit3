@@ -113,7 +113,8 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
         body_de=(
             "<p>Hallo {{ name }},</p>"
             "<p>die Buchung von {{ company_name }} für {{ event_name }} wurde"
-            " bestätigt.</p>"
+            " bestätigt. Sie können weiterhin Services hinzufügen, die Standzone"
+            " aber nicht mehr ändern.</p>"
             "<p>Standzone: {{ booth_zone_name }}<br />"
             "Standnummer: {{ booth_number }}</p>"
             '<p><a href="{{ login_url }}">Buchung öffnen</a></p>'
@@ -121,7 +122,8 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
         body_en=(
             "<p>Hello {{ name }},</p>"
             "<p>the booking of {{ company_name }} for {{ event_name }} has been"
-            " confirmed.</p>"
+            " confirmed. You can still add services, but no longer change the"
+            " booth zone.</p>"
             "<p>Booth zone: {{ booth_zone_name }}<br />"
             "Booth number: {{ booth_number }}</p>"
             '<p><a href="{{ login_url }}">Open booking</a></p>'
