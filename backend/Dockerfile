@@ -52,6 +52,8 @@ COPY --from=grpc-generator /build/app/generated ./app/generated
 
 RUN python -m compileall -q app migrations
 
+RUN useradd --system --uid 10001 --create-home visit
+USER visit
 
 ENV FORWARDED_ALLOW_IPS="127.0.0.1"
 
