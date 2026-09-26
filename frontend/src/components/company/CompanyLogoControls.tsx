@@ -3,8 +3,8 @@ import { IconPhotoUp, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  IMAGE_UPLOAD_ACCEPT,
-  isAllowedImageType,
+  isAllowedLogoType,
+  LOGO_UPLOAD_ACCEPT,
 } from "../../utils/upload-formats";
 import RepickableFileButton from "../RepickableFileButton";
 
@@ -34,7 +34,7 @@ const CompanyLogoControls = ({
   const handleFile = (file: File | null) => {
     setFileError(null);
     if (!file) return;
-    if (!isAllowedImageType(file.type) || file.size > MAX_LOGO_SIZE_BYTES) {
+    if (!isAllowedLogoType(file.type) || file.size > MAX_LOGO_SIZE_BYTES) {
       setFileError(t("company_profile_form.logo_invalid"));
       return;
     }
@@ -59,10 +59,7 @@ const CompanyLogoControls = ({
         />
       ) : null}
       <Group gap="sm">
-        <RepickableFileButton
-          accept={IMAGE_UPLOAD_ACCEPT}
-          onChange={handleFile}
-        >
+        <RepickableFileButton accept={LOGO_UPLOAD_ACCEPT} onChange={handleFile}>
           {(props) => (
             <Button
               {...props}

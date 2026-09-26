@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { File as NodeFile } from "node:buffer";
 import CompanyProfileEdit from "../../pages/company/CompanyProfileEdit";
@@ -120,6 +120,38 @@ describe("Company logo upload", () => {
     expect(
       await screen.findByAltText("company_profile_form.logo_alt"),
     ).toHaveAttribute("src", uploadedLogoUrl);
+  });
+
+  it("refuses a GIF logo before uploading it", async () => {
+    const { container } = renderWithProviders(
+      <UserProvider user={companyUser} isLoading={false}>
+        <CompanyProfileEdit />
+      </UserProvider>,
+      { route: "/company/profile" },
+    );
+
+    await screen.findByText("company_profile_form.logo");
+    const fileInput =
+      container.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(fileInput).toHaveAttribute(
+      "accept",
+      "image/png,image/jpeg,image/webp",
+    );
+
+    fireEvent.change(fileInput!, {
+      target: {
+        files: [
+          new NodeFile(["GIF89a"], "logo.gif", {
+            type: "image/gif",
+          }) as unknown as File,
+        ],
+      },
+    });
+
+    expect(
+      await screen.findByText("company_profile_form.logo_invalid"),
+    ).toBeInTheDocument();
+    expect(logoUploads).toHaveLength(0);
   });
 
   it("retries the upload when the same file is picked again after a failure", async () => {

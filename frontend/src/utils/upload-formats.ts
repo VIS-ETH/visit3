@@ -2,6 +2,8 @@ import { KpEventServiceRequirementType } from "../orval/generated/fastAPI.schema
 
 export const IMAGE_UPLOAD_ACCEPT = "image/png,image/jpeg,image/gif,image/webp";
 
+export const LOGO_UPLOAD_ACCEPT = "image/png,image/jpeg,image/webp";
+
 export const PDF_UPLOAD_ACCEPT = "application/pdf";
 
 export const VIDEO_UPLOAD_ACCEPT = "video/mp4,video/quicktime,video/webm";
@@ -12,6 +14,9 @@ export const LAYOUT_UPLOAD_ACCEPT = `${IMAGE_UPLOAD_ACCEPT},${PDF_UPLOAD_ACCEPT}
 
 export const isAllowedImageType = (mimeType: string) =>
   IMAGE_UPLOAD_ACCEPT.split(",").includes(mimeType);
+
+export const isAllowedLogoType = (mimeType: string) =>
+  LOGO_UPLOAD_ACCEPT.split(",").includes(mimeType);
 
 export const isAllowedLayoutType = (mimeType: string) =>
   LAYOUT_UPLOAD_ACCEPT.split(",").includes(mimeType);

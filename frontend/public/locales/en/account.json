@@ -100,7 +100,7 @@
     "booklet_page_overflow": "The text does not fit on the page.",
     "section_billing": "Billing address",
     "logo": "Logo",
-    "logo_hint": "PNG, JPEG, GIF or WebP, up to 5 MB.",
+    "logo_hint": "PNG, JPEG or WebP, up to 5 MB.",
     "logo_alt": "Company logo",
     "logo_upload": "Upload logo",
     "logo_replace": "Replace logo",
