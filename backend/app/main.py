@@ -20,6 +20,7 @@ from app.core.exception_handlers import (
     UnexpectedErrorMiddleware,
     register_exception_handlers,
 )
+from app.core.log_redaction import AccessLogRedaction
 from app.core.maintenance import lifespan
 from app.core.request_id import REQUEST_ID_HEADER, RequestIdMiddleware
 from app.core.security_headers import SecurityHeadersMiddleware
@@ -82,6 +83,7 @@ class HealthCheckFilter(logging.Filter):
 
 
 logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
+logging.getLogger("uvicorn.access").addFilter(AccessLogRedaction())
 
 
 @app.get("/health")

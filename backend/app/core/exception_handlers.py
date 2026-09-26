@@ -9,6 +9,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.body_limit import RequestBodyTooLarge, request_body_too_large_handler
 from app.core.exceptions import AppError, ConcurrentChange
+from app.core.log_redaction import redact_path
 from app.core.request_id import current_request_id
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ class UnexpectedErrorMiddleware:
             logger.exception(
                 "Unhandled error on %s %r (request %s)",
                 scope["method"],
-                scope["path"],
+                redact_path(scope["path"]),
                 request_id,
             )
             if response_started:
@@ -68,7 +69,7 @@ async def integrity_error_handler(
     logger.warning(
         "Concurrent change on %s %r (request %s)",
         request.method,
-        request.url.path,
+        redact_path(request.url.path),
         current_request_id(),
     )
     return await app_error_handler(
@@ -91,7 +92,7 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
             "Server error %s on %s %r (request %s): %r",
             exc.code,
             request.method,
-            request.url.path,
+            redact_path(request.url.path),
             request_id,
             exc.identifier,
             exc_info=exc,
