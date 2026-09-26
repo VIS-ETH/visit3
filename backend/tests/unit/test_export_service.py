@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from datetime import date, timedelta
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
@@ -162,7 +162,7 @@ class FakePdfService:
 async def test_nametag_pdf_render_uses_restricted_workspace_and_json_data():
     pdf_service = FakePdfService()
     service = ExportService(
-        kp_repository=Mock(),
+        kp_repository=AsyncMock(),
         storage_service=Mock(),
         pdf_service=pdf_service,
         csv_service=CsvService(),
@@ -203,7 +203,7 @@ class OverloadedPdfService:
 
 async def test_a_nametag_export_that_renders_too_long_is_reported():
     service = ExportService(
-        kp_repository=Mock(),
+        kp_repository=AsyncMock(),
         storage_service=Mock(),
         pdf_service=OverloadedPdfService(),
         csv_service=CsvService(),
@@ -224,6 +224,41 @@ async def test_a_nametag_export_that_renders_too_long_is_reported():
 
     assert error.value.code == "error.export_render_timeout"
     assert error.value.status_code == 503
+
+
+class RecordingPdfService:
+    def __init__(self, events: list[str]) -> None:
+        self.events = events
+
+    async def render(self, *args: object, **kwargs: object) -> tuple[bytes, str]:
+        self.events.append("rendered")
+        return b"%PDF-1.7", "nametags.pdf"
+
+
+async def test_a_nametag_export_releases_its_connection_before_rendering():
+    events: list[str] = []
+    repository = AsyncMock()
+    repository.end_read_transaction.side_effect = lambda: events.append("released")
+    service = ExportService(
+        kp_repository=repository,
+        storage_service=Mock(),
+        pdf_service=RecordingPdfService(events),
+        csv_service=CsvService(),
+        xlsx_service=XlsxService(),
+        current_user=Mock(),
+    )
+    name_tag = SimpleNamespace(
+        first_name="Ada",
+        last_name="Lovelace",
+        position="Engineer",
+        booking=SimpleNamespace(company=SimpleNamespace(name="Acme")),
+    )
+
+    await service._render_nametags_pdf(
+        b"\x89PNG\r\n", "image/png", [name_tag], "nametags.pdf", 2
+    )
+
+    assert events == ["released", "rendered"]
 
 
 async def test_list_nametag_export_targets_sorts_unassigned_booths_last(

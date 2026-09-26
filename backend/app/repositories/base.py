@@ -24,6 +24,10 @@ class BaseRepository(Generic[T]):
         self.model = model
         self.session = session
 
+    async def end_read_transaction(self) -> None:
+        if self.session.in_transaction():
+            await self.session.commit()
+
     async def _get_by_field(
         self, field: ColumnExpressionArgument[Any], value: object
     ) -> T | None:

@@ -194,6 +194,7 @@ class BookletService:
         page_files = (
             files if background is None else {**files, BACKGROUND_FILE: background}
         )
+        await self.kp_repository.end_read_transaction()
         try:
             rendered = await self.pdf_service.render_png(
                 template_name=COMPANY_PAGE_TEMPLATE,

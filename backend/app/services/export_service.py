@@ -287,6 +287,7 @@ class ExportService:
             background_path.write_bytes(background_bytes)
             copyfile(TEMPLATES_DIR / NAMETAG_TEMPLATE_NAME, template_path)
 
+            await self.kp_repository.end_read_transaction()
             try:
                 content, rendered_filename = await self.pdf_service.render(
                     NAMETAG_TEMPLATE_NAME,
