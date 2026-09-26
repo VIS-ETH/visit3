@@ -68,6 +68,7 @@ import {
 import { isInactiveBooking } from "../utils/my-booking";
 import { bookingRequirementElementId } from "../utils/navigation";
 import { useScrollToHash } from "../utils/use-scroll-to-hash";
+import { useWarnOnLeave } from "../utils/use-warn-on-leave";
 import { formatPrice } from "../utils/price-utils";
 import { priceBreakdown } from "../utils/pricing";
 import {
@@ -143,6 +144,7 @@ const requirementChangeLabel = (
 const RequirementEditor = ({
   bookingServiceId,
   editable,
+  isSaving,
   onChange,
   onCompletionChange,
   pendingChange,
@@ -151,6 +153,7 @@ const RequirementEditor = ({
 }: {
   bookingServiceId: string;
   editable: boolean;
+  isSaving: boolean;
   onChange: (
     bookingServiceId: string,
     requirementId: string,
@@ -206,18 +209,13 @@ const RequirementEditor = ({
   }, [draft.file, isText, pendingChange]);
   useEffect(() => {
     const isComplete = isText
-      ? pendingChange?.kind === "text"
-        ? Boolean(pendingChange.text.trim())
-        : Boolean(requirementTextValue.trim())
-      : pendingChange?.kind === "delete_file"
-        ? false
-        : pendingChange?.kind === "file" || Boolean(requirementFile);
+      ? Boolean(requirementTextValue.trim())
+      : Boolean(requirementFile);
     onCompletionChange(bookingServiceId, requirement.id, isComplete);
   }, [
     bookingServiceId,
     isText,
     onCompletionChange,
-    pendingChange,
     requirement.id,
     requirementFile,
     requirementTextValue,
@@ -384,7 +382,16 @@ const RequirementEditor = ({
                 : t("kp.booking_manage.delete_file")}
             </Button>
           ) : null}
-          {pendingChange ? (
+          {isSaving ? (
+            <Badge
+              leftSection={<Loader color="blue" size={10} />}
+              variant="light"
+            >
+              {isText
+                ? t("kp.booking_manage.saving")
+                : t("kp.booking_manage.uploading")}
+            </Badge>
+          ) : pendingChange ? (
             <Badge variant="light">
               {t("kp.booking_manage.pending_change")}
             </Badge>
@@ -402,10 +409,12 @@ const BookedServiceCard = ({
   onRequirementCompletionChange,
   onRequirementChange,
   pendingChanges,
+  savingKey,
 }: {
   bookingService: BookingServiceResponse;
   completion: RequirementCompletion;
   editable: boolean;
+  savingKey: string | null;
   onRequirementCompletionChange: (
     bookingServiceId: string,
     requirementId: string,
@@ -475,7 +484,11 @@ const BookedServiceCard = ({
             {requirements.map((requirement) => (
               <RequirementEditor
                 bookingServiceId={bookingService.id}
-                editable={editable}
+                editable={editable && savingKey === null}
+                isSaving={
+                  savingKey ===
+                  requirementChangeKey(bookingService.id, requirement.id)
+                }
                 key={requirement.id}
                 onChange={onRequirementChange}
                 onCompletionChange={onRequirementCompletionChange}
@@ -821,6 +834,7 @@ const KpBookingManage = () => {
   const [promptedServices, setPromptedServices] = useState<
     BookingServiceResponse[]
   >([]);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
   const { id = "", bookingId = "" } = useParams<{
     id: string;
     bookingId: string;
@@ -873,6 +887,7 @@ const KpBookingManage = () => {
     isUploadingRequirementFile ||
     isSavingRequirementText ||
     isDeletingRequirementFile;
+  useWarnOnLeave(savingKey !== null);
 
   const refreshBooking = () => {
     void queryClient.invalidateQueries({
@@ -955,6 +970,7 @@ const KpBookingManage = () => {
         change.bookingServiceId,
         change.requirementId,
       );
+      setSavingKey(key);
       try {
         if (change.kind === "text") {
           await saveRequirementText({
@@ -996,6 +1012,7 @@ const KpBookingManage = () => {
       }
     }
 
+    setSavingKey(null);
     setPendingRequirementChanges(failedChanges);
     if (Object.keys(failedChanges).length === 0) {
       setConfirmRequirementsOpen(false);
@@ -1151,6 +1168,7 @@ const KpBookingManage = () => {
               onRequirementCompletionChange={handleRequirementCompletionChange}
               onRequirementChange={handleRequirementChange}
               pendingChanges={pendingRequirementChanges}
+              savingKey={savingKey}
             />
           ))}
           <Group justify="flex-end">
@@ -1294,6 +1312,7 @@ const KpBookingManage = () => {
                 }
                 onRequirementChange={handleRequirementChange}
                 pendingChanges={pendingRequirementChanges}
+                savingKey={savingKey}
               />
             ))}
           </Stack>

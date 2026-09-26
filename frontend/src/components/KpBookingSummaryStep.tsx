@@ -41,6 +41,7 @@ import {
 import { activeBooking } from "../utils/my-booking";
 import { formatPrice } from "../utils/price-utils";
 import { priceBreakdown } from "../utils/pricing";
+import { useWarnOnLeave } from "../utils/use-warn-on-leave";
 import SummaryPriceBreakdown from "./SummaryPriceBreakdown";
 
 const BOOKING_ALREADY_EXISTS_CODE = "error.kp_booking_already_exists";
@@ -92,6 +93,7 @@ const KpBookingSummaryStep = ({
   const [bindingAccepted, setBindingAccepted] = useState(false);
   const [consentHighlight, setConsentHighlight] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  useWarnOnLeave(isSubmitting);
   const agbCheckboxRef = useRef<HTMLInputElement>(null);
   const bindingCheckboxRef = useRef<HTMLInputElement>(null);
   const { data: services } = useListAvailableServices(eventId);

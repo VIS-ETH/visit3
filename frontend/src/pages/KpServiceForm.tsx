@@ -43,6 +43,7 @@ import {
   currencyAmountToCents,
 } from "../utils/price-utils";
 import { useTranslatedForm } from "../utils/translator";
+import { useWarnOnLeave } from "../utils/use-warn-on-leave";
 
 type ServiceRequirementFormValue = {
   id?: string;
@@ -108,6 +109,7 @@ const KpServiceForm = () => {
 
   const isSaving =
     isCreating || isUpdating || isUploadingImage || isDeletingImage;
+  useWarnOnLeave(isUploadingImage);
 
   useEffect(() => {
     if (!service || initialisedServiceIdRef.current === service.id) return;

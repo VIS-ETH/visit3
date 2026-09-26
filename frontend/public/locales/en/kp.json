@@ -258,6 +258,8 @@
       "confirm_requirement_changes_title": "Confirm requirement changes",
       "confirm_requirement_changes_body": "These changes will update the requirements for your booked services.",
       "confirm_requirement_changes_submit": "Confirm and save",
+      "uploading": "Uploading",
+      "saving": "Saving",
       "pending_change": "Pending",
       "change_text": "Text",
       "change_file": "File",

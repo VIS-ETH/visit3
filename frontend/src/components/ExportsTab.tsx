@@ -40,6 +40,7 @@ import {
 } from "../orval/generated/kp/kp";
 import { downloadBlob, safeFilenamePart } from "../utils/download";
 import { NAMETAG_BACKGROUND_ACCEPT } from "../utils/upload-formats";
+import { useWarnOnLeave } from "../utils/use-warn-on-leave";
 
 const downloadRequestOptions = { responseType: "blob" as const };
 type EventDownloadFunction = (eventId: string) => unknown;
@@ -92,6 +93,8 @@ const ExportsTab = ({
         },
       },
     });
+
+  useWarnOnLeave(isUploadingBackground);
 
   const handleBackgroundUpload = () => {
     if (!backgroundFile) return;
@@ -304,6 +307,7 @@ const ExportsTab = ({
         : "nametags_pdf");
   const scopedNametagDownloadDisabled =
     !nametagBackground ||
+    isUploadingBackground ||
     (nametagExportScope === "company" && !selectedNametagBookingId) ||
     (nametagExportScope === "person" && !selectedNameTagId);
 
@@ -355,6 +359,7 @@ const ExportsTab = ({
               description={t("kp.dashboard.exports.background_allowed_formats")}
               value={backgroundFile}
               onChange={setBackgroundFile}
+              disabled={isUploadingBackground}
               flex={1}
             />
             <Button

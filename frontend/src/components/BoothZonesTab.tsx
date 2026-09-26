@@ -56,6 +56,7 @@ import {
 } from "../utils/upload-formats";
 import DataTable, { type DataTableColumn } from "./DataTable";
 import RepickableFileButton from "./RepickableFileButton";
+import { useWarnOnLeave } from "../utils/use-warn-on-leave";
 
 type BoothZoneRow = ListBoothZonesQueryResult[number];
 
@@ -127,6 +128,7 @@ const BoothZonesTab = ({ eventId }: { eventId: string }) => {
 
   const isSaving =
     isCreating || isUpdating || isUploadingLayout || isDeletingLayout;
+  useWarnOnLeave(isUploadingLayout);
   const isEditing = editingZoneId !== null;
   const editingZone = zones?.find((zone) => zone.id === editingZoneId);
   const storedLayoutUrl = isLayoutCleared

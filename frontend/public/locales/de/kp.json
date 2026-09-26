@@ -258,6 +258,8 @@
       "confirm_requirement_changes_title": "Änderungen bestätigen",
       "confirm_requirement_changes_body": "Diese Änderungen aktualisieren die Anforderungen für Ihre gebuchten Services.",
       "confirm_requirement_changes_submit": "Bestätigen und speichern",
+      "uploading": "Wird hochgeladen",
+      "saving": "Wird gespeichert",
       "pending_change": "Ausstehend",
       "change_text": "Text",
       "change_file": "Datei",

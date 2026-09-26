@@ -6,6 +6,7 @@ import {
   isAllowedLogoType,
   LOGO_UPLOAD_ACCEPT,
 } from "../../utils/upload-formats";
+import { useWarnOnLeave } from "../../utils/use-warn-on-leave";
 import RepickableFileButton from "../RepickableFileButton";
 
 const MAX_LOGO_SIZE_BYTES = 5 * 1024 * 1024;
@@ -30,6 +31,7 @@ const CompanyLogoControls = ({
   const { t } = useTranslation();
   const [fileError, setFileError] = useState<string | null>(null);
   const isBusy = disabled || isUploading || isRemoving;
+  useWarnOnLeave(isUploading);
 
   const handleFile = (file: File | null) => {
     setFileError(null);
