@@ -487,11 +487,12 @@ class AuthService:
             )
         await self.user_repository.clear_pending_invite(user)
 
-    async def keycloak_callback(self, code: str) -> str:
+    async def keycloak_callback(self, code: str, code_verifier: str) -> str:
         settings = get_settings()
         payload = {
             "grant_type": "authorization_code",
             "code": code,
+            "code_verifier": code_verifier,
             "client_id": settings.SIP_AUTH_OIDC_CLIENT_ID,
             "client_secret": settings.SIP_AUTH_OIDC_CLIENT_SECRET.get_secret_value(),
             "redirect_uri": settings.KEYCLOAK_CALLBACK,
@@ -533,8 +534,12 @@ class AuthService:
             keycloak_roles, ["vis-active", "admin"]
         )
 
-        email = decoded_token["email"]
-        sub = decoded_token["sub"]
+        email = decoded_token.get("email")
+        sub = decoded_token.get("sub")
+        if not isinstance(email, str) or not email.strip():
+            raise KeycloakExchangeFailed(f"keycloak:missing_email:{sub}")
+        if not isinstance(sub, str) or not sub:
+            raise KeycloakExchangeFailed("keycloak:missing_subject")
 
         if not roles:
             await self._offboard(sub)

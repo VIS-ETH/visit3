@@ -295,6 +295,7 @@ async def test_an_unreachable_identity_provider_redirects_to_the_login(
 
     monkeypatch.setattr(httpx.AsyncClient, "post", unreachable)
     client.cookies.set("oauth_state", "matching-state")
+    client.cookies.set("oauth_verifier", "pkce-verifier")
 
     response = await client.get(
         "/api/auth/callback?code=auth-code&state=matching-state"

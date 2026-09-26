@@ -1,6 +1,9 @@
+import base64
+import hashlib
 import logging
 import secrets
 from typing import Annotated
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Cookie, Depends, Request, Response
 from fastapi.responses import RedirectResponse
@@ -35,6 +38,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"], dependencies=[CsrfDep])
 
 GENERIC_LOGIN_ERROR = "server.error"
+OAUTH_STATE_COOKIE = "oauth_state"
+OAUTH_VERIFIER_COOKIE = "oauth_verifier"
+OAUTH_COOKIE_MAX_AGE = 600
 LOGIN_LINK_ERROR = "auth.link_invalid"
 
 
@@ -158,8 +164,29 @@ def login_error_redirect(code: str) -> RedirectResponse:
         f"{get_settings().VISIT_FRONTEND_SERVER_URL}/login?error={code}",
         status_code=303,
     )
-    response.delete_cookie("oauth_state")
+    clear_oauth_cookies(response)
     return response
+
+
+def clear_oauth_cookies(response: Response) -> None:
+    response.delete_cookie(OAUTH_STATE_COOKIE)
+    response.delete_cookie(OAUTH_VERIFIER_COOKIE)
+
+
+def set_oauth_cookie(response: Response, key: str, value: str) -> None:
+    response.set_cookie(
+        key=key,
+        value=value,
+        httponly=True,
+        secure=secure_cookies(),
+        max_age=OAUTH_COOKIE_MAX_AGE,
+        samesite="lax",
+    )
+
+
+def pkce_challenge(verifier: str) -> str:
+    digest = hashlib.sha256(verifier.encode("ascii")).digest()
+    return base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
 
 
 @router.get("/callback", operation_id="keycloakCallback")
@@ -168,12 +195,15 @@ async def keycloak_callback(
     code: str,
     state: str,
     oauth_state: str = Cookie(None),
+    oauth_verifier: str = Cookie(None),
 ) -> RedirectResponse:
-    if not oauth_state or state != oauth_state:
+    if not oauth_state or not secrets.compare_digest(state, oauth_state):
+        return login_error_redirect(GENERIC_LOGIN_ERROR)
+    if not oauth_verifier:
         return login_error_redirect(GENERIC_LOGIN_ERROR)
 
     try:
-        refresh_token = await auth_service.keycloak_callback(code)
+        refresh_token = await auth_service.keycloak_callback(code, oauth_verifier)
     except (EmailTakenLocally, EmailUsed, NotVisMember) as e:
         return login_error_redirect(e.code)
     except KeycloakExchangeFailed:
@@ -181,7 +211,7 @@ async def keycloak_callback(
 
     response = RedirectResponse(url=get_settings().VISIT_FRONTEND_SERVER_URL)
 
-    response.delete_cookie("oauth_state")
+    clear_oauth_cookies(response)
 
     set_refresh_cookie(response, refresh_token)
 
@@ -191,23 +221,19 @@ async def keycloak_callback(
 @router.get("/initiate", operation_id="keycloakInit")
 def keycloak_init(response: Response) -> str:
     state = secrets.token_urlsafe(32)
-
-    response.set_cookie(
-        key="oauth_state",
-        value=state,
-        httponly=True,
-        secure=secure_cookies(),
-        max_age=600,
-        samesite="lax",
+    verifier = secrets.token_urlsafe(64)
+    set_oauth_cookie(response, OAUTH_STATE_COOKIE, state)
+    set_oauth_cookie(response, OAUTH_VERIFIER_COOKIE, verifier)
+    settings = get_settings()
+    query = urlencode(
+        {
+            "client_id": settings.SIP_AUTH_OIDC_CLIENT_ID,
+            "response_type": "code",
+            "scope": "openid",
+            "redirect_uri": settings.KEYCLOAK_CALLBACK,
+            "state": state,
+            "code_challenge": pkce_challenge(verifier),
+            "code_challenge_method": "S256",
+        }
     )
-
-    login_url = (
-        f"{get_settings().SIP_AUTH_OIDC_AUTH_ENDPOINT}"
-        f"?client_id={get_settings().SIP_AUTH_OIDC_CLIENT_ID}"
-        f"&response_type=code"
-        f"&scope=openid"
-        f"&redirect_uri={get_settings().KEYCLOAK_CALLBACK}"
-        f"&state={state}"
-    )
-
-    return login_url
+    return f"{settings.SIP_AUTH_OIDC_AUTH_ENDPOINT}?{query}"

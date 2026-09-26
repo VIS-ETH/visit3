@@ -25,9 +25,18 @@ def decode_token(token: str | None) -> dict[str, Any] | None:
             issuer=settings.SIP_AUTH_OIDC_ISSUER,
             options={"verify_aud": False},
         )
-        return payload
     except jwt.ExpiredSignatureError:
         return None
     except jwt.PyJWTError as e:
         logger.warning("Token decoding failed: %s", e)
         return None
+    if not issued_for_this_client(payload, settings.SIP_AUTH_OIDC_CLIENT_ID):
+        logger.warning("Token decoding failed: issued for another client")
+        return None
+    return payload
+
+
+def issued_for_this_client(payload: dict[str, Any], client_id: str) -> bool:
+    audience = payload.get("aud")
+    audiences = [audience] if isinstance(audience, str) else audience or []
+    return payload.get("azp") == client_id or client_id in audiences

@@ -491,6 +491,7 @@ async def keycloak_callback_response(
 ):
     monkeypatch.setattr(AuthService, "keycloak_callback", exchange)
     client.cookies.set("oauth_state", state)
+    client.cookies.set("oauth_verifier", "pkce-verifier")
 
     return await client.get(f"/api/auth/callback?code=auth-code&state={state}")
 

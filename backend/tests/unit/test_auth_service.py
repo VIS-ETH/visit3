@@ -53,13 +53,14 @@ async def test_keycloak_callback_uses_the_shared_client_secret(auth, monkeypatch
     auth.service.login_keycloak_user = AsyncMock(return_value="local-login-token")
 
     assert (
-        await auth.service.keycloak_callback("authorization-code")
+        await auth.service.keycloak_callback("authorization-code", "pkce-verifier")
         == "local-login-token"
     )
     shared = get_oauth_settings()
     assert str(requests[0].url) == str(shared.SIP_AUTH_OIDC_TOKEN_ENDPOINT)
     payload = parse_qs(requests[0].content.decode())
     assert payload["grant_type"] == ["authorization_code"]
+    assert payload["code_verifier"] == ["pkce-verifier"]
     assert payload["client_id"] == [shared.SIP_AUTH_OIDC_CLIENT_ID]
     assert payload["client_secret"] == [
         shared.SIP_AUTH_OIDC_CLIENT_SECRET.get_secret_value()
