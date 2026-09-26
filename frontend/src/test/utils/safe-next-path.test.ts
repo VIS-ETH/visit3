@@ -17,6 +17,20 @@ describe("getSafeNextPath", () => {
     expect(next === null || !resolvesOffsite(next)).toBe(true);
   });
 
+  it.each([
+    "?next=%2F%2Fevil.example",
+    "?next=https%3A%2F%2Fevil.example",
+    "?next=evil",
+  ])("rejects %s", (search) => {
+    expect(getSafeNextPath(search)).toBeNull();
+  });
+
+  it("keeps the query and hash of an in-app path", () => {
+    expect(getSafeNextPath("?next=%2Fcompany%3Ftab%3D1%23logo")).toBe(
+      "/company?tab=1#logo",
+    );
+  });
+
   it("keeps an in-app path", () => {
     expect(getSafeNextPath("?next=%2Fkp%2Fevent-1%2Fbooking")).toBe(
       "/kp/event-1/booking",
