@@ -29,7 +29,8 @@ async def test_a_render_returns_the_result_of_the_worker():
 async def test_a_render_over_the_limit_is_aborted_and_its_worker_killed(
     tmp_path: Path,
 ):
-    runner = TypstRunner(max_parallel=2, memory_limit_bytes=None)
+    runner = TypstRunner(max_parallel=1, memory_limit_bytes=None)
+    await runner.run(typst_work.process_id, (), timeout=10)
     pid_file = tmp_path / "pid"
     started = time.monotonic()
 
@@ -53,6 +54,7 @@ async def test_a_worker_is_reused_between_renders():
 
 async def test_a_fresh_worker_takes_over_after_a_killed_one(tmp_path: Path):
     runner = TypstRunner(max_parallel=1, memory_limit_bytes=None)
+    await runner.run(typst_work.process_id, (), timeout=10)
     with pytest.raises(TypstRenderAborted):
         await runner.run(
             typst_work.sleep_after_writing_pid, (30, str(tmp_path / "pid")), timeout=1
