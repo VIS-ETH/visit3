@@ -32,7 +32,9 @@ def _portable(error: Exception) -> Exception:
 
 def _serve(connection: Connection, memory_limit_bytes: int | None) -> None:
     if memory_limit_bytes is not None:
-        resource.setrlimit(resource.RLIMIT_AS, (memory_limit_bytes, memory_limit_bytes))
+        resource.setrlimit(
+            resource.RLIMIT_DATA, (memory_limit_bytes, memory_limit_bytes)
+        )
     while True:
         try:
             function, arguments = connection.recv()

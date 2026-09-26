@@ -5,9 +5,19 @@ from pathlib import Path
 
 import pytest
 
+from app.services import typst_worker
+from app.services.booklet_service import (
+    BACKGROUND_FILE,
+    COMPANY_PAGE_TEMPLATE,
+    OVERFLOW_LABEL,
+    SAMPLE_PAGE,
+)
 from app.services.pdf_service import PdfUnreadable
 from app.services.typst_runner import TypstRenderAborted, TypstRunner
+from tests.booklet_pdfs import make_pdf
 from tests.unit import typst_work
+
+WORKER_MEMORY_LIMIT = 512 * 1024 * 1024
 
 
 def is_running(pid: int) -> bool:
@@ -107,3 +117,24 @@ async def test_waiting_for_a_free_slot_counts_towards_the_limit(tmp_path: Path):
 
     assert time.monotonic() - started < 1.5
     assert await busy == "finished"
+
+
+async def test_a_worker_cannot_allocate_beyond_its_memory_limit():
+    runner = TypstRunner(max_parallel=1, memory_limit_bytes=WORKER_MEMORY_LIMIT)
+
+    with pytest.raises(MemoryError):
+        await runner.run(typst_work.allocate, (2048,), timeout=30)
+
+
+async def test_a_page_with_a_background_renders_within_the_memory_limit():
+    runner = TypstRunner(max_parallel=1, memory_limit_bytes=WORKER_MEMORY_LIMIT)
+    data = {**SAMPLE_PAGE, "background_path": BACKGROUND_FILE}
+    files = {BACKGROUND_FILE: make_pdf()}
+
+    png, _ = await runner.run(
+        typst_worker.render_png,
+        (COMPANY_PAGE_TEMPLATE, data, files, OVERFLOW_LABEL),
+        timeout=30,
+    )
+
+    assert png.startswith(b"\x89PNG")

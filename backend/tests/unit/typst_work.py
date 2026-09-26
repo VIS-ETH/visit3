@@ -25,3 +25,7 @@ def fail_as_unreadable() -> None:
 
 def exit_abruptly() -> None:
     os._exit(9)
+
+
+def allocate(megabytes: int) -> int:
+    return len(bytearray(megabytes * 1024 * 1024))
