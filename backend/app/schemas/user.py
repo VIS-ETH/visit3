@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.core.utils import strip_text
+from app.schemas.text import SingleLineText
 
 
 class CompanyResponse(BaseModel):
@@ -70,8 +71,8 @@ class UserPageResponse(UserPageResult):
 class RegisterUserInput(BaseModel):
     email: EmailStr
     password: str
-    first_name: str = Field(min_length=1)
-    last_name: str = Field(min_length=1)
+    first_name: SingleLineText = Field(min_length=1)
+    last_name: SingleLineText = Field(min_length=1)
     phone_number: str | None = None
     invite_token: str | None = None
 
@@ -86,8 +87,8 @@ class RegisterUserRequest(RegisterUserInput):
 
 
 class UserProfileFieldsInput(BaseModel):
-    first_name: str | None = Field(default=None, min_length=1)
-    last_name: str | None = Field(default=None, min_length=1)
+    first_name: SingleLineText | None = Field(default=None, min_length=1)
+    last_name: SingleLineText | None = Field(default=None, min_length=1)
     phone_number: str | None = None
 
     @field_validator("first_name", "last_name", mode="before")

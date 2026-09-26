@@ -1,6 +1,7 @@
 from email.header import decode_header, make_header
 from unittest.mock import AsyncMock
 
+import pytest
 from google.protobuf.json_format import MessageToDict
 
 from app.core.config import get_settings
@@ -109,3 +110,23 @@ def test_construct_mail_leaves_the_sender_name_to_the_notifications_api():
     assert message is not None
     assert getattr(message, "from").mail_address.name == f"VISIT Ärger {PROBE}"
     assert message.plain_text == f"Grüße {PROBE}"
+
+
+@pytest.mark.parametrize(
+    "subject",
+    [
+        "VISIT: Einladung zu Acme\r\nBcc: victim@example.com",
+        "VISIT: Einladung zu Acmé\r\nBcc: victim@example.com",
+        "VISIT: Acme\nBcc: victim@example.com X",
+    ],
+)
+def test_construct_mail_keeps_the_subject_on_one_line(subject: str):
+    message = MailService(AsyncMock()).construct_mail(
+        ["to@example.com"], subject, plain_text="Hello"
+    )
+
+    assert message is not None
+    assert "\r" not in message.subject
+    assert "\n" not in message.subject
+    assert "\n" not in decoded(message.subject)
+    assert "Bcc: victim@example.com" in decoded(message.subject)

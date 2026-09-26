@@ -1,5 +1,6 @@
 import hashlib
 import json
+import unicodedata
 from typing import Any, Protocol, TypeVar, cast, overload
 
 import phonenumbers
@@ -13,6 +14,22 @@ T = TypeVar("T", covariant=True)
 class ModelValidateType(Protocol[T]):
     @classmethod
     def model_validate(cls, obj: Any) -> T: ...
+
+
+CONTROL_CHARACTER_CATEGORY = "Cc"
+
+
+def has_control_characters(value: str) -> bool:
+    return any(
+        unicodedata.category(character) == CONTROL_CHARACTER_CATEGORY
+        for character in value
+    )
+
+
+def reject_control_characters(value: str) -> str:
+    if has_control_characters(value):
+        raise ValueError("control characters are not allowed")
+    return value
 
 
 def normalize_email(email: str) -> str:

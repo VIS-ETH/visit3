@@ -10,10 +10,11 @@ from app.models.company import (
     sanitize_description,
 )
 from app.schemas.industry import IndustryResult
+from app.schemas.text import SingleLineText
 
 
 class CreateCompanyInput(BaseModel):
-    name: str
+    name: SingleLineText
 
 
 class CreateCompanyRequest(CreateCompanyInput):
@@ -21,7 +22,7 @@ class CreateCompanyRequest(CreateCompanyInput):
 
 
 class UpdateCompanyInput(BaseModel):
-    name: str
+    name: SingleLineText
 
 
 class UpdateCompanyRequest(UpdateCompanyInput):
@@ -33,7 +34,7 @@ class CompanyProfileFields(BaseModel):
         default="", max_length=PROFILE_DESCRIPTION_MARKUP_MAX_LENGTH
     )
     website: str | None = None
-    brand_name: str = ""
+    brand_name: SingleLineText = ""
     general_email: EmailStr | None = None
     general_phone: str | None = None
     places_of_work: str = ""
@@ -98,7 +99,7 @@ class CompanyProfileResponse(CompanyProfileResult):
 
 
 class SetupCompanyInput(BaseModel):
-    name: str
+    name: SingleLineText
 
 
 class SetupCompanyRequest(SetupCompanyInput):

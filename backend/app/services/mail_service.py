@@ -16,9 +16,10 @@ SENDER_NAME = "VISIT MAIL SERVICE"
 
 
 def encode_header_text(text: str) -> str:
-    if text.isascii():
-        return text
-    return Header(text, "utf-8").encode()
+    single_line = " ".join(text.splitlines())
+    if single_line.isascii():
+        return single_line
+    return Header(single_line, "utf-8").encode()
 
 
 class MailDeliveryFailed(RuntimeError):
