@@ -1,6 +1,7 @@
 import pytest
 
 from app.services.pdf_service import PdfService, PdfUnreadable
+from app.services.typst_runner import TypstRenderAborted
 from tests.booklet_pdfs import make_pdf
 
 
@@ -28,3 +29,8 @@ async def test_a_second_page_is_detected():
 async def test_a_corrupt_pdf_is_unreadable():
     with pytest.raises(PdfUnreadable):
         await PdfService().inspect_pdf(b"%PDF-1.7\nnot really a pdf")
+
+
+async def test_a_probe_over_its_limit_is_aborted():
+    with pytest.raises(TypstRenderAborted):
+        await PdfService().inspect_pdf(make_pdf(), timeout=0.001)

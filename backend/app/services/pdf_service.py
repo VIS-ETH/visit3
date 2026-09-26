@@ -1,23 +1,20 @@
-import asyncio
-import json
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from shutil import copyfile
 from typing import Any
 
-import typst
+from app.core.config import get_settings
+from app.services import typst_worker
+from app.services.typst_runner import typst_runner
+from app.services.typst_worker import FONTS_DIR, TEMPLATES_DIR, PdfUnreadable
 
-TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
-FONTS_DIR = TEMPLATES_DIR / "fonts"
-PREVIEW_PPI = 110
-PROBE_TEMPLATE = "pdf_probe.typ"
-PROBE_SOURCE = "source.pdf"
-PROBE_PPI = 1
-
-
-class PdfUnreadable(ValueError):
-    pass
+__all__ = [
+    "FONTS_DIR",
+    "TEMPLATES_DIR",
+    "PdfPage",
+    "PdfService",
+    "PdfUnreadable",
+    "RenderedImage",
+]
 
 
 @dataclass(frozen=True)
@@ -33,69 +30,18 @@ class RenderedImage:
     metadata: Any
 
 
-def _render_png(
-    template_name: str,
-    data: dict[str, Any],
-    files: dict[str, bytes],
-    metadata_label: str,
-) -> RenderedImage:
-    with tempfile.TemporaryDirectory() as workspace:
-        root = Path(workspace)
-        copyfile(TEMPLATES_DIR / template_name, root / template_name)
-        for name, content in files.items():
-            (root / name).write_bytes(content)
-        compiler = typst.Compiler(
-            str(root / template_name),
-            root=str(root),
-            font_paths=[str(FONTS_DIR)],
-            ignore_system_fonts=True,
-            sys_inputs={"data": json.dumps(data)},
-        )
-        png = compiler.compile(format="png", ppi=PREVIEW_PPI)
-        metadata = json.loads(
-            compiler.query(f"<{metadata_label}>", field="value", one=True)
-        )
-    if not isinstance(png, bytes):
-        raise ValueError(f"render_png:{template_name}:expected_one_page")
-    return RenderedImage(png=png, metadata=metadata)
-
-
-def _probe_page(root: Path, page: int) -> dict[str, float]:
-    compiler = typst.Compiler(
-        str(root / PROBE_TEMPLATE),
-        root=str(root),
-        font_paths=[str(FONTS_DIR)],
-        ignore_system_fonts=True,
-        sys_inputs={"source": PROBE_SOURCE, "page": str(page)},
-    )
-    compiler.compile(format="png", ppi=PROBE_PPI)
-    return json.loads(compiler.query("<size>", field="value", one=True))
-
-
-def _inspect_pdf(content: bytes) -> PdfPage:
-    with tempfile.TemporaryDirectory() as workspace:
-        root = Path(workspace)
-        copyfile(TEMPLATES_DIR / PROBE_TEMPLATE, root / PROBE_TEMPLATE)
-        (root / PROBE_SOURCE).write_bytes(content)
-        try:
-            first = _probe_page(root, 1)
-        except Exception as error:
-            raise PdfUnreadable(str(error)) from None
-        try:
-            _probe_page(root, 2)
-            has_more_pages = True
-        except Exception:
-            has_more_pages = False
-    return PdfPage(
-        width_mm=float(first["width"]),
-        height_mm=float(first["height"]),
-        has_more_pages=has_more_pages,
-    )
-
-
 class PdfService:
-    async def inspect_pdf(self, content: bytes) -> PdfPage:
-        return await asyncio.to_thread(_inspect_pdf, content)
+    async def inspect_pdf(
+        self, content: bytes, timeout: float | None = None
+    ) -> PdfPage:
+        width_mm, height_mm, has_more_pages = await typst_runner().run(
+            typst_worker.inspect_pdf,
+            (content,),
+            timeout or get_settings().TYPST_VALIDATION_TIMEOUT_SECONDS,
+        )
+        return PdfPage(
+            width_mm=width_mm, height_mm=height_mm, has_more_pages=has_more_pages
+        )
 
     async def render(
         self,
@@ -105,14 +51,10 @@ class PdfService:
         root: str | None = None,
         template_dir: Path = TEMPLATES_DIR,
     ) -> tuple[None | bytes, str]:
-        template_path = template_dir / template_name
-        pdf_bytes = await asyncio.to_thread(
-            typst.compile,
-            str(template_path),
-            root=root,
-            font_paths=[str(FONTS_DIR)],
-            ignore_system_fonts=True,
-            sys_inputs={"data": json.dumps(data)},
+        pdf_bytes = await typst_runner().run(
+            typst_worker.compile_pdf,
+            (str(template_dir / template_name), data, root),
+            get_settings().TYPST_EXPORT_TIMEOUT_SECONDS,
         )
         return pdf_bytes, filename
 
@@ -123,7 +65,11 @@ class PdfService:
         data: dict[str, Any],
         files: dict[str, bytes],
         metadata_label: str,
+        timeout: float | None = None,
     ) -> RenderedImage:
-        return await asyncio.to_thread(
-            _render_png, template_name, data, files, metadata_label
+        png, metadata = await typst_runner().run(
+            typst_worker.render_png,
+            (template_name, data, files, metadata_label),
+            timeout or get_settings().TYPST_PREVIEW_TIMEOUT_SECONDS,
         )
+        return RenderedImage(png=png, metadata=metadata)

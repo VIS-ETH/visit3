@@ -1,21 +1,24 @@
 import json
+import time
 from base64 import b64decode
 from shutil import copyfile
 
+import pytest
 import typst
 
 from app.core.rich_text import rich_text_blocks
 from app.models.company import PROFILE_DESCRIPTION_MAX_LENGTH
 from app.services.export_service import NAMETAG_TEMPLATE_NAME
 from app.services.pdf_service import FONTS_DIR, TEMPLATES_DIR, PdfService
+from app.services.typst_runner import TypstRenderAborted
+from app.services.typst_worker import compile_pdf
 
 ONE_PIXEL_PNG = b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 )
 
 
-async def test_render_passes_user_data_as_json_sys_input(monkeypatch, tmp_path):
-    service = PdfService()
+def test_render_passes_user_data_as_json_sys_input(monkeypatch, tmp_path):
     template = tmp_path / "template.typ"
     template.write_text('#let data = json(bytes(sys.inputs.at("data")))')
     captured: dict[str, object] = {}
@@ -35,19 +38,12 @@ async def test_render_passes_user_data_as_json_sys_input(monkeypatch, tmp_path):
         captured["sys_inputs"] = sys_inputs
         return b"%PDF"
 
-    monkeypatch.setattr("app.services.pdf_service.typst.compile", fake_compile)
+    monkeypatch.setattr("app.services.typst_worker.typst.compile", fake_compile)
 
     data = {"name": '#panic("boom")', "company": "#image('/etc/passwd')"}
-    content, filename = await service.render(
-        template.name,
-        data,
-        "nametag.pdf",
-        root=str(tmp_path),
-        template_dir=tmp_path,
-    )
+    content = compile_pdf(str(template), data, str(tmp_path))
 
     assert content == b"%PDF"
-    assert filename == "nametag.pdf"
     assert captured["path"] == str(template)
     assert captured["root"] == str(tmp_path)
     assert captured["font_paths"] == [str(FONTS_DIR)]
@@ -175,3 +171,37 @@ async def test_a_fully_bold_description_of_the_limit_reports_the_overflow():
     )
 
     assert rendered.metadata is True
+
+
+def endless_description() -> list[list[dict[str, object]]]:
+    return [[{"text": "Wort " * 20, "bold": True}] for _ in range(20000)]
+
+
+async def test_a_company_page_that_renders_too_long_is_aborted():
+    started = time.monotonic()
+
+    with pytest.raises(TypstRenderAborted):
+        await PdfService().render_png(
+            template_name="company_page.typ",
+            data=company_page_entry(description_blocks=endless_description()),
+            files={},
+            metadata_label="overflow",
+            timeout=1,
+        )
+
+    assert time.monotonic() - started < 4
+
+
+async def test_a_normal_company_page_renders_well_within_the_limit():
+    started = time.monotonic()
+
+    rendered = await PdfService().render_png(
+        template_name="company_page.typ",
+        data=company_page_entry(),
+        files={},
+        metadata_label="overflow",
+        timeout=10,
+    )
+
+    assert rendered.png.startswith(b"\x89PNG\r\n\x1a\n")
+    assert time.monotonic() - started < 3
