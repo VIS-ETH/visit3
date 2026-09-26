@@ -202,10 +202,10 @@ class CompanyService:
         await self.company_repository.remove_user_from_company(user, company)
         await self.company_repository.revoke_open_invites_by(user.id)
         logger.info(
-            "Company user removed by staff %r: %r from %r",
-            self.current_user.email,
-            user.email,
-            company.name,
+            "Company user removed by staff %s: %s from %s",
+            self.current_user.id,
+            user.id,
+            company.id,
         )
 
     async def add_company_user(self, company_id: UUID, user_id: UUID) -> User:
@@ -223,10 +223,10 @@ class CompanyService:
 
         joined = await self.company_repository.assign_user(user, company.id)
         logger.info(
-            "Company user added by staff %r: %r to %r",
-            self.current_user.email,
-            user.email,
-            company.name,
+            "Company user added by staff %s: %s to %s",
+            self.current_user.id,
+            user.id,
+            company.id,
         )
         return joined
 
@@ -248,9 +248,9 @@ class CompanyService:
         company = await self.company_repository.create_company(normalized)
         await self.company_repository.assign_user(self.current_user, company.id)
         logger.info(
-            "Company created and joined: %r -> %r",
-            self.current_user.email,
-            company.name,
+            "Company created and joined: %s -> %s",
+            self.current_user.id,
+            company.id,
         )
         return company
 
@@ -298,10 +298,10 @@ class CompanyService:
             await self.company_repository.delete_invite(invite)
             raise
         logger.info(
-            "Invite sent by %r to %r for %r",
-            self.current_user.email,
-            normalized,
-            company.name,
+            "Invite %s sent by %s for %s",
+            invite.id,
+            self.current_user.id,
+            company.id,
         )
         return invite
 
@@ -354,8 +354,8 @@ class CompanyService:
             company, normalized
         )
         logger.info(
-            "Company name updated by %r: %r -> %r",
-            self.current_user.email,
+            "Company name updated by %s: %r -> %r",
+            self.current_user.id,
             company.name,
             normalized,
         )

@@ -82,7 +82,7 @@ class UserService:
         updated_user = await self.user_repository.update_user(
             self.current_user, normalized
         )
-        logger.info("User profile updated: %r", self.current_user.email)
+        logger.info("User profile updated: %s", self.current_user.id)
         return updated_user
 
     async def logout_user(self, refresh_token: str | None) -> None:
@@ -129,7 +129,7 @@ class UserService:
         if not was_confirmed:
             await self._send_account_confirmed(result)
         logger.info(
-            "User confirmed by staff %r: %r", self.current_user.email, user.email
+            "User confirmed by staff %s: %s", self.current_user.id, user.id
         )
         return result
 
@@ -144,7 +144,7 @@ class UserService:
                 AccountConfirmedContext(name=user.display_name, login_url=login_url),
             )
         except Exception:
-            logger.exception("Account confirmed mail failed for %r", user.email)
+            logger.exception("Account confirmed mail failed for %s", user.id)
 
     async def get_company_users(self) -> Sequence[User]:
         require_staff_user(self.current_user)
@@ -165,9 +165,9 @@ class UserService:
             raise UserNotFound(f"resend_confirmation_mail:{user_id}")
         await self.auth_service.send_confirm_email(user)
         logger.info(
-            "Confirmation mail resent by staff %r: %r",
-            self.current_user.email,
-            user.email,
+            "Confirmation mail resent by staff %s: %s",
+            self.current_user.id,
+            user.id,
         )
 
     async def update_company_user(
@@ -258,10 +258,9 @@ class UserService:
             await self.user_repository.set_pending_email(user, None)
             raise
         logger.info(
-            "Email change requested by %r: %r -> %r",
-            self.current_user.email,
-            old_email,
-            new_email,
+            "Email change requested by %s for %s",
+            self.current_user.id,
+            user.id,
         )
 
     async def delete_user(self, user_id: UUID) -> None:
@@ -280,4 +279,4 @@ class UserService:
 
         await self.company_repository.revoke_open_invites_by(user.id)
         await self.user_repository.delete_user(user)
-        logger.info("User deleted by staff %r: %r", self.current_user.email, user.email)
+        logger.info("User deleted by staff %s: %s", self.current_user.id, user.id)

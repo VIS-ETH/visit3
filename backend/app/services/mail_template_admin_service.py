@@ -132,7 +132,7 @@ class MailTemplateAdminService:
             str(known_key), texts, self.current_user.id
         )
         logger.info(
-            "Mail template updated by %r: %s", self.current_user.email, known_key
+            "Mail template updated by %s: %s", self.current_user.id, known_key
         )
         return self._stored_result(known_key, template)
 
@@ -140,7 +140,7 @@ class MailTemplateAdminService:
         require_staff_user(self.current_user)
         known_key = self._known_key(key)
         await self.mail_template_repository.delete_by_key(str(known_key))
-        logger.info("Mail template reset by %r: %s", self.current_user.email, known_key)
+        logger.info("Mail template reset by %s: %s", self.current_user.id, known_key)
         return self._default_result(known_key)
 
     async def preview(self, key: str) -> MailPreviewResult:
@@ -160,5 +160,5 @@ class MailTemplateAdminService:
             known_key, [self.current_user.email], SAMPLE_CONTEXTS[known_key]
         )
         logger.info(
-            "Mail template test sent to %r: %s", self.current_user.email, known_key
+            "Mail template test sent to %s: %s", self.current_user.id, known_key
         )

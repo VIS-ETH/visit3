@@ -168,7 +168,7 @@ class AuthService:
             try:
                 await self.user_repository.update_password(user.id, updated_hash)
             except Exception:
-                logger.exception("Failed to rehash password for user: %r", user.email)
+                logger.exception("Failed to rehash password for user: %s", user.id)
         return True
 
     async def hash_password(self, password: str) -> str:
@@ -197,7 +197,7 @@ class AuthService:
             raise TokenInvalid(f"login_link:{link_use.user_id}")
 
         refresh_token = await self.create_refresh_token(user)
-        logger.info("Login link consumed for user: %r", user.email)
+        logger.info("Login link consumed for user: %s", user.id)
         return LoginLink(
             refresh_token=refresh_token,
             target_path=safe_target_path(link_use.target_path),
@@ -253,18 +253,20 @@ class AuthService:
             await self._send_account_exists(user.email)
             return
         except Exception as e:
-            logger.error("User registration failed: %r - %r", user.email, e)
+            logger.error("User registration failed: %s", e.__class__.__name__)
             raise e
 
         try:
             await self.send_confirm_email(result)
         except Exception as e:
             # Undo the registration so the email address can be used again.
-            logger.error("User registration failed: %r - %r", user.email, e)
+            logger.error(
+                "User registration failed for %s: %s", result.id, e.__class__.__name__
+            )
             await self.user_repository.delete_user(result)
             raise e
 
-        logger.info("User registered: %r", user.email)
+        logger.info("User registered: %s", result.id)
 
     async def _send_account_exists(self, email: str) -> None:
         await self.mail_template_service.send(
@@ -275,14 +277,14 @@ class AuthService:
                 reset_url=frontend_url("/reset-password"),
             ),
         )
-        logger.info("Registration attempted for existing account: %r", email)
+        logger.info("Registration attempted for an existing account")
 
     async def login_user(self, username: str, password: str) -> tuple[str, str]:
         user = await self.authenticate_user(username, password)
         if not user:
-            logger.warning("Login failed: invalid credentials for %r", username)
+            logger.warning("Login failed: invalid credentials")
             raise InvalidCredentials(f"login:{username}")
-        logger.info("User login successful: %r", username)
+        logger.info("User login successful: %s", user.id)
         return await self.create_tokens(user)
 
     async def refresh_user(self, refresh_token: str) -> tuple[str, str]:
@@ -376,16 +378,16 @@ class AuthService:
         user = await self.user_repository.get_by_email(email)
 
         if not user:
-            logger.debug("Password reset requested for non-existent user: %r", email)
+            logger.debug("Password reset requested for a non-existent user")
             return
 
         if not user.password:
-            logger.warning("Password reset requested for OAuth-only user: %r", email)
+            logger.warning("Password reset requested for OAuth-only user: %s", user.id)
             return
 
         await self.token_repository.revoke_reset_password_tokens(user.id)
         token = await self.create_reset_password_token(user)
-        logger.info("Password reset token created for user: %r", email)
+        logger.info("Password reset token created for user: %s", user.id)
         await self.mail_template_service.send(
             MailTemplateKey.PASSWORD_RESET,
             [user.email],
@@ -443,7 +445,7 @@ class AuthService:
         await self.user_repository.confirm_email(user)
         await self.token_repository.revoke_confirm_email_tokens(user.id)
         await self._apply_pending_invite(user)
-        logger.info("Email confirmed for user: %r", user.email)
+        logger.info("Email confirmed for user: %s", user.id)
         if not user.user_confirmed:
             try:
                 await self.mail_template_service.send_to_staff_notification(
@@ -455,7 +457,7 @@ class AuthService:
                     ),
                 )
             except MailUnavailable:
-                logger.exception("Staff notification failed for %r", user.email)
+                logger.exception("Staff notification failed for %s", user.id)
         return True
 
     async def _confirm_email_change(self, token: str) -> bool:
@@ -473,7 +475,7 @@ class AuthService:
         await self.token_repository.revoke_all_refresh_tokens(user.id)
         await self.token_repository.revoke_reset_password_tokens(user.id)
         await self.token_repository.revoke_login_link_tokens(user.id)
-        logger.info("Email change confirmed for user %s: %r", user.id, user.email)
+        logger.info("Email change confirmed for user %s", user.id)
         return True
 
     async def _apply_pending_invite(self, user: User) -> None:
@@ -484,7 +486,7 @@ class AuthService:
             await self.invite_service.join_company(user, token, "confirm_email")
         except AppError as error:
             logger.warning(
-                "Pending invite not applied for %r: %s", user.email, error.identifier
+                "Pending invite not applied for %s: %s", user.id, error.code
             )
         await self.user_repository.clear_pending_invite(user)
 
@@ -568,8 +570,10 @@ class AuthService:
 
         email_owner = await self.user_repository.get_by_email(email)
         if email_owner is not None and is_unclaimed_local_account(email_owner):
+            logger.info(
+                "SSO login replaces unconfirmed local account %s", email_owner.id
+            )
             await self.user_repository.delete_user(email_owner)
-            logger.info("SSO login replaced an unconfirmed local account: %r", email)
         elif email_owner is not None:
             if is_local_account(email_owner):
                 raise EmailTakenLocally(f"keycloak:{email}")

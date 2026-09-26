@@ -50,6 +50,6 @@ class InviteService:
         await self.company_repository.mark_invite_used(invite)
         joined = await self.company_repository.assign_user(user, invite.company_id)
         logger.info(
-            "Invite accepted: %r joined company %s", user.email, invite.company_id
+            "Invite accepted: %s joined company %s", user.id, invite.company_id
         )
         return joined

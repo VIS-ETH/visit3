@@ -190,4 +190,4 @@ async def logout_user(
 ) -> None:
     await user_service.logout_user(refresh_token)
     response.delete_cookie("refresh_token", samesite="lax")
-    logger.info("User logout successful: %r", user_service.current_user.email)
+    logger.info("User logout successful: %s", user_service.current_user.id)

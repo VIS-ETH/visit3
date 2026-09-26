@@ -98,7 +98,7 @@ async def get_current_user(
         raise Unauthenticated(f"jwt_decode:user_not_found:{subject}")
 
     await user_repo.load_user_roles(user)
-    logger.debug("User authenticated: %r", user.email)
+    logger.debug("User authenticated: %s", user.id)
 
     impersonate_id = request.headers.get("X-Impersonate-User-Id")
     if impersonate_id and user.is_admin:
@@ -110,7 +110,7 @@ async def get_current_user(
         if target is None:
             raise NotAllowed(f"impersonate:user_not_found:{impersonate_id}")
         await user_repo.load_user_roles(target)
-        logger.info("Admin %r impersonating: %r", user.email, target.email)
+        logger.info("Admin %s impersonating: %s", user.id, target.id)
         return target
     elif impersonate_id:
         raise NotAllowed(f"impersonate:not_admin:{user.email}")
