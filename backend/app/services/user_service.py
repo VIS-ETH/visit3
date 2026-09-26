@@ -119,20 +119,25 @@ class UserService:
             logger.warning(f"Confirm user failed - user not found: {user_id}")
             raise UserNotFound(f"confirm_user:{user_id}")
 
+        was_confirmed = user.user_confirmed
         result = await self.user_repository.confirm_user(user)
-        await self._send_account_confirmed(result)
+        if not was_confirmed:
+            await self._send_account_confirmed(result)
         logger.info(f"User confirmed by staff {self.current_user.email}: {user.email}")
         return result
 
     async def _send_account_confirmed(self, user: User) -> None:
         if not user.is_company:
             return
-        login_url = await self.auth_service.create_login_link(user, "/")
-        await self.mail_template_service.send(
-            MailTemplateKey.ACCOUNT_CONFIRMED,
-            [user.email],
-            AccountConfirmedContext(name=user.display_name, login_url=login_url),
-        )
+        try:
+            login_url = await self.auth_service.create_login_link(user, "/")
+            await self.mail_template_service.send(
+                MailTemplateKey.ACCOUNT_CONFIRMED,
+                [user.email],
+                AccountConfirmedContext(name=user.display_name, login_url=login_url),
+            )
+        except Exception:
+            logger.exception(f"Account confirmed mail failed for {user.email}")
 
     async def get_company_users(self) -> Sequence[User]:
         require_staff_user(self.current_user)
@@ -176,9 +181,12 @@ class UserService:
             raise EmailUsed(f"update_company_user:{new_email}")
         await self._check_company_reassignment(user, normalized)
 
+        was_confirmed = user.user_confirmed
         updated_user = await self.user_repository.update_user(user, normalized)
         if new_email is not None:
             await self._revoke_credentials_after_email_change(updated_user)
+        if updated_user.user_confirmed and not was_confirmed:
+            await self._send_account_confirmed(updated_user)
         return updated_user
 
     async def _check_company_reassignment(

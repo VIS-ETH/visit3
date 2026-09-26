@@ -170,3 +170,79 @@ async def test_staff_confirmation_of_a_staff_user_sends_nothing(
 
     assert response.status_code == 200
     mail_stub.SendMail.assert_not_awaited()
+
+
+async def test_confirming_through_the_user_editor_sends_the_account_confirmed_mail(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    unconfirmed_company_user: User,
+    mail_stub: AsyncMock,
+):
+    response = await client.patch(
+        f"/api/users/{unconfirmed_company_user.id}",
+        json={"user_confirmed": True},
+        headers=staff_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["user_confirmed"] is True
+    message = sent_message(mail_stub)
+    assert recipients(message) == [unconfirmed_company_user.email]
+    assert getattr(message, "subject") == (
+        "VISIT: Konto freigeschaltet / VISIT: Account activated"
+    )
+
+
+async def test_editing_a_confirmed_user_sends_no_account_confirmed_mail(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    company_user: User,
+    mail_stub: AsyncMock,
+):
+    response = await client.patch(
+        f"/api/users/{company_user.id}",
+        json={"user_confirmed": True, "first_name": "Renamed"},
+        headers=staff_headers,
+    )
+
+    assert response.status_code == 200
+    mail_stub.SendMail.assert_not_awaited()
+
+
+async def test_confirming_twice_sends_the_mail_once(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    unconfirmed_company_user: User,
+    mail_stub: AsyncMock,
+):
+    confirm_url = f"/api/users/{unconfirmed_company_user.id}/confirm"
+
+    await client.post(confirm_url, headers=staff_headers)
+    await client.post(confirm_url, headers=staff_headers)
+
+    mail_stub.SendMail.assert_awaited_once()
+
+
+async def test_a_failed_account_confirmed_mail_keeps_the_confirmation(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    unconfirmed_company_user: User,
+    mail_stub: AsyncMock,
+    caplog: pytest.LogCaptureFixture,
+):
+    mail_stub.SendMail.side_effect = RuntimeError("notifications api down")
+
+    response = await client.post(
+        f"/api/users/{unconfirmed_company_user.id}/confirm", headers=staff_headers
+    )
+    user = await client.get(
+        f"/api/users/{unconfirmed_company_user.id}", headers=staff_headers
+    )
+
+    assert response.status_code == 200
+    assert user.json()["user_confirmed"] is True
+    assert any(
+        record.levelname == "ERROR"
+        and unconfirmed_company_user.email in record.getMessage()
+        for record in caplog.records
+    )
