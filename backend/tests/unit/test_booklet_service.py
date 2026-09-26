@@ -117,7 +117,7 @@ async def test_the_page_shows_the_unsaved_form_values(
 
     await service.preview_my_company_page(
         UpdateCompanyProfileInput(
-            description="Wir bauen Roboter.",
+            description="<p>Wir <strong>bauen</strong> Roboter.</p>",
             brand_name="Acme Labs",
             website="https://acme.example",
             general_email="info@acme.example",
@@ -139,7 +139,31 @@ async def test_the_page_shows_the_unsaved_form_values(
     assert rendered_entry(pdf_service) == {
         "company": "Acme AG",
         "brand_name": "Acme Labs",
-        "description": "Wir bauen Roboter.",
+        "description_blocks": [
+            [
+                {
+                    "text": "Wir ",
+                    "bold": False,
+                    "italic": False,
+                    "underline": False,
+                    "strike": False,
+                },
+                {
+                    "text": "bauen",
+                    "bold": True,
+                    "italic": False,
+                    "underline": False,
+                    "strike": False,
+                },
+                {
+                    "text": " Roboter.",
+                    "bold": False,
+                    "italic": False,
+                    "underline": False,
+                    "strike": False,
+                },
+            ]
+        ],
         "website": "https://acme.example",
         "general_email": "info@acme.example",
         "general_phone": "+41 44 000 00 00",

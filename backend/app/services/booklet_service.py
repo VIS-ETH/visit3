@@ -5,6 +5,7 @@ from uuid import UUID
 
 from app.core.auth_context import require_company_profile_user, require_staff_user
 from app.core.exceptions import CompanyNotFound
+from app.core.rich_text import rich_text_blocks
 from app.models.company import Company, KpCompanyLanguage
 from app.models.industry import Industry
 from app.models.kp_event import INACTIVE_BOOKING_STATUSES, KpEventBooking
@@ -52,7 +53,7 @@ def company_page_entry(
     return {
         "company": company.name,
         "brand_name": profile.brand_name.strip() or company.name,
-        "description": profile.description,
+        "description_blocks": rich_text_blocks(profile.description),
         "website": profile.website,
         "general_email": profile.general_email,
         "general_phone": profile.general_phone,

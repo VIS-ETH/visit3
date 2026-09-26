@@ -4,6 +4,7 @@ from shutil import copyfile
 
 import typst
 
+from app.core.rich_text import rich_text_blocks
 from app.models.company import PROFILE_DESCRIPTION_MAX_LENGTH
 from app.services.export_service import NAMETAG_TEMPLATE_NAME
 from app.services.pdf_service import FONTS_DIR, TEMPLATES_DIR, PdfService
@@ -54,16 +55,18 @@ async def test_render_passes_user_data_as_json_sys_input(monkeypatch, tmp_path):
     assert json.loads(captured["sys_inputs"]["data"]) == data
 
 
-def test_bundled_fonts_provide_dejavu_sans():
+def test_bundled_fonts_provide_every_dejavu_sans_style():
     fonts = typst.Fonts(
         include_system_fonts=False,
         include_embedded_fonts=False,
         font_paths=[str(FONTS_DIR)],
     )
 
-    assert {(font.family, font.weight) for font in fonts.fonts()} == {
-        ("DejaVu Sans", 400),
-        ("DejaVu Sans", 700),
+    assert {(font.family, font.weight, font.style) for font in fonts.fonts()} == {
+        ("DejaVu Sans", 400, "normal"),
+        ("DejaVu Sans", 700, "normal"),
+        ("DejaVu Sans", 400, "italic"),
+        ("DejaVu Sans", 700, "italic"),
     }
 
 
@@ -98,7 +101,7 @@ def company_page_entry(**overrides: object) -> dict[str, object]:
     return {
         "company": "Acme AG",
         "brand_name": "Acme Labs",
-        "description": "Wir bauen Roboter.",
+        "description_blocks": rich_text_blocks("<p>Wir bauen Roboter.</p>"),
         "general_email": "info@acme.example",
         "languages": ["German"],
         "industries": ["Robotics"],
@@ -122,7 +125,7 @@ async def test_render_png_draws_one_company_page_with_its_logo():
 async def test_render_png_reports_a_company_page_that_overflows():
     rendered = await PdfService().render_png(
         template_name="company_page.typ",
-        data=company_page_entry(description="Zeile\n" * 400),
+        data=company_page_entry(description_blocks=rich_text_blocks("Zeile\n" * 400)),
         files={},
         metadata_label="overflow",
     )
@@ -138,7 +141,12 @@ async def test_a_full_description_of_the_limit_fits_the_company_page():
     rendered = await PdfService().render_png(
         template_name="company_page.typ",
         data=company_page_entry(
-            description=(sentence * 30)[:PROFILE_DESCRIPTION_MAX_LENGTH],
+            description_blocks=rich_text_blocks(
+                "<p><strong>Acme Robotics</strong> <em>entwickelt</em> "
+                "<u>autonome</u> <s>Roboter</s> "
+                + (sentence * 30)[: PROFILE_DESCRIPTION_MAX_LENGTH - 42]
+                + "</p>"
+            ),
             logo_path="logo.png",
         ),
         files={"logo.png": ONE_PIXEL_PNG},
@@ -146,3 +154,24 @@ async def test_a_full_description_of_the_limit_fits_the_company_page():
     )
 
     assert rendered.metadata is False
+
+
+async def test_a_fully_bold_description_of_the_limit_reports_the_overflow():
+    sentence = (
+        "Die Acme Robotics AG entwickelt autonome Inspektionsroboter für "
+        "Industrieanlagen und Infrastrukturbetreiber in der ganzen Schweiz. "
+    )
+    rendered = await PdfService().render_png(
+        template_name="company_page.typ",
+        data=company_page_entry(
+            description_blocks=rich_text_blocks(
+                "<p><strong>"
+                + (sentence * 30)[:PROFILE_DESCRIPTION_MAX_LENGTH]
+                + "</strong></p>"
+            ),
+        ),
+        files={},
+        metadata_label="overflow",
+    )
+
+    assert rendered.metadata is True

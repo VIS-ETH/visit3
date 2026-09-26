@@ -36,6 +36,27 @@
 
 #let number-or-dash(value) = if value == none [-] else [#str(value)]
 
+#let styled-run(run) = {
+  let body = text(run.at("text", default: ""))
+  if run.at("underline", default: false) { body = underline(body) }
+  if run.at("strike", default: false) { body = strike(body) }
+  if run.at("italic", default: false) { body = emph(body) }
+  if run.at("bold", default: false) { body = strong(body) }
+  body
+}
+
+#let description-inline(item) = if item.at("break", default: false) {
+  linebreak()
+} else {
+  styled-run(item)
+}
+
+#let company-description(entry) = {
+  for paragraph in entry.at("description_blocks", default: ()) {
+    if paragraph.len() > 0 { par(paragraph.map(description-inline).join()) }
+  }
+}
+
 #let company-body(entry) = {
   let brand = field(entry, "brand_name")
   let company = field(entry, "company")
@@ -47,9 +68,7 @@
     text(size: 9pt, fill: muted, company)
   }
   v(4mm)
-  for paragraph in field(entry, "description").split("\n") {
-    if paragraph.trim() != "" { par(paragraph.trim()) }
-  }
+  company-description(entry)
 }
 
 #let company-sidebar(entry) = {
