@@ -6,9 +6,16 @@ import type { BookingResponse } from "../../orval/generated/fastAPI.schemas";
 import { renderWithProviders } from "../render";
 import {
   testBooking,
+  testBookingId,
+  testEventId,
   testFileRequirementId,
   testTextRequirementId,
 } from "../fixtures/kp-booking";
+
+const openDeadline = "2099-12-31";
+const passedDeadline = "2000-01-01";
+const profileLink = (fieldId: string) =>
+  `/company/profile?next=%2Fkp%2Fevent#${fieldId}`;
 
 const incompleteBooking: BookingResponse = {
   ...testBooking,
@@ -28,7 +35,12 @@ const completeBooking: BookingResponse = {
 
 describe("KpBookingCompletion", () => {
   it("names the service and requirement behind a missing requirement item", () => {
-    renderWithProviders(<KpBookingCompletion booking={incompleteBooking} />);
+    renderWithProviders(
+      <KpBookingCompletion
+        booking={incompleteBooking}
+        changeDeadline={openDeadline}
+      />,
+    );
 
     expect(
       screen.getByText("kp.booking.completeness_incomplete"),
@@ -38,41 +50,114 @@ describe("KpBookingCompletion", () => {
     ).toBeInTheDocument();
   });
 
-  it("links the profile and billing items to the company profile", () => {
-    renderWithProviders(<KpBookingCompletion booking={incompleteBooking} />);
+  it("links the profile and billing items to their profile fields", () => {
+    renderWithProviders(
+      <KpBookingCompletion
+        booking={incompleteBooking}
+        changeDeadline={openDeadline}
+      />,
+      { route: "/kp/event" },
+    );
 
     expect(
       screen.getByRole("link", {
         name: "kp.booking.missing_item_company_profile",
       }),
-    ).toHaveAttribute("href", "/company/profile");
+    ).toHaveAttribute("href", profileLink("company-profile-description"));
     expect(
       screen.getByRole("link", {
         name: "kp.booking.missing_item_billing_address",
       }),
-    ).toHaveAttribute("href", "/company/profile");
+    ).toHaveAttribute(
+      "href",
+      profileLink("company-profile-billing-company-name"),
+    );
   });
 
-  it("links a missing description to the company profile", () => {
+  it("links a missing requirement to its field on the services page", () => {
     renderWithProviders(
       <KpBookingCompletion
+        booking={incompleteBooking}
+        changeDeadline={openDeadline}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "Booth package · Company brochure" }),
+    ).toHaveAttribute(
+      "href",
+      `/kp/${testEventId}/booking/${testBookingId}/manage/services#booking-requirement-${testFileRequirementId}`,
+    );
+  });
+
+  it("states the change deadline while it is open", () => {
+    renderWithProviders(
+      <KpBookingCompletion
+        booking={incompleteBooking}
+        changeDeadline={openDeadline}
+      />,
+    );
+
+    expect(
+      screen.getByText("kp.booking.completeness_deadline"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("error.kp_finalization_deadline_passed"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the locked wording once the change deadline passed", () => {
+    renderWithProviders(
+      <KpBookingCompletion
+        booking={incompleteBooking}
+        changeDeadline={passedDeadline}
+      />,
+    );
+
+    expect(
+      screen.getByText("error.kp_finalization_deadline_passed"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("kp.booking.completeness_deadline"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("states no deadline for a complete booking", () => {
+    renderWithProviders(
+      <KpBookingCompletion
+        booking={completeBooking}
+        changeDeadline={openDeadline}
+      />,
+    );
+
+    expect(
+      screen.queryByText("kp.booking.completeness_deadline"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("links a missing description to its profile field", () => {
+    renderWithProviders(
+      <KpBookingCompletion
+        changeDeadline={openDeadline}
         booking={{
           ...incompleteBooking,
           missing_items: ["company_description"],
         }}
       />,
+      { route: "/kp/event" },
     );
 
     expect(
       screen.getByRole("link", {
         name: "kp.booking.missing_item_company_description",
       }),
-    ).toHaveAttribute("href", "/company/profile");
+    ).toHaveAttribute("href", profileLink("company-profile-description"));
   });
 
   it("falls back to a generic label for an unknown requirement", () => {
     renderWithProviders(
       <KpBookingCompletion
+        changeDeadline={openDeadline}
         booking={{
           ...incompleteBooking,
           missing_items: ["requirement:00000000-0000-0000-0000-000000000000"],
@@ -86,7 +171,12 @@ describe("KpBookingCompletion", () => {
   });
 
   it("shows a complete badge and no missing list when nothing is missing", () => {
-    renderWithProviders(<KpBookingCompletion booking={completeBooking} />);
+    renderWithProviders(
+      <KpBookingCompletion
+        booking={completeBooking}
+        changeDeadline={openDeadline}
+      />,
+    );
 
     expect(
       screen.getByText("kp.booking.completeness_complete"),
@@ -99,6 +189,7 @@ describe("KpBookingCompletion", () => {
   it("explains a rejected booking together with its reason", () => {
     renderWithProviders(
       <KpBookingCompletion
+        changeDeadline={openDeadline}
         booking={{
           ...completeBooking,
           status: KpBookingStatus.REJECTED,
@@ -116,6 +207,7 @@ describe("KpBookingCompletion", () => {
   it("explains confirmed bookings", () => {
     renderWithProviders(
       <KpBookingCompletion
+        changeDeadline={openDeadline}
         booking={{ ...completeBooking, status: KpBookingStatus.CONFIRMED }}
       />,
     );
@@ -125,6 +217,7 @@ describe("KpBookingCompletion", () => {
   it("keeps the requirement lookup stable across several booked services", () => {
     renderWithProviders(
       <KpBookingCompletion
+        changeDeadline={openDeadline}
         booking={{
           ...incompleteBooking,
           missing_items: [`requirement:${testTextRequirementId}`],

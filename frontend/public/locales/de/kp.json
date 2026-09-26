@@ -204,6 +204,7 @@
       "service_book_toggle": "Diesen Service buchen",
       "completeness_complete": "Vollständig",
       "completeness_incomplete": "Unvollständig",
+      "completeness_deadline": "Änderungsfrist: {{date}}",
       "completeness_incomplete_body": "Diese Angaben fehlen noch:",
       "missing_item_requirement": "Eine Angabe zu einem gebuchten Service fehlt",
       "missing_item_company_profile": "Angaben im Unternehmensprofil fehlen",

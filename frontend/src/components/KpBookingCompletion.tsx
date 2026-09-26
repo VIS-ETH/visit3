@@ -14,7 +14,7 @@ import { IconAlertCircle, IconCheck } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { NavLink } from "react-router";
+import { NavLink, useLocation } from "react-router";
 import {
   KpBookingStatus,
   type BookingResponse,
@@ -23,18 +23,23 @@ import {
   getGetMyBookingQueryKey,
   useUpdateMyBookingStatus,
 } from "../orval/generated/kp/kp";
+import { profileFieldId } from "./company/company-profile-fields";
+import { formatKpDisplayDate, isDeadlinePassed } from "../utils/kp-utils";
 import { isInactiveBooking } from "../utils/my-booking";
-import { COMPANY_PROFILE_PATH } from "../utils/navigation";
+import {
+  bookingRequirementElementId,
+  COMPANY_PROFILE_PATH,
+} from "../utils/navigation";
 
 const REQUIREMENT_ITEM_PREFIX = "requirement:";
 const COMPANY_PROFILE_ITEM = "company_profile";
 const COMPANY_DESCRIPTION_ITEM = "company_description";
 const BILLING_ADDRESS_ITEM = "billing_address";
-const PROFILE_ITEMS = [
-  COMPANY_PROFILE_ITEM,
-  COMPANY_DESCRIPTION_ITEM,
-  BILLING_ADDRESS_ITEM,
-];
+const PROFILE_FIELD_BY_ITEM: Record<string, string> = {
+  [COMPANY_PROFILE_ITEM]: "description",
+  [COMPANY_DESCRIPTION_ITEM]: "description",
+  [BILLING_ADDRESS_ITEM]: "billing_company_name",
+};
 
 const requirementNamesById = (booking: BookingResponse) =>
   new Map(
@@ -100,10 +105,13 @@ const BookingStatusNotice = ({ booking }: { booking: BookingResponse }) => {
 
 export const KpBookingCompletion = ({
   booking,
+  changeDeadline,
 }: {
   booking: BookingResponse;
+  changeDeadline: string;
 }) => {
   const { t } = useTranslation();
+  const { pathname } = useLocation();
   const queryClient = useQueryClient();
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const { mutateAsync: cancelStatus, isPending: isCancelling } =
@@ -133,21 +141,32 @@ export const KpBookingCompletion = ({
     return t("kp.booking.missing_item_unknown");
   };
 
-  const isProfileItem = (item: string) => PROFILE_ITEMS.includes(item);
+  const missingItemHref = (item: string) => {
+    if (item.startsWith(REQUIREMENT_ITEM_PREFIX)) {
+      const requirementId = item.slice(REQUIREMENT_ITEM_PREFIX.length);
+      return `/kp/${booking.event_id}/booking/${booking.id}/manage/services#${bookingRequirementElementId(requirementId)}`;
+    }
+    const profileField = PROFILE_FIELD_BY_ITEM[item];
+    if (!profileField) return null;
+    return `${COMPANY_PROFILE_PATH}?next=${encodeURIComponent(pathname)}#${profileFieldId(profileField)}`;
+  };
 
   const missingItemsList = (items: string[]) => (
     <List size="sm" withPadding>
-      {items.map((item) => (
-        <List.Item key={item}>
-          {isProfileItem(item) ? (
-            <Anchor component={NavLink} to={COMPANY_PROFILE_PATH}>
-              {missingItemLabel(item)}
-            </Anchor>
-          ) : (
-            missingItemLabel(item)
-          )}
-        </List.Item>
-      ))}
+      {items.map((item) => {
+        const href = missingItemHref(item);
+        return (
+          <List.Item key={item}>
+            {href ? (
+              <Anchor component={NavLink} to={href}>
+                {missingItemLabel(item)}
+              </Anchor>
+            ) : (
+              missingItemLabel(item)
+            )}
+          </List.Item>
+        );
+      })}
     </List>
   );
 
@@ -200,6 +219,13 @@ export const KpBookingCompletion = ({
               {t("kp.booking.completeness_incomplete_body")}
             </Text>
             {missingItemsList(missingItems)}
+            <Text size="sm" fw={500}>
+              {isDeadlinePassed(changeDeadline)
+                ? t("error.kp_finalization_deadline_passed")
+                : t("kp.booking.completeness_deadline", {
+                    date: formatKpDisplayDate(changeDeadline),
+                  })}
+            </Text>
           </Stack>
         </Alert>
       )}

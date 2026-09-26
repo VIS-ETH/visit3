@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import CompanyProfileEdit from "../../pages/company/CompanyProfileEdit";
@@ -143,6 +143,27 @@ beforeEach(() => {
 const lastBookletBody = () => bookletRequests.at(-1)?.body;
 
 describe("Company profile form", () => {
+  it("scrolls to the linked field and keeps the back link", async () => {
+    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+    renderProfile(
+      companyUser,
+      "/company/profile?next=%2Fkp%2Fevent-1#company-profile-description",
+    );
+
+    await waitFor(() =>
+      expect(scrollIntoView.mock.contexts).toContain(
+        document.getElementById("company-profile-description"),
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        document.getElementById("company-profile-description"),
+      ).toHaveFocus(),
+    );
+    expect(await backLinkHref()).toBe("/kp/event-1");
+    scrollIntoView.mockRestore();
+  });
+
   it("renders the values stored on the server", async () => {
     renderProfile();
 

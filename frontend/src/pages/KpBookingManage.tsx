@@ -66,6 +66,8 @@ import {
   servicesOfCategory,
 } from "../utils/kp-service-quantity";
 import { isInactiveBooking } from "../utils/my-booking";
+import { bookingRequirementElementId } from "../utils/navigation";
+import { useScrollToHash } from "../utils/use-scroll-to-hash";
 import { formatPrice } from "../utils/price-utils";
 import { priceBreakdown } from "../utils/pricing";
 import {
@@ -232,6 +234,7 @@ const RequirementEditor = ({
   return (
     <Stack
       gap="xs"
+      id={bookingRequirementElementId(requirement.id)}
       py="sm"
       style={{ borderTop: "1px solid var(--mantine-color-default-border)" }}
     >
@@ -803,6 +806,7 @@ const AddServicesForm = ({
 
 const KpBookingManage = () => {
   const { t } = useTranslation();
+  useScrollToHash();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [confirmRequirementsOpen, setConfirmRequirementsOpen] = useState(false);
@@ -1205,7 +1209,10 @@ const KpBookingManage = () => {
         </Alert>
       ) : null}
 
-      <KpBookingCompletion booking={booking} />
+      <KpBookingCompletion
+        booking={booking}
+        changeDeadline={event.finalization_deadline}
+      />
 
       {hasPendingRequirementChanges ? (
         <Alert icon={<IconAlertCircle />} color="yellow">

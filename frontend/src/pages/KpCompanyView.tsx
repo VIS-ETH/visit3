@@ -236,7 +236,10 @@ const KpCompanyView = () => {
                 </div>
               </SimpleGrid>
               <Stack gap="md" mt="md">
-                <KpBookingCompletion booking={myBooking} />
+                <KpBookingCompletion
+                  booking={myBooking}
+                  changeDeadline={event.finalization_deadline}
+                />
                 {isBookingInactive ? (
                   <Text size="sm" c="dimmed">
                     {t("kp.company_view.inactive_booking_hint")}

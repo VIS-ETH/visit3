@@ -204,6 +204,7 @@
       "service_book_toggle": "Book this service",
       "completeness_complete": "Complete",
       "completeness_incomplete": "Incomplete",
+      "completeness_deadline": "Change deadline: {{date}}",
       "completeness_incomplete_body": "The following information is still missing:",
       "missing_item_requirement": "An answer for a booked service is missing",
       "missing_item_company_profile": "Company profile details are missing",

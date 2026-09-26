@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router";
+import { useScrollToHash } from "../../utils/use-scroll-to-hash";
 import BackButton from "../../components/BackButton";
 import CompanyBillingFields from "../../components/company/CompanyBillingFields";
 import CompanyBookletPage from "../../components/company/CompanyBookletPage";
@@ -46,6 +47,7 @@ import { useTranslatedForm } from "../../utils/translator";
 
 const CompanyProfileEdit = () => {
   const { t } = useTranslation();
+  useScrollToHash();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
   const location = useLocation();
