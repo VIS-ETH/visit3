@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router";
 
-const FOCUSABLE = "input, textarea, select, button";
+const FOCUSABLE = 'input, textarea, select, button, [contenteditable="true"]';
 
 const reveal = (element: HTMLElement) => {
   element.scrollIntoView({ behavior: "smooth", block: "center" });
