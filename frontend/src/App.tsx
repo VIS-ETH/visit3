@@ -53,6 +53,7 @@ import {
 import { getToken, refreshToken, subscribeToTokenStorage } from "./api/utils";
 import { getApiErrorStatus } from "./api/errors";
 import makeVisitTheme from "./theme/makeVisitTheme";
+import { colorSchemeManager } from "./theme/color-scheme-manager";
 
 const primaryColor = configOptions().primaryColor;
 const theme = makeVisitTheme(primaryColor);
@@ -261,7 +262,11 @@ function AppWithAuth() {
 
 function App() {
   return (
-    <MantineProvider theme={theme} defaultColorScheme="auto">
+    <MantineProvider
+      theme={theme}
+      colorSchemeManager={colorSchemeManager}
+      defaultColorScheme="auto"
+    >
       <Notifications
         position="top-center"
         limit={1}
