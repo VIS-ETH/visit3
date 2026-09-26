@@ -244,6 +244,6 @@ async def test_a_failed_account_confirmed_mail_keeps_the_confirmation(
     assert user.json()["user_confirmed"] is True
     assert any(
         record.levelname == "ERROR"
-        and unconfirmed_company_user.email in record.getMessage()
+        and str(unconfirmed_company_user.id) in record.getMessage()
         for record in caplog.records
     )
