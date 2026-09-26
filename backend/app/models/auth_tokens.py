@@ -12,3 +12,6 @@ class LoginLinkToken(BaseToken, table=True):
         nullable=True,
         sa_type=TIMESTAMPTZ,
     )
+    use_count: int = Field(
+        default=0, nullable=False, sa_column_kwargs={"server_default": "0"}
+    )

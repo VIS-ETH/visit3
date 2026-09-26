@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlmodel import select
 
 from app.core.utils import hash_str
+from app.models.auth_tokens import LoginLinkToken
 from app.models.user import ConfirmEmailToken, RefreshToken, ResetPasswordToken
 
 
@@ -147,7 +148,7 @@ async def test_cleanup_expired_removes_expired_and_revoked_tokens(
     assert confirm_tokens == []
 
 
-async def test_login_link_token_is_single_use(
+async def test_login_link_token_allows_three_uses(
     monkeypatch,
     user_repository,
     token_repository,
@@ -158,15 +159,16 @@ async def test_login_link_token_is_single_use(
     use_token_values(monkeypatch, token_repository, "link-token")
     token_value = await token_repository.create_login_link_token(user.id, "/kp")
 
-    link_token = await token_repository.get_unused_login_link_token(token_value)
+    uses = [await token_repository.use_login_link_token(token_value) for _ in range(4)]
 
-    assert link_token is not None
-    assert link_token.target_path == "/kp"
-    assert link_token.token == hash_str(token_value)
-
-    await token_repository.mark_login_link_token_used(link_token)
-
-    assert await token_repository.get_unused_login_link_token(token_value) is None
+    assert [use.target_path if use else None for use in uses] == [
+        "/kp",
+        "/kp",
+        "/kp",
+        None,
+    ]
+    assert uses[0] is not None
+    assert uses[0].user_id == user.id
 
 
 async def test_expired_login_link_token_is_not_usable(
@@ -180,13 +182,16 @@ async def test_expired_login_link_token_is_not_usable(
     )
     use_token_values(monkeypatch, token_repository, "stale-link")
     token_value = await token_repository.create_login_link_token(user.id, "/")
-    link_token = await token_repository.get_unused_login_link_token(token_value)
-    assert link_token is not None
+    link_token = (
+        await db_session.execute(
+            select(LoginLinkToken).where(LoginLinkToken.token == hash_str(token_value))
+        )
+    ).scalar_one()
     link_token.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
     db_session.add(link_token)
     await db_session.commit()
 
-    assert await token_repository.get_unused_login_link_token(token_value) is None
+    assert await token_repository.use_login_link_token(token_value) is None
 
 
 async def test_revoking_login_link_tokens_invalidates_them(
@@ -202,4 +207,4 @@ async def test_revoking_login_link_tokens_invalidates_them(
 
     await token_repository.revoke_login_link_tokens(user.id)
 
-    assert await token_repository.get_unused_login_link_token(token_value) is None
+    assert await token_repository.use_login_link_token(token_value) is None

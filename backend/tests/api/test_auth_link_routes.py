@@ -58,13 +58,34 @@ async def test_the_issued_refresh_cookie_works_like_a_password_login(
     assert refreshed.json()["access_token"]
 
 
-async def test_a_link_can_only_be_used_once(client: AsyncClient, login_url: str):
-    await client.get(f"/api/auth/link/{token_of(login_url)}")
+async def test_a_link_works_three_times_and_then_never_again(
+    client: AsyncClient, login_url: str
+):
+    uses = [await client.get(f"/api/auth/link/{token_of(login_url)}") for _ in range(4)]
 
-    second = await client.get(f"/api/auth/link/{token_of(login_url)}")
+    assert [use.headers["location"] for use in uses[:3]] == [
+        f"{FRONTEND}{BOOKING_PATH}"
+    ] * 3
+    assert all(use.cookies.get("refresh_token") for use in uses[:3])
+    assert uses[3].headers["location"] == INVALID_LINK_LOCATION
+    assert "refresh_token" not in uses[3].headers.get("set-cookie", "")
 
-    assert second.status_code == 303
-    assert second.headers["location"] == INVALID_LINK_LOCATION
+
+async def test_a_link_expires_after_fifteen_minutes(
+    client: AsyncClient, login_url: str, db_session: AsyncSession
+):
+    stored = await stored_token(db_session, token_of(login_url))
+    lifetime = stored.expires_at.replace(tzinfo=timezone.utc) - datetime.now(
+        timezone.utc
+    )
+    assert timedelta(minutes=14) < lifetime <= timedelta(minutes=15)
+    stored.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+    db_session.add(stored)
+    await db_session.commit()
+
+    response = await client.get(f"/api/auth/link/{token_of(login_url)}")
+
+    assert response.headers["location"] == INVALID_LINK_LOCATION
 
 
 async def test_unknown_token_redirects_to_the_login_error(client: AsyncClient):

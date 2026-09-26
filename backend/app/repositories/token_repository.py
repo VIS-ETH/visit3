@@ -1,8 +1,10 @@
 import secrets
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, TypeVar
 from uuid import UUID, uuid4
 
+from sqlalchemy import update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 from sqlmodel import col, or_, select
@@ -20,7 +22,14 @@ REFRESH_TOKEN_EXPIRE = timedelta(days=7)
 REFRESH_TOKEN_REUSE_GRACE = timedelta(seconds=10)
 RESET_PASSWORD_TOKEN_EXPIRE = timedelta(minutes=10)
 CONFIRM_EMAIL_TOKEN_EXPIRE = timedelta(days=3)
-LOGIN_LINK_TOKEN_EXPIRE = timedelta(hours=24)
+LOGIN_LINK_TOKEN_EXPIRE = timedelta(minutes=15)
+LOGIN_LINK_MAX_USES = 3
+
+
+@dataclass(frozen=True)
+class LoginLinkUse:
+    user_id: UUID
+    target_path: str
 
 
 class TokenRepository(BaseRepository[RefreshToken]):
@@ -232,25 +241,28 @@ class TokenRepository(BaseRepository[RefreshToken]):
             raise e
         return token
 
-    async def get_unused_login_link_token(self, token: str) -> LoginLinkToken | None:
-        statement = select(LoginLinkToken).where(
-            LoginLinkToken.token == hash_str(token),
-            LoginLinkToken.expires_at > datetime.now(timezone.utc),
-            LoginLinkToken.is_revoked == False,
-            col(LoginLinkToken.used_at).is_(None),
+    async def use_login_link_token(self, token: str) -> LoginLinkUse | None:
+        now = datetime.now(timezone.utc)
+        statement = (
+            sql_update(LoginLinkToken)
+            .where(
+                col(LoginLinkToken.token) == hash_str(token),
+                col(LoginLinkToken.expires_at) > now,
+                col(LoginLinkToken.is_revoked) == False,
+                col(LoginLinkToken.use_count) < LOGIN_LINK_MAX_USES,
+            )
+            .values(use_count=col(LoginLinkToken.use_count) + 1, used_at=now)
+            .returning(col(LoginLinkToken.user_id), col(LoginLinkToken.target_path))
         )
-        result = await self.session.execute(statement)
-        return result.scalar_one_or_none()
-
-    async def mark_login_link_token_used(self, link_token: LoginLinkToken) -> None:
         try:
-            link_token.used_at = datetime.now(timezone.utc)
-            link_token.is_revoked = True
-            self.session.add(link_token)
+            row = (await self.session.execute(statement)).first()
             await self.session.commit()
         except Exception as e:
             await self.session.rollback()
             raise e
+        if row is None:
+            return None
+        return LoginLinkUse(user_id=row[0], target_path=row[1])
 
     async def revoke_login_link_tokens(self, user_id: UUID):
         await self._revoke_tokens(LoginLinkToken, user_id=user_id)

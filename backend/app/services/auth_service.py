@@ -187,21 +187,20 @@ class AuthService:
         return frontend_url(f"{LOGIN_LINK_PATH}/{token}")
 
     async def consume_login_link(self, token: str) -> LoginLink:
-        link_token = await self.token_repository.get_unused_login_link_token(token)
-        if not link_token:
-            logger.warning("Login link used with an invalid or expired token")
+        link_use = await self.token_repository.use_login_link_token(token)
+        if not link_use:
+            logger.warning("Login link used with an invalid, spent or expired token")
             raise TokenInvalid("login_link")
 
-        user = await self.user_repository.get_by_id(link_token.user_id)
+        user = await self.user_repository.get_by_id(link_use.user_id)
         if not user:
-            raise TokenInvalid(f"login_link:{link_token.user_id}")
+            raise TokenInvalid(f"login_link:{link_use.user_id}")
 
-        await self.token_repository.mark_login_link_token_used(link_token)
         refresh_token = await self.create_refresh_token(user)
         logger.info(f"Login link consumed for user: {user.email}")
         return LoginLink(
             refresh_token=refresh_token,
-            target_path=safe_target_path(link_token.target_path),
+            target_path=safe_target_path(link_use.target_path),
         )
 
     async def send_confirm_email(self, user: User) -> None:

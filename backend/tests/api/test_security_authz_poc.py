@@ -15,10 +15,7 @@ from app.core.exceptions import NotVisMember
 from app.core.utils import hash_str
 from app.models.company import CompanyInvite
 from app.models.user import RefreshToken, User
-from app.repositories.token_repository import (
-    REFRESH_TOKEN_REUSE_GRACE,
-    TokenRepository,
-)
+from app.repositories.token_repository import REFRESH_TOKEN_REUSE_GRACE
 from app.services import auth_service as auth_module
 from app.services.auth_service import AuthService
 from tests.api.conftest import DEFAULT_PASSWORD
@@ -184,20 +181,22 @@ async def test_poc_unconfirmed_registration_blocks_the_first_sso_login(
     assert refresh_token
 
 
-async def test_poc_login_link_is_consumed_by_a_plain_get(
+async def test_poc_login_link_survives_a_mail_scanner_but_not_a_fourth_use(
     client: AsyncClient,
     company_user: User,
     auth_service: AuthService,
-    db_session: AsyncSession,
 ):
     link = await auth_service.create_login_link(company_user, "/")
     token = link.rsplit("/", 1)[-1]
 
-    prefetch = await client.get(f"/api/auth/link/{token}")
+    scanner = await client.get(f"/api/auth/link/{token}")
+    owner = await client.get(f"/api/auth/link/{token}")
+    await client.get(f"/api/auth/link/{token}")
+    replay = await client.get(f"/api/auth/link/{token}")
 
-    assert prefetch.status_code == 303
-    assert "refresh_token" not in prefetch.headers.get("set-cookie", "")
-    assert await TokenRepository(db_session).get_unused_login_link_token(token)
+    assert scanner.status_code == owner.status_code == 303
+    assert owner.cookies.get("refresh_token")
+    assert "refresh_token" not in replay.headers.get("set-cookie", "")
 
 
 async def test_poc_reusing_a_rotated_refresh_token_does_not_end_the_session(
