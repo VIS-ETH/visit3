@@ -22,7 +22,7 @@ from app.models.user import RefreshToken, User
 from app.repositories.token_repository import REFRESH_TOKEN_REUSE_GRACE
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
-from tests.api.conftest import DEFAULT_PASSWORD
+from tests.api.conftest import DEFAULT_PASSWORD, decoded_subject
 
 REGISTER_PAYLOAD = {
     "email": "new-company@example.com",
@@ -58,8 +58,8 @@ async def login(
     )
 
 
-async def test_register_returns_created_user(
-    client: AsyncClient, csrf_headers: dict[str, str]
+async def test_register_creates_an_unconfirmed_company_user(
+    client: AsyncClient, csrf_headers: dict[str, str], db_session: AsyncSession
 ):
     response = await client.post(
         "/api/auth/register",
@@ -68,14 +68,14 @@ async def test_register_returns_created_user(
     )
 
     assert response.status_code == 200
-    body = response.json()
-    assert body["email"] == REGISTER_PAYLOAD["email"]
-    assert body["is_company"] is True
-    assert body["is_staff"] is False
-    assert body["is_admin"] is False
-    assert body["user_confirmed"] is False
-    assert body["email_confirmed"] is False
-    assert "password" not in body
+    assert response.json() is None
+    user = await UserRepository(db_session).get_by_email(REGISTER_PAYLOAD["email"])
+    assert user is not None
+    assert user.is_company is True
+    assert user.is_staff is False
+    assert user.is_admin is False
+    assert user.user_confirmed is False
+    assert user.email_confirmed is False
 
 
 async def test_register_reuses_email_of_soft_deleted_user(
@@ -94,15 +94,24 @@ async def test_register_reuses_email_of_soft_deleted_user(
     )
 
     assert response.status_code == 200
-    assert response.json()["id"] != str(deleted.id)
+    user = await UserRepository(db_session).get_by_email(REGISTER_PAYLOAD["email"])
+    assert user is not None
+    assert user.id != deleted.id
 
 
-async def test_register_with_existing_email_is_rejected(
+async def test_register_with_existing_email_answers_like_a_new_one(
     client: AsyncClient,
     csrf_headers: dict[str, str],
     create_user: Callable[..., Awaitable[User]],
+    db_session: AsyncSession,
+    mail_stub: AsyncMock,
 ):
-    await create_user(email=REGISTER_PAYLOAD["email"])
+    existing = await create_user(email=REGISTER_PAYLOAD["email"])
+    fresh = await client.post(
+        "/api/auth/register",
+        json={**REGISTER_PAYLOAD, "email": "someone.else@example.com"},
+        headers=csrf_headers,
+    )
 
     response = await client.post(
         "/api/auth/register",
@@ -110,8 +119,39 @@ async def test_register_with_existing_email_is_rejected(
         headers=csrf_headers,
     )
 
-    assert response.status_code == 400
-    assert response.json()["code"] == "error.email_used"
+    assert response.status_code == fresh.status_code == 200
+    assert response.json() == fresh.json()
+    user = await UserRepository(db_session).get_by_email(REGISTER_PAYLOAD["email"])
+    assert user is not None
+    assert user.id == existing.id
+    assert user.first_name == existing.first_name
+    message = mail_stub.SendMail.await_args.args[0]
+    assert [address.mail_address.address for address in message.to] == [
+        REGISTER_PAYLOAD["email"]
+    ]
+    assert decoded_subject(message) == (
+        "VISIT: Sie haben bereits ein Konto / VISIT: You already have an account"
+    )
+    assert "/reset-password" in str(message)
+
+
+async def test_register_with_existing_email_reports_an_unavailable_mail_service(
+    client: AsyncClient,
+    csrf_headers: dict[str, str],
+    create_user: Callable[..., Awaitable[User]],
+    mail_stub: AsyncMock,
+):
+    await create_user(email=REGISTER_PAYLOAD["email"])
+    mail_stub.SendMail.side_effect = MailRpcError()
+
+    response = await client.post(
+        "/api/auth/register",
+        json=REGISTER_PAYLOAD,
+        headers=csrf_headers,
+    )
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "error.mail_unavailable"
 
 
 async def test_register_without_csrf_header_is_rejected(

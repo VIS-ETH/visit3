@@ -22,7 +22,7 @@ from app.repositories.company_repository import CompanyRepository
 from app.repositories.kp_repository import KpRepository
 from app.repositories.user_repository import UserRepository
 from app.services.storage_service import StorageService
-from tests.api.conftest import KpSetup
+from tests.api.conftest import KpSetup, decoded_subject
 from tests.booklet_pdfs import make_pdf
 
 REGISTER_PAYLOAD = {
@@ -133,10 +133,11 @@ async def test_email_confirmation_survives_a_failed_staff_notification(
     assert user.email_confirmed is True
 
 
-async def test_a_parallel_registration_with_the_same_email_is_refused(
+async def test_a_parallel_registration_with_the_same_email_answers_like_a_new_one(
     client: AsyncClient,
     csrf_headers: dict[str, str],
     monkeypatch: pytest.MonkeyPatch,
+    mail_stub: AsyncMock,
 ):
     await client.post("/api/auth/register", json=REGISTER_PAYLOAD, headers=csrf_headers)
 
@@ -148,8 +149,10 @@ async def test_a_parallel_registration_with_the_same_email_is_refused(
         "/api/auth/register", json=REGISTER_PAYLOAD, headers=csrf_headers
     )
 
-    assert response.status_code == 400
-    assert response.json()["code"] == "error.email_used"
+    assert response.status_code == 200
+    assert "You already have an account" in decoded_subject(
+        mail_stub.SendMail.await_args.args[0]
+    )
 
 
 async def test_setting_up_a_company_with_a_taken_name_is_refused(

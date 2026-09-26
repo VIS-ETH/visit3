@@ -27,6 +27,7 @@ from app.core.utils import normalize_phone_number, strip_text
 from app.mail_templates.context import (
     AccountAwaitingConfirmationContext,
     AccountConfirmEmailContext,
+    AccountExistsContext,
     PasswordResetContext,
 )
 from app.mail_templates.keys import MailTemplateKey
@@ -206,10 +207,7 @@ class AuthService:
             ),
         )
 
-    async def register_user(self, user: User, invite_token: str | None = None) -> User:
-        if await self.user_repository.get_by_email(user.email):
-            raise EmailUsed(f"register_user:{user.email}")
-
+    async def register_user(self, user: User, invite_token: str | None = None) -> None:
         if not user.password:
             raise PasswordTooShort("register:password_required")
 
@@ -229,6 +227,11 @@ class AuthService:
             self.invite_service.ensure_email_matches(invite, user.email, "register")
             user.pending_invite_token = invite_token
 
+        if await self.user_repository.get_by_email(user.email):
+            await self.hash_password(user.password)
+            await self._send_account_exists(user.email)
+            return
+
         user.password = await self.hash_password(user.password)
         user.is_admin = False
         user.is_staff = False
@@ -236,6 +239,9 @@ class AuthService:
 
         try:
             result = await self.user_repository.create_user(user)
+        except EmailUsed:
+            await self._send_account_exists(user.email)
+            return
         except Exception as e:
             logger.error(f"User registration failed: {user.email} - {str(e)}")
             raise e
@@ -249,7 +255,17 @@ class AuthService:
             raise e
 
         logger.info(f"User registered: {user.email}")
-        return result
+
+    async def _send_account_exists(self, email: str) -> None:
+        await self.mail_template_service.send(
+            MailTemplateKey.ACCOUNT_EXISTS,
+            [email],
+            AccountExistsContext(
+                login_url=frontend_url("/login"),
+                reset_url=frontend_url("/reset-password"),
+            ),
+        )
+        logger.info(f"Registration attempted for existing account: {email}")
 
     async def login_user(self, username: str, password: str) -> tuple[str, str]:
         user = await self.authenticate_user(username, password)

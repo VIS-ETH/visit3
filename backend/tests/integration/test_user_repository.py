@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from sqlmodel import col, select
 
 from app.core.deleted_filter import include_deleted
@@ -255,3 +257,60 @@ async def test_clear_pending_invite_forgets_the_token(user_repository):
     reloaded = await user_repository.get_by_id(user.id)
     assert reloaded is not None
     assert reloaded.pending_invite_token is None
+
+
+async def _aged_user(
+    user_repository, db_session, email: str, age: timedelta, **fields
+) -> User:
+    user = await user_repository.create_user(
+        User(email=email, password="hash", is_company=True, **fields)
+    )
+    user.created_at = datetime.now(timezone.utc) - age
+    db_session.add(user)
+    await db_session.commit()
+    return user
+
+
+async def test_never_confirmed_accounts_are_purged_after_a_week(
+    user_repository, company_repository, db_session
+):
+    company = await company_repository.create_company("Kept AG")
+    await _aged_user(
+        user_repository, db_session, "stale@example.com", timedelta(days=8)
+    )
+    await _aged_user(
+        user_repository, db_session, "fresh@example.com", timedelta(days=6)
+    )
+    await _aged_user(
+        user_repository,
+        db_session,
+        "confirmed@example.com",
+        timedelta(days=30),
+        email_confirmed=True,
+    )
+    await _aged_user(
+        user_repository,
+        db_session,
+        "member@example.com",
+        timedelta(days=30),
+        company_id=company.id,
+    )
+    await _aged_user(
+        user_repository,
+        db_session,
+        "sso@example.com",
+        timedelta(days=30),
+        sub="keycloak-subject",
+    )
+
+    purged = await user_repository.purge_unconfirmed_accounts(timedelta(days=7))
+
+    assert purged == 1
+    assert await user_repository.get_by_email("stale@example.com") is None
+    for email in (
+        "fresh@example.com",
+        "confirmed@example.com",
+        "member@example.com",
+        "sso@example.com",
+    ):
+        assert await user_repository.get_by_email(email) is not None

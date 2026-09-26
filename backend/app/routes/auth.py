@@ -28,7 +28,6 @@ from app.schemas.user import (
     RegisterUserRequest,
     ResetPasswordRequest,
     Token,
-    UserResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,12 +52,12 @@ def set_refresh_cookie(response: Response, raw_refresh_token: str) -> None:
 @router.post(
     "/register",
     operation_id="registerUser",
-    response_model=UserResponse,
+    dependencies=[client_rate_limit("register")],
 )
 async def register_user(
     auth_service: AuthServiceDep,
     request: RegisterUserRequest,
-) -> User:
+) -> None:
     user = User(
         email=request.email,
         password=request.password,

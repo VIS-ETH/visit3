@@ -1,6 +1,6 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +25,7 @@ from app.services.notification_recipients import NotificationRecipients
 from app.services.storage_service import StorageService
 
 HOURLY = 3600
+UNCONFIRMED_ACCOUNT_MAX_AGE = timedelta(days=7)
 DAILY = 86400
 
 
@@ -36,6 +37,13 @@ async def cleanup_expired_tokens() -> None:
 async def cleanup_expired_invites() -> None:
     async with SessionLocal() as session:
         await CompanyRepository(session).cleanup_expired_invites()
+
+
+async def purge_unconfirmed_accounts() -> None:
+    async with SessionLocal() as session:
+        await UserRepository(session).purge_unconfirmed_accounts(
+            UNCONFIRMED_ACCOUNT_MAX_AGE
+        )
 
 
 async def cleanup_orphaned_stored_files() -> None:
@@ -81,6 +89,7 @@ def create_scheduler() -> Scheduler:
     scheduler = Scheduler()
     scheduler.add(cleanup_expired_tokens, interval=HOURLY)
     scheduler.add(cleanup_expired_invites, interval=HOURLY)
+    scheduler.add(purge_unconfirmed_accounts, interval=HOURLY)
     scheduler.add(cleanup_orphaned_stored_files, interval=HOURLY)
     scheduler.add(remind_incomplete_bookings, interval=DAILY)
     return scheduler

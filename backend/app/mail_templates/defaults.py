@@ -72,6 +72,28 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
             " message.</p>"
         ),
     ),
+    MailTemplateKey.ACCOUNT_EXISTS: MailTemplateTexts(
+        subject_de="VISIT: Sie haben bereits ein Konto",
+        subject_en="VISIT: You already have an account",
+        body_de=(
+            "<p>Hallo,</p>"
+            "<p>jemand wollte mit dieser E-Mail-Adresse ein neues VISIT-Konto"
+            " erstellen. Für diese Adresse gibt es bereits ein Konto.</p>"
+            '<p><a href="{{ login_url }}">Anmelden</a></p>'
+            '<p>Passwort vergessen? <a href="{{ reset_url }}">Passwort'
+            " zurücksetzen</a></p>"
+            "<p>Wenn Sie das nicht waren, können Sie diese Nachricht ignorieren.</p>"
+        ),
+        body_en=(
+            "<p>Hello,</p>"
+            "<p>someone tried to create a new VISIT account with this email address."
+            " There already is an account for this address.</p>"
+            '<p><a href="{{ login_url }}">Log in</a></p>'
+            '<p>Forgot your password? <a href="{{ reset_url }}">Reset password</a>'
+            "</p>"
+            "<p>If this was not you, you can ignore this message.</p>"
+        ),
+    ),
     MailTemplateKey.COMPANY_INVITE: MailTemplateTexts(
         subject_de="VISIT: Einladung zu {{ company_name }}",
         subject_en="VISIT: Invitation to join {{ company_name }}",

@@ -39,6 +39,12 @@ class PasswordResetContext(MailContext):
 
 
 @dataclass(frozen=True)
+class AccountExistsContext(MailContext):
+    login_url: str
+    reset_url: str
+
+
+@dataclass(frozen=True)
 class CompanyInviteContext(MailContext):
     company_name: str
     invite_url: str
@@ -85,6 +91,10 @@ SAMPLE_CONTEXTS: dict[MailTemplateKey, MailContext] = {
     MailTemplateKey.PASSWORD_RESET: PasswordResetContext(
         name="Ada Lovelace",
         reset_url="https://visit.vis.ethz.ch/reset/sample-token",
+    ),
+    MailTemplateKey.ACCOUNT_EXISTS: AccountExistsContext(
+        login_url="https://visit.vis.ethz.ch/login",
+        reset_url="https://visit.vis.ethz.ch/reset-password",
     ),
     MailTemplateKey.COMPANY_INVITE: CompanyInviteContext(
         company_name="Acme AG",

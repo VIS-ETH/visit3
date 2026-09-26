@@ -6,6 +6,7 @@ class MailTemplateKey(StrEnum):
     ACCOUNT_CONFIRMED = "account_confirmed"
     ACCOUNT_AWAITING_CONFIRMATION = "account_awaiting_confirmation"
     PASSWORD_RESET = "password_reset"
+    ACCOUNT_EXISTS = "account_exists"
     COMPANY_INVITE = "company_invite"
     BOOKING_REGISTERED = "booking_registered"
     BOOKING_ACCEPTED = "booking_accepted"

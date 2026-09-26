@@ -1,6 +1,6 @@
 import uuid
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -164,6 +164,19 @@ class UserRepository(BaseRepository[User]):
         except Exception as e:
             await self.session.rollback()
             raise e
+
+    async def purge_unconfirmed_accounts(self, max_age: timedelta) -> int:
+        cutoff = datetime.now(timezone.utc) - max_age
+        statement = select(User).where(
+            col(User.email_confirmed) == False,
+            col(User.company_id).is_(None),
+            col(User.sub).is_(None),
+            col(User.created_at) < cutoff,
+        )
+        stale = (await self.session.execute(statement)).scalars().all()
+        for user in stale:
+            await self.delete_user(user)
+        return len(stale)
 
     async def delete_user(self, user: User):
         try:
