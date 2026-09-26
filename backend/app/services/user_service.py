@@ -182,7 +182,10 @@ class UserService:
         await self._check_company_reassignment(user, normalized)
 
         was_confirmed = user.user_confirmed
+        previous_company_id = user.company_id
         updated_user = await self.user_repository.update_user(user, normalized)
+        if updated_user.company_id != previous_company_id:
+            await self.company_repository.revoke_open_invites_by(updated_user.id)
         if new_email is not None:
             await self._revoke_credentials_after_email_change(updated_user)
         if updated_user.user_confirmed and not was_confirmed:
@@ -238,5 +241,6 @@ class UserService:
         if user.company_id is not None:
             await self._ensure_company_keeps_a_member(user.company_id, "delete_user")
 
+        await self.company_repository.revoke_open_invites_by(user.id)
         await self.user_repository.delete_user(user)
         logger.info(f"User deleted by staff {self.current_user.email}: {user.email}")

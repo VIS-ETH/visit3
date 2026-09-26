@@ -200,6 +200,7 @@ class CompanyService:
             raise UserLastCompanyMember(f"remove_company_user:{company_id}")
 
         await self.company_repository.remove_user_from_company(user, company)
+        await self.company_repository.revoke_open_invites_by(user.id)
         logger.info(
             f"Company user removed by staff {self.current_user.email}: "
             f"{user.email} from {company.name}"
@@ -272,6 +273,7 @@ class CompanyService:
             company_id=company.id,
             invited_email=normalized,
             expires_at=expires_at,
+            invited_by_user_id=self.current_user.id,
         )
         try:
             await self.mail_template_service.send(

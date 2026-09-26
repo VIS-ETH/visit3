@@ -9,6 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
+from app.core.utils import hash_str
 from app.models.company import CompanyInvite
 from app.models.user import User
 
@@ -61,7 +62,7 @@ async def create_invite(
 
 
 async def expire_invite(db_session: AsyncSession, token: str) -> None:
-    statement = select(CompanyInvite).where(col(CompanyInvite.token) == token)
+    statement = select(CompanyInvite).where(col(CompanyInvite.token) == hash_str(token))
     invite = (await db_session.execute(statement)).scalar_one()
     invite.expires_at = datetime.now(timezone.utc) - timedelta(days=1)
     db_session.add(invite)

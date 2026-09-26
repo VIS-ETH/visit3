@@ -173,6 +173,9 @@ class CompanyInvite(BaseEntity, table=True):
     token: str = Field(index=True, unique=True)
     company_id: UUID = Field(foreign_key="company.id")
     invited_email: EmailStr
+    invited_by_user_id: UUID | None = Field(
+        default=None, foreign_key="user.id", index=True, nullable=True
+    )
     is_used: bool = Field(default=False)
     expires_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False)

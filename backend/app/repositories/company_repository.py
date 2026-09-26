@@ -11,7 +11,7 @@ from sqlalchemy.sql.selectable import Select
 from sqlmodel import col, select
 
 from app.core.exceptions import CompanyNameTaken
-from app.core.utils import normalize_email
+from app.core.utils import hash_str, normalize_email
 from app.models.company import Company, CompanyInvite, KpCompanyProfile
 from app.models.industry import Industry, KpCompanyProfileIndustryLink
 from app.models.kp_event import (
@@ -465,13 +465,15 @@ class CompanyRepository(BaseRepository[Company]):
         company_id: UUID,
         invited_email: str,
         expires_at: datetime,
+        invited_by_user_id: UUID | None = None,
     ) -> CompanyInvite:
         try:
             invite = CompanyInvite(
-                token=token,
+                token=hash_str(token),
                 company_id=company_id,
                 invited_email=invited_email,
                 expires_at=expires_at,
+                invited_by_user_id=invited_by_user_id,
             )
             self._validate_model(invite, exclude={"company"})
             self.session.add(invite)
@@ -495,9 +497,23 @@ class CompanyRepository(BaseRepository[Company]):
         return result.scalars().first()
 
     async def get_invite_by_token(self, token: str) -> Optional[CompanyInvite]:
-        statement = select(CompanyInvite).where(col(CompanyInvite.token) == token)
+        statement = select(CompanyInvite).where(
+            col(CompanyInvite.token) == hash_str(token)
+        )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
+
+    async def revoke_open_invites_by(self, user_id: UUID) -> None:
+        try:
+            await self.hard_delete_where(
+                CompanyInvite,
+                col(CompanyInvite.invited_by_user_id) == user_id,
+                col(CompanyInvite.is_used) == False,
+            )
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
 
     async def delete_invite(self, invite: CompanyInvite) -> None:
         try:

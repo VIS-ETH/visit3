@@ -152,6 +152,7 @@ async def test_create_invite_normalizes_email_creates_invite_and_sends_mail(
     assert kwargs["company_id"] == company.id
     assert kwargs["invited_email"] == "guest@example.com"
     assert isinstance(kwargs["expires_at"], datetime)
+    assert kwargs["invited_by_user_id"] == user.id
     mail_template_service.send.assert_awaited_once()
     key, recipients, context = mail_template_service.send.await_args.args
     assert key == MailTemplateKey.COMPANY_INVITE
