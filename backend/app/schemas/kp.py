@@ -17,6 +17,7 @@ from app.models.kp_event import (
 )
 from app.schemas.company import CompanyResponse
 from app.schemas.pricing import PriceBreakdown, VatRatePercent, percent_to_permille
+from app.schemas.text import NAME_MAX_LENGTH, REQUIREMENT_TEXT_MAX_LENGTH
 
 DEFAULT_VAT_RATE_PERCENT = Decimal("8.1")
 DEFAULT_FINALIZATION_REMINDER_DAYS = 3
@@ -446,7 +447,7 @@ class RequirementFileResponse(BaseModel):
 
 
 class RequirementTextRequest(BaseModel):
-    text_value: str = Field(min_length=1)
+    text_value: str = Field(min_length=1, max_length=REQUIREMENT_TEXT_MAX_LENGTH)
 
 
 class RequirementTextResponse(BaseModel):
@@ -473,13 +474,15 @@ class ExportBackgroundResponse(BaseModel):
 
 
 class NameTagInput(BaseModel):
-    first_name: str = Field(min_length=1)
-    last_name: str = Field(min_length=1)
-    position: str = Field(min_length=1)
+    first_name: str = Field(min_length=1, max_length=NAME_MAX_LENGTH)
+    last_name: str = Field(min_length=1, max_length=NAME_MAX_LENGTH)
+    position: str = Field(min_length=1, max_length=NAME_MAX_LENGTH)
 
 
 class ReplaceNameTagsInput(BaseModel):
-    name_tags: list[NameTagInput] = Field(default_factory=lambda: [])
+    name_tags: list[NameTagInput] = Field(
+        default_factory=lambda: [], max_length=MAX_SERVICE_QUANTITY
+    )
 
 
 class ReplaceNameTagsRequest(ReplaceNameTagsInput):

@@ -10,11 +10,11 @@ from app.models.company import (
     sanitize_description,
 )
 from app.schemas.industry import IndustryResult
-from app.schemas.text import SingleLineText
+from app.schemas.text import PROFILE_TEXT_LIMITS, CompanyName
 
 
 class CreateCompanyInput(BaseModel):
-    name: SingleLineText
+    name: CompanyName
 
 
 class CreateCompanyRequest(CreateCompanyInput):
@@ -22,7 +22,7 @@ class CreateCompanyRequest(CreateCompanyInput):
 
 
 class UpdateCompanyInput(BaseModel):
-    name: SingleLineText
+    name: CompanyName
 
 
 class UpdateCompanyRequest(UpdateCompanyInput):
@@ -34,7 +34,7 @@ class CompanyProfileFields(BaseModel):
         default="", max_length=PROFILE_DESCRIPTION_MARKUP_MAX_LENGTH
     )
     website: str | None = None
-    brand_name: SingleLineText = ""
+    brand_name: str = ""
     general_email: EmailStr | None = None
     general_phone: str | None = None
     places_of_work: str = ""
@@ -61,6 +61,32 @@ class CompanyProfileFields(BaseModel):
 
 
 class UpdateCompanyProfileInput(CompanyProfileFields):
+    website: str | None = Field(default=None, max_length=PROFILE_TEXT_LIMITS["website"])
+    brand_name: CompanyName = ""
+    general_phone: str | None = Field(
+        default=None, max_length=PROFILE_TEXT_LIMITS["general_phone"]
+    )
+    places_of_work: str = Field(
+        default="", max_length=PROFILE_TEXT_LIMITS["places_of_work"]
+    )
+    billing_company_name: str = Field(
+        default="", max_length=PROFILE_TEXT_LIMITS["billing_company_name"]
+    )
+    billing_street: str = Field(
+        default="", max_length=PROFILE_TEXT_LIMITS["billing_street"]
+    )
+    billing_house_number: str = Field(
+        default="", max_length=PROFILE_TEXT_LIMITS["billing_house_number"]
+    )
+    billing_postal_code: str = Field(
+        default="", max_length=PROFILE_TEXT_LIMITS["billing_postal_code"]
+    )
+    billing_city: str = Field(
+        default="", max_length=PROFILE_TEXT_LIMITS["billing_city"]
+    )
+    billing_vat_number: str | None = Field(
+        default=None, max_length=PROFILE_TEXT_LIMITS["billing_vat_number"]
+    )
     kp_contact_user_id: UUID | None = None
     industry_ids: list[UUID] = Field(default_factory=lambda: [])
 
@@ -99,7 +125,7 @@ class CompanyProfileResponse(CompanyProfileResult):
 
 
 class SetupCompanyInput(BaseModel):
-    name: SingleLineText
+    name: CompanyName
 
 
 class SetupCompanyRequest(SetupCompanyInput):

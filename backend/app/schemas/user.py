@@ -4,8 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from app.core.utils import strip_text
-from app.schemas.text import SingleLineText
+from app.schemas.text import PHONE_MAX_LENGTH, PersonName
 
 
 class CompanyResponse(BaseModel):
@@ -71,15 +70,10 @@ class UserPageResponse(UserPageResult):
 class RegisterUserInput(BaseModel):
     email: EmailStr
     password: str
-    first_name: SingleLineText = Field(min_length=1)
-    last_name: SingleLineText = Field(min_length=1)
-    phone_number: str | None = None
+    first_name: PersonName
+    last_name: PersonName
+    phone_number: str | None = Field(default=None, max_length=PHONE_MAX_LENGTH)
     invite_token: str | None = None
-
-    @field_validator("first_name", "last_name", mode="before")
-    @classmethod
-    def strip_names(cls, v: str) -> str:
-        return strip_text(v)
 
 
 class RegisterUserRequest(RegisterUserInput):
@@ -87,14 +81,9 @@ class RegisterUserRequest(RegisterUserInput):
 
 
 class UserProfileFieldsInput(BaseModel):
-    first_name: SingleLineText | None = Field(default=None, min_length=1)
-    last_name: SingleLineText | None = Field(default=None, min_length=1)
-    phone_number: str | None = None
-
-    @field_validator("first_name", "last_name", mode="before")
-    @classmethod
-    def strip_names(cls, v: str | None) -> str | None:
-        return strip_text(v)
+    first_name: PersonName | None = None
+    last_name: PersonName | None = None
+    phone_number: str | None = Field(default=None, max_length=PHONE_MAX_LENGTH)
 
 
 class UpdateUserProfileInput(UserProfileFieldsInput):

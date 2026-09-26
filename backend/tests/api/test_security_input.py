@@ -14,7 +14,7 @@ FORGED_LOG_LINE = (
     "nobody@example.com\nINFO:app.services.auth_service:"
     "User login successful: admin@vis.ethz.ch"
 )
-MEGABYTE_TEXT = "A" * (1024 * 1024)
+LONG_TEXT = "A" * 100_000
 OVERFLOWING_PAGE = 10**18
 
 
@@ -101,7 +101,7 @@ async def test_requirement_text_is_capped(
 ):
     response = await client.put(
         text_requirement_url,
-        json={"text_value": MEGABYTE_TEXT},
+        json={"text_value": LONG_TEXT},
         headers=company_headers,
     )
 
@@ -112,7 +112,7 @@ async def test_company_name_is_capped(
     client: AsyncClient, company_headers: dict[str, str]
 ):
     response = await client.patch(
-        "/api/company/me", json={"name": MEGABYTE_TEXT}, headers=company_headers
+        "/api/company/me", json={"name": LONG_TEXT}, headers=company_headers
     )
 
     assert response.status_code == 422
@@ -125,7 +125,7 @@ async def test_company_profile_text_fields_are_capped(
     complete_company_profile: Callable[..., Awaitable[Response]],
     field: str,
 ):
-    response = await complete_company_profile(company_headers, **{field: MEGABYTE_TEXT})
+    response = await complete_company_profile(company_headers, **{field: LONG_TEXT})
 
     assert response.status_code == 422
 
