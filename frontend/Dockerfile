@@ -52,5 +52,6 @@ FROM nginxinc/nginx-unprivileged:1.29-alpine AS production
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 COPY --from=builder /app/frontend/dist/index.html /etc/nginx/templates/index.html.template
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
+COPY --chmod=0755 nginx/18-visit-runtime-env.envsh /docker-entrypoint.d/18-visit-runtime-env.envsh
 
 EXPOSE 3000

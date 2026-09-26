@@ -1,0 +1,8 @@
+for visit_variable in VISIT_STORAGE_PUBLIC_URL VISIT_BACKEND_WEB_URL; do
+  eval "visit_value=\${$visit_variable:-}"
+  if [ -z "$visit_value" ]; then
+    echo "WARN: $visit_variable is not set, the Content-Security-Policy leaves its origin out" >&2
+    export "$visit_variable="
+  fi
+done
+unset visit_variable visit_value
