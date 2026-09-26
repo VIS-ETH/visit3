@@ -52,7 +52,7 @@ const otherColleague: UserResponse = {
 const storedProfile: CompanyProfileResponse = {
   id: "profile-1",
   company_id: "company-1",
-  description: "We build things.",
+  description: "<p>We build <strong>things</strong>.</p>",
   website: "https://example.com",
   brand_name: "Examplify",
   general_email: "info@example.com",
@@ -171,8 +171,10 @@ describe("Company profile form", () => {
       await screen.findByLabelText(labelOf("company_profile_form.brand_name")),
     ).toHaveValue("Examplify");
     expect(
-      screen.getByLabelText(labelOf("company_profile_form.description")),
-    ).toHaveValue("We build things.");
+      await screen.findByRole("textbox", {
+        name: labelOf("company_profile_form.description"),
+      }),
+    ).toHaveTextContent("We build things.");
     expect(
       screen.getByLabelText(labelOf("company_profile_form.website")),
     ).toHaveValue("https://example.com");
@@ -282,15 +284,14 @@ describe("Company profile form", () => {
     expect(putBodies).toHaveLength(0);
   });
 
-  it("submits a description that fills a booklet page", async () => {
+  it("submits a formatted description that fills a booklet page", async () => {
+    const formatted = `<p>${"<strong>x</strong><em>y</em>".repeat(1250)}</p>`;
+    mockProfile({ ...storedProfile, description: formatted });
     const { user } = renderProfile();
 
-    const description = await screen.findByLabelText(
-      labelOf("company_profile_form.description"),
-    );
-    expect(description).toHaveAttribute("maxlength", "2500");
-    await user.clear(description);
-    await user.paste("x".repeat(2500));
+    expect(
+      await screen.findByText("company_profile_form.description_counter"),
+    ).toBeInTheDocument();
     await user.click(
       screen.getByRole("button", { name: "company_profile_form.save" }),
     );
@@ -298,7 +299,22 @@ describe("Company profile form", () => {
     await waitFor(() => {
       expect(putBodies).toHaveLength(1);
     });
-    expect(putBodies[0]).toMatchObject({ description: "x".repeat(2500) });
+    expect(putBodies[0]).toMatchObject({ description: formatted });
+  });
+
+  it("does not submit a description over the visible limit", async () => {
+    mockProfile({
+      ...storedProfile,
+      description: `<p>${"<strong>x</strong>".repeat(2501)}</p>`,
+    });
+    const { user } = renderProfile();
+
+    await user.click(
+      await screen.findByRole("button", { name: "company_profile_form.save" }),
+    );
+
+    expect(await screen.findByText("validation.too_long")).toBeInTheDocument();
+    expect(putBodies).toHaveLength(0);
   });
 
   it("does not submit when the billing country is missing", async () => {
@@ -339,7 +355,7 @@ describe("Company profile form", () => {
       expect(putBodies).toHaveLength(1);
     });
     expect(putBodies[0]).toEqual({
-      description: "We build things.",
+      description: "<p>We build <strong>things</strong>.</p>",
       website: "https://example.com",
       brand_name: "Examplify Group",
       general_email: "info@example.com",
@@ -409,7 +425,7 @@ describe("Company booklet page", () => {
     );
     expect(lastBookletBody()).toMatchObject({
       brand_name: "Examplify",
-      description: "We build things.",
+      description: "<p>We build <strong>things</strong>.</p>",
       general_email: "info@example.com",
       general_phone: "+41791234567",
       industry_ids: ["industry-1"],

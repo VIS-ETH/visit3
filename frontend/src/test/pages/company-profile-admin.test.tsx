@@ -25,7 +25,7 @@ import { server } from "../server";
 const storedProfile: CompanyProfileResponse = {
   id: "profile-1",
   company_id: acmeCompany.id,
-  description: "We build booths.",
+  description: "<p>We build booths.</p>",
   website: "https://acme.test",
   brand_name: "Acme",
   general_email: "contact@acme.test",

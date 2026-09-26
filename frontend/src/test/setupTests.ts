@@ -41,6 +41,11 @@ const installBrowserApisMissingFromJsdom = () => {
 
   Element.prototype.scrollIntoView = () => {};
 
+  document.elementFromPoint = () => null;
+  Range.prototype.getClientRects = () =>
+    Object.assign([], { item: () => null }) as unknown as DOMRectList;
+  Range.prototype.getBoundingClientRect = () => new DOMRect();
+
   Object.defineProperty(document, "fonts", {
     configurable: true,
     value: Object.assign(new EventTarget(), { ready: Promise.resolve() }),

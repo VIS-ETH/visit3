@@ -29,7 +29,7 @@ const companyUser: UserResponse = {
 const storedProfile: CompanyProfileResponse = {
   id: "profile-1",
   company_id: "company-1",
-  description: "We build things.",
+  description: "<p>We build things.</p>",
   kp_contact_user_id: "user-1",
   billing_company_name: "Example AG",
   billing_street: "Bahnhofstrasse",

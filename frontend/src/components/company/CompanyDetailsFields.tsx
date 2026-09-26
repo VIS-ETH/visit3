@@ -4,12 +4,13 @@ import {
   SimpleGrid,
   Stack,
   TextInput,
-  Textarea,
 } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { KpCompanyLanguage } from "../../orval/generated/fastAPI.schemas";
 import type { IndustryResponse } from "../../orval/generated/fastAPI.schemas";
 import { PROFILE_DESCRIPTION_MAX_LENGTH } from "../../schemas/companyProfileSchema";
+import { richTextLength } from "../../utils/rich-text";
+import CompanyDescriptionEditor from "./CompanyDescriptionEditor";
 import {
   profileFieldId,
   type CompanyProfileFieldsProps,
@@ -53,20 +54,17 @@ const CompanyDetailsFields = ({
         disabled={disabled}
         {...form.getInputProps("brand_name")}
       />
-      <Textarea
+      <CompanyDescriptionEditor
         id={profileFieldId("description")}
         label={t("company_profile_form.description")}
         description={t("company_profile_form.description_counter", {
-          current: form.values.description.length,
+          current: richTextLength(form.values.description),
           max: PROFILE_DESCRIPTION_MAX_LENGTH,
         })}
-        withAsterisk
-        autosize
-        minRows={4}
-        maxRows={10}
-        maxLength={PROFILE_DESCRIPTION_MAX_LENGTH}
+        value={form.values.description}
+        error={form.errors.description}
         disabled={disabled}
-        {...form.getInputProps("description")}
+        onChange={(value) => form.setFieldValue("description", value)}
       />
       <TextInput
         id={profileFieldId("website")}

@@ -20,7 +20,7 @@ export const testCompany: MyCompanyResponse = {
 
 export const testCompanyProfile: CompanyProfileResponse = {
   company_id: testCompany.id,
-  description: "We build reliable booths",
+  description: "<p>We build reliable booths</p>",
   brand_name: "Acme Robotics",
   general_email: "info@acme.test",
   general_phone: "+41 44 000 00 00",

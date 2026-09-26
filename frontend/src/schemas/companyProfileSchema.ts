@@ -4,6 +4,7 @@ import type {
   CompanyProfileResponse,
   UpdateCompanyProfileRequest,
 } from "../orval/generated/fastAPI.schemas";
+import { richTextLength } from "../utils/rich-text";
 import { zPhone } from "./utils";
 
 export const PROFILE_DESCRIPTION_MAX_LENGTH = 2500;
@@ -26,9 +27,11 @@ const employeeCount = z.union(
 export const companyProfileSchema = z.object({
   description: z
     .string()
-    .trim()
-    .min(1, "validation.required")
-    .max(PROFILE_DESCRIPTION_MAX_LENGTH, "validation.too_long"),
+    .refine((value) => richTextLength(value) > 0, "validation.required")
+    .refine(
+      (value) => richTextLength(value) <= PROFILE_DESCRIPTION_MAX_LENGTH,
+      "validation.too_long",
+    ),
   website: z
     .string()
     .trim()
@@ -140,7 +143,7 @@ const countOrNull = (value: number | "") => (value === "" ? null : value);
 export const toCompanyProfileRequest = (
   values: CompanyProfileFormValues,
 ): UpdateCompanyProfileRequest => ({
-  description: values.description.trim(),
+  description: values.description,
   website: trimmedOrNull(values.website),
   brand_name: values.brand_name.trim(),
   general_email: trimmedOrNull(values.general_email),
