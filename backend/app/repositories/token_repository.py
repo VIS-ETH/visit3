@@ -11,6 +11,7 @@ from sqlmodel import col, or_, select
 
 from app.core.utils import hash_str
 from app.models.auth_tokens import LoginLinkToken
+from app.models.base import BaseToken
 from app.models.user import (
     ConfirmEmailToken,
     EmailChangeToken,
@@ -26,6 +27,13 @@ TokenModelT = TypeVar(
     ConfirmEmailToken,
     LoginLinkToken,
     EmailChangeToken,
+)
+IssuedTokenT = TypeVar(
+    "IssuedTokenT",
+    RefreshToken,
+    ResetPasswordToken,
+    ConfirmEmailToken,
+    LoginLinkToken,
 )
 
 REFRESH_TOKEN_EXPIRE = timedelta(days=7)
@@ -51,12 +59,12 @@ class TokenRepository(BaseRepository[RefreshToken]):
 
     async def _create_token(
         self,
-        model: type[TokenModelT],
+        model: type[IssuedTokenT],
         *,
         user_id: UUID,
         hashed_token: str,
         expires_at: datetime,
-    ) -> TokenModelT:
+    ) -> IssuedTokenT:
         try:
             token = model(user_id=user_id, token=hashed_token, expires_at=expires_at)
             self.session.add(token)
@@ -69,7 +77,7 @@ class TokenRepository(BaseRepository[RefreshToken]):
 
     async def _issue_token(
         self,
-        model: type[TokenModelT],
+        model: type[IssuedTokenT],
         *,
         user_id: UUID,
         expires_at: datetime,
@@ -302,9 +310,7 @@ class TokenRepository(BaseRepository[RefreshToken]):
     async def revoke_login_link_tokens(self, user_id: UUID):
         await self._revoke_tokens(LoginLinkToken, user_id=user_id)
 
-    def _disposable(
-        self, model: type[TokenModelT], now: datetime
-    ) -> ColumnElement[bool]:
+    def _disposable(self, model: type[BaseToken], now: datetime) -> ColumnElement[bool]:
         expired = col(model.expires_at) < now
         if model is RefreshToken:
             return expired | (
