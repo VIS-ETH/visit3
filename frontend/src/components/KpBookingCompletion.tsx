@@ -35,10 +35,12 @@ const REQUIREMENT_ITEM_PREFIX = "requirement:";
 const COMPANY_PROFILE_ITEM = "company_profile";
 const COMPANY_DESCRIPTION_ITEM = "company_description";
 const BILLING_ADDRESS_ITEM = "billing_address";
+const GENERAL_EMAIL_ITEM = "general_email";
 const PROFILE_FIELD_BY_ITEM: Record<string, string> = {
   [COMPANY_PROFILE_ITEM]: "description",
   [COMPANY_DESCRIPTION_ITEM]: "description",
   [BILLING_ADDRESS_ITEM]: "billing_company_name",
+  [GENERAL_EMAIL_ITEM]: "general_email",
 };
 
 const requirementNamesById = (booking: BookingResponse) =>
@@ -137,6 +139,9 @@ export const KpBookingCompletion = ({
     }
     if (item === BILLING_ADDRESS_ITEM) {
       return t("kp.booking.missing_item_billing_address");
+    }
+    if (item === GENERAL_EMAIL_ITEM) {
+      return t("kp.booking.missing_item_general_email");
     }
     return t("kp.booking.missing_item_unknown");
   };

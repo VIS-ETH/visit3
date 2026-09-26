@@ -154,6 +154,25 @@ describe("KpBookingCompletion", () => {
     ).toHaveAttribute("href", profileLink("company-profile-description"));
   });
 
+  it("links a missing general email to its profile field", () => {
+    renderWithProviders(
+      <KpBookingCompletion
+        changeDeadline={openDeadline}
+        booking={{
+          ...incompleteBooking,
+          missing_items: ["general_email"],
+        }}
+      />,
+      { route: "/kp/event" },
+    );
+
+    expect(
+      screen.getByRole("link", {
+        name: "kp.booking.missing_item_general_email",
+      }),
+    ).toHaveAttribute("href", profileLink("company-profile-general-email"));
+  });
+
   it("falls back to a generic label for an unknown requirement", () => {
     renderWithProviders(
       <KpBookingCompletion

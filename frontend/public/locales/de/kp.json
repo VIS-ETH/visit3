@@ -186,6 +186,7 @@
       "profile_confirm_checkbox": "Die Angaben sind aktuell und korrekt.",
       "profile_field": {
         "description": "Unternehmensbeschreibung",
+        "general_email": "Allgemeine E-Mail",
         "kp_contact_user_id": "Kontaktperson",
         "billing_company_name": "Unternehmensname für die Rechnung",
         "billing_street": "Strasse der Rechnungsadresse",
@@ -208,6 +209,7 @@
       "completeness_incomplete_body": "Diese Angaben fehlen noch:",
       "missing_item_requirement": "Eine Angabe zu einem gebuchten Service fehlt",
       "missing_item_company_profile": "Angaben im Unternehmensprofil fehlen",
+      "missing_item_general_email": "Allgemeine E-Mail fehlt",
       "missing_item_company_description": "Unternehmensbeschreibung fehlt",
       "missing_item_billing_address": "Rechnungsadresse fehlt",
       "missing_item_unknown": "Weitere Angaben fehlen",
@@ -573,6 +575,7 @@
       "booking_updated": "Buchung aktualisiert.",
       "booking_missing_item_requirement": "Ein Upload für einen gebuchten Service fehlt",
       "booking_missing_item_company_profile": "Angaben im Unternehmensprofil fehlen",
+      "booking_missing_item_general_email": "Allgemeine E-Mail fehlt",
       "booking_missing_item_company_description": "Unternehmensbeschreibung fehlt",
       "booking_missing_item_billing_address": "Rechnungsadresse fehlt",
       "booking_missing_item_unknown": "Es fehlt noch etwas",

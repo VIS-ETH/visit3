@@ -41,12 +41,9 @@ export const companyProfileSchema = z.object({
     ),
   brand_name: z.string().trim(),
   general_email: z
-    .string()
+    .email("validation.invalid_email")
     .trim()
-    .refine(
-      (value) => isBlank(value) || z.email().safeParse(value).success,
-      "validation.invalid_email",
-    ),
+    .min(1, "validation.required"),
   general_phone: z
     .string()
     .trim()

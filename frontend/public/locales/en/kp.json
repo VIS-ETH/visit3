@@ -186,6 +186,7 @@
       "profile_confirm_checkbox": "The details above are current and correct.",
       "profile_field": {
         "description": "Company description",
+        "general_email": "General email",
         "kp_contact_user_id": "Contact person",
         "billing_company_name": "Billing company name",
         "billing_street": "Billing street",
@@ -208,6 +209,7 @@
       "completeness_incomplete_body": "The following information is still missing:",
       "missing_item_requirement": "An answer for a booked service is missing",
       "missing_item_company_profile": "Company profile details are missing",
+      "missing_item_general_email": "General email is missing",
       "missing_item_company_description": "Company description is missing",
       "missing_item_billing_address": "Billing address is missing",
       "missing_item_unknown": "Further information is missing",
@@ -573,6 +575,7 @@
       "booking_updated": "Booking updated.",
       "booking_missing_item_requirement": "An upload for a booked service is missing",
       "booking_missing_item_company_profile": "Company profile details are missing",
+      "booking_missing_item_general_email": "General email is missing",
       "booking_missing_item_company_description": "Company description is missing",
       "booking_missing_item_billing_address": "Billing address is missing",
       "booking_missing_item_unknown": "Something is still missing",

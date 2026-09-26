@@ -5,6 +5,7 @@ const REQUIREMENT_ITEM_PREFIX = "requirement:";
 const COMPANY_PROFILE_ITEM = "company_profile";
 const COMPANY_DESCRIPTION_ITEM = "company_description";
 const BILLING_ADDRESS_ITEM = "billing_address";
+const GENERAL_EMAIL_ITEM = "general_email";
 
 const requirementLabelsById = (services: BookingServiceResponse[]) =>
   new Map(
@@ -38,6 +39,9 @@ export const useMissingItemLabel = (services: BookingServiceResponse[]) => {
     }
     if (item === BILLING_ADDRESS_ITEM) {
       return t("kp.manage.booking_missing_item_billing_address");
+    }
+    if (item === GENERAL_EMAIL_ITEM) {
+      return t("kp.manage.booking_missing_item_general_email");
     }
     return t("kp.manage.booking_missing_item_unknown");
   };

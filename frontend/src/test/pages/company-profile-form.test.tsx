@@ -266,6 +266,29 @@ describe("Company profile form", () => {
     expect(putBodies).toHaveLength(0);
   });
 
+  it("does not submit without a general email", async () => {
+    mockProfile({
+      ...storedProfile,
+      general_email: null,
+      profile_complete: false,
+      missing_profile_fields: ["general_email"],
+    });
+
+    const { user } = renderProfile();
+
+    expect(
+      await screen.findByRole("link", {
+        name: "company_profile_form.general_email",
+      }),
+    ).toHaveAttribute("href", "#company-profile-general-email");
+    await user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+
+    expect(await screen.findByText("validation.required")).toBeInTheDocument();
+    expect(putBodies).toHaveLength(0);
+  });
+
   it("does not submit when the general email is invalid", async () => {
     const { user } = renderProfile();
 

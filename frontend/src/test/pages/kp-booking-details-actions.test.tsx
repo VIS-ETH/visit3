@@ -106,7 +106,11 @@ describe("the staff booking details header", () => {
     serveBooking({
       ...acmeBooking,
       is_complete: false,
-      missing_items: ["billing_address", "company_description"],
+      missing_items: [
+        "billing_address",
+        "company_description",
+        "general_email",
+      ],
       rejection_reason: "The booth zone does not fit the company size.",
       status: KpBookingStatus.REJECTED,
       status_note: "Called the company on Monday.",
@@ -122,6 +126,9 @@ describe("the staff booking details header", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText("kp.manage.booking_missing_item_company_description"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("kp.manage.booking_missing_item_general_email"),
     ).toBeInTheDocument();
     const notices = screen.getAllByRole("alert");
     expect(notices[0]).toHaveTextContent(
