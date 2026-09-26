@@ -93,6 +93,7 @@ class KpEvent(BaseEntity, table=True):
     booklet_background_stored_file_id: UUID | None = Field(
         default=None, foreign_key="storedfile.id"
     )
+    banner_id: UUID | None = Field(default=None, foreign_key="kpeventbanner.id")
 
     booth_zones: list["KpEventBoothZone"] = Relationship(back_populates="event")
     bookings: list["KpEventBooking"] = Relationship(back_populates="event")
@@ -430,6 +431,25 @@ class KpEventBookingServiceFileLink(BaseEntity, table=True):
     )
     requirement: "KpEventServiceRequirement" = Relationship()
     stored_file: StoredFile | None = Relationship()
+
+
+class KpEventBanner(BaseEntity, table=True):
+    width: int
+    height: int
+
+    variants: list["KpEventBannerVariant"] = Relationship(
+        back_populates="banner",
+        sa_relationship_kwargs={"order_by": "KpEventBannerVariant.width"},
+    )
+
+
+class KpEventBannerVariant(BaseEntity, table=True):
+    banner_id: UUID = Field(foreign_key="kpeventbanner.id", index=True)
+    width: int
+    stored_file_id: UUID = Field(foreign_key="storedfile.id", unique=True)
+
+    banner: KpEventBanner = Relationship(back_populates="variants")
+    stored_file: StoredFile = Relationship()
 
 
 class KpEventNametagBackground(BaseEntity, table=True):

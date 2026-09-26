@@ -4,7 +4,13 @@ from uuid import UUID
 from fastapi import APIRouter, File, Query, Request, Response, UploadFile
 
 from app.core.config import get_settings
-from app.core.deps import BookletServiceDep, CsrfDep, ExportServiceDep, KpServiceDep
+from app.core.deps import (
+    BookletServiceDep,
+    CsrfDep,
+    EventBannerServiceDep,
+    ExportServiceDep,
+    KpServiceDep,
+)
 from app.core.downloads import content_disposition_attachment
 from app.core.rate_limit import user_rate_limit
 from app.core.uploads import upload_size
@@ -33,7 +39,11 @@ from app.schemas.kp import (
     CreateBoothZoneRequest,
     CreateKpRequest,
     CreateServiceRequest,
+    EventBannerResponse,
+    EventBannerResult,
     ExportBackgroundResponse,
+    KpLatestResponse,
+    KpLatestResult,
     KpResponse,
     KpStaffResponse,
     MyBookingResponse,
@@ -100,9 +110,13 @@ async def list_kps(kp_service: KpServiceDep) -> Sequence[KpEvent]:
     return await kp_service.list_kps()
 
 
-@router.get("/latest", operation_id="getLatestKp", response_model=KpResponse | None)
-async def get_latest_kp(kp_service: KpServiceDep) -> KpEvent | None:
-    return await kp_service.get_latest_kp()
+@router.get(
+    "/latest", operation_id="getLatestKp", response_model=KpLatestResponse | None
+)
+async def get_latest_kp(
+    event_banner_service: EventBannerServiceDep,
+) -> KpLatestResult | None:
+    return await event_banner_service.latest_event()
 
 
 @router.get("/events/{event_id}", operation_id="getKpById", response_model=KpResponse)
@@ -889,6 +903,43 @@ BOOKLET_SAMPLE_RATE_LIMIT = user_rate_limit(
     get_settings().BOOKLET_PAGE_RATE_LIMIT_MAX_REQUESTS,
     get_settings().BOOKLET_PAGE_RATE_LIMIT_WINDOW_SECONDS,
 )
+
+
+@router.get(
+    "/events/{event_id}/banner",
+    operation_id="getEventBanner",
+    response_model=EventBannerResponse | None,
+)
+async def get_event_banner(
+    event_banner_service: EventBannerServiceDep, event_id: UUID
+) -> EventBannerResult | None:
+    return await event_banner_service.get_banner(event_id)
+
+
+@router.put(
+    "/events/{event_id}/banner",
+    operation_id="uploadEventBanner",
+    response_model=EventBannerResponse,
+)
+async def upload_event_banner(
+    event_banner_service: EventBannerServiceDep,
+    request: Request,
+    event_id: UUID,
+    file: UploadFile = File(...),
+) -> EventBannerResult:
+    return await event_banner_service.upload_banner(
+        event_id=event_id,
+        upload=file,
+        content_length=upload_size(request, file),
+        content_type=file.content_type,
+    )
+
+
+@router.delete("/events/{event_id}/banner", operation_id="resetEventBanner")
+async def reset_event_banner(
+    event_banner_service: EventBannerServiceDep, event_id: UUID
+) -> None:
+    await event_banner_service.reset_banner(event_id)
 
 
 @router.get(

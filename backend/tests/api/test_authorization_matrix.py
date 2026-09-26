@@ -135,6 +135,9 @@ ROUTE_ACCESS: dict[str, Access] = {
     "GET /api/kp/latest": Access.AUTHENTICATED,
     "GET /api/kp/events/{event_id}": Access.AUTHENTICATED,
     "GET /api/kp/events/{event_id}/settings": Access.PRESIDENT,
+    "GET /api/kp/events/{event_id}/banner": Access.PRESIDENT,
+    "PUT /api/kp/events/{event_id}/banner": Access.PRESIDENT,
+    "DELETE /api/kp/events/{event_id}/banner": Access.PRESIDENT,
     "POST /api/kp/create": Access.PRESIDENT,
     "PATCH /api/kp/events/{event_id}": Access.PRESIDENT,
     "POST /api/kp/events/{event_id}/clone": Access.PRESIDENT,
@@ -230,6 +233,9 @@ SUBJECT_MINIMUM_ROLE: dict[KpSubject, Access] = {
 
 KP_ROUTE_SUBJECT: dict[str, KpSubject] = {
     "GET /api/kp/events/{event_id}/settings": KpSubject.EVENT_CONFIGURATION,
+    "GET /api/kp/events/{event_id}/banner": KpSubject.EVENT_CONFIGURATION,
+    "PUT /api/kp/events/{event_id}/banner": KpSubject.EVENT_CONFIGURATION,
+    "DELETE /api/kp/events/{event_id}/banner": KpSubject.EVENT_CONFIGURATION,
     "POST /api/kp/create": KpSubject.EVENT_CONFIGURATION,
     "PATCH /api/kp/events/{event_id}": KpSubject.EVENT_CONFIGURATION,
     "POST /api/kp/events/{event_id}/clone": KpSubject.EVENT_CONFIGURATION,
@@ -348,6 +354,7 @@ UPLOAD_ROUTES = frozenset(
         "POST /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file",
         "POST /api/kp/events/{event_id}/exports/nametags/background",
         "PUT /api/kp/events/{event_id}/booklet/background",
+        "PUT /api/kp/events/{event_id}/banner",
         "PUT /api/kp/venue-layouts/{layout_id}/background",
         "PUT /api/kp/booth-zones/{booth_zone_id}/layout-file",
     }

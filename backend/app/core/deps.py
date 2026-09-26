@@ -27,6 +27,7 @@ from app.services.booking_notifier import MailBookingNotifier
 from app.services.booklet_service import BookletService
 from app.services.company_service import CompanyService
 from app.services.csv_service import CsvService
+from app.services.event_banner_service import EventBannerService
 from app.services.export_service import ExportService
 from app.services.industry_service import IndustryService
 from app.services.invite_service import InviteService
@@ -426,3 +427,14 @@ async def get_booklet_service(
 
 
 BookletServiceDep = Annotated[BookletService, Depends(get_booklet_service)]
+
+
+def get_event_banner_service(
+    kp_repository: KpRepositoryDep,
+    storage_service: StorageServiceDep,
+    current_user: CurrentUserDep,
+) -> EventBannerService:
+    return EventBannerService(kp_repository, storage_service, current_user)
+
+
+EventBannerServiceDep = Annotated[EventBannerService, Depends(get_event_banner_service)]

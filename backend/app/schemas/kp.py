@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.core.utils import normalize_http_url, strip_text
 from app.models.company import Company
@@ -121,6 +121,31 @@ class KpResponse(BaseModel):
     terms_url: str | None
     finalization_reminder_days: int
     max_nametags_per_booking: int
+
+
+class EventBannerSource(BaseModel):
+    width: int
+    url: str
+
+
+class EventBannerResult(BaseModel):
+    width: int
+    height: int
+    sources: list[EventBannerSource]
+
+
+class EventBannerResponse(EventBannerResult):
+    pass
+
+
+class KpLatestResult(KpResponse):
+    model_config = ConfigDict(from_attributes=True)
+
+    banner: EventBannerResponse | None = None
+
+
+class KpLatestResponse(KpLatestResult):
+    pass
 
 
 class KpStaffResponse(KpResponse):

@@ -614,6 +614,16 @@ class StorageDownloadFailed(AppError):
         )
 
 
+class EventBannerTooSmall(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The banner image is too narrow",
+            "error.event_banner_too_small",
+            identifier,
+            400,
+        )
+
+
 class BookletBackgroundRejected(AppError):
     def __init__(
         self, reason: str, identifier: str, details: dict[str, object] | None = None

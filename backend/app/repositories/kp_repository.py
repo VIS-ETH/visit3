@@ -19,6 +19,8 @@ from app.models.kp_event import (
     KpBookingCompanyDetailsIndustryLink,
     KpBookingStatus,
     KpEvent,
+    KpEventBanner,
+    KpEventBannerVariant,
     KpEventBooking,
     KpEventBookingService,
     KpEventBookingServiceFileLink,
@@ -278,6 +280,7 @@ class KpRepository(BaseRepository[KpEvent]):
                 booklet_background_stored_file_id=(
                     source_event.booklet_background_stored_file_id
                 ),
+                banner_id=source_event.banner_id,
             )
             self._validate_model(
                 cloned_event,
@@ -1554,6 +1557,73 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
+    async def create_banner(
+        self, width: int, height: int, variants: Sequence[tuple[int, StoredFile]]
+    ) -> KpEventBanner:
+        try:
+            banner = KpEventBanner(width=width, height=height)
+            self.session.add(banner)
+            for variant_width, stored_file in variants:
+                self.session.add(stored_file)
+                self.session.add(
+                    KpEventBannerVariant(
+                        banner_id=banner.id,
+                        width=variant_width,
+                        stored_file_id=stored_file.id,
+                    )
+                )
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        loaded = await self.get_banner(banner.id)
+        if loaded is None:
+            raise LookupError(f"create_banner:{banner.id}")
+        return loaded
+
+    async def get_banner(self, banner_id: UUID) -> KpEventBanner | None:
+        statement = (
+            select(KpEventBanner)
+            .where(col(KpEventBanner.id) == banner_id)
+            .options(
+                selectinload(rel(KpEventBanner.variants)).selectinload(
+                    rel(KpEventBannerVariant.stored_file)
+                )
+            )
+            .execution_options(populate_existing=True)
+        )
+        return (await self.session.execute(statement)).scalar_one_or_none()
+
+    async def set_event_banner(self, event: KpEvent, banner_id: UUID | None) -> KpEvent:
+        try:
+            event.banner_id = banner_id
+            self.session.add(event)
+            await self.session.commit()
+            await self.session.refresh(event)
+            return event
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def count_events_with_banner(self, banner_id: UUID) -> int:
+        statement = select(func.count(col(KpEvent.id))).where(
+            col(KpEvent.banner_id) == banner_id
+        )
+        return (await self.session.execute(statement)).scalar_one()
+
+    async def delete_banner(self, banner: KpEventBanner) -> None:
+        try:
+            for variant in banner.variants:
+                stored_file = variant.stored_file
+                await self.session.delete(variant)
+                await self.session.flush()
+                await self.session.delete(stored_file)
+            await self.session.delete(banner)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
     async def count_events_with_booklet_background(self, stored_file_id: UUID) -> int:
         statement = select(func.count(col(KpEvent.id))).where(
             col(KpEvent.booklet_background_stored_file_id) == stored_file_id
@@ -1591,6 +1661,10 @@ class KpRepository(BaseRepository[KpEvent]):
                 col(KpEventService.image_stored_file_id) == col(StoredFile.id),
             )
             .outerjoin(
+                KpEventBannerVariant,
+                col(KpEventBannerVariant.stored_file_id) == col(StoredFile.id),
+            )
+            .outerjoin(
                 KpCompanyProfile,
                 col(KpCompanyProfile.logo_stored_file_id) == col(StoredFile.id),
             )
@@ -1608,6 +1682,7 @@ class KpRepository(BaseRepository[KpEvent]):
                     col(KpEventNametagBackground.id).is_(None),
                     col(KpEvent.id).is_(None),
                     col(KpEventService.id).is_(None),
+                    col(KpEventBannerVariant.id).is_(None),
                     col(KpCompanyProfile.id).is_(None),
                     col(KpVenueLayout.id).is_(None),
                     col(KpEventBoothZone.id).is_(None),
