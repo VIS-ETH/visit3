@@ -140,6 +140,7 @@ async def test_company_transition_matrix(
         kp_repo, storage_service, make_user(company_id=company_id)
     )
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
     kp_repo.update_booking.return_value = make_booking(
         status=target, company_id=company_id
     )
@@ -182,6 +183,7 @@ async def test_staff_transition_matrix(
     booking = make_booking(status=current)
     service = KpService(kp_repo, storage_service, staff_user)
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
     kp_repo.update_booking.return_value = make_booking(status=target)
 
     if target in EXPECTED_STAFF_TRANSITIONS[current]:
@@ -210,6 +212,7 @@ async def test_staff_transitions_are_refused_for_company_users(
     booking = make_booking()
     service = KpService(kp_repo, storage_service, make_user(company_id=uuid4()))
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
 
     with pytest.raises(NotAllowed):
         await STAFF_ACTIONS[target](service, booking.id)
@@ -226,6 +229,7 @@ async def test_cancel_records_only_the_status_change(
         kp_repo, storage_service, make_user(company_id=company_id)
     )
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
     kp_repo.update_booking.return_value = make_booking(
         status=KpBookingStatus.CANCELLED, company_id=company_id
     )
@@ -244,6 +248,7 @@ async def test_accept_records_the_confirmed_timestamp(
     booking = make_booking()
     service = KpService(kp_repo, storage_service, staff_user)
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
     kp_repo.update_booking.return_value = make_booking(status=KpBookingStatus.CONFIRMED)
 
     await service.accept_booking(booking.id)
@@ -258,6 +263,7 @@ async def test_accept_does_not_wait_for_a_complete_booking(
     booking = make_booking(complete=False)
     service = KpService(kp_repo, storage_service, staff_user)
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
     kp_repo.update_booking.return_value = make_booking(status=KpBookingStatus.CONFIRMED)
 
     result = await service.accept_booking(booking.id)
@@ -271,6 +277,7 @@ async def test_undo_accept_clears_the_confirmed_timestamp(
     booking = make_booking(status=KpBookingStatus.CONFIRMED)
     service = KpService(kp_repo, storage_service, staff_user)
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
     kp_repo.update_booking.return_value = make_booking()
 
     await service.undo_accept_booking(booking.id)
@@ -285,6 +292,7 @@ async def test_reject_stores_the_reason(
     booking = make_booking()
     service = KpService(kp_repo, storage_service, staff_user)
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
     kp_repo.update_booking.return_value = make_booking(status=KpBookingStatus.REJECTED)
 
     await service.reject_booking(
@@ -305,6 +313,7 @@ async def test_cancel_stays_allowed_after_the_deadline(
         kp_repo, storage_service, make_user(company_id=company_id)
     )
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
     kp_repo.update_booking.return_value = make_booking(
         status=KpBookingStatus.CANCELLED, company_id=company_id, event=event
     )

@@ -1051,17 +1051,27 @@ class KpService:
         return await self._build_staff_booking_response(booking)
 
     async def _get_owned_booking(
-        self, booking_id: UUID, company_id: UUID, context: str
+        self, booking_id: UUID, company_id: UUID, context: str, lock: bool = False
     ) -> KpEventBooking:
-        booking = await self.kp_repository.get_booking_by_id(booking_id)
+        booking = (
+            await self.kp_repository.lock_booking(booking_id)
+            if lock
+            else await self.kp_repository.get_booking_by_id(booking_id)
+        )
         if booking is None:
             raise KpBookingNotFound(f"{context}:not_found:{booking_id}")
         if booking.company_id != company_id:
             raise KpBookingNotOwned(f"{context}:not_owned:{booking_id}")
         return booking
 
-    async def _get_booking(self, booking_id: UUID) -> KpEventBooking:
-        booking = await self.kp_repository.get_booking_by_id(booking_id)
+    async def _get_booking(
+        self, booking_id: UUID, lock: bool = False
+    ) -> KpEventBooking:
+        booking = (
+            await self.kp_repository.lock_booking(booking_id)
+            if lock
+            else await self.kp_repository.get_booking_by_id(booking_id)
+        )
         if booking is None:
             raise KpBookingNotFound(f"booking:not_found:{booking_id}")
         return booking
@@ -1245,7 +1255,7 @@ class KpService:
     ) -> BookingResponse:
         company_user = require_assigned_company_user(self.current_user)
         booking = await self._get_owned_booking(
-            booking_id, company_user.company_id, "switch_booking_zone"
+            booking_id, company_user.company_id, "switch_booking_zone", lock=True
         )
         self._ensure_zone_unlocked(booking, "switch_booking_zone")
         if booking.status != KpBookingStatus.REGISTERED:
@@ -1301,7 +1311,7 @@ class KpService:
     ) -> BookingResponse:
         company_user = require_assigned_company_user(self.current_user)
         booking = await self._get_owned_booking(
-            booking_id, company_user.company_id, "update_my_booking_status"
+            booking_id, company_user.company_id, "update_my_booking_status", lock=True
         )
         next_status = update_booking_input.status
         if booking.status == next_status:
@@ -1339,7 +1349,7 @@ class KpService:
         self, booking_id: UUID
     ) -> BookingWithCompanyAndBoothZoneResponse:
         require_staff_user(self.current_user)
-        booking = await self._get_booking(booking_id)
+        booking = await self._get_booking(booking_id, lock=True)
         if booking.status == KpBookingStatus.CONFIRMED:
             return await self._build_staff_booking_response(booking)
         ensure_booking_transition(
@@ -1373,7 +1383,7 @@ class KpService:
         self, booking_id: UUID
     ) -> BookingWithCompanyAndBoothZoneResponse:
         require_staff_user(self.current_user)
-        booking = await self._get_booking(booking_id)
+        booking = await self._get_booking(booking_id, lock=True)
         ensure_booking_transition(
             STAFF_BOOKING_TRANSITIONS,
             booking,
@@ -1395,7 +1405,7 @@ class KpService:
         self, booking_id: UUID, reject_booking_input: RejectBookingInput
     ) -> BookingWithCompanyAndBoothZoneResponse:
         require_staff_user(self.current_user)
-        booking = await self._get_booking(booking_id)
+        booking = await self._get_booking(booking_id, lock=True)
         ensure_booking_transition(
             STAFF_BOOKING_TRANSITIONS,
             booking,

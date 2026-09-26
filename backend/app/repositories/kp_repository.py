@@ -623,6 +623,19 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
+    @staticmethod
+    def locked_booking_statement(booking_id: UUID):
+        return (
+            select(KpEventBooking)
+            .where(col(KpEventBooking.id) == booking_id)
+            .with_for_update(of=KpEventBooking)
+            .execution_options(populate_existing=True)
+        )
+
+    async def lock_booking(self, booking_id: UUID) -> Optional[KpEventBooking]:
+        await self.session.execute(self.locked_booking_statement(booking_id))
+        return await self.get_booking_by_id(booking_id)
+
     async def get_booking_by_id(self, booking_id: UUID) -> Optional[KpEventBooking]:
         statement = self._booking_select().where(col(KpEventBooking.id) == booking_id)
         result = await self.session.execute(statement)
