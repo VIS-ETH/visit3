@@ -12,9 +12,11 @@ from app.core.exceptions import (
     StorageDownloadFailed,
     StorageFileInvalidMimeType,
     StorageFileTooLarge,
+    StorageImageTooLarge,
     StorageUploadFailed,
 )
 from app.services.storage_service import StorageService, UploadKind, sniff_mime_type
+from tests.images import decompression_bomb, iso_media_image, raster
 
 
 def make_storage_service(client=None, **settings_overrides) -> StorageService:
@@ -130,7 +132,7 @@ def test_validate_image_file_accepts_known_image_type():
 
     mime_type = service.validate_image_file(
         "logo.png",
-        PNG_BYTES,
+        raster(1, 1),
         "image/png",
         error_context="logo",
     )
@@ -155,7 +157,7 @@ def test_validate_image_file_stores_sniffed_mime_type_over_declared_one():
 
     mime_type = service.validate_image_file(
         "logo.bin",
-        PNG_BYTES,
+        raster(1, 1),
         "application/octet-stream",
         error_context="logo",
     )
@@ -420,3 +422,88 @@ def test_validate_image_file_rejects_heic_with_its_sniffed_mime_type():
         )
 
     assert error.value.identifier.endswith("mime:image/heic")
+
+
+@pytest.mark.parametrize(
+    ("width", "height"),
+    [(8001, 1), (1, 8001), (7000, 7000)],
+)
+def test_validate_image_file_rejects_an_image_over_the_pixel_limits(
+    width: int, height: int
+):
+    service = make_storage_service()
+
+    with pytest.raises(StorageImageTooLarge) as error:
+        service.validate_image_file(
+            "huge.png", raster(width, height), "image/png", error_context="logo"
+        )
+
+    assert error.value.code == "error.storage_image_too_large"
+
+
+def test_validate_image_file_rejects_a_decompression_bomb():
+    service = make_storage_service()
+
+    with pytest.raises(StorageImageTooLarge):
+        service.validate_image_file(
+            "bomb.png", decompression_bomb(30_000), "image/png", error_context="logo"
+        )
+
+
+def test_validate_image_file_accepts_an_image_at_the_side_limit():
+    service = make_storage_service()
+
+    mime_type = service.validate_image_file(
+        "wide.png", raster(8000, 10), "image/png", error_context="logo"
+    )
+
+    assert mime_type == "image/png"
+
+
+def test_validate_image_file_rejects_an_image_without_readable_dimensions():
+    service = make_storage_service()
+
+    with pytest.raises(StorageFileInvalidMimeType) as error:
+        service.validate_image_file(
+            "broken.png", PNG_BYTES, "image/png", error_context="logo"
+        )
+
+    assert error.value.identifier == "logo:dimensions"
+
+
+@pytest.mark.parametrize("brand", [b"heic", b"avif"])
+def test_validate_image_file_reads_iso_media_extents(brand: bytes):
+    service = make_storage_service()
+
+    with pytest.raises(StorageImageTooLarge):
+        service.validate_image_file(
+            "photo.heic",
+            iso_media_image(brand, 9000, 9000),
+            "image/heic",
+            error_context="service_image",
+        )
+    assert service.validate_image_file(
+        "photo.heic",
+        iso_media_image(brand, 4032, 3024),
+        "image/heic",
+        error_context="service_image",
+    ).startswith("image/")
+
+
+def test_validate_generic_file_does_not_limit_image_dimensions():
+    service = make_storage_service()
+
+    mime_type = service.validate_generic_file(
+        "artwork.png", raster(8001, 1), "image/png", error_context="artwork"
+    )
+
+    assert mime_type == "image/png"
+
+
+def test_validate_image_or_pdf_file_limits_image_dimensions():
+    service = make_storage_service()
+
+    with pytest.raises(StorageImageTooLarge):
+        service.validate_image_or_pdf_file(
+            "layout.png", raster(8001, 1), "image/png", error_context="layout"
+        )

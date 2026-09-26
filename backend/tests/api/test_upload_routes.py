@@ -10,11 +10,12 @@ from httpx import AsyncClient, Response
 from app.core.config import get_settings
 from app.services.storage_service import StorageService
 from tests.api.conftest import PNG_BYTES, KpSetup
+from tests.images import raster
 
 HTML_BYTES = b"<!DOCTYPE html><html><body>not a png</body></html>"
 PDF_BYTES = b"%PDF-1.7\n1 0 obj\n" + b"\x00" * 32
 SVG_BYTES = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
-WEBP_BYTES = b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 16
+WEBP_BYTES = raster(1, 1, "WEBP")
 IMAGE_LIMIT_BYTES = 128
 NAMETAG_BACKGROUND = "exports/nametags/background"
 

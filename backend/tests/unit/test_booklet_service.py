@@ -20,6 +20,7 @@ from app.models.user import User
 from app.schemas.company import UpdateCompanyProfileInput
 from app.services.booklet_service import COMPANY_PAGE_TEMPLATE, BookletService
 from app.services.pdf_service import PdfService, RenderedImage
+from tests.images import decompression_bomb, raster
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
@@ -260,10 +261,7 @@ async def test_a_booking_without_a_booth_number_keeps_the_number_empty(
     assert rendered_entry(pdf_service)["booth_number"] is None
 
 
-async def test_the_stored_logo_is_placed_on_the_page(
-    prepared_repos, storage_service, pdf_service, company_user, company
-):
-    company_repo, _ = prepared_repos
+def stored_logo(company: Company) -> KpCompanyProfile:
     profile = KpCompanyProfile(company_id=company.id)
     profile.logo_stored_file = StoredFile(
         storage_key="company/logo.jpg",
@@ -272,15 +270,42 @@ async def test_the_stored_logo_is_placed_on_the_page(
         size_bytes=3,
         sha256="a" * 64,
     )
-    company_repo.get_kp_profile.return_value = profile
-    storage_service.download_bytes.return_value = b"jpg"
+    return profile
+
+
+async def test_the_stored_logo_is_placed_on_the_page(
+    prepared_repos, storage_service, pdf_service, company_user, company
+):
+    company_repo, _ = prepared_repos
+    company_repo.get_kp_profile.return_value = stored_logo(company)
+    logo = raster(4, 4, "JPEG")
+    storage_service.download_bytes.return_value = logo
     service = make_service(prepared_repos, storage_service, pdf_service, company_user)
 
     await service.preview_my_company_page(UpdateCompanyProfileInput())
 
     storage_service.download_bytes.assert_awaited_once_with("company/logo.jpg")
-    assert pdf_service.render_png.await_args.kwargs["files"] == {"logo.jpg": b"jpg"}
+    assert pdf_service.render_png.await_args.kwargs["files"] == {"logo.jpg": logo}
     assert rendered_entry(pdf_service)["logo_path"] == "logo.jpg"
+
+
+@pytest.mark.parametrize(
+    "content",
+    [decompression_bomb(30_000), raster(8001, 1, "JPEG"), b"jpg"],
+    ids=["bomb", "too_wide", "unreadable"],
+)
+async def test_a_stored_logo_the_renderer_cannot_handle_is_left_out(
+    prepared_repos, storage_service, pdf_service, company_user, company, content
+):
+    company_repo, _ = prepared_repos
+    company_repo.get_kp_profile.return_value = stored_logo(company)
+    storage_service.download_bytes.return_value = content
+    service = make_service(prepared_repos, storage_service, pdf_service, company_user)
+
+    await service.preview_my_company_page(UpdateCompanyProfileInput())
+
+    assert pdf_service.render_png.await_args.kwargs["files"] == {}
+    assert rendered_entry(pdf_service)["logo_path"] is None
 
 
 async def test_the_brand_falls_back_to_the_company_name(

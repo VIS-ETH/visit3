@@ -17,6 +17,7 @@ from app.core.exceptions import (
     KpEventNotFound,
     StorageDeleteFailed,
 )
+from app.core.images import image_within_limits
 from app.core.rich_text import rich_text_blocks
 from app.models.company import Company, KpCompanyLanguage
 from app.models.industry import Industry
@@ -369,4 +370,6 @@ class BookletService:
             return {}
         suffix = LOGO_SUFFIXES.get(logo.mime_type, ".png")
         content = await self.storage_service.download_bytes(logo.storage_key)
+        if not image_within_limits(content, logo.mime_type):
+            return {}
         return {f"logo{suffix}": content}

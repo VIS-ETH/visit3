@@ -1,5 +1,3 @@
-import struct
-import zlib
 from collections.abc import AsyncIterator, Awaitable, Callable
 
 import pytest
@@ -9,6 +7,7 @@ from app.core.config import get_settings
 from app.services.storage_service import StorageService
 from tests.api.conftest import PNG_BYTES, KpSetup
 from tests.api.test_upload_routes import FakeS3Client, ImageRequirement
+from tests.images import decompression_bomb
 
 HTML_BYTES = b"<!DOCTYPE html><html><body><script>alert(document.domain)</script>"
 SVG_BYTES = b'<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>'
@@ -18,25 +17,6 @@ STREAM_CHUNK_BYTES = 64 * 1024
 BOUNDARY = "sec-boundary"
 BOMB_SIDE = 30_000
 MAX_LOGO_PIXELS = 40_000_000
-
-
-def png_chunk(kind: bytes, data: bytes) -> bytes:
-    checksum = zlib.crc32(kind + data) & 0xFFFFFFFF
-    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", checksum)
-
-
-def decompression_bomb(side: int) -> bytes:
-    header = struct.pack(">IIBBBBB", side, side, 8, 0, 0, 0, 0)
-    compressor = zlib.compressobj(9)
-    row = b"\x00" * (side + 1)
-    pixels = b"".join(compressor.compress(row) for _ in range(side))
-    pixels += compressor.flush()
-    return (
-        b"\x89PNG\r\n\x1a\n"
-        + png_chunk(b"IHDR", header)
-        + png_chunk(b"IDAT", pixels)
-        + png_chunk(b"IEND", b"")
-    )
 
 
 @pytest.fixture

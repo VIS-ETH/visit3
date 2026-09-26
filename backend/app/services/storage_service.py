@@ -20,8 +20,10 @@ from app.core.exceptions import (
     StorageDownloadFailed,
     StorageFileInvalidMimeType,
     StorageFileTooLarge,
+    StorageImageTooLarge,
     StorageUploadFailed,
 )
+from app.core.images import image_size
 
 UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024
 
@@ -180,7 +182,20 @@ class StorageService:
             raise StorageFileInvalidMimeType(f"{error_context}:mime:{mime_type}")
         if len(content) > max_size_bytes:
             raise StorageFileTooLarge(f"{error_context}:size:{len(content)}")
+        if restricted and mime_type.startswith("image/"):
+            self._validate_image_size(content, mime_type, error_context)
         return mime_type
+
+    def _validate_image_size(
+        self, content: bytes, mime_type: str, error_context: str
+    ) -> None:
+        size = image_size(content, mime_type)
+        if size is None:
+            raise StorageFileInvalidMimeType(f"{error_context}:dimensions")
+        if not size.within_limits:
+            raise StorageImageTooLarge(
+                f"{error_context}:pixels:{size.width}x{size.height}"
+            )
 
     def validate_image_file(
         self,

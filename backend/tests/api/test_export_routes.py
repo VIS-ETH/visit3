@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any
+from unittest.mock import AsyncMock
 from urllib.parse import unquote
 from uuid import UUID
 
@@ -31,6 +32,7 @@ from tests.api.conftest import (
     first_member_id,
     kp_payload,
 )
+from tests.images import raster
 
 EVENT_NAME = 'KP "2026"/Süd'
 SAFE_PREFIX = "KP -2026-Süd"
@@ -848,6 +850,17 @@ async def test_event_nametags_pdf_download(
     assert response.headers["content-type"] == PDF_MEDIA_TYPE
     assert response.content.startswith(b"%PDF")
     assert ascii_name == f"{ASCII_PREFIX}-nametags.pdf"
+
+
+async def test_an_oversized_stored_background_is_reported_not_rendered(
+    client: AsyncClient, export_world: ExportWorld, storage_service: AsyncMock
+):
+    storage_service.download_bytes.return_value = raster(8001, 1)
+
+    response = await export(client, export_world, "nametags/download")
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "error.storage_image_too_large"
 
 
 async def test_booking_nametags_pdf_download(

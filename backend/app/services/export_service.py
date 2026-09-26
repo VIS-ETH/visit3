@@ -14,7 +14,9 @@ from app.core.exceptions import (
     KpExportBackgroundNotFound,
     KpExportEmpty,
     KpNameTagNotFound,
+    StorageImageTooLarge,
 )
+from app.core.images import image_within_limits
 from app.models.kp_event import (
     KpEvent,
     KpEventBooking,
@@ -255,6 +257,8 @@ class ExportService:
         content = await self.storage_service.download_bytes(
             background.stored_file.storage_key
         )
+        if not image_within_limits(content, background.stored_file.mime_type):
+            raise StorageImageTooLarge(f"nametag_background:stored:{event_id}")
         return content, background
 
     def _name_tag_data(self, name_tag: NameTag) -> dict[str, str]:

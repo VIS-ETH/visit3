@@ -657,6 +657,16 @@ class StorageFileTooLarge(AppError):
         )
 
 
+class StorageImageTooLarge(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The uploaded image has too many pixels",
+            "error.storage_image_too_large",
+            identifier,
+            400,
+        )
+
+
 class StorageFileInvalidMimeType(AppError):
     def __init__(self, identifier: str):
         super().__init__(
