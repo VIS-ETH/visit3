@@ -22,6 +22,7 @@ class CompanyUserResponse(BaseModel):
     phone_number: str | None = None
     user_confirmed: bool
     email_confirmed: bool
+    pending_email: str | None = None
     company: CompanyResponse | None = None
 
 
@@ -45,6 +46,7 @@ class UserResponse(BaseModel):
 
 class StaffUserResponse(UserResponse):
     new_in_company_since: datetime | None = None
+    pending_email: str | None = None
 
 
 class UserFilter(StrEnum):

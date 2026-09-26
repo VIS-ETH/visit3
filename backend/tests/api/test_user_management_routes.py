@@ -270,7 +270,7 @@ async def test_admin_updates_a_privileged_user(
     )
 
     assert response.status_code == 200
-    assert response.json()["email"] == "new-staff@example.com"
+    assert response.json()["pending_email"] == "new-staff@example.com"
 
 
 async def test_reassigning_to_an_unknown_company_is_not_found(

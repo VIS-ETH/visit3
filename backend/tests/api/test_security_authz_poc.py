@@ -246,24 +246,31 @@ async def test_poc_login_skips_password_hashing_for_unknown_emails(
     assert unknown == known
 
 
-async def test_poc_plain_staff_can_redirect_a_company_account_email(
+async def test_poc_plain_staff_cannot_redirect_a_company_account_email(
     client: AsyncClient,
     company_user: User,
     create_user: Callable[..., Awaitable[User]],
     auth_headers: Callable[[User], Awaitable[dict[str, str]]],
     csrf_headers: dict[str, str],
+    mail_stub: AsyncMock,
 ):
     helper = await create_user(
         email="helper@example.com", is_staff=True, is_company=False
     )
 
-    response = await client.patch(
+    await client.patch(
         f"/api/users/{company_user.id}",
         json={"email": "helper.private@example.com"},
         headers={**await auth_headers(helper), **csrf_headers},
     )
+    mail_stub.SendMail.reset_mock()
+    await client.post(
+        "/api/auth/reset-password",
+        json={"email": "helper.private@example.com"},
+        headers=csrf_headers,
+    )
 
-    assert response.status_code == 403
+    mail_stub.SendMail.assert_not_awaited()
 
 
 async def test_poc_invite_tokens_are_stored_in_plain_text(

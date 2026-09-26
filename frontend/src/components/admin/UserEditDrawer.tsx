@@ -55,13 +55,17 @@ const UserEditDrawer = ({
 
   const { mutate: save, isPending: isSaving } = useUpdateCompanyUser({
     mutation: {
-      onSuccess: async () => {
+      onSuccess: async (updated) => {
         await queryClient.invalidateQueries({
           queryKey: getListUsersQueryKey(),
         });
         notifications.show({
           color: "green",
-          message: t("user_management.edit.saved"),
+          message: updated.pending_email
+            ? t("user_management.edit.email_pending", {
+                email: updated.pending_email,
+              })
+            : t("user_management.edit.saved"),
         });
         onClose();
       },

@@ -11,11 +11,21 @@ from sqlmodel import col, or_, select
 
 from app.core.utils import hash_str
 from app.models.auth_tokens import LoginLinkToken
-from app.models.user import ConfirmEmailToken, RefreshToken, ResetPasswordToken
+from app.models.user import (
+    ConfirmEmailToken,
+    EmailChangeToken,
+    RefreshToken,
+    ResetPasswordToken,
+)
 from app.repositories.base import BaseRepository
 
 TokenModelT = TypeVar(
-    "TokenModelT", RefreshToken, ResetPasswordToken, ConfirmEmailToken, LoginLinkToken
+    "TokenModelT",
+    RefreshToken,
+    ResetPasswordToken,
+    ConfirmEmailToken,
+    LoginLinkToken,
+    EmailChangeToken,
 )
 
 REFRESH_TOKEN_EXPIRE = timedelta(days=7)
@@ -225,6 +235,31 @@ class TokenRepository(BaseRepository[RefreshToken]):
     async def revoke_confirm_email_tokens(self, user_id: UUID):
         await self._revoke_tokens(ConfirmEmailToken, user_id=user_id)
 
+    async def create_email_change_token(self, user_id: UUID, new_email: str) -> str:
+        raw_token = self._create_token_value(32)
+        try:
+            token = EmailChangeToken(
+                user_id=user_id,
+                token=hash_str(raw_token),
+                expires_at=datetime.now(timezone.utc) + CONFIRM_EMAIL_TOKEN_EXPIRE,
+                new_email=new_email,
+            )
+            self.session.add(token)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        return raw_token
+
+    async def get_email_change_token(self, token: str) -> EmailChangeToken | None:
+        return await self._get_active_token(
+            EmailChangeToken,
+            hashed_token=hash_str(token),
+        )
+
+    async def revoke_email_change_tokens(self, user_id: UUID):
+        await self._revoke_tokens(EmailChangeToken, user_id=user_id)
+
     async def create_login_link_token(self, user_id: UUID, target_path: str) -> str:
         token = self._create_token_value(48)
         try:
@@ -286,6 +321,7 @@ class TokenRepository(BaseRepository[RefreshToken]):
                 ResetPasswordToken,
                 ConfirmEmailToken,
                 LoginLinkToken,
+                EmailChangeToken,
             ):
                 await self.hard_delete_where(model, self._disposable(model, now))
             await self.session.commit()

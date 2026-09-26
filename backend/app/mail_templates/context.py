@@ -45,6 +45,18 @@ class AccountExistsContext(MailContext):
 
 
 @dataclass(frozen=True)
+class EmailChangeConfirmContext(MailContext):
+    name: str
+    confirm_url: str
+
+
+@dataclass(frozen=True)
+class EmailChangeNoticeContext(MailContext):
+    name: str
+    new_email: str
+
+
+@dataclass(frozen=True)
 class CompanyInviteContext(MailContext):
     company_name: str
     invite_url: str
@@ -95,6 +107,14 @@ SAMPLE_CONTEXTS: dict[MailTemplateKey, MailContext] = {
     MailTemplateKey.ACCOUNT_EXISTS: AccountExistsContext(
         login_url="https://visit.vis.ethz.ch/login",
         reset_url="https://visit.vis.ethz.ch/reset-password",
+    ),
+    MailTemplateKey.EMAIL_CHANGE_CONFIRM: EmailChangeConfirmContext(
+        name="Ada Lovelace",
+        confirm_url="https://visit.vis.ethz.ch/confirm-email/sample-token",
+    ),
+    MailTemplateKey.EMAIL_CHANGE_NOTICE: EmailChangeNoticeContext(
+        name="Ada Lovelace",
+        new_email="ada.new@example.com",
     ),
     MailTemplateKey.COMPANY_INVITE: CompanyInviteContext(
         company_name="Acme AG",

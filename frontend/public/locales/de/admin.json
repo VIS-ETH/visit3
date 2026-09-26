@@ -88,7 +88,8 @@
       "is_staff": "Mitarbeitend",
       "is_admin": "Admin",
       "save": "Benutzer speichern",
-      "saved": "Benutzer gespeichert."
+      "saved": "Benutzer gespeichert.",
+      "email_pending": "Benutzer gespeichert. Die neue E-Mail-Adresse {{email}} wird aktiv, sobald sie bestätigt ist."
     },
     "delete_modal": {
       "title": "Benutzer löschen",

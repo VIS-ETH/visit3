@@ -162,39 +162,6 @@ async def test_update_company_user_rejects_email_of_another_user(
     user_repo.update_user.assert_not_awaited()
 
 
-async def test_update_company_user_revokes_tokens_and_resends_confirmation(
-    user_repo,
-    token_repo,
-    company_repo,
-    auth_service,
-    mail_template_service,
-    admin_user,
-    make_user,
-):
-    target = make_user(email="target@example.com")
-    updated = make_user(email="fresh@example.com", email_confirmed=False)
-    user_repo.get_by_id.return_value = target
-    user_repo.get_by_email.return_value = None
-    user_repo.update_user.return_value = updated
-    service = UserService(
-        user_repo,
-        token_repo,
-        company_repo,
-        auth_service,
-        mail_template_service,
-        admin_user,
-    )
-
-    result = await service.update_company_user(
-        target.id, UpdateCompanyUserInput(email="Fresh@Example.com")
-    )
-
-    assert result is updated
-    token_repo.revoke_all_refresh_tokens.assert_awaited_once_with(updated.id)
-    token_repo.revoke_reset_password_tokens.assert_awaited_once_with(updated.id)
-    auth_service.send_confirm_email.assert_awaited_once_with(updated)
-
-
 async def test_update_company_user_without_email_change_keeps_tokens(
     user_repo,
     token_repo,

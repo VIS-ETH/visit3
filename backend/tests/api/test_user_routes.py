@@ -1,5 +1,4 @@
 from collections.abc import Awaitable, Callable
-from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient
@@ -25,25 +24,6 @@ async def profile_headers(
     return {**await auth_headers(user), **csrf_headers}
 
 
-async def test_admin_email_change_unconfirms_email_and_sends_confirmation(
-    client: AsyncClient,
-    company_user: User,
-    staff_headers: dict[str, str],
-    mail_stub: AsyncMock,
-):
-    response = await client.patch(
-        f"/api/users/{company_user.id}",
-        json={"email": "moved@example.com"},
-        headers=staff_headers,
-    )
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["email"] == "moved@example.com"
-    assert body["email_confirmed"] is False
-    mail_stub.SendMail.assert_awaited_once()
-
-
 async def test_admin_email_change_to_existing_email_is_rejected(
     client: AsyncClient,
     company_user: User,
@@ -60,29 +40,6 @@ async def test_admin_email_change_to_existing_email_is_rejected(
 
     assert response.status_code == 400
     assert response.json()["code"] == "error.email_used"
-
-
-async def test_admin_email_change_revokes_refresh_tokens(
-    client: AsyncClient,
-    csrf_headers: dict[str, str],
-    company_user: User,
-    staff_headers: dict[str, str],
-):
-    login = await client.post(
-        "/api/auth/login",
-        data={"username": company_user.email, "password": "test-password-123"},
-        headers=csrf_headers,
-    )
-    client.cookies.set("refresh_token", login.cookies["refresh_token"])
-
-    await client.patch(
-        f"/api/users/{company_user.id}",
-        json={"email": "moved@example.com"},
-        headers=staff_headers,
-    )
-    response = await client.post("/api/auth/refresh", headers=csrf_headers)
-
-    assert response.status_code == 401
 
 
 async def test_profile_update_clears_phone_number_sent_as_null(

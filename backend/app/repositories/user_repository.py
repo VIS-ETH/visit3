@@ -283,6 +283,32 @@ class UserRepository(BaseRepository[User]):
             await self.session.rollback()
             raise e
 
+    async def set_pending_email(self, user: User, email: str | None) -> User:
+        try:
+            user.pending_email = email
+            self.session.add(user)
+            await self.session.commit()
+            return await self.load_user_company(user)
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def apply_email_change(self, user: User, email: str) -> User:
+        try:
+            user.email = email
+            user.email_confirmed = True
+            user.pending_email = None
+            self._validate_user(user)
+            self.session.add(user)
+            await self.session.commit()
+            return user
+        except IntegrityError:
+            await self.session.rollback()
+            raise EmailUsed(f"apply_email_change:{email}") from None
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
     async def clear_pending_invite(self, user: User) -> None:
         try:
             user.pending_invite_token = None

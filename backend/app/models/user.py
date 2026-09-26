@@ -51,6 +51,7 @@ class User(BaseEntity, table=True):
     email_confirmed: bool = False
 
     pending_invite_token: str | None = Field(default=None)
+    pending_email: str | None = Field(default=None)
 
     roles: list["Role"] = Relationship(
         back_populates="users",
@@ -108,3 +109,7 @@ class ResetPasswordToken(BaseToken, table=True):
 
 class ConfirmEmailToken(BaseToken, table=True):
     pass
+
+
+class EmailChangeToken(BaseToken, table=True):
+    new_email: str

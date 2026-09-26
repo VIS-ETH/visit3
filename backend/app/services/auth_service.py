@@ -423,13 +423,14 @@ class AuthService:
         return await self.token_repository.get_reset_password_token(token) is not None
 
     async def validate_confirm_email_token(self, token: str) -> bool:
-        return await self.token_repository.get_confirm_email_token(token) is not None
+        if await self.token_repository.get_confirm_email_token(token) is not None:
+            return True
+        return await self.token_repository.get_email_change_token(token) is not None
 
     async def confirm_email(self, token: str) -> bool:
         confirm_token = await self.token_repository.get_confirm_email_token(token)
         if not confirm_token:
-            logger.warning("Email confirmation attempted with invalid/expired token")
-            raise TokenInvalid("confirm_email")
+            return await self._confirm_email_change(token)
 
         user = await self.user_repository.get_by_id(confirm_token.user_id)
         if not user:
@@ -454,6 +455,24 @@ class AuthService:
                 )
             except MailUnavailable:
                 logger.exception(f"Staff notification failed for {user.email}")
+        return True
+
+    async def _confirm_email_change(self, token: str) -> bool:
+        change_token = await self.token_repository.get_email_change_token(token)
+        if not change_token:
+            logger.warning("Email confirmation attempted with invalid/expired token")
+            raise TokenInvalid("confirm_email")
+        user = await self.user_repository.get_by_id(change_token.user_id)
+        if user is None or user.pending_email != change_token.new_email:
+            raise TokenInvalid("confirm_email:email_change_outdated")
+        if await self.user_repository.get_by_email(change_token.new_email):
+            raise EmailUsed(f"confirm_email:{change_token.new_email}")
+        await self.user_repository.apply_email_change(user, change_token.new_email)
+        await self.token_repository.revoke_email_change_tokens(user.id)
+        await self.token_repository.revoke_all_refresh_tokens(user.id)
+        await self.token_repository.revoke_reset_password_tokens(user.id)
+        await self.token_repository.revoke_login_link_tokens(user.id)
+        logger.info(f"Email change confirmed for user {user.id}: {user.email}")
         return True
 
     async def _apply_pending_invite(self, user: User) -> None:

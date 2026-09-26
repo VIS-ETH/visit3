@@ -18,6 +18,7 @@ import {
 } from "../fixtures/admin";
 import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
+import { notificationsShow } from "../notifications";
 import { server } from "../server";
 
 let listRequests: URL[] = [];
@@ -237,6 +238,38 @@ describe("the user management page", () => {
       user_confirmed: false,
       is_staff: true,
       is_admin: false,
+    });
+  });
+
+  it("tells that a new email address waits for its confirmation", async () => {
+    server.use(
+      http.patch(`${testBackendUrl}/api/users/:userId`, async ({ request }) => {
+        patchBodies.push(await request.json());
+        return HttpResponse.json({
+          ...memberUser,
+          pending_email: "moved@example.com",
+        });
+      }),
+    );
+    const { user } = renderPage();
+    const row = await memberRow();
+
+    await user.click(
+      row.getByRole("button", { name: "user_management.edit.title" }),
+    );
+    const email = await screen.findByLabelText("user_management.edit.email");
+    await user.clear(email);
+    await user.type(email, "moved@example.com");
+    await user.click(
+      screen.getByRole("button", { name: "user_management.edit.save" }),
+    );
+
+    await waitFor(() => {
+      expect(notificationsShow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "user_management.edit.email_pending",
+        }),
+      );
     });
   });
 

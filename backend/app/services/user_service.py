@@ -7,13 +7,18 @@ from app.core.auth_context import require_admin_user, require_staff_user
 from app.core.exceptions import (
     CompanyNotFound,
     EmailUsed,
+    MailUnavailable,
     NotAllowed,
     PhoneNumberInvalid,
     UserLastCompanyMember,
     UserNotFound,
 )
 from app.core.utils import normalize_email, normalize_phone_number
-from app.mail_templates.context import AccountConfirmedContext
+from app.mail_templates.context import (
+    AccountConfirmedContext,
+    EmailChangeConfirmContext,
+    EmailChangeNoticeContext,
+)
 from app.mail_templates.keys import MailTemplateKey
 from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
@@ -27,7 +32,7 @@ from app.schemas.user import (
     UserPageResult,
     UserProfileFieldsInput,
 )
-from app.services.auth_service import AuthService
+from app.services.auth_service import AuthService, frontend_url
 from app.services.mail_template_service import MailTemplateService
 
 logger = logging.getLogger(__name__)
@@ -180,14 +185,17 @@ class UserService:
         if new_email is not None and await self.user_repository.get_by_email(new_email):
             raise EmailUsed(f"update_company_user:{new_email}")
         await self._check_company_reassignment(user, normalized)
+        if new_email is not None:
+            await self._request_email_change(user, new_email)
+        normalized = UpdateCompanyUserInput.model_validate(
+            normalized.model_dump(exclude_unset=True, exclude={"email"})
+        )
 
         was_confirmed = user.user_confirmed
         previous_company_id = user.company_id
         updated_user = await self.user_repository.update_user(user, normalized)
         if updated_user.company_id != previous_company_id:
             await self.company_repository.revoke_open_invites_by(updated_user.id)
-        if new_email is not None:
-            await self._revoke_credentials_after_email_change(updated_user)
         if updated_user.user_confirmed and not was_confirmed:
             await self._send_account_confirmed(updated_user)
         return updated_user
@@ -220,12 +228,35 @@ class UserService:
         normalized = normalize_email(email)
         return normalized if normalized != user.email else None
 
-    async def _revoke_credentials_after_email_change(self, user: User) -> None:
-        await self.token_repository.revoke_all_refresh_tokens(user.id)
-        await self.token_repository.revoke_reset_password_tokens(user.id)
-        await self.token_repository.revoke_login_link_tokens(user.id)
-        await self.auth_service.send_confirm_email(user)
-        logger.info(f"Email changed by admin {self.current_user.email}: {user.email}")
+    async def _request_email_change(self, user: User, new_email: str) -> None:
+        await self.token_repository.revoke_email_change_tokens(user.id)
+        token = await self.token_repository.create_email_change_token(
+            user.id, new_email
+        )
+        old_email = user.email
+        await self.user_repository.set_pending_email(user, new_email)
+        try:
+            await self.mail_template_service.send(
+                MailTemplateKey.EMAIL_CHANGE_CONFIRM,
+                [new_email],
+                EmailChangeConfirmContext(
+                    name=user.display_name,
+                    confirm_url=frontend_url(f"/confirm-email/{token}"),
+                ),
+            )
+            await self.mail_template_service.send(
+                MailTemplateKey.EMAIL_CHANGE_NOTICE,
+                [old_email],
+                EmailChangeNoticeContext(name=user.display_name, new_email=new_email),
+            )
+        except MailUnavailable:
+            await self.token_repository.revoke_email_change_tokens(user.id)
+            await self.user_repository.set_pending_email(user, None)
+            raise
+        logger.info(
+            f"Email change requested by {self.current_user.email}: "
+            f"{old_email} -> {new_email}"
+        )
 
     async def delete_user(self, user_id: UUID) -> None:
         require_staff_user(self.current_user)

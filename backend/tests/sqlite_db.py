@@ -37,6 +37,7 @@ from app.models.mail import MailTemplate
 from app.models.storage import StoredFile
 from app.models.user import (
     ConfirmEmailToken,
+    EmailChangeToken,
     RefreshToken,
     ResetPasswordToken,
     Role,
@@ -82,6 +83,7 @@ SQLITE_TABLES = [
     RefreshToken.__table__,
     ResetPasswordToken.__table__,
     ConfirmEmailToken.__table__,
+    EmailChangeToken.__table__,
     LoginLinkToken.__table__,
     MailTemplate.__table__,
     CompanyInvite.__table__,

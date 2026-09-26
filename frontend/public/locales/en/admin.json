@@ -88,7 +88,8 @@
       "is_staff": "Staff",
       "is_admin": "Admin",
       "save": "Save user",
-      "saved": "User saved."
+      "saved": "User saved.",
+      "email_pending": "User saved. The new email address {{email}} becomes active once it is confirmed."
     },
     "delete_modal": {
       "title": "Delete user",
