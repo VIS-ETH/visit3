@@ -22,6 +22,7 @@ import {
 import { formatKpIsoDateInput } from "../utils/kp-utils";
 import { useTranslatedForm } from "../utils/translator";
 import { useCurrentUser } from "../context/useCurrentUser";
+import EventBannerSection from "./kp/EventBannerSection";
 import EventSettingsFields from "./kp/EventSettingsFields";
 import {
   getGetKpByIdQueryKey,
@@ -127,73 +128,80 @@ const DetailsTab = ({ eventId }: { eventId: string }) => {
   };
 
   return (
-    <Paper withBorder p="lg" radius="md">
-      <form onSubmit={form.onSubmit(handleSubmit)}>
-        <Stack gap="md">
-          <div>
-            <Title order={4}>{t("kp.manage.edit_title")}</Title>
-            <Text c="dimmed" size="sm">
-              {t("kp.dashboard.date_input_hint")}
-            </Text>
-          </div>
-          <SimpleGrid
-            cols={{ base: 1, md: 2 }}
-            spacing="md"
-            verticalSpacing="sm"
-          >
-            <TextInput
-              label={t("kp.dashboard.name")}
-              disabled={isPending}
-              {...form.getInputProps("name")}
-            />
-            <TextInput
-              label={t("kp.dashboard.registration_open")}
-              placeholder={t("kp.dashboard.date_input_placeholder")}
-              disabled={isPending}
-              {...getDateInputProps("registrationOpen")}
-            />
-            <TextInput
-              label={t("kp.dashboard.registration_end")}
-              placeholder={t("kp.dashboard.date_input_placeholder")}
-              disabled={isPending}
-              {...getDateInputProps("registrationEnd")}
-            />
-            <TextInput
-              label={t("kp.dashboard.finalization_deadline")}
-              placeholder={t("kp.dashboard.date_input_placeholder")}
-              disabled={isPending}
-              {...getDateInputProps("finalizationDeadline")}
-            />
-            <TextInput
-              label={t("kp.dashboard.nametags_deadline")}
-              placeholder={t("kp.dashboard.date_input_placeholder")}
-              disabled={isPending}
-              {...getDateInputProps("nametagsDeadline")}
-            />
-            <TextInput
-              label={t("kp.dashboard.event_date")}
-              placeholder={t("kp.dashboard.date_input_placeholder")}
-              disabled={isPending}
-              {...getDateInputProps("eventDate")}
-            />
-          </SimpleGrid>
-          <Divider />
-          <EventSettingsFields
-            disabled={isPending}
-            getInputProps={(field) => form.getInputProps(field)}
-          />
-          <Group justify="flex-end">
-            <Button
-              type="submit"
-              loading={isPending}
-              disabled={isPending || !form.isValid()}
+    <Stack gap="lg">
+      <Paper withBorder p="lg" radius="md">
+        <form onSubmit={form.onSubmit(handleSubmit)}>
+          <Stack gap="md">
+            <div>
+              <Title order={4}>{t("kp.manage.edit_title")}</Title>
+              <Text c="dimmed" size="sm">
+                {t("kp.dashboard.date_input_hint")}
+              </Text>
+            </div>
+            <SimpleGrid
+              cols={{ base: 1, md: 2 }}
+              spacing="md"
+              verticalSpacing="sm"
             >
-              {t("kp.manage.save")}
-            </Button>
-          </Group>
-        </Stack>
-      </form>
-    </Paper>
+              <TextInput
+                label={t("kp.dashboard.name")}
+                disabled={isPending}
+                {...form.getInputProps("name")}
+              />
+              <TextInput
+                label={t("kp.dashboard.registration_open")}
+                placeholder={t("kp.dashboard.date_input_placeholder")}
+                disabled={isPending}
+                {...getDateInputProps("registrationOpen")}
+              />
+              <TextInput
+                label={t("kp.dashboard.registration_end")}
+                placeholder={t("kp.dashboard.date_input_placeholder")}
+                disabled={isPending}
+                {...getDateInputProps("registrationEnd")}
+              />
+              <TextInput
+                label={t("kp.dashboard.finalization_deadline")}
+                placeholder={t("kp.dashboard.date_input_placeholder")}
+                disabled={isPending}
+                {...getDateInputProps("finalizationDeadline")}
+              />
+              <TextInput
+                label={t("kp.dashboard.nametags_deadline")}
+                placeholder={t("kp.dashboard.date_input_placeholder")}
+                disabled={isPending}
+                {...getDateInputProps("nametagsDeadline")}
+              />
+              <TextInput
+                label={t("kp.dashboard.event_date")}
+                placeholder={t("kp.dashboard.date_input_placeholder")}
+                disabled={isPending}
+                {...getDateInputProps("eventDate")}
+              />
+            </SimpleGrid>
+            <Divider />
+            <EventSettingsFields
+              disabled={isPending}
+              getInputProps={(field) => form.getInputProps(field)}
+            />
+            <Group justify="flex-end">
+              <Button
+                type="submit"
+                loading={isPending}
+                disabled={isPending || !form.isValid()}
+              >
+                {t("kp.manage.save")}
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Paper>
+      {isPresident ? (
+        <Paper withBorder p="lg" radius="md">
+          <EventBannerSection eventId={eventId} />
+        </Paper>
+      ) : null}
+    </Stack>
   );
 };
 export default DetailsTab;

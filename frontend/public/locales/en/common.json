@@ -90,6 +90,7 @@
     "storage_download_failed": "The file download failed.",
     "storage_file_too_large": "The uploaded file is too large.",
     "storage_file_invalid_mime_type": "The uploaded file type is not allowed.",
+    "event_banner_too_small": "The banner must be at least 800 pixels wide.",
     "storage_image_too_large": "The image is too large. Use at most 8000 pixels per side and 40 megapixels.",
     "kp_registration_closed": "Registration for this event is currently closed.",
     "kp_booth_zone_at_capacity": "The selected booth zone has no remaining spots.",

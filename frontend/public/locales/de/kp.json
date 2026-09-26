@@ -345,6 +345,18 @@
         "events": "Events",
         "exports": "Exporte"
       },
+      "banner": {
+        "title": "Banner",
+        "requirements": "PNG, JPEG oder WebP, mindestens 800 Pixel breit, höchstens 5 MB. Wird für dieses Event auf der Startseite angezeigt.",
+        "default_banner": "Standardbanner",
+        "custom_banner": "Eigenes Banner",
+        "upload": "Banner hochladen",
+        "replace": "Banner ersetzen",
+        "reset": "Auf Standard zurücksetzen",
+        "reset_confirm": "Das hochgeladene Banner entfernen und wieder das Standardbanner verwenden?",
+        "file_too_large": "Das Bild ist grösser als 5 MB.",
+        "preview_alt": "Event-Banner"
+      },
       "booklet": {
         "title": "Gestaltung der Booklet-Seite",
         "requirements": "Eine A5-Seite als PDF, höchstens 900 KB. Die Unternehmensangaben werden darüber gelegt. Ohne PDF gilt das eingebaute Design mit der Zonenfarbe.",

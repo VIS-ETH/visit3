@@ -1,12 +1,14 @@
 import { Badge, Group, Stack, Title } from "@mantine/core";
 import { useCurrentUser } from "../context/useCurrentUser";
 import LinkFeatureCard from "../components/LinkFeatureCard";
-import { KONTAKTPARTY_BANNER } from "../components/home/kontaktparty-banner";
+import { eventBannerImage } from "../components/home/kontaktparty-banner";
+import { useGetLatestKp } from "../orval/generated/kp/kp";
 import { useTranslation } from "react-i18next";
 
 const Home = () => {
   const { user } = useCurrentUser();
   const { t } = useTranslation();
+  const { data: latestKp, isPending } = useGetLatestKp();
 
   return (
     <Stack gap="md">
@@ -23,7 +25,8 @@ const Home = () => {
 
       <LinkFeatureCard
         to="/kp"
-        image={KONTAKTPARTY_BANNER}
+        image={eventBannerImage(latestKp?.banner)}
+        imageLoading={isPending}
         imageAlt={t("home.kp.image_alt")}
         title={t("home.kp.title")}
         description={t("home.kp.description")}

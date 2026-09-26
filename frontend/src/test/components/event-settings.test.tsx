@@ -54,6 +54,9 @@ beforeEach(() => {
     http.get(`${testBackendUrl}/api/csrftoken`, () =>
       HttpResponse.json({ token: "csrf-1" }),
     ),
+    http.get(`${testBackendUrl}/api/kp/events/:eventId/banner`, () =>
+      HttpResponse.json(null),
+    ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId/settings`, () =>
       HttpResponse.json(eventSettings),
     ),
@@ -71,6 +74,30 @@ beforeEach(() => {
 });
 
 describe("the event settings section", () => {
+  it("offers the banner settings to the president", async () => {
+    renderDetailsTab();
+
+    expect(
+      await screen.findByText("kp.dashboard.banner.title"),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the banner settings from other staff", async () => {
+    renderWithProviders(
+      <UserProvider
+        user={{ ...presidentUser, is_kp_president: false }}
+        isLoading={false}
+      >
+        <DetailsTab eventId={testEventId} />
+      </UserProvider>,
+    );
+
+    await screen.findByText("kp.manage.edit_title");
+    expect(
+      screen.queryByText("kp.dashboard.banner.title"),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows the stored settings once the event has loaded", async () => {
     renderDetailsTab();
 

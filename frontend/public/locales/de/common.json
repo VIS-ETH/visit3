@@ -90,6 +90,7 @@
     "storage_download_failed": "Der Datei-Download ist fehlgeschlagen.",
     "storage_file_too_large": "Die hochgeladene Datei ist zu gross.",
     "storage_file_invalid_mime_type": "Dieser Dateityp ist nicht erlaubt.",
+    "event_banner_too_small": "Das Banner muss mindestens 800 Pixel breit sein.",
     "storage_image_too_large": "Das Bild ist zu gross. Erlaubt sind höchstens 8000 Pixel pro Seite und 40 Megapixel.",
     "kp_registration_closed": "Die Anmeldung für dieses Event ist derzeit geschlossen.",
     "kp_booth_zone_at_capacity": "Die ausgewählte Standzone hat keine verfügbaren Plätze mehr.",

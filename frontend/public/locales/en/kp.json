@@ -345,6 +345,18 @@
         "events": "Events",
         "exports": "Exports"
       },
+      "banner": {
+        "title": "Banner",
+        "requirements": "PNG, JPEG or WebP, at least 800 pixels wide, at most 5 MB. Shown on the home page for this event.",
+        "default_banner": "Default banner",
+        "custom_banner": "Custom banner",
+        "upload": "Upload banner",
+        "replace": "Replace banner",
+        "reset": "Reset to default",
+        "reset_confirm": "Remove the uploaded banner and use the default banner again?",
+        "file_too_large": "The image is larger than 5 MB.",
+        "preview_alt": "Event banner"
+      },
       "booklet": {
         "title": "Booklet page design",
         "requirements": "One A5 page as PDF, at most 900 KB. The company content is placed on top. Without a PDF, the built-in design with the zone colour is used.",
