@@ -21,6 +21,7 @@ from app.schemas.user import (
 logger = logging.getLogger(__name__)
 
 MAX_PAGE_SIZE = 100
+MAX_PAGE = 10_000
 
 public_router = APIRouter(prefix="/user", tags=["user"])
 router = APIRouter(prefix="/user", tags=["user"], dependencies=[CsrfDep])
@@ -125,7 +126,7 @@ async def list_users(
     user_service: UserServiceDep,
     query: str | None = None,
     filter: UserFilter = UserFilter.ALL,
-    page: int = Query(default=1, ge=1),
+    page: int = Query(default=1, ge=1, le=MAX_PAGE),
     page_size: int = Query(default=25, ge=1, le=MAX_PAGE_SIZE),
 ) -> UserPageResult:
     return await user_service.list_users(query, filter, page, page_size)

@@ -39,6 +39,7 @@ from app.schemas.company import (
 from app.schemas.user import StaffUserResponse, UserResponse
 
 MAX_PAGE_SIZE = 100
+MAX_PAGE = 10_000
 BOOKLET_PAGE_RATE_LIMIT = user_rate_limit(
     "booklet_page",
     get_settings().BOOKLET_PAGE_RATE_LIMIT_MAX_REQUESTS,
@@ -321,7 +322,7 @@ async def update_my_company(
 async def search_companies(
     company_service: CompanyServiceDep,
     query: str | None = None,
-    page: int = Query(default=1, ge=1),
+    page: int = Query(default=1, ge=1, le=MAX_PAGE),
     page_size: int = Query(default=25, ge=1, le=MAX_PAGE_SIZE),
 ) -> CompanyPageResult:
     return await company_service.search_companies(query, page, page_size)

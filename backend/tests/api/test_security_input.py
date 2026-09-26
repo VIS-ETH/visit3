@@ -163,3 +163,13 @@ async def test_an_unexpected_error_on_a_crafted_path_logs_one_line(
 
     assert caplog.records
     assert all("\n" not in record.getMessage() for record in caplog.records)
+
+
+async def test_company_search_rejects_a_page_beyond_the_offset_range(
+    client: AsyncClient, staff_headers: dict[str, str]
+):
+    response = await client.get(
+        "/api/companies", params={"page": OVERFLOWING_PAGE}, headers=staff_headers
+    )
+
+    assert response.status_code == 422
