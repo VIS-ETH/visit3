@@ -9,8 +9,10 @@ from app.core.auth_context import (
     require_company_profile_user,
     require_staff_user,
 )
+from app.core.config import get_settings
 from app.core.exceptions import (
     BookletBackgroundRejected,
+    BookletPageRenderTimeout,
     CompanyNotFound,
     KpEventNotFound,
     StorageDeleteFailed,
@@ -31,6 +33,7 @@ from app.schemas.company import (
 )
 from app.services.pdf_service import PdfService, PdfUnreadable
 from app.services.storage_service import StorageService, UploadKind, UploadStream
+from app.services.typst_runner import TypstRenderAborted
 
 COMPANY_PAGE_TEMPLATE = "company_page.typ"
 logger = logging.getLogger(__name__)
@@ -185,19 +188,24 @@ class BookletService:
         entry: Mapping[str, object],
         files: dict[str, bytes],
         background: bytes | None,
+        timeout: float | None = None,
     ) -> BookletPageResult:
         page_files = (
             files if background is None else {**files, BACKGROUND_FILE: background}
         )
-        rendered = await self.pdf_service.render_png(
-            template_name=COMPANY_PAGE_TEMPLATE,
-            data={
-                **entry,
-                "background_path": None if background is None else BACKGROUND_FILE,
-            },
-            files=page_files,
-            metadata_label=OVERFLOW_LABEL,
-        )
+        try:
+            rendered = await self.pdf_service.render_png(
+                template_name=COMPANY_PAGE_TEMPLATE,
+                data={
+                    **entry,
+                    "background_path": None if background is None else BACKGROUND_FILE,
+                },
+                files=page_files,
+                metadata_label=OVERFLOW_LABEL,
+                timeout=timeout,
+            )
+        except TypstRenderAborted:
+            raise BookletPageRenderTimeout(COMPANY_PAGE_TEMPLATE) from None
         return BookletPageResult(
             png_base64=b64encode(rendered.png).decode("ascii"),
             overflow=rendered.metadata is True,
@@ -329,10 +337,13 @@ class BookletService:
         identifier = f"{BACKGROUND_CONTEXT}:{event_id}"
         if not content.startswith(PDF_SIGNATURE):
             raise BookletBackgroundRejected("not_pdf", identifier)
+        timeout = get_settings().TYPST_VALIDATION_TIMEOUT_SECONDS
         try:
-            page = await self.pdf_service.inspect_pdf(content)
+            page = await self.pdf_service.inspect_pdf(content, timeout)
         except PdfUnreadable:
             raise BookletBackgroundRejected("unreadable", identifier) from None
+        except TypstRenderAborted:
+            raise BookletBackgroundRejected("too_complex", identifier) from None
         if page.has_more_pages:
             raise BookletBackgroundRejected("page_count", identifier)
         if (
@@ -345,7 +356,9 @@ class BookletService:
                 {"widthMm": round(page.width_mm), "heightMm": round(page.height_mm)},
             )
         try:
-            await self._render(SAMPLE_PAGE, {}, content)
+            await self._render(SAMPLE_PAGE, {}, content, timeout)
+        except BookletPageRenderTimeout:
+            raise BookletBackgroundRejected("too_complex", identifier) from None
         except Exception:
             raise BookletBackgroundRejected("unreadable", identifier) from None
 

@@ -11,6 +11,7 @@ from app.core import deps
 from app.models.user import User
 from app.services.booklet_service import BOOKLET_BACKGROUND_MAX_BYTES
 from app.services.pdf_service import PdfService, RenderedImage
+from app.services.typst_runner import TypstRenderAborted
 from tests.api.conftest import PNG_BYTES, KpSetup, company_profile_payload, kp_payload
 from tests.booklet_pdfs import make_pdf
 
@@ -56,6 +57,29 @@ def recording_pdf_service(api_app: FastAPI) -> Iterator[RecordingPdfService]:
     api_app.dependency_overrides.pop(deps.get_pdf_service, None)
 
 
+class OverloadedPdfService(PdfService):
+    def __init__(self, abort_inspection: bool) -> None:
+        self.abort_inspection = abort_inspection
+
+    async def inspect_pdf(self, content: bytes, timeout: float | None = None) -> Any:
+        if self.abort_inspection:
+            raise TypstRenderAborted("timeout")
+        return await super().inspect_pdf(content, timeout)
+
+    async def render_png(self, **kwargs: Any) -> RenderedImage:
+        raise TypstRenderAborted("timeout")
+
+
+@pytest.fixture
+def overloaded_pdf_service(api_app: FastAPI) -> Iterator[Callable[[bool], None]]:
+    def _install(abort_inspection: bool) -> None:
+        service = OverloadedPdfService(abort_inspection)
+        api_app.dependency_overrides[deps.get_pdf_service] = lambda: service
+
+    yield _install
+    api_app.dependency_overrides.pop(deps.get_pdf_service, None)
+
+
 @pytest.fixture
 async def plain_staff_headers(
     staff_user: User,
@@ -94,6 +118,39 @@ async def test_an_unusable_background_is_rejected_and_never_stored(
     assert response.json()["code"] == code
     storage_service.upload_bytes.assert_not_awaited()
     assert await stored_background(client, staff_headers, kp_setup.event_id) is None
+
+
+@pytest.mark.parametrize("abort_inspection", [True, False])
+async def test_a_background_too_complex_to_render_is_rejected_and_never_stored(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    kp_setup: KpSetup,
+    storage_service: AsyncMock,
+    overloaded_pdf_service: Callable[[bool], None],
+    abort_inspection: bool,
+):
+    overloaded_pdf_service(abort_inspection)
+
+    response = await upload(client, staff_headers, kp_setup.event_id, make_pdf())
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "error.booklet_background_too_complex"
+    storage_service.upload_bytes.assert_not_awaited()
+    assert await stored_background(client, staff_headers, kp_setup.event_id) is None
+
+
+async def test_an_admin_preview_that_renders_too_long_is_reported(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    kp_setup: KpSetup,
+    overloaded_pdf_service: Callable[[bool], None],
+):
+    overloaded_pdf_service(False)
+
+    response = await client.post(preview_url(kp_setup.event_id), headers=staff_headers)
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "error.booklet_page_render_timeout"
 
 
 async def test_a_background_over_the_size_limit_is_rejected(

@@ -8,8 +8,10 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import uuid4
 
+import pytest
 from openpyxl import load_workbook
 
+from app.core.exceptions import ExportRenderTimeout
 from app.models.company import Company
 from app.models.kp_event import (
     KpBookingCompanyDetails,
@@ -28,6 +30,7 @@ from app.services.export_service import (
     ExportLanguage,
     ExportService,
 )
+from app.services.typst_runner import TypstRenderAborted
 from app.services.xlsx_service import XlsxService
 
 
@@ -191,6 +194,36 @@ async def test_nametag_pdf_render_uses_restricted_workspace_and_json_data():
             "company": "=Company",
         }
     ]
+
+
+class OverloadedPdfService:
+    async def render(self, *args: object, **kwargs: object):
+        raise TypstRenderAborted("timeout")
+
+
+async def test_a_nametag_export_that_renders_too_long_is_reported():
+    service = ExportService(
+        kp_repository=Mock(),
+        storage_service=Mock(),
+        pdf_service=OverloadedPdfService(),
+        csv_service=CsvService(),
+        xlsx_service=XlsxService(),
+        current_user=Mock(),
+    )
+    name_tag = SimpleNamespace(
+        first_name="Ada",
+        last_name="Lovelace",
+        position="Engineer",
+        booking=SimpleNamespace(company=SimpleNamespace(name="Acme")),
+    )
+
+    with pytest.raises(ExportRenderTimeout) as error:
+        await service._render_nametags_pdf(
+            b"\x89PNG\r\n", "image/png", [name_tag], "nametags.pdf", 2
+        )
+
+    assert error.value.code == "error.export_render_timeout"
+    assert error.value.status_code == 503
 
 
 async def test_list_nametag_export_targets_sorts_unassigned_booths_last(

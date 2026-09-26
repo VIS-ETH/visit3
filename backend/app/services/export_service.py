@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 from app.core.auth_context import require_staff_user
 from app.core.downloads import sanitize_download_filename
 from app.core.exceptions import (
+    ExportRenderTimeout,
     KpBookingNotFound,
     KpEventNotFound,
     KpExportBackgroundNotFound,
@@ -37,6 +38,7 @@ from app.services.csv_service import CsvService
 from app.services.pdf_service import PdfService
 from app.services.pricing import price_breakdown
 from app.services.storage_service import StorageService, UploadKind, UploadStream
+from app.services.typst_runner import TypstRenderAborted
 from app.services.xlsx_service import XlsxService
 
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
@@ -281,17 +283,22 @@ class ExportService:
             background_path.write_bytes(background_bytes)
             copyfile(TEMPLATES_DIR / NAMETAG_TEMPLATE_NAME, template_path)
 
-            content, rendered_filename = await self.pdf_service.render(
-                NAMETAG_TEMPLATE_NAME,
-                {
-                    "background_path": background_path.name,
-                    "columns": columns or 2,
-                    "tags": [self._name_tag_data(name_tag) for name_tag in name_tags],
-                },
-                self._export_filename(filename),
-                root=str(workspace_path),
-                template_dir=workspace_path,
-            )
+            try:
+                content, rendered_filename = await self.pdf_service.render(
+                    NAMETAG_TEMPLATE_NAME,
+                    {
+                        "background_path": background_path.name,
+                        "columns": columns or 2,
+                        "tags": [
+                            self._name_tag_data(name_tag) for name_tag in name_tags
+                        ],
+                    },
+                    self._export_filename(filename),
+                    root=str(workspace_path),
+                    template_dir=workspace_path,
+                )
+            except TypstRenderAborted:
+                raise ExportRenderTimeout("nametag_export:render_timeout") from None
 
         if content is None:
             raise KpExportEmpty("nametag_export:rendering_failed")

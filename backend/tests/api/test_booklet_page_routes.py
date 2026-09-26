@@ -10,6 +10,7 @@ from app.core import deps
 from app.core.config import get_settings
 from app.models.user import User
 from app.services.pdf_service import PdfService, RenderedImage
+from app.services.typst_runner import TypstRenderAborted
 from tests.api.conftest import company_profile_payload
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
@@ -27,6 +28,28 @@ def instant_pdf_service(api_app: FastAPI) -> Iterator[None]:
     api_app.dependency_overrides[deps.get_pdf_service] = lambda: service
     yield
     api_app.dependency_overrides.pop(deps.get_pdf_service, None)
+
+
+@pytest.fixture
+def overloaded_pdf_service(api_app: FastAPI) -> Iterator[None]:
+    service = AsyncMock(spec=PdfService)
+    service.render_png.side_effect = TypstRenderAborted("timeout")
+    api_app.dependency_overrides[deps.get_pdf_service] = lambda: service
+    yield
+    api_app.dependency_overrides.pop(deps.get_pdf_service, None)
+
+
+async def test_a_preview_that_renders_too_long_is_reported(
+    client: AsyncClient,
+    company_headers: dict[str, str],
+    overloaded_pdf_service: None,
+):
+    response = await client.post(
+        MY_PAGE, json=company_profile_payload(), headers=company_headers
+    )
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "error.booklet_page_render_timeout"
 
 
 async def preview_statuses(

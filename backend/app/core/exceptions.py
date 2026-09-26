@@ -617,6 +617,26 @@ class BookletBackgroundRejected(AppError):
         )
 
 
+class BookletPageRenderTimeout(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The booklet page took too long to render",
+            "error.booklet_page_render_timeout",
+            identifier,
+            503,
+        )
+
+
+class ExportRenderTimeout(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The export took too long to render",
+            "error.export_render_timeout",
+            identifier,
+            503,
+        )
+
+
 class StorageFileTooLarge(AppError):
     def __init__(self, identifier: str):
         super().__init__(
