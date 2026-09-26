@@ -6,6 +6,7 @@ from httpx import AsyncClient
 
 from app.mail_templates.defaults import MAIL_TEMPLATE_DEFAULTS
 from app.mail_templates.keys import MailTemplateKey
+from app.mail_templates.renderer import MAX_TEMPLATE_CHARACTERS
 from app.models.user import User
 from tests.api.conftest import decoded_subject
 
@@ -151,6 +152,35 @@ async def test_update_rejects_broken_syntax(
     assert response.status_code == 400
     assert response.json()["code"] == "error.mail_template_invalid"
     assert response.json()["details"] == {"field": "body_de"}
+
+
+async def test_update_rejects_a_loop_before_saving(
+    client: AsyncClient, plain_staff_headers: dict[str, str]
+):
+    response = await client.put(
+        f"/api/mail-templates/{KEY}",
+        json={
+            **VALID_BODY,
+            "body_en": "{% for a in name %}{% for b in name %}{% endfor %}{% endfor %}",
+        },
+        headers=plain_staff_headers,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "error.mail_template_invalid"
+    assert response.json()["details"] == {"field": "body_en"}
+
+
+async def test_update_rejects_an_oversized_template(
+    client: AsyncClient, plain_staff_headers: dict[str, str]
+):
+    response = await client.put(
+        f"/api/mail-templates/{KEY}",
+        json={**VALID_BODY, "body_de": "x" * (MAX_TEMPLATE_CHARACTERS + 1)},
+        headers=plain_staff_headers,
+    )
+
+    assert response.status_code == 422
 
 
 async def test_update_rejects_a_sandbox_violation(

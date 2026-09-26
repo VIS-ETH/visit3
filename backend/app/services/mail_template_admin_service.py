@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime
 from uuid import UUID
@@ -139,7 +140,7 @@ class MailTemplateAdminService:
     ) -> MailTemplateResult:
         require_staff_user(self.current_user)
         known_key = self._known_key(key)
-        texts = self._validated_texts(known_key, update)
+        texts = await asyncio.to_thread(self._validated_texts, known_key, update)
         template = await self.mail_template_repository.upsert(
             str(known_key), texts, self.current_user.id
         )

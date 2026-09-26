@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Sequence
 
 from app.core.exceptions import MailUnavailable
@@ -38,7 +39,10 @@ class MailTemplateService:
         )
 
     async def render(self, key: MailTemplateKey, context: MailContext) -> RenderedMail:
-        return render_mail(await self.texts_for(key), context, template_identifier(key))
+        texts = await self.texts_for(key)
+        return await asyncio.to_thread(
+            render_mail, texts, context, template_identifier(key)
+        )
 
     async def send(
         self, key: MailTemplateKey, recipients: Sequence[str], context: MailContext

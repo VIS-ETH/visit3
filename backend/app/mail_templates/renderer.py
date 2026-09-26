@@ -1,7 +1,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from jinja2 import StrictUndefined, TemplateError
+from jinja2 import StrictUndefined, TemplateError, nodes
 from jinja2.meta import find_undeclared_variables
 from jinja2.sandbox import SandboxedEnvironment
 
@@ -22,7 +22,49 @@ WORDMARK_STYLE = (
 )
 DIVIDER_STYLE = "border:0;border-top:1px solid #d0d1d4;margin:24px 0;"
 
+MAX_TEMPLATE_CHARACTERS = 50_000
+MAX_OUTPUT_CHARACTERS = 100_000
+ALLOWED_NODES = (
+    nodes.Output,
+    nodes.TemplateData,
+    nodes.Name,
+    nodes.Const,
+    nodes.If,
+    nodes.CondExpr,
+    nodes.Not,
+    nodes.And,
+    nodes.Or,
+    nodes.Compare,
+    nodes.Operand,
+    nodes.Filter,
+)
+ALLOWED_FILTERS = frozenset(
+    {"capitalize", "default", "e", "escape", "lower", "title", "trim", "upper"}
+)
+
 environment = SandboxedEnvironment(autoescape=True, undefined=StrictUndefined)
+
+
+def _unsupported(node: nodes.Node) -> str | None:
+    if not isinstance(node, ALLOWED_NODES):
+        return type(node).__name__
+    if isinstance(node, nodes.Filter) and node.name not in ALLOWED_FILTERS:
+        return f"filter {node.name}"
+    return None
+
+
+def parse_template(source: str, identifier: str, field: str) -> nodes.Template:
+    try:
+        parsed = environment.parse(source)
+    except TemplateError as error:
+        raise MailTemplateInvalid(identifier, str(error), field)
+    for node in parsed.find_all(nodes.Node):
+        unsupported = _unsupported(node)
+        if unsupported is not None:
+            raise MailTemplateInvalid(
+                identifier, f"unsupported syntax: {unsupported}", field
+            )
+    return parsed
 
 
 @dataclass(frozen=True)
@@ -35,20 +77,22 @@ class RenderedMail:
 def unknown_variables(
     source: str, allowed: frozenset[str], identifier: str, field: str
 ) -> set[str]:
-    try:
-        parsed = environment.parse(source)
-    except TemplateError as error:
-        raise MailTemplateInvalid(identifier, str(error), field)
-    return find_undeclared_variables(parsed) - allowed
+    return (
+        find_undeclared_variables(parse_template(source, identifier, field)) - allowed
+    )
 
 
 def render_fragment(
     source: str, variables: Mapping[str, str], identifier: str, field: str
 ) -> str:
+    parsed = parse_template(source, identifier, field)
     try:
-        return environment.from_string(source).render(**variables)
+        rendered = environment.from_string(parsed).render(**variables)
     except TemplateError as error:
         raise MailTemplateInvalid(identifier, str(error), field)
+    if len(rendered) > MAX_OUTPUT_CHARACTERS:
+        raise MailTemplateInvalid(identifier, "output too large", field)
+    return rendered
 
 
 def compose_document(body_de: str, body_en: str) -> str:

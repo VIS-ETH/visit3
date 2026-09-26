@@ -3,7 +3,11 @@ import pytest
 from app.core.exceptions import MailTemplateInvalid
 from app.mail_templates.context import AccountConfirmedContext
 from app.mail_templates.plain_text import html_to_plain_text
-from app.mail_templates.renderer import render_mail, unknown_variables
+from app.mail_templates.renderer import (
+    MAX_OUTPUT_CHARACTERS,
+    render_mail,
+    unknown_variables,
+)
 from app.mail_templates.texts import MailTemplateTexts
 
 CONTEXT = AccountConfirmedContext(name="Ada", login_url="https://visit.test/link/abc")
@@ -114,3 +118,54 @@ def test_rendered_text_alternative_contains_the_link_url():
 
     assert "Zu VISIT (https://visit.test/link/abc)" in rendered.text
     assert "<p>" not in rendered.text
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "{% for c in name %}{% for d in name %}x{% endfor %}{% endfor %}",
+        "{{ 9 ** 9 ** 9 }}",
+        "{{ name * 100000000 }}",
+        "{{ range(3) }}",
+        "{{ name.upper() }}",
+        "{{ name|safe }}",
+        "{{ name|replace('a', 'bbbbbbbbbbbb') }}",
+        "{% set x = name %}{{ x }}",
+        "{% macro m() %}{% endmacro %}",
+    ],
+    ids=[
+        "loop",
+        "power",
+        "repeat",
+        "call",
+        "method",
+        "safe",
+        "replace",
+        "set",
+        "macro",
+    ],
+)
+def test_unsupported_template_syntax_is_rejected(source: str):
+    with pytest.raises(MailTemplateInvalid) as error:
+        render_mail(texts(body_de=source), CONTEXT, "test")
+
+    assert error.value.details == {"field": "body_de"}
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "{% if name %}Hallo {{ name }}{% else %}Hallo{% endif %}",
+        "{{ name|upper }} {{ name|default('Team') }}",
+        "{{ name if name == 'Ada' else login_url }}",
+    ],
+)
+def test_simple_conditions_and_filters_still_render(source: str):
+    rendered = render_mail(texts(body_de=source), CONTEXT, "test")
+
+    assert "Ada" in rendered.html or "ADA" in rendered.html
+
+
+def test_a_template_producing_huge_output_is_rejected():
+    with pytest.raises(MailTemplateInvalid):
+        render_mail(texts(body_de="x" * (MAX_OUTPUT_CHARACTERS + 1)), CONTEXT, "test")

@@ -3,6 +3,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.mail_templates.renderer import MAX_TEMPLATE_CHARACTERS
+
+MAX_SUBJECT_CHARACTERS = 500
+
 
 class MailTemplateResult(BaseModel):
     key: str
@@ -25,10 +29,10 @@ class MailTemplateResponse(MailTemplateResult):
 
 
 class UpdateMailTemplateInput(BaseModel):
-    subject_de: str = Field(min_length=1)
-    subject_en: str = Field(min_length=1)
-    body_de: str = Field(min_length=1)
-    body_en: str = Field(min_length=1)
+    subject_de: str = Field(min_length=1, max_length=MAX_SUBJECT_CHARACTERS)
+    subject_en: str = Field(min_length=1, max_length=MAX_SUBJECT_CHARACTERS)
+    body_de: str = Field(min_length=1, max_length=MAX_TEMPLATE_CHARACTERS)
+    body_en: str = Field(min_length=1, max_length=MAX_TEMPLATE_CHARACTERS)
 
 
 class UpdateMailTemplateRequest(UpdateMailTemplateInput):
