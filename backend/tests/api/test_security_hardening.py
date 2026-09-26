@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from httpx import AsyncClient
 from starlette.types import Message
 
-from app.core.config import Settings, get_settings
+from app.core.config import Settings, UnsafeDebugSetting, get_settings
 from app.models.user import User
 from tests.api.conftest import DEFAULT_PASSWORD
 
@@ -72,7 +72,7 @@ async def _bytes_read_by_app(
 
 
 def test_production_refuses_the_keycloak_admin_debug_switch():
-    with pytest.raises(ValueError):
+    with pytest.raises(UnsafeDebugSetting):
         _settings(DEBUG=False, DEBUG_KEYCLOAK_ADMIN=True)
 
 
