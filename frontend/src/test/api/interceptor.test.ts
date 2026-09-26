@@ -1,3 +1,4 @@
+import { File as NodeFile } from "node:buffer";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { delay, http, HttpResponse } from "msw";
 import { server } from "../server";
@@ -264,5 +265,54 @@ describe("quiet statuses", () => {
     ).rejects.toThrow();
 
     expect(notificationsShow).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("upload failures", () => {
+  const logoUrl = `${testBackendUrl}/api/company/me/profile/logo`;
+
+  const uploadLogo = async () => {
+    const api = await importApi();
+    const form = new FormData();
+    form.append(
+      "file",
+      new NodeFile(["logo"], "logo.png", {
+        type: "image/png",
+      }) as unknown as File,
+    );
+    return api.post("/api/company/me/profile/logo", form);
+  };
+
+  const shownMessage = () =>
+    (notificationsShow.mock.calls.at(-1)?.[0] as { message: string }).message;
+
+  it("explains a proxy that rejects the file as too large", async () => {
+    storeValidToken();
+    server.use(
+      http.post(logoUrl, () => new HttpResponse("Too Large", { status: 413 })),
+    );
+
+    await expect(uploadLogo()).rejects.toThrow();
+
+    expect(shownMessage()).toBe("error.storage_file_too_large");
+  });
+
+  it("explains an upload the network dropped before it reached the server", async () => {
+    storeValidToken();
+    server.use(http.post(logoUrl, () => HttpResponse.error()));
+
+    await expect(uploadLogo()).rejects.toThrow();
+
+    expect(shownMessage()).toBe("error.upload_rejected");
+  });
+
+  it("keeps the generic message for other requests the network dropped", async () => {
+    storeValidToken();
+    server.use(http.get(meUrl, () => HttpResponse.error()));
+    const api = await importApi();
+
+    await expect(api.get("/api/user/me")).rejects.toThrow();
+
+    expect(shownMessage()).toBe("server.error");
   });
 });

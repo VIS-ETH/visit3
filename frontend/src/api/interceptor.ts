@@ -102,6 +102,21 @@ const redirectToLogin = () => {
   }
 };
 
+const PAYLOAD_TOO_LARGE = 413;
+
+const isUpload = (request: InternalAxiosRequestConfig | undefined) =>
+  request?.data instanceof FormData;
+
+const getUploadErrorMessage = (
+  status: number,
+  request: InternalAxiosRequestConfig | undefined,
+) => {
+  if (status === PAYLOAD_TOO_LARGE)
+    return i18n.t("error.storage_file_too_large");
+  if (status === 0 && isUpload(request)) return i18n.t("error.upload_rejected");
+  return undefined;
+};
+
 const getErrorMessage = (errorResponse: ErrorResponse | undefined): string => {
   const firstFieldErrorCode = errorResponse?.fieldErrors?.[0]?.code;
   const detail =
@@ -183,7 +198,9 @@ api.interceptors.response.use(
       notifications.show({
         color: "red",
         title: i18n.t("error.title"),
-        message: getErrorMessage(errorResponse),
+        message:
+          getUploadErrorMessage(status, request) ??
+          getErrorMessage(errorResponse),
         icon: createElement(IconX, { size: 16 }),
         withCloseButton: true,
         withBorder: true,
