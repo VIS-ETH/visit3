@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
+from botocore.exceptions import ClientError
 from httpx import AsyncClient, Response
 
 from app.core.config import get_settings
@@ -39,6 +40,23 @@ class FakeS3Client:
         self, operation: str, *, Params: dict[str, str], ExpiresIn: int
     ) -> str:
         return f"https://storage.test/{Params['Key']}"
+
+
+class UnavailableS3Client(FakeS3Client):
+    def put_object(
+        self, *, Bucket: str, Key: str, Body: bytes, ContentType: str
+    ) -> dict[str, Any]:
+        raise ClientError(
+            {"Error": {"Code": "MissingContentLength", "Message": "missing"}},
+            "PutObject",
+        )
+
+
+class CrashingS3Client(FakeS3Client):
+    def put_object(
+        self, *, Bucket: str, Key: str, Body: bytes, ContentType: str
+    ) -> dict[str, Any]:
+        raise RuntimeError("unexpected storage failure")
 
 
 class FakeBody:
@@ -473,3 +491,41 @@ async def test_deleting_a_zone_removes_its_layout_object(
     assert response.status_code == 200
     assert zones.json() == []
     assert s3_client.objects == {}
+
+
+async def test_unavailable_storage_is_reported_as_such(
+    client: AsyncClient,
+    storage_service: StorageService,
+    company_headers: dict[str, str],
+    image_requirement: ImageRequirement,
+):
+    storage_service.client = UnavailableS3Client()
+
+    response = await client.post(
+        requirement_file_url(image_requirement),
+        files={"file": ("logo.png", PNG_BYTES, "image/png")},
+        headers=company_headers,
+    )
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "error.storage_upload_failed"
+
+
+async def test_an_unexpected_failure_keeps_the_cors_headers(
+    client: AsyncClient,
+    storage_service: StorageService,
+    company_headers: dict[str, str],
+    image_requirement: ImageRequirement,
+):
+    storage_service.client = CrashingS3Client()
+    origin = get_settings().VISIT_FRONTEND_SERVER_URL
+
+    response = await client.post(
+        requirement_file_url(image_requirement),
+        files={"file": ("logo.png", PNG_BYTES, "image/png")},
+        headers={**company_headers, "Origin": origin},
+    )
+
+    assert response.status_code == 500
+    assert response.json()["code"] == "error.internal"
+    assert response.headers["access-control-allow-origin"] == origin

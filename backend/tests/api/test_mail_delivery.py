@@ -62,8 +62,9 @@ async def test_failed_confirm_email_mail_does_not_keep_the_registration(
     }
     mail_stub.SendMail.side_effect = RuntimeError("notifications api down")
 
-    with pytest.raises(RuntimeError):
-        await client.post("/api/auth/register", json=payload, headers=csrf_headers)
+    failed = await client.post("/api/auth/register", json=payload, headers=csrf_headers)
+    assert failed.status_code == 500
+    assert failed.json()["code"] == "error.internal"
 
     mail_stub.SendMail.side_effect = None
     response = await client.post(

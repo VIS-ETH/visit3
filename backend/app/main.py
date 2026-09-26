@@ -15,7 +15,10 @@ from app.core.csrf import (
     CSRF_HEADER_NAME,
     CSRF_TOKEN_MAX_AGE,
 )
-from app.core.exception_handlers import register_exception_handlers
+from app.core.exception_handlers import (
+    UnexpectedErrorMiddleware,
+    register_exception_handlers,
+)
 from app.core.maintenance import lifespan
 from app.routes.router import router as api_router
 
@@ -49,6 +52,7 @@ register_exception_handlers(app)
 
 origins = [get_settings().VISIT_FRONTEND_SERVER_URL]
 
+app.add_middleware(UnexpectedErrorMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

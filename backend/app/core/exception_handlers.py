@@ -1,10 +1,48 @@
+import logging
 from typing import TypeGuard
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.exceptions import AppError
+
+logger = logging.getLogger(__name__)
+
+
+class UnexpectedErrorMiddleware:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        response_started = False
+
+        async def tracking_send(message: Message) -> None:
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, tracking_send)
+        except Exception:
+            logger.exception("Unhandled error on %s %s", scope["method"], scope["path"])
+            if response_started:
+                raise
+            response = JSONResponse(
+                status_code=500,
+                content={
+                    "statusCode": 500,
+                    "code": "error.internal",
+                    "identifier": "unhandled",
+                    "message": "Internal server error",
+                },
+            )
+            await response(scope, receive, send)
 
 
 def register_exception_handlers(app: FastAPI) -> None:

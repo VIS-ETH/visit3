@@ -547,10 +547,10 @@ class KpVenueBoothNumberDuplicate(AppError):
 class StorageUploadFailed(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "File upload failed",
+            "File storage is unavailable",
             "error.storage_upload_failed",
             identifier,
-            500,
+            503,
         )
 
 
