@@ -299,6 +299,32 @@ describe("upload failures", () => {
     expect(shownMessage()).toBe("error.storage_file_too_large");
   });
 
+  it("explains a request body the backend rejects as too large", async () => {
+    storeValidToken();
+    server.use(
+      http.post(logoUrl, () =>
+        HttpResponse.json(
+          {
+            statusCode: 413,
+            code: "error.storage_file_too_large",
+            identifier: "body",
+            requestId: "abc123",
+          },
+          { status: 413 },
+        ),
+      ),
+    );
+
+    await expect(uploadLogo()).rejects.toThrow();
+
+    expect(notificationsShow).toHaveBeenLastCalledWith(
+      expect.objectContaining({ color: "red" }),
+    );
+    expect(JSON.stringify(shownMessage())).toContain(
+      "error.storage_file_too_large",
+    );
+  });
+
   it("explains an upload the network dropped before it reached the server", async () => {
     storeValidToken();
     server.use(http.post(logoUrl, () => HttpResponse.error()));
