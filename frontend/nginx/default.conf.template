@@ -1,0 +1,21 @@
+server {
+  listen 3000;
+  server_name localhost;
+  server_tokens off;
+
+  add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://static.vseth.ethz.ch; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://static.vseth.ethz.ch; font-src 'self' https://fonts.gstatic.com https://static.vseth.ethz.ch; img-src 'self' data: https://static.vseth.ethz.ch ${VISIT_STORAGE_PUBLIC_URL}; connect-src 'self' ${VISIT_BACKEND_WEB_URL}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+  add_header X-Frame-Options "DENY" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+
+  root /usr/share/nginx/html;
+
+  location = /index.html {
+    root /etc/nginx/conf.d;
+  }
+
+  location / {
+    try_files $uri /index.html;
+  }
+}

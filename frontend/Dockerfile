@@ -47,24 +47,10 @@ ENV REPLACE_ENV_FORMAT_ENVSUBST=true
 ENV NODE_ENV=production
 RUN yarn build
 
-FROM nginx:1.29-alpine AS production
+FROM nginxinc/nginx-unprivileged:1.29-alpine AS production
 
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
-COPY --from=builder /app/frontend/dist/index.html /usr/share/nginx/templates/index.html.template
-
-ENV NGINX_ENVSUBST_TEMPLATE_DIR=/usr/share/nginx/templates
-ENV NGINX_ENVSUBST_OUTPUT_DIR=/usr/share/nginx/html
-
-COPY <<EOF /etc/nginx/conf.d/default.conf
-server {
-  listen 3000;
-  server_name localhost;
-
-  location / {
-    root /usr/share/nginx/html;
-    try_files \$uri /index.html;
-  }
-}
-EOF
+COPY --from=builder /app/frontend/dist/index.html /etc/nginx/templates/index.html.template
+COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 
 EXPOSE 3000

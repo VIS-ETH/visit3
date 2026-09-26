@@ -13,7 +13,8 @@
     "check:all": "yarn lint && yarn typecheck && yarn check:i18n-keys && yarn check:i18n-literals && yarn test",
     "preview": "vite preview",
     "check:i18n-literals": "node scripts/check-i18n-literals.mjs",
-    "check:i18n-keys": "node scripts/check-i18n-keys.mjs"
+    "check:i18n-keys": "node scripts/check-i18n-keys.mjs",
+    "check:headers": "node scripts/check-security-headers.mjs"
   },
   "dependencies": {
     "@mantine/colors-generator": "^9.6.2",
