@@ -4,7 +4,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient, Response
+from starlette.types import Message, Receive, Scope, Send
 
+from app.core.exception_handlers import UnexpectedErrorMiddleware
 from tests.api.conftest import KpSetup
 
 INJECTED_HEADER = "Acme\r\nBcc: victim@example.com"
@@ -136,3 +138,28 @@ async def test_user_list_rejects_a_page_beyond_the_offset_range(
     )
 
     assert response.status_code == 422
+
+
+async def test_an_unexpected_error_on_a_crafted_path_logs_one_line(
+    caplog: pytest.LogCaptureFixture,
+):
+    async def failing_app(scope: Scope, receive: Receive, send: Send) -> None:
+        raise RuntimeError("boom")
+
+    async def receive() -> Message:
+        return {"type": "http.request", "body": b""}
+
+    async def send(message: Message) -> None:
+        return None
+
+    scope: Scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/api/x\nINFO:app:forged",
+        "headers": [],
+    }
+    with caplog.at_level(logging.INFO):
+        await UnexpectedErrorMiddleware(failing_app)(scope, receive, send)
+
+    assert caplog.records
+    assert all("\n" not in record.getMessage() for record in caplog.records)

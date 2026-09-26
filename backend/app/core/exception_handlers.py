@@ -35,7 +35,7 @@ class UnexpectedErrorMiddleware:
         except Exception:
             request_id = current_request_id()
             logger.exception(
-                "Unhandled error on %s %s (request %s)",
+                "Unhandled error on %s %r (request %s)",
                 scope["method"],
                 scope["path"],
                 request_id,
@@ -66,7 +66,7 @@ async def integrity_error_handler(
     request: Request, exc: IntegrityError
 ) -> JSONResponse:
     logger.warning(
-        "Concurrent change on %s %s (request %s)",
+        "Concurrent change on %s %r (request %s)",
         request.method,
         request.url.path,
         current_request_id(),
@@ -88,7 +88,7 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
     if exc.status_code >= 500:
         request_id = current_request_id()
         logger.error(
-            "Server error %s on %s %s (request %s): %s",
+            "Server error %s on %s %r (request %s): %r",
             exc.code,
             request.method,
             request.url.path,

@@ -202,8 +202,10 @@ class CompanyService:
         await self.company_repository.remove_user_from_company(user, company)
         await self.company_repository.revoke_open_invites_by(user.id)
         logger.info(
-            f"Company user removed by staff {self.current_user.email}: "
-            f"{user.email} from {company.name}"
+            "Company user removed by staff %r: %r from %r",
+            self.current_user.email,
+            user.email,
+            company.name,
         )
 
     async def add_company_user(self, company_id: UUID, user_id: UUID) -> User:
@@ -221,8 +223,10 @@ class CompanyService:
 
         joined = await self.company_repository.assign_user(user, company.id)
         logger.info(
-            f"Company user added by staff {self.current_user.email}: "
-            f"{user.email} to {company.name}"
+            "Company user added by staff %r: %r to %r",
+            self.current_user.email,
+            user.email,
+            company.name,
         )
         return joined
 
@@ -244,7 +248,9 @@ class CompanyService:
         company = await self.company_repository.create_company(normalized)
         await self.company_repository.assign_user(self.current_user, company.id)
         logger.info(
-            f"Company created and joined: {self.current_user.email} -> {company.name}"
+            "Company created and joined: %r -> %r",
+            self.current_user.email,
+            company.name,
         )
         return company
 
@@ -292,7 +298,10 @@ class CompanyService:
             await self.company_repository.delete_invite(invite)
             raise
         logger.info(
-            f"Invite sent by {self.current_user.email} to {normalized} for {company.name}"
+            "Invite sent by %r to %r for %r",
+            self.current_user.email,
+            normalized,
+            company.name,
         )
         return invite
 
@@ -320,7 +329,8 @@ class CompanyService:
         company = await self.company_repository.get_by_id(company_user.company_id)
         if not company:
             logger.warning(
-                f"Update company name failed - company not found: {company_user.company_id}"
+                "Update company name failed - company not found: %s",
+                company_user.company_id,
             )
             raise CompanyNotFound(f"update_company_name:{company_user.company_id}")
         return await self._rename_company(company, name)
@@ -344,8 +354,10 @@ class CompanyService:
             company, normalized
         )
         logger.info(
-            f"Company name updated by {self.current_user.email}: "
-            f"{company.name} -> {normalized}"
+            "Company name updated by %r: %r -> %r",
+            self.current_user.email,
+            company.name,
+            normalized,
         )
         return updated_company
 

@@ -90,15 +90,15 @@ async def get_current_user(
     try:
         user = await user_repo.get_by_id(UUID(subject))
     except ValueError:
-        logger.warning(f"JWT decode failed - invalid subject: {subject}")
+        logger.warning("JWT decode failed - invalid subject: %r", subject)
         raise Unauthenticated(f"jwt_decode:invalid_sub:{subject}")
 
     if user is None:
-        logger.warning(f"JWT user lookup failed - user not found: {subject}")
+        logger.warning("JWT user lookup failed - user not found: %r", subject)
         raise Unauthenticated(f"jwt_decode:user_not_found:{subject}")
 
     await user_repo.load_user_roles(user)
-    logger.debug(f"User authenticated: {user.email}")
+    logger.debug("User authenticated: %r", user.email)
 
     impersonate_id = request.headers.get("X-Impersonate-User-Id")
     if impersonate_id and user.is_admin:
@@ -110,7 +110,7 @@ async def get_current_user(
         if target is None:
             raise NotAllowed(f"impersonate:user_not_found:{impersonate_id}")
         await user_repo.load_user_roles(target)
-        logger.info(f"Admin {user.email} impersonating: {target.email}")
+        logger.info("Admin %r impersonating: %r", user.email, target.email)
         return target
     elif impersonate_id:
         raise NotAllowed(f"impersonate:not_admin:{user.email}")

@@ -82,7 +82,7 @@ class UserService:
         updated_user = await self.user_repository.update_user(
             self.current_user, normalized
         )
-        logger.info(f"User profile updated: {self.current_user.email}")
+        logger.info("User profile updated: %r", self.current_user.email)
         return updated_user
 
     async def logout_user(self, refresh_token: str | None) -> None:
@@ -121,14 +121,16 @@ class UserService:
         require_staff_user(self.current_user)
         user = await self.user_repository.get_by_id(user_id)
         if not user:
-            logger.warning(f"Confirm user failed - user not found: {user_id}")
+            logger.warning("Confirm user failed - user not found: %s", user_id)
             raise UserNotFound(f"confirm_user:{user_id}")
 
         was_confirmed = user.user_confirmed
         result = await self.user_repository.confirm_user(user)
         if not was_confirmed:
             await self._send_account_confirmed(result)
-        logger.info(f"User confirmed by staff {self.current_user.email}: {user.email}")
+        logger.info(
+            "User confirmed by staff %r: %r", self.current_user.email, user.email
+        )
         return result
 
     async def _send_account_confirmed(self, user: User) -> None:
@@ -142,7 +144,7 @@ class UserService:
                 AccountConfirmedContext(name=user.display_name, login_url=login_url),
             )
         except Exception:
-            logger.exception(f"Account confirmed mail failed for {user.email}")
+            logger.exception("Account confirmed mail failed for %r", user.email)
 
     async def get_company_users(self) -> Sequence[User]:
         require_staff_user(self.current_user)
@@ -163,7 +165,9 @@ class UserService:
             raise UserNotFound(f"resend_confirmation_mail:{user_id}")
         await self.auth_service.send_confirm_email(user)
         logger.info(
-            f"Confirmation mail resent by staff {self.current_user.email}: {user.email}"
+            "Confirmation mail resent by staff %r: %r",
+            self.current_user.email,
+            user.email,
         )
 
     async def update_company_user(
@@ -254,18 +258,20 @@ class UserService:
             await self.user_repository.set_pending_email(user, None)
             raise
         logger.info(
-            f"Email change requested by {self.current_user.email}: "
-            f"{old_email} -> {new_email}"
+            "Email change requested by %r: %r -> %r",
+            self.current_user.email,
+            old_email,
+            new_email,
         )
 
     async def delete_user(self, user_id: UUID) -> None:
         require_staff_user(self.current_user)
         if user_id == self.current_user.id:
-            logger.warning(f"Delete user failed - user deletes itself: {user_id}")
+            logger.warning("Delete user failed - user deletes itself: %s", user_id)
             raise NotAllowed(f"delete_user:self:{user_id}")
         user = await self.user_repository.get_by_id(user_id)
         if not user:
-            logger.warning(f"Delete user failed - user not found: {user_id}")
+            logger.warning("Delete user failed - user not found: %s", user_id)
             raise UserNotFound(f"delete_user:{user_id}")
         if user.is_admin or user.is_staff:
             require_admin_user(self.current_user)
@@ -274,4 +280,4 @@ class UserService:
 
         await self.company_repository.revoke_open_invites_by(user.id)
         await self.user_repository.delete_user(user)
-        logger.info(f"User deleted by staff {self.current_user.email}: {user.email}")
+        logger.info("User deleted by staff %r: %r", self.current_user.email, user.email)

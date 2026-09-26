@@ -28,7 +28,7 @@ def decode_token(token: str | None) -> dict[str, Any] | None:
     except jwt.ExpiredSignatureError:
         return None
     except jwt.PyJWTError as e:
-        logger.warning("Token decoding failed: %s", e)
+        logger.warning("Token decoding failed: %r", e)
         return None
     if not issued_for_this_client(payload, settings.SIP_AUTH_OIDC_CLIENT_ID):
         logger.warning("Token decoding failed: issued for another client")

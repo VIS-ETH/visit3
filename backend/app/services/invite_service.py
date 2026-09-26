@@ -49,5 +49,7 @@ class InviteService:
         self.ensure_email_matches(invite, user.email, action)
         await self.company_repository.mark_invite_used(invite)
         joined = await self.company_repository.assign_user(user, invite.company_id)
-        logger.info(f"Invite accepted: {user.email} joined company {invite.company_id}")
+        logger.info(
+            "Invite accepted: %r joined company %s", user.email, invite.company_id
+        )
         return joined
