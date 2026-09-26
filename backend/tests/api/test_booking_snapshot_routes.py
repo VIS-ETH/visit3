@@ -108,7 +108,7 @@ async def test_a_later_description_completes_the_snapshot(
     )
     snapshot = await load_snapshot(db_session, booking.json()["id"])
 
-    assert snapshot.description == "We build robots."
+    assert snapshot.description == "<p>We build robots.</p>"
     assert snapshot.billing_city == "Zurich"
 
 
@@ -125,7 +125,7 @@ async def test_a_confirmed_description_stays_in_the_snapshot(
     await complete_company_profile(company_headers, description="We build drones.")
     snapshot = await load_snapshot(db_session, booking.json()["id"])
 
-    assert snapshot.description == "We build robots."
+    assert snapshot.description == "<p>We build robots.</p>"
 
 
 async def test_registration_without_a_profile_is_refused(

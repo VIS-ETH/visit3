@@ -14,6 +14,7 @@ from app.core.exceptions import (
     KpExportEmpty,
     KpNameTagNotFound,
 )
+from app.core.rich_text import rich_text_plain
 from app.models.company import KpCompanyLanguage, KpCompanyProfile
 from app.models.kp_event import (
     KpBookingCompanyDetails,
@@ -629,7 +630,7 @@ class ExportService:
         return {
             "confirmed_at": snapshot.confirmed_at.isoformat(),
             "brand_name": snapshot.brand_name,
-            "description": snapshot.description,
+            "description": rich_text_plain(snapshot.description),
             "website": snapshot.website or "",
             "contact_person": snapshot.contact_person,
             "contact_email": snapshot.contact_email or "",

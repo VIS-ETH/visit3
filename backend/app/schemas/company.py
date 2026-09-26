@@ -4,9 +4,10 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.models.company import (
-    PROFILE_DESCRIPTION_MAX_LENGTH,
+    PROFILE_DESCRIPTION_MARKUP_MAX_LENGTH,
     KpCompanyLanguage,
     normalize_country_code,
+    sanitize_description,
 )
 from app.schemas.industry import IndustryResult
 
@@ -28,7 +29,9 @@ class UpdateCompanyRequest(UpdateCompanyInput):
 
 
 class CompanyProfileFields(BaseModel):
-    description: str = Field(default="", max_length=PROFILE_DESCRIPTION_MAX_LENGTH)
+    description: str = Field(
+        default="", max_length=PROFILE_DESCRIPTION_MARKUP_MAX_LENGTH
+    )
     website: str | None = None
     brand_name: str = ""
     general_email: EmailStr | None = None
@@ -49,6 +52,11 @@ class CompanyProfileFields(BaseModel):
     billing_country: str = ""
     billing_vat_number: str | None = None
     billing_email: EmailStr | None = None
+
+    @field_validator("description")
+    @classmethod
+    def validate_description(cls, value: str) -> str:
+        return sanitize_description(value)
 
 
 class UpdateCompanyProfileInput(CompanyProfileFields):

@@ -306,7 +306,7 @@ async def export_world(
         service_id,
         profile=company_profile_payload(
             brand_name="Acme",
-            description="We build anvils.",
+            description="<p>We build <strong>anvils</strong>.</p><p>Since 1900.</p>",
             general_email=GENERAL_EMAIL,
             general_phone=GENERAL_PHONE,
             employee_count_switzerland=42,
@@ -596,7 +596,7 @@ async def test_company_details_export_rows(
 
     by_company = {row["company"]: row for row in rows}
     assert by_company[OWN_COMPANY]["brand_name"] == "Acme"
-    assert by_company[OWN_COMPANY]["description"] == "We build anvils."
+    assert by_company[OWN_COMPANY]["description"] == "We build anvils.\nSince 1900."
     assert by_company[OWN_COMPANY]["contact_person"] == "Test User"
     assert by_company[OWN_COMPANY]["contact_email"] == "company@example.com"
     assert by_company[OWN_COMPANY]["general_email"] == GENERAL_EMAIL

@@ -6,7 +6,7 @@ from typing import Optional, Self
 from uuid import UUID
 
 from pydantic import EmailStr, field_validator, model_validator
-from sqlalchemy import CheckConstraint, Column, Integer
+from sqlalchemy import CheckConstraint, Column, Integer, Text
 from sqlalchemy import Sequence as SQLSequence
 from sqlmodel import (
     Field,
@@ -28,7 +28,6 @@ from app.models.base import (
     unique_partial_index,
 )
 from app.models.company import (
-    PROFILE_DESCRIPTION_MAX_LENGTH,
     Company,
     KpCompanyLanguage,
     company_language_column,
@@ -450,7 +449,7 @@ class KpBookingCompanyDetails(BaseEntity, table=True):
         sa_type=TIMESTAMPTZ,
     )
 
-    description: str = Field(default="", max_length=PROFILE_DESCRIPTION_MAX_LENGTH)
+    description: str = Field(default="", sa_type=Text)
     website: str | None = Field(default=None)
 
     brand_name: str = Field(default="")

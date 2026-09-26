@@ -5,11 +5,13 @@ from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 from pydantic import EmailStr, field_validator
-from sqlalchemy import Column, DateTime
+from pydantic_core import PydanticCustomError
+from sqlalchemy import Column, DateTime, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field, Relationship
 
+from app.core.rich_text import rich_text_length, sanitize_rich_text
 from app.models.base import TIMESTAMPTZ, BaseEntity, unique_among_active_index
 from app.models.storage import StoredFile
 
@@ -19,6 +21,7 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 PROFILE_DESCRIPTION_MAX_LENGTH = 2500
+PROFILE_DESCRIPTION_MARKUP_MAX_LENGTH = 100_000
 
 MANDATORY_PROFILE_FIELDS = (
     "description",
@@ -56,6 +59,17 @@ def company_language_column() -> Column[Any]:
     return Column(ARRAY(language_enum), nullable=False)
 
 
+def sanitize_description(value: str) -> str:
+    sanitized = sanitize_rich_text(value)
+    if rich_text_length(sanitized) > PROFILE_DESCRIPTION_MAX_LENGTH:
+        raise PydanticCustomError(
+            "string_too_long",
+            "String should have at most {max_length} visible characters",
+            {"max_length": PROFILE_DESCRIPTION_MAX_LENGTH},
+        )
+    return sanitized
+
+
 def normalize_country_code(value: str) -> str:
     normalized = value.strip().upper()
     if normalized and not COUNTRY_CODE_PATTERN.fullmatch(normalized):
@@ -83,7 +97,7 @@ class Company(BaseEntity, table=True):
 class KpCompanyProfile(BaseEntity, table=True):
     company_id: UUID = Field(foreign_key="company.id", unique=True)
 
-    description: str = Field(default="", max_length=PROFILE_DESCRIPTION_MAX_LENGTH)
+    description: str = Field(default="", sa_type=Text)
     website: str | None = Field(default=None)
     logo_stored_file_id: UUID | None = Field(
         default=None, foreign_key="storedfile.id", unique=True

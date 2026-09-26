@@ -144,7 +144,62 @@ async def test_profile_accepts_a_description_of_a_booklet_page(
     )
 
     assert response.status_code == 200
-    assert len(response.json()["description"]) == 2500
+    assert response.json()["description"] == f"<p>{'x' * 2500}</p>"
+
+
+async def test_the_description_limit_counts_only_the_visible_text(
+    client: AsyncClient, company_headers: dict[str, str]
+):
+    formatted = "<p>" + "<strong>x</strong><em>y</em>" * 1250 + "</p>"
+
+    accepted = await client.put(
+        PROFILE,
+        json=company_profile_payload(description=formatted),
+        headers=company_headers,
+    )
+    rejected = await client.put(
+        PROFILE,
+        json=company_profile_payload(description=formatted + "<p>z</p>"),
+        headers=company_headers,
+    )
+
+    assert accepted.status_code == 200
+    assert rejected.status_code == 422
+    assert rejected.json()["fieldErrors"][0]["code"] == "validation.too_long"
+
+
+async def test_the_description_is_stored_sanitised(
+    client: AsyncClient, company_headers: dict[str, str]
+):
+    await client.put(
+        PROFILE,
+        json=company_profile_payload(
+            description=(
+                '<h1 onclick="x()">Hi</h1><p><strong>Bold</strong> '
+                '<a href="javascript:alert(1)">link</a><script>alert(1)</script>'
+                '<span style="color:red"><u>u</u></span></p>'
+            )
+        ),
+        headers=company_headers,
+    )
+    stored = await client.get(PROFILE, headers=company_headers)
+
+    assert stored.json()["description"] == (
+        "<p>Hi</p><p><strong>Bold</strong> link<u>u</u></p>"
+    )
+
+
+async def test_a_description_of_empty_markup_is_missing(
+    client: AsyncClient, company_headers: dict[str, str]
+):
+    response = await client.put(
+        PROFILE,
+        json=company_profile_payload(description="<p></p>"),
+        headers=company_headers,
+    )
+
+    assert response.json()["description"] == ""
+    assert "description" in response.json()["missing_profile_fields"]
 
 
 async def test_profile_rejects_a_description_over_the_limit(
