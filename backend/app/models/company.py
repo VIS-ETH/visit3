@@ -31,6 +31,14 @@ MANDATORY_PROFILE_FIELDS = (
     "billing_email",
 )
 
+BOOKING_DEFERRED_PROFILE_FIELDS = ("description",)
+
+BOOKING_REQUIRED_PROFILE_FIELDS = tuple(
+    name
+    for name in MANDATORY_PROFILE_FIELDS
+    if name not in BOOKING_DEFERRED_PROFILE_FIELDS
+)
+
 COUNTRY_CODE_PATTERN = re.compile(r"[A-Z]{2}")
 
 
@@ -132,6 +140,13 @@ class KpCompanyProfile(BaseEntity, table=True):
             name
             for name in MANDATORY_PROFILE_FIELDS
             if not str(getattr(self, name) or "").strip()
+        ]
+
+    def missing_booking_profile_fields(self) -> list[str]:
+        return [
+            name
+            for name in self.missing_profile_fields()
+            if name in BOOKING_REQUIRED_PROFILE_FIELDS
         ]
 
     @property

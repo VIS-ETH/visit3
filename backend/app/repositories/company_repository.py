@@ -187,11 +187,29 @@ class CompanyRepository(BaseRepository[Company]):
             self.session.add(profile)
             await self.session.flush()
             await self._replace_profile_industries(profile, profile_input.industry_ids)
+            await self._fill_blank_snapshot_descriptions(profile)
             await self.session.commit()
             return await self.get_kp_profile(company_id) or profile
         except Exception as e:
             await self.session.rollback()
             raise e
+
+    async def _fill_blank_snapshot_descriptions(
+        self, profile: KpCompanyProfile
+    ) -> None:
+        if not profile.description.strip():
+            return
+        active_booking_ids = select(col(KpEventBooking.id)).where(
+            col(KpEventBooking.company_id) == profile.company_id,
+            col(KpEventBooking.status).notin_(INACTIVE_BOOKING_STATUSES),
+            self._not_deleted(KpEventBooking),
+        )
+        await self.update_where(
+            KpBookingCompanyDetails,
+            col(KpBookingCompanyDetails.booking_id).in_(active_booking_ids),
+            func.trim(col(KpBookingCompanyDetails.description)) == "",
+            description=profile.description,
+        )
 
     async def _replace_profile_industries(
         self, profile: KpCompanyProfile, industry_ids: list[UUID]

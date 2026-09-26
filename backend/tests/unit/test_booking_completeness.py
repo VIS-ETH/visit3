@@ -14,6 +14,7 @@ from app.models.kp_event import (
 )
 from app.services.booking_completeness import (
     BILLING_ADDRESS_MISSING,
+    COMPANY_DESCRIPTION_MISSING,
     COMPANY_PROFILE_MISSING,
     booking_completeness,
     has_billing_address,
@@ -142,6 +143,12 @@ def test_a_later_profile_edit_does_not_change_the_booking(
     booking.company.kp_profile = make_company_profile(billing_city="")
 
     assert booking_completeness(booking) == []
+
+
+def test_a_missing_description_is_reported():
+    booking = make_booking(snapshot_overrides={"description": " "})
+
+    assert booking_completeness(booking) == [COMPANY_DESCRIPTION_MISSING]
 
 
 def test_an_optional_billing_field_does_not_block_the_booking():

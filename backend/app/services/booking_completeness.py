@@ -11,6 +11,7 @@ from app.models.kp_event import (
 MissingItem = str
 
 COMPANY_PROFILE_MISSING = "company_profile"
+COMPANY_DESCRIPTION_MISSING = "company_description"
 BILLING_ADDRESS_MISSING = "billing_address"
 BILLING_FIELD_PREFIX = "billing_"
 MANDATORY_BILLING_FIELDS = tuple(
@@ -55,6 +56,8 @@ def booking_completeness(booking: KpEventBooking) -> list[MissingItem]:
     ]
     if booking.company_details is None:
         missing.append(COMPANY_PROFILE_MISSING)
+    elif not booking.company_details.description.strip():
+        missing.append(COMPANY_DESCRIPTION_MISSING)
     if not has_billing_address(booking.company_details):
         missing.append(BILLING_ADDRESS_MISSING)
     return missing

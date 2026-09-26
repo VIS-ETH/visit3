@@ -61,6 +61,7 @@ def complete_company_snapshot(
     booking_id: UUID, **overrides: object
 ) -> KpBookingCompanyDetails:
     values: dict[str, object] = {
+        "description": "We build the best anvils in Switzerland.",
         "billing_company_name": "Acme AG",
         "billing_street": "Invoice street",
         "billing_house_number": "1",

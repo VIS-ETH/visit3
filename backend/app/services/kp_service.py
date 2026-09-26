@@ -51,7 +51,7 @@ from app.core.exceptions import (
     KpWaitlistSameZone,
     KpWaitlistZoneHasCapacity,
 )
-from app.models.company import MANDATORY_PROFILE_FIELDS, KpCompanyProfile
+from app.models.company import BOOKING_REQUIRED_PROFILE_FIELDS, KpCompanyProfile
 from app.models.kp_event import (
     UNLIMITED_TOTAL_QUANTITY,
     KpBookingStatus,
@@ -886,9 +886,9 @@ class KpService:
             )
         profile = await self.kp_repository.get_company_profile(company_id)
         missing = (
-            profile.missing_profile_fields()
+            profile.missing_booking_profile_fields()
             if profile is not None
-            else list(MANDATORY_PROFILE_FIELDS)
+            else list(BOOKING_REQUIRED_PROFILE_FIELDS)
         )
         if profile is None or missing:
             raise CompanyProfileIncomplete(

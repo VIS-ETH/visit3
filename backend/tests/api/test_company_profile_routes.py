@@ -69,6 +69,24 @@ async def test_my_company_reports_the_profile_state(
     assert after.json()["name"] == "Acme AG"
 
 
+@pytest.mark.parametrize(
+    ("overrides", "bookable"),
+    [({}, True), ({"description": ""}, True), ({"billing_city": ""}, False)],
+)
+async def test_only_the_description_may_wait_until_after_the_booking(
+    client: AsyncClient,
+    company_headers: dict[str, str],
+    complete_company_profile: Callable[..., Awaitable[Response]],
+    overrides: dict[str, object],
+    bookable: bool,
+):
+    await complete_company_profile(company_headers, **overrides)
+
+    response = await client.get("/api/company/me", headers=company_headers)
+
+    assert response.json()["profile_bookable"] is bookable
+
+
 async def test_complete_profile_is_stored_and_marked_complete(
     company_headers: dict[str, str],
     industry: Industry,

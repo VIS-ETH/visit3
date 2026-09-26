@@ -104,6 +104,17 @@ async def test_a_missed_reminder_day_is_caught_up():
     notifier.booking_incomplete_reminder.assert_awaited_once_with(booking)
 
 
+async def test_a_missing_description_is_reminded():
+    booking = make_booking(make_event(deadline_in_days=REMINDER_DAYS), complete=True)
+    booking.company_details = complete_company_snapshot(booking.id, description="")
+    kp_repository = repository_with([booking])
+    notifier = AsyncMock()
+
+    await send_incomplete_booking_reminders(kp_repository, notifier, FAKE_NOW)
+
+    notifier.booking_incomplete_reminder.assert_awaited_once_with(booking)
+
+
 async def test_complete_bookings_are_not_reminded():
     booking = make_booking(make_event(deadline_in_days=REMINDER_DAYS), complete=True)
     kp_repository = repository_with([booking])

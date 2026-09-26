@@ -205,6 +205,28 @@ async def test_my_booking_lists_the_missing_items(
     assert "billing_address" in body["missing_items"]
 
 
+async def test_a_missing_description_stays_a_missing_item_until_it_is_filled_in(
+    client: AsyncClient,
+    kp_setup: KpSetup,
+    company_headers: dict[str, str],
+    complete_company_profile: Callable[..., Awaitable[Response]],
+):
+    await complete_company_profile(company_headers, description="")
+    await client.post(
+        f"/api/kp/events/{kp_setup.event_id}/bookings/register",
+        json={"booth_zone_id": kp_setup.booth_zone_id, "confirm_profile": True},
+        headers=company_headers,
+    )
+    my_booking = f"/api/kp/events/{kp_setup.event_id}/my-booking"
+
+    before = await client.get(my_booking, headers=company_headers)
+    await complete_company_profile(company_headers, description="We build robots.")
+    after = await client.get(my_booking, headers=company_headers)
+
+    assert before.json()["missing_items"] == ["company_description"]
+    assert after.json()["missing_items"] == []
+
+
 async def test_finalized_is_no_longer_a_booking_status(
     client: AsyncClient, booking_world: BookingWorld
 ):

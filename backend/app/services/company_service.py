@@ -29,6 +29,7 @@ from app.core.utils import normalize_email
 from app.mail_templates.context import CompanyInviteContext
 from app.mail_templates.keys import MailTemplateKey
 from app.models.company import (
+    BOOKING_DEFERRED_PROFILE_FIELDS,
     MANDATORY_PROFILE_FIELDS,
     Company,
     CompanyInvite,
@@ -323,6 +324,9 @@ class CompanyService:
             id=company.id,
             name=company.name,
             profile_complete=not missing,
+            profile_bookable=all(
+                name in BOOKING_DEFERRED_PROFILE_FIELDS for name in missing
+            ),
             missing_profile_fields=missing,
         )
 

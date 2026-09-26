@@ -74,10 +74,58 @@ async def test_registration_with_an_incomplete_profile_lists_the_missing_fields(
 
     assert response.status_code == 409
     assert response.json()["code"] == "error.company_profile_incomplete"
-    assert response.json()["details"]["missingFields"] == [
-        "description",
-        "billing_email",
-    ]
+    assert response.json()["details"]["missingFields"] == ["billing_email"]
+
+
+async def test_registration_does_not_wait_for_the_description(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    company_headers: dict[str, str],
+    kp_setup: KpSetup,
+    complete_company_profile: Callable[..., Awaitable[Response]],
+):
+    await complete_company_profile(company_headers, description="")
+
+    response = await register(client, company_headers, kp_setup, confirm_profile=True)
+    snapshot = await load_snapshot(db_session, response.json()["id"])
+
+    assert response.status_code == 200
+    assert snapshot.description == ""
+
+
+async def test_a_later_description_completes_the_snapshot(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    company_headers: dict[str, str],
+    kp_setup: KpSetup,
+    complete_company_profile: Callable[..., Awaitable[Response]],
+):
+    await complete_company_profile(company_headers, description="")
+    booking = await register(client, company_headers, kp_setup, confirm_profile=True)
+
+    await complete_company_profile(
+        company_headers, description="We build robots.", billing_city="Bern"
+    )
+    snapshot = await load_snapshot(db_session, booking.json()["id"])
+
+    assert snapshot.description == "We build robots."
+    assert snapshot.billing_city == "Zurich"
+
+
+async def test_a_confirmed_description_stays_in_the_snapshot(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    company_headers: dict[str, str],
+    kp_setup: KpSetup,
+    complete_company_profile: Callable[..., Awaitable[Response]],
+):
+    await complete_company_profile(company_headers, description="We build robots.")
+    booking = await register(client, company_headers, kp_setup, confirm_profile=True)
+
+    await complete_company_profile(company_headers, description="We build drones.")
+    snapshot = await load_snapshot(db_session, booking.json()["id"])
+
+    assert snapshot.description == "We build robots."
 
 
 async def test_registration_without_a_profile_is_refused(

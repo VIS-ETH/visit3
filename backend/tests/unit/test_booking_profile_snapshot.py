@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 
 from app.core.exceptions import CompanyProfileIncomplete, CompanyProfileUnconfirmed
-from app.models.company import MANDATORY_PROFILE_FIELDS, KpCompanyProfile
+from app.models.company import BOOKING_REQUIRED_PROFILE_FIELDS, KpCompanyProfile
 from app.models.kp_event import KpEvent, KpEventBooking, KpEventBoothZone
 from app.models.user import User
 from app.services.kp_service import KpService
@@ -91,7 +91,9 @@ async def test_register_booking_refuses_a_missing_profile(
 
     assert error.value.code == "error.company_profile_incomplete"
     assert error.value.status_code == 409
-    assert error.value.details == {"missingFields": list(MANDATORY_PROFILE_FIELDS)}
+    assert error.value.details == {
+        "missingFields": list(BOOKING_REQUIRED_PROFILE_FIELDS)
+    }
     kp_repo.create_booking.assert_not_awaited()
 
 
@@ -113,7 +115,7 @@ async def test_register_booking_lists_only_the_missing_fields(
     with pytest.raises(CompanyProfileIncomplete) as error:
         await service.register_booking(event.id, zone.id, confirm_profile=True)
 
-    assert error.value.details == {"missingFields": ["description", "billing_city"]}
+    assert error.value.details == {"missingFields": ["billing_city"]}
 
 
 async def test_register_booking_hands_the_profile_to_the_snapshot(

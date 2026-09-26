@@ -142,6 +142,7 @@ class CompanyResponse(CompanyBase):
 
 class MyCompanyResult(CompanyBase):
     profile_complete: bool
+    profile_bookable: bool
     missing_profile_fields: list[str]
 
 
