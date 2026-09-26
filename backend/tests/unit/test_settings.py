@@ -178,3 +178,11 @@ def test_service_account_reuses_browser_login_configuration():
     )
     assert "shared-secret" not in repr(settings)
     assert "shared-secret" not in repr(oauth)
+
+
+def test_keycloak_roles_are_only_required_when_enabled():
+    assert Settings.model_fields["KEYCLOAK_REQUIRE_ROLES"].default is False
+
+
+def test_set_admin_is_empty_by_default():
+    assert not Settings.model_fields["SET_ADMIN"].default

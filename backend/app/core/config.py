@@ -106,6 +106,8 @@ class Settings(BaseSettings):
     TYPST_MAX_PARALLEL_RENDERS: int = 2
     TYPST_RENDER_MEMORY_LIMIT_MB: int = 1024
     DEBUG_KEYCLOAK_ADMIN: bool = False
+    KEYCLOAK_REQUIRE_ROLES: bool = False
+    SET_ADMIN: str | None = None
     DEBUG: bool = False
 
     @property
