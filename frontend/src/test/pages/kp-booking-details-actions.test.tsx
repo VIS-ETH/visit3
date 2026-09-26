@@ -297,3 +297,80 @@ describe("the staff booking details actions", () => {
     expect(await screen.findByTestId("bookings-list")).toBeInTheDocument();
   });
 });
+
+describe("services added after the confirmation", () => {
+  const confirmedWithAddition = (): StaffBookingResponse => ({
+    ...acmeBooking,
+    status: KpBookingStatus.CONFIRMED,
+    added_after_confirmation: [
+      {
+        booking_service_id: (acmeBooking.services ?? [])[0].id,
+        quantity: 1,
+      },
+    ],
+  });
+
+  it("marks the added line and lets staff mark it as seen", async () => {
+    let current = confirmedWithAddition();
+    const acknowledged: string[] = [];
+    server.use(
+      http.get(
+        `${testBackendUrl}/api/kp/events/:eventId/bookings/:bookingId`,
+        () => HttpResponse.json(current),
+      ),
+      http.post(
+        `${testBackendUrl}/api/kp/bookings/:bookingId/acknowledge-additions`,
+        ({ params }) => {
+          acknowledged.push(String(params.bookingId));
+          current = { ...current, added_after_confirmation: [] };
+          return HttpResponse.json(current);
+        },
+      ),
+    );
+    const { user } = renderDetails();
+
+    expect(
+      await screen.findByText(
+        "kp.manage.booking_service_added",
+        {},
+        { timeout: 5000 },
+      ),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", {
+        name: "kp.manage.booking_additions_acknowledge",
+      }),
+    );
+
+    await waitFor(() => expect(acknowledged).toEqual([acmeBookingId]));
+    await waitFor(() =>
+      expect(
+        screen.queryByText("kp.manage.booking_service_added"),
+      ).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: "kp.manage.booking_additions_acknowledge",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows no marker without additions", async () => {
+    serveBooking({ ...acmeBooking, status: KpBookingStatus.CONFIRMED });
+    renderDetails();
+
+    await screen.findByText(
+      "kp.manage.booking_timeline_title",
+      {},
+      { timeout: 5000 },
+    );
+    expect(
+      screen.queryByText("kp.manage.booking_service_added"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: "kp.manage.booking_additions_acknowledge",
+      }),
+    ).not.toBeInTheDocument();
+  });
+});

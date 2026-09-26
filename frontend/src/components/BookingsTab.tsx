@@ -26,6 +26,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, useNavigate } from "react-router";
 import { KpBookingStatusBadge } from "./KpBookingStatusBadge";
+import BookingNewAdditionsBadge from "./bookings/BookingNewAdditionsBadge";
 import BookingCompletenessIcon from "./bookings/BookingCompletenessIcon";
 import BookingConfirmModal from "./bookings/BookingConfirmModal";
 import BookingDeleteModal from "./bookings/BookingDeleteModal";
@@ -44,6 +45,7 @@ import {
 import {
   BOOKING_STATUS_ORDER,
   bookingStatusRank,
+  hasNewAdditions,
   canAcceptBooking,
   deleteRequiresForce,
 } from "../utils/booking-status";
@@ -393,7 +395,12 @@ const BookingsTab = ({ eventId }: { eventId: string }) => {
                       />
                     </Table.Td>
                     <Table.Td>
-                      <KpBookingStatusBadge status={booking.status} />
+                      <Group gap="xs" wrap="nowrap">
+                        <KpBookingStatusBadge status={booking.status} />
+                        {hasNewAdditions(booking) ? (
+                          <BookingNewAdditionsBadge />
+                        ) : null}
+                      </Group>
                     </Table.Td>
                     <Table.Td>
                       <BookingCompletenessIcon

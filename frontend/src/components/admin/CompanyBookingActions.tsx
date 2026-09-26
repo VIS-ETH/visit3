@@ -6,9 +6,11 @@ import type { StaffBookingResponse } from "../../orval/generated/fastAPI.schemas
 import {
   canAcceptBooking,
   canUndoAcceptBooking,
+  hasNewAdditions,
 } from "../../utils/booking-status";
 import { KpBookingStatusBadge } from "../KpBookingStatusBadge";
 import BookingConfirmModal from "../bookings/BookingConfirmModal";
+import BookingNewAdditionsBadge from "../bookings/BookingNewAdditionsBadge";
 import { useBookingActions } from "../bookings/useBookingActions";
 
 type CompanyBookingAction = "accept" | "undo_accept";
@@ -38,6 +40,7 @@ const CompanyBookingActions = ({
   return (
     <Group gap="xs" wrap="nowrap">
       <KpBookingStatusBadge status={booking.status} />
+      {hasNewAdditions(booking) ? <BookingNewAdditionsBadge /> : null}
       {canAcceptBooking(booking.status) ? (
         <Button
           color="green"

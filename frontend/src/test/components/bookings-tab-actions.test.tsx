@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import BookingsTab from "../../components/BookingsTab";
 import { server } from "../server";
@@ -374,5 +374,41 @@ describe("the staff booking row actions", () => {
     );
 
     await waitFor(() => expect(exported).toBe(true));
+  });
+});
+
+describe("the new additions marker in the bookings list", () => {
+  it("flags a booking with additions after the confirmation", async () => {
+    server.use(
+      http.get(`${testBackendUrl}/api/kp/events/:eventId/bookings`, () =>
+        HttpResponse.json(
+          staffBookings.map((booking) =>
+            booking.id === zetaBookingId
+              ? {
+                  ...booking,
+                  added_after_confirmation: [
+                    {
+                      booking_service_id: (booking.services ?? [])[0].id,
+                      quantity: 2,
+                    },
+                  ],
+                }
+              : booking,
+          ),
+        ),
+      ),
+    );
+    renderWithProviders(<BookingsTab eventId={testEventId} />);
+
+    const zetaRow = (
+      await screen.findByText("Zeta SA", {}, { timeout: 5000 })
+    ).closest("tr") as HTMLElement;
+
+    expect(
+      within(zetaRow).getByText("kp.manage.booking_new_additions"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("kp.manage.booking_new_additions")).toHaveLength(
+      1,
+    );
   });
 });

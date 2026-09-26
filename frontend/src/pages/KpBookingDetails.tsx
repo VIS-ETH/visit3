@@ -15,6 +15,7 @@ import {
 import {
   IconAlertCircle,
   IconDownload,
+  IconEyeCheck,
   IconRefresh,
 } from "@tabler/icons-react";
 import { useState, type ReactNode } from "react";
@@ -39,7 +40,12 @@ import {
   useListStaffBookingRequirementFiles,
   useGetEventBooking,
 } from "../orval/generated/kp/kp";
+import {
+  addedQuantityByBookingServiceId,
+  hasNewAdditions,
+} from "../utils/booking-status";
 import { formatPrice } from "../utils/price-utils";
+import { useBookingActions } from "../components/bookings/useBookingActions";
 import { getApiErrorCode } from "../api/errors";
 
 const NOT_ALLOWED_CODE = "error.not_allowed";
@@ -162,6 +168,7 @@ const KpBookingDetails = () => {
     query: { enabled: Boolean(id && bookingId), retry: false },
   });
   const isForbidden = getApiErrorCode(error) === NOT_ALLOWED_CODE;
+  const actions = useBookingActions(id ?? "");
   const {
     data: requirementFiles,
     isLoading: isRequirementFilesLoading,
@@ -211,6 +218,7 @@ const KpBookingDetails = () => {
   }
 
   const bookingServices = booking.services ?? [];
+  const addedQuantities = addedQuantityByBookingServiceId(booking);
 
   return (
     <Stack gap="md">
@@ -305,7 +313,25 @@ const KpBookingDetails = () => {
 
       <Paper withBorder p="lg" radius="md">
         <Stack gap="md">
-          <Title order={4}>{t("kp.manage.booking_services")}</Title>
+          <Group justify="space-between" align="center">
+            <Title order={4}>{t("kp.manage.booking_services")}</Title>
+            {hasNewAdditions(booking) ? (
+              <Button
+                color="gray"
+                leftSection={<IconEyeCheck size={16} />}
+                loading={actions.isAcknowledging}
+                onClick={() => {
+                  void actions
+                    .acknowledgeAdditions(booking.id)
+                    .catch(() => undefined);
+                }}
+                size="xs"
+                variant="subtle"
+              >
+                {t("kp.manage.booking_additions_acknowledge")}
+              </Button>
+            ) : null}
+          </Group>
           {isRequirementFilesError ? (
             <Alert icon={<IconAlertCircle />} color="red">
               <Group justify="space-between" align="center" wrap="nowrap">
@@ -339,11 +365,20 @@ const KpBookingDetails = () => {
                         </Text>
                       ) : null}
                     </Stack>
-                    <Badge variant="light">
-                      {t("kp.manage.booking_service_quantity", {
-                        quantity: bookingService.quantity,
-                      })}
-                    </Badge>
+                    <Group gap="xs" wrap="nowrap">
+                      {addedQuantities.has(bookingService.id) ? (
+                        <Badge color="orange" variant="dot">
+                          {t("kp.manage.booking_service_added", {
+                            quantity: addedQuantities.get(bookingService.id),
+                          })}
+                        </Badge>
+                      ) : null}
+                      <Badge variant="light">
+                        {t("kp.manage.booking_service_quantity", {
+                          quantity: bookingService.quantity,
+                        })}
+                      </Badge>
+                    </Group>
                   </Group>
 
                   {bookingService.service.requirements.some(

@@ -6,6 +6,7 @@ import {
   getGetEventBookingQueryKey,
   getListEventBookingsQueryKey,
   useAcceptBooking,
+  useAcknowledgeBookingAdditions,
   useDeleteBooking,
   useRejectBooking,
   useUndoAcceptBooking,
@@ -16,6 +17,7 @@ export const useBookingActions = (eventId: string) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const accept = useAcceptBooking();
+  const acknowledge = useAcknowledgeBookingAdditions();
   const undoAccept = useUndoAcceptBooking();
   const reject = useRejectBooking();
   const update = useUpdateBooking();
@@ -54,6 +56,12 @@ export const useBookingActions = (eventId: string) => {
     );
   };
 
+  const acknowledgeAdditions = async (bookingId: string) => {
+    await acknowledge.mutateAsync({ bookingId });
+    await refreshBooking(bookingId);
+    notifySuccess(t("kp.manage.booking_additions_acknowledged"));
+  };
+
   const undoAcceptBooking = async (bookingId: string) => {
     await undoAccept.mutateAsync({ bookingId });
     await refreshBooking(bookingId);
@@ -85,8 +93,10 @@ export const useBookingActions = (eventId: string) => {
   return {
     acceptBooking,
     acceptBookings,
+    acknowledgeAdditions,
     deleteBooking,
     isAccepting: accept.isPending,
+    isAcknowledging: acknowledge.isPending,
     isDeleting: remove.isPending,
     isRejecting: reject.isPending,
     isUndoingAccept: undoAccept.isPending,

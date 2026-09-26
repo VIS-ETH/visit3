@@ -433,6 +433,27 @@ describe("confirming bookings from the company management", () => {
     expect(bookingActions).toEqual(["undo-accept"]);
   });
 
+  it("flags a confirmed booking with new additions", async () => {
+    latestEvent = testOpenEvent;
+    eventBookings = [
+      {
+        ...acmeBooking(KpBookingStatus.CONFIRMED),
+        added_after_confirmation: [
+          {
+            booking_service_id: (testStaffBooking.services ?? [])[0].id,
+            quantity: 1,
+          },
+        ],
+      },
+    ];
+    renderPage(staffUser);
+    const row = await acmeRow();
+
+    expect(
+      await row.findByText("kp.manage.booking_new_additions"),
+    ).toBeInTheDocument();
+  });
+
   it("shows no action for a company without a booking", async () => {
     latestEvent = testOpenEvent;
     eventBookings = [acmeBooking(KpBookingStatus.REGISTERED)];

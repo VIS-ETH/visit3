@@ -1,4 +1,7 @@
-import { KpBookingStatus } from "../orval/generated/fastAPI.schemas";
+import {
+  KpBookingStatus,
+  type StaffBookingResponse,
+} from "../orval/generated/fastAPI.schemas";
 
 export const BOOKING_STATUS_ORDER: readonly KpBookingStatus[] = [
   KpBookingStatus.REGISTERED,
@@ -29,3 +32,16 @@ export const isActiveBookingStatus = (status: KpBookingStatus) =>
 
 export const bookingStatusRank = (status: KpBookingStatus) =>
   BOOKING_STATUS_ORDER.indexOf(status);
+
+export const addedQuantityByBookingServiceId = (
+  booking: StaffBookingResponse,
+) =>
+  new Map(
+    (booking.added_after_confirmation ?? []).map((addition) => [
+      addition.booking_service_id,
+      addition.quantity,
+    ]),
+  );
+
+export const hasNewAdditions = (booking: StaffBookingResponse) =>
+  (booking.added_after_confirmation ?? []).length > 0;
