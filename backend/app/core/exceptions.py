@@ -544,6 +544,16 @@ class KpVenueBoothNumberDuplicate(AppError):
         )
 
 
+class IdentityProviderUnavailable(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The identity provider is unavailable",
+            "error.identity_provider_unavailable",
+            identifier,
+            503,
+        )
+
+
 class MailUnavailable(AppError):
     def __init__(self, identifier: str):
         super().__init__(

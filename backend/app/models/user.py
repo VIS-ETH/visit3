@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import EmailStr, field_validator
+from sqlalchemy import Text
 from sqlmodel import Field, Relationship
 
 from app.core.config import get_settings
@@ -97,6 +98,8 @@ class RefreshToken(BaseToken, table=True):
         nullable=True,
         sa_type=TIMESTAMPTZ,
     )
+    family_id: UUID = Field(default_factory=uuid4, nullable=False, index=True)
+    idp_refresh_token: str | None = Field(default=None, sa_type=Text)
 
 
 class ResetPasswordToken(BaseToken, table=True):

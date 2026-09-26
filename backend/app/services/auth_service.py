@@ -14,6 +14,7 @@ from app.core.exceptions import (
     AppError,
     EmailTakenLocally,
     EmailUsed,
+    IdentityProviderUnavailable,
     InvalidCredentials,
     KeycloakExchangeFailed,
     MailUnavailable,
@@ -31,7 +32,7 @@ from app.mail_templates.context import (
     PasswordResetContext,
 )
 from app.mail_templates.keys import MailTemplateKey
-from app.models.user import Role, User
+from app.models.user import RefreshToken, Role, User
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
@@ -294,6 +295,7 @@ class AuthService:
         )
 
         if not token:
+            await self._revoke_reused_family(refresh_token)
             raise TokenInvalid("refresh:unknown")
 
         user = await self.user_repository.get_by_id(token.user_id)
@@ -301,10 +303,75 @@ class AuthService:
         if not user:
             raise TokenInvalid(f"refresh:{token.user_id}")
 
+        idp_refresh_token = token.idp_refresh_token
+        if user.sub is not None and not token.is_revoked:
+            user, idp_refresh_token = await self._revalidate_sso_session(user, token)
+
         if not token.is_revoked:
             await self.token_repository.rotate_refresh_token(user.id, refresh_token)
 
-        return await self.create_tokens(user)
+        access_token = await self.create_access_token(user)
+        next_refresh_token = await self.token_repository.create_refresh_token(
+            user.id, family_id=token.family_id, idp_refresh_token=idp_refresh_token
+        )
+        return access_token, next_refresh_token
+
+    async def _revoke_reused_family(self, refresh_token: str) -> None:
+        stale = await self.token_repository.find_refresh_token(refresh_token)
+        if stale is None or stale.rotated_at is None:
+            return
+        await self.token_repository.revoke_refresh_family(stale.family_id)
+        logger.warning(f"Refresh token reuse detected for user {stale.user_id}")
+
+    async def _revalidate_sso_session(
+        self, user: User, token: RefreshToken
+    ) -> tuple[User, str]:
+        if token.idp_refresh_token is None:
+            await self.token_repository.revoke_refresh_family(token.family_id)
+            raise TokenInvalid(f"refresh:sso_session_missing:{user.id}")
+        settings = get_settings()
+        try:
+            response = await self._token_endpoint(
+                {
+                    "grant_type": "refresh_token",
+                    "refresh_token": token.idp_refresh_token,
+                    "client_id": settings.SIP_AUTH_OIDC_CLIENT_ID,
+                    "client_secret": (
+                        settings.SIP_AUTH_OIDC_CLIENT_SECRET.get_secret_value()
+                    ),
+                }
+            )
+        except KeycloakExchangeFailed as error:
+            raise IdentityProviderUnavailable(error.identifier) from None
+        decoded_token = (
+            decode_token(response.json().get("access_token"))
+            if response.status_code == 200
+            else None
+        )
+        if decoded_token is None:
+            await self.token_repository.revoke_refresh_family(token.family_id)
+            raise TokenInvalid(f"refresh:sso_session_ended:{user.id}")
+        try:
+            refreshed_user = await self.map_keycloak_to_user(decoded_token)
+        except (NotVisMember, EmailTakenLocally, EmailUsed, KeycloakExchangeFailed):
+            await self.token_repository.revoke_refresh_family(token.family_id)
+            raise TokenInvalid(f"refresh:sso_rejected:{user.id}") from None
+        if refreshed_user.id != user.id:
+            await self.token_repository.revoke_refresh_family(token.family_id)
+            raise TokenInvalid(f"refresh:sso_subject_changed:{user.id}")
+        next_idp_token = response.json().get("refresh_token")
+        return refreshed_user, next_idp_token or token.idp_refresh_token
+
+    async def _token_endpoint(self, payload: dict[str, str]) -> httpx.Response:
+        try:
+            async with httpx.AsyncClient() as client:
+                return await client.post(
+                    get_settings().SIP_AUTH_OIDC_TOKEN_ENDPOINT, data=payload
+                )
+        except httpx.HTTPError as error:
+            raise KeycloakExchangeFailed(
+                f"keycloak:unreachable:{error.__class__.__name__}"
+            ) from None
 
     async def request_password_reset(self, email: str) -> None:
         user = await self.user_repository.get_by_email(email)
@@ -412,27 +479,26 @@ class AuthService:
             "redirect_uri": settings.KEYCLOAK_CALLBACK,
         }
 
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    settings.SIP_AUTH_OIDC_TOKEN_ENDPOINT, data=payload
-                )
-        except httpx.HTTPError as error:
-            raise KeycloakExchangeFailed(
-                f"keycloak_callback:unreachable:{error.__class__.__name__}"
-            ) from None
+        response = await self._token_endpoint(payload)
 
         if response.status_code != 200:
             raise KeycloakExchangeFailed(f"keycloak_callback:{code}")
 
-        decoded_token = decode_token(response.json().get("access_token"))
+        tokens = response.json()
+        decoded_token = decode_token(tokens.get("access_token"))
         if not decoded_token:
             raise KeycloakExchangeFailed(f"keycloak_callback:invalid_token:{code}")
-        return await self.login_keycloak_user(decoded_token)
+        return await self.login_keycloak_user(
+            decoded_token, tokens.get("refresh_token")
+        )
 
-    async def login_keycloak_user(self, decoded_token: dict[str, Any]) -> str:
+    async def login_keycloak_user(
+        self, decoded_token: dict[str, Any], idp_refresh_token: str | None = None
+    ) -> str:
         user = await self.map_keycloak_to_user(decoded_token)
-        return await self.create_refresh_token(user)
+        return await self.token_repository.create_refresh_token(
+            user.id, idp_refresh_token=idp_refresh_token
+        )
 
     async def map_keycloak_to_user(self, decoded_token: dict[str, Any]) -> User:
         settings = get_settings()
@@ -453,6 +519,7 @@ class AuthService:
         sub = decoded_token["sub"]
 
         if not roles:
+            await self._offboard(sub)
             raise NotVisMember(f"keycloak:{sub}")
 
         first_name, last_name = keycloak_names(decoded_token)
@@ -485,6 +552,14 @@ class AuthService:
             raise EmailUsed(f"keycloak:{email}")
 
         return await self.user_repository.create_user(keycloak_user, roles)
+
+    async def _offboard(self, sub: str) -> None:
+        user = await self.user_repository.get_by_sub(sub)
+        if user is None:
+            return
+        await self.user_repository.revoke_privileges(user)
+        await self.token_repository.revoke_all_refresh_tokens(user.id)
+        logger.warning(f"SSO user lost the VIS roles and was signed out: {user.id}")
 
     async def map_keycloak_roles(
         self, roles: Sequence[str], vis_groups: Sequence[str]

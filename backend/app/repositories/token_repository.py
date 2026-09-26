@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any, TypeVar
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
@@ -107,13 +107,45 @@ class TokenRepository(BaseRepository[RefreshToken]):
             await self.session.rollback()
             raise e
 
-    async def create_refresh_token(self, user_id: UUID) -> str:
-        return await self._issue_token(
-            RefreshToken,
-            user_id=user_id,
-            expires_at=datetime.now(timezone.utc) + REFRESH_TOKEN_EXPIRE,
-            length=64,
-        )
+    async def create_refresh_token(
+        self,
+        user_id: UUID,
+        family_id: UUID | None = None,
+        idp_refresh_token: str | None = None,
+    ) -> str:
+        raw_token = self._create_token_value(64)
+        try:
+            token = RefreshToken(
+                user_id=user_id,
+                token=hash_str(raw_token),
+                expires_at=datetime.now(timezone.utc) + REFRESH_TOKEN_EXPIRE,
+                family_id=family_id or uuid4(),
+                idp_refresh_token=idp_refresh_token,
+            )
+            self.session.add(token)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        return raw_token
+
+    async def find_refresh_token(self, token: str) -> RefreshToken | None:
+        statement = select(RefreshToken).where(RefreshToken.token == hash_str(token))
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def revoke_refresh_family(self, family_id: UUID) -> None:
+        try:
+            await self.update_where(
+                RefreshToken,
+                col(RefreshToken.family_id) == family_id,
+                is_revoked=True,
+                rotated_at=None,
+            )
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
 
     async def get_active_refresh_token(self, token: str) -> RefreshToken | None:
         return await self._get_active_token(
@@ -223,6 +255,17 @@ class TokenRepository(BaseRepository[RefreshToken]):
     async def revoke_login_link_tokens(self, user_id: UUID):
         await self._revoke_tokens(LoginLinkToken, user_id=user_id)
 
+    def _disposable(
+        self, model: type[TokenModelT], now: datetime
+    ) -> ColumnElement[bool]:
+        expired = col(model.expires_at) < now
+        if model is RefreshToken:
+            return expired | (
+                (col(RefreshToken.is_revoked) == True)
+                & col(RefreshToken.rotated_at).is_(None)
+            )
+        return expired | (col(model.is_revoked) == True)
+
     async def cleanup_expired(self):
         try:
             now = datetime.now(timezone.utc)
@@ -232,10 +275,7 @@ class TokenRepository(BaseRepository[RefreshToken]):
                 ConfirmEmailToken,
                 LoginLinkToken,
             ):
-                await self.hard_delete_where(
-                    model,
-                    (col(model.expires_at) < now) | (col(model.is_revoked) == True),
-                )
+                await self.hard_delete_where(model, self._disposable(model, now))
             await self.session.commit()
         except Exception as e:
             await self.session.rollback()

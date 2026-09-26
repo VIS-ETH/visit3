@@ -114,7 +114,8 @@
     "session_load_failed": "Your session could not be loaded. Please try again.",
     "mail_template_not_found": "This email template does not exist.",
     "mail_template_invalid": "The email template uses a placeholder that is not available.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "identity_provider_unavailable": "The VIS login service cannot be reached right now. Please try again in a few minutes."
   },
   "validation": {
     "required": "This field is required.",

@@ -114,7 +114,8 @@
     "session_load_failed": "Ihre Sitzung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "mail_template_not_found": "Diese E-Mail-Vorlage existiert nicht.",
     "mail_template_invalid": "Die E-Mail-Vorlage verwendet einen Platzhalter, der nicht verfügbar ist.",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "identity_provider_unavailable": "Der VIS-Anmeldedienst ist gerade nicht erreichbar. Bitte versuchen Sie es in ein paar Minuten erneut."
   },
   "validation": {
     "required": "Dieses Feld ist erforderlich.",

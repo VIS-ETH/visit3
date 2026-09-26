@@ -252,6 +252,18 @@ class UserRepository(BaseRepository[User]):
             await self.session.rollback()
             raise e
 
+    async def revoke_privileges(self, user: User) -> None:
+        try:
+            await self.load_user_roles(user)
+            user.is_staff = False
+            user.is_admin = False
+            user.roles = []
+            self.session.add(user)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
     async def update_password(self, user_id: uuid.UUID, new_password_hash: str):
         try:
             await self.update_where(
