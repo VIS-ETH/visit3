@@ -1,5 +1,6 @@
 import uuid
 from collections.abc import Sequence
+from datetime import datetime, timezone
 
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -178,6 +179,12 @@ class UserRepository(BaseRepository[User]):
     async def update_user(self, user: User, update: UserProfileFieldsInput) -> User:
         try:
             changes = update.model_dump(exclude_unset=True)
+            if "company_id" in changes and changes["company_id"] != user.company_id:
+                changes["new_in_company_since"] = (
+                    datetime.now(timezone.utc)
+                    if changes["company_id"] is not None
+                    else None
+                )
             email = changes.get("email")
             email_changed = email is not None and normalize_email(email) != user.email
             user.sqlmodel_update(changes)

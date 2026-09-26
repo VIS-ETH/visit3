@@ -125,6 +125,7 @@ ROUTE_ACCESS: dict[str, Access] = {
     "GET /api/companies": Access.STAFF,
     "PATCH /api/companies/{company_id}": Access.STAFF,
     "POST /api/companies/{company_id}/members": Access.STAFF,
+    "POST /api/companies/{company_id}/members/acknowledge": Access.STAFF,
     "DELETE /api/companies/{company_id}/members/{user_id}": Access.STAFF,
     "GET /api/industries": Access.AUTHENTICATED,
     "POST /api/industries": Access.STAFF,

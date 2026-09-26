@@ -58,6 +58,9 @@ class User(BaseEntity, table=True):
     )
 
     company_id: UUID | None = Field(default=None, foreign_key="company.id", index=True)
+    new_in_company_since: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
     company: Company = Relationship(
         back_populates="users", sa_relationship_kwargs={"lazy": "noload"}
     )

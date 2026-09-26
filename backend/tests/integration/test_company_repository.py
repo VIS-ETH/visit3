@@ -433,8 +433,8 @@ async def test_company_overviews_count_members_and_active_bookings(
     overviews = await company_repository.get_company_overviews()
 
     assert overviews == [
-        (fixture.company.id, fixture.company.name, 1, 1),
-        (empty.id, empty.name, 0, 0),
+        (fixture.company.id, fixture.company.name, 1, 1, 0),
+        (empty.id, empty.name, 0, 0, 0),
     ]
 
 
@@ -450,7 +450,7 @@ async def test_company_overviews_ignore_cancelled_bookings(
 
     overviews = await company_repository.get_company_overviews()
 
-    assert overviews == [(fixture.company.id, fixture.company.name, 0, 0)]
+    assert overviews == [(fixture.company.id, fixture.company.name, 0, 0, 0)]
 
 
 async def test_company_overviews_are_searchable_and_paged(
@@ -463,7 +463,7 @@ async def test_company_overviews_are_searchable_and_paged(
     matches = await company_repository.get_company_overviews("robotics", 0, 1)
     total = await company_repository.count_companies("robotics")
 
-    assert [name for _, name, _, _ in matches] == [beta.name]
+    assert [name for _, name, _, _, _ in matches] == [beta.name]
     assert total == 2
 
 

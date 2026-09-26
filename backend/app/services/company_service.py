@@ -90,6 +90,14 @@ class CompanyService:
             raise CompanyNotFound(f"company_users:{company_id}")
         return await self.company_repository.get_users(company)
 
+    async def acknowledge_new_members(self, company_id: UUID) -> Sequence[User]:
+        require_staff_user(self.current_user)
+        company = await self.company_repository.get_by_id(company_id)
+        if not company:
+            raise CompanyNotFound(f"acknowledge_new_members:{company_id}")
+        await self.company_repository.acknowledge_new_members(company)
+        return await self.company_repository.get_users(company)
+
     async def get_company_with_users(self, company_id: UUID) -> CompanyWithUsersResult:
         require_staff_user(self.current_user)
         company = await self.company_repository.get_company_with_users(company_id)
@@ -126,8 +134,15 @@ class CompanyService:
                 name=name,
                 users_count=users_count,
                 bookings_count=bookings_count,
+                new_members_count=new_members_count,
             )
-            for company_id, name, users_count, bookings_count in companies
+            for (
+                company_id,
+                name,
+                users_count,
+                bookings_count,
+                new_members_count,
+            ) in companies
         ]
 
     def _company_with_users_result(self, company: Company) -> CompanyWithUsersResult:

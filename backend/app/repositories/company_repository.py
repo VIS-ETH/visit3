@@ -95,10 +95,20 @@ class CompanyRepository(BaseRepository[Company]):
         query: str | None = None,
         offset: int | None = None,
         limit: int | None = None,
-    ) -> Sequence[tuple[UUID, str, int, int]]:
+    ) -> Sequence[tuple[UUID, str, int, int, int]]:
         users_count = (
             select(func.count(col(User.id)))
             .where(col(User.company_id) == col(Company.id), self._not_deleted(User))
+            .correlate(Company)
+            .scalar_subquery()
+        )
+        new_members_count = (
+            select(func.count(col(User.id)))
+            .where(
+                col(User.company_id) == col(Company.id),
+                col(User.new_in_company_since).is_not(None),
+                self._not_deleted(User),
+            )
             .correlate(Company)
             .scalar_subquery()
         )
@@ -115,7 +125,11 @@ class CompanyRepository(BaseRepository[Company]):
         statement = (
             self._matching_companies(query)
             .with_only_columns(
-                col(Company.id), col(Company.name), users_count, bookings_count
+                col(Company.id),
+                col(Company.name),
+                users_count,
+                bookings_count,
+                new_members_count,
             )
             .order_by(col(Company.name))
             .offset(offset)
@@ -123,8 +137,8 @@ class CompanyRepository(BaseRepository[Company]):
         )
         result = await self.session.execute(statement)
         return [
-            (company_id, name, users, bookings)
-            for company_id, name, users, bookings in result.all()
+            (company_id, name, users, bookings, new_members)
+            for company_id, name, users, bookings, new_members in result.all()
         ]
 
     async def get_user_by_email(self, email: str) -> Optional[User]:
@@ -294,7 +308,10 @@ class CompanyRepository(BaseRepository[Company]):
         try:
             await self._delete_company_owned_rows(company.id)
             await self.update_where(
-                User, col(User.company_id) == company.id, company_id=None
+                User,
+                col(User.company_id) == company.id,
+                company_id=None,
+                new_in_company_since=None,
             )
             self.delete(company)
             await self.session.commit()
@@ -401,9 +418,22 @@ class CompanyRepository(BaseRepository[Company]):
     async def assign_user(self, user: User, company_id: UUID) -> User:
         try:
             user.company_id = company_id
+            user.new_in_company_since = datetime.now(timezone.utc)
             self.session.add(user)
             await self.session.commit()
             return await self._load_user_company(user)
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def acknowledge_new_members(self, company: Company) -> None:
+        try:
+            await self.update_where(
+                User,
+                col(User.company_id) == company.id,
+                new_in_company_since=None,
+            )
+            await self.session.commit()
         except Exception as e:
             await self.session.rollback()
             raise e
@@ -416,6 +446,7 @@ class CompanyRepository(BaseRepository[Company]):
                 self.session.add(profile)
 
             user.company_id = None
+            user.new_in_company_since = None
             self.session.add(user)
             await self.session.commit()
             return await self._load_user_company(user)

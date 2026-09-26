@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -42,6 +43,10 @@ class UserResponse(BaseModel):
     company: CompanyResponse | None = None
 
 
+class StaffUserResponse(UserResponse):
+    new_in_company_since: datetime | None = None
+
+
 class UserFilter(StrEnum):
     ALL = "all"
     UNCONFIRMED = "unconfirmed"
@@ -50,7 +55,7 @@ class UserFilter(StrEnum):
 
 
 class UserPageResult(BaseModel):
-    items: list[UserResponse]
+    items: list[StaffUserResponse]
     total: int
     page: int
     page_size: int

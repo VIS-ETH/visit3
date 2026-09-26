@@ -36,7 +36,7 @@ from app.schemas.company import (
     UpdateCompanyProfileRequest,
     UpdateCompanyRequest,
 )
-from app.schemas.user import UserResponse
+from app.schemas.user import StaffUserResponse, UserResponse
 
 MAX_PAGE_SIZE = 100
 BOOKLET_PAGE_RATE_LIMIT = user_rate_limit(
@@ -251,7 +251,7 @@ async def accept_company_invite(
 @router.get(
     "/{company_id}/users",
     operation_id="getCompanyUsers",
-    response_model=list[UserResponse],
+    response_model=list[StaffUserResponse],
 )
 async def get_company_users(
     company_service: CompanyServiceDep,
@@ -351,6 +351,18 @@ async def add_company_member(
     request: AddCompanyMemberRequest,
 ) -> User:
     return await company_service.add_company_user(company_id, request.user_id)
+
+
+@companies_router.post(
+    "/{company_id}/members/acknowledge",
+    operation_id="acknowledgeCompanyNewMembers",
+    response_model=list[StaffUserResponse],
+)
+async def acknowledge_company_new_members(
+    company_service: CompanyServiceDep,
+    company_id: UUID,
+) -> Sequence[User]:
+    return await company_service.acknowledge_new_members(company_id)
 
 
 @companies_router.delete(

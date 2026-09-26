@@ -20,12 +20,12 @@ from app.repositories.company_repository import CompanyRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import (
+    StaffUserResponse,
     UpdateCompanyUserInput,
     UpdateUserProfileInput,
     UserFilter,
     UserPageResult,
     UserProfileFieldsInput,
-    UserResponse,
 )
 from app.services.auth_service import AuthService
 from app.services.mail_template_service import MailTemplateService
@@ -95,7 +95,7 @@ class UserService:
             query, user_filter, (page - 1) * page_size, page_size
         )
         return UserPageResult(
-            items=[UserResponse.model_validate(user) for user in users],
+            items=[StaffUserResponse.model_validate(user) for user in users],
             total=total,
             page=page,
             page_size=page_size,

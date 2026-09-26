@@ -574,7 +574,9 @@ async def test_search_companies_reports_counts_and_paging(
 ):
     company = make_company(name="Acme AG")
     company_repo.count_companies.return_value = 3
-    company_repo.get_company_overviews.return_value = [(company.id, company.name, 2, 1)]
+    company_repo.get_company_overviews.return_value = [
+        (company.id, company.name, 2, 1, 0)
+    ]
     service = CompanyService(
         company_repo, mail_template_service, storage_service, staff_user
     )

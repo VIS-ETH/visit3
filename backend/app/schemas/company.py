@@ -161,6 +161,7 @@ class MyCompanyResponse(MyCompanyResult):
 class CompanyListResult(CompanyBase):
     users_count: int
     bookings_count: int
+    new_members_count: int = 0
 
 
 class CompanyListResponse(CompanyListResult):
