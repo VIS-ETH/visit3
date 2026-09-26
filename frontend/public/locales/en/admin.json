@@ -122,6 +122,7 @@
     "empty": "No email templates available",
     "list_title": "Templates",
     "customized": "Customized",
+    "invalid": "Template invalid, default in use",
     "default": "Default",
     "never_updated": "Never changed",
     "tab_de": "German",

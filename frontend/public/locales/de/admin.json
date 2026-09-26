@@ -122,6 +122,7 @@
     "empty": "Keine E-Mail-Vorlagen vorhanden",
     "list_title": "Vorlagen",
     "customized": "Angepasst",
+    "invalid": "Template ungültig, Standard wird verwendet",
     "default": "Standard",
     "never_updated": "Nie geändert",
     "tab_de": "Deutsch",

@@ -39,7 +39,11 @@ const MailTemplateList = ({
               py="xs"
               onClick={() => onSelect(template.key)}
               rightSection={
-                template.is_customized ? (
+                !template.is_valid ? (
+                  <Badge size="xs" variant="light" color="red">
+                    {t("mail_templates.invalid")}
+                  </Badge>
+                ) : template.is_customized ? (
                   <Badge size="xs" variant="light">
                     {t("mail_templates.customized")}
                   </Badge>

@@ -232,7 +232,11 @@ const MailTemplateEditor = ({ templateKey }: { templateKey: string }) => {
         <Stack gap="md">
           <Group justify="space-between" align="center">
             <Title order={4}>{template.key}</Title>
-            {template.is_customized ? (
+            {!template.is_valid ? (
+              <Badge variant="light" color="red">
+                {t("mail_templates.invalid")}
+              </Badge>
+            ) : template.is_customized ? (
               <Badge variant="light">{t("mail_templates.customized")}</Badge>
             ) : (
               <Badge variant="light" color="gray">

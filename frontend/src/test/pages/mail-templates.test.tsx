@@ -115,6 +115,26 @@ describe("the mail templates page", () => {
     expect(untouched).toHaveTextContent("mail_templates.never_updated");
   });
 
+  it("flags a stored template that is no longer valid", async () => {
+    activeTemplate = { ...testMailTemplate, is_valid: false };
+    renderPage();
+
+    const invalid = await screen.findByRole(
+      "button",
+      { name: new RegExp(testTemplateKey) },
+      { timeout: 5000 },
+    );
+    expect(invalid).toHaveTextContent("mail_templates.invalid");
+    expect(invalid).not.toHaveTextContent("mail_templates.customized");
+    await findSubject();
+    expect(
+      screen.getAllByText("mail_templates.invalid").length,
+    ).toBeGreaterThan(1);
+    expect(
+      screen.getByRole("button", { name: new RegExp(testOtherTemplateKey) }),
+    ).not.toHaveTextContent("mail_templates.invalid");
+  });
+
   it("loads the template that is selected in the list", async () => {
     const { user } = renderPage();
 

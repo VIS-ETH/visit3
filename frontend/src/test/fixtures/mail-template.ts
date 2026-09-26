@@ -18,6 +18,7 @@ export const testMailTemplate: MailTemplateResponse = {
   default_body_en: "Good day {{ company_name }}",
   variables: ["company_name", "event_name"],
   is_customized: true,
+  is_valid: true,
   updated_at: "2026-03-01T10:00:00Z",
   updated_by_user_id: "staff-1",
 };
@@ -45,6 +46,7 @@ export const testOtherMailTemplate: MailTemplateResponse = {
   default_body_en: "Hello {{ first_name }}",
   variables: ["first_name"],
   is_customized: false,
+  is_valid: true,
   updated_at: null,
   updated_by_user_id: null,
 };
