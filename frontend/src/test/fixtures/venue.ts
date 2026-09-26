@@ -47,6 +47,7 @@ const testVenueLayout: VenueMapLayoutResult = {
   width: 1000,
   height: 700,
   is_active: true,
+  floor_plan: null,
   background_url: null,
   background_file: null,
   zone_shapes: [
@@ -110,6 +111,7 @@ export const testEditableLayout: VenueLayoutResponse = {
   width: 1000,
   height: 700,
   is_active: true,
+  floor_plan: null,
   background_url: null,
   background_file: null,
   zone_shapes: [],

@@ -68,6 +68,7 @@ import {
   type VenuePoint,
   type VenueShape,
 } from "./venue-geometry";
+import { floorPlanImage } from "./floor-plans";
 
 const GRID_SIZE = 10;
 
@@ -698,7 +699,7 @@ const VenueLayoutEditor = ({
 
       <Paper withBorder radius="md" p="xs">
         <VenueMapCanvas
-          backgroundUrl={layout.background_url}
+          floorPlanUrl={floorPlanImage(layout.floor_plan)}
           booths={canvasBooths}
           height={layout.height}
           onActivateBooth={(booth) => selectBooth(booth.key)}

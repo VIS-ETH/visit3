@@ -3,6 +3,7 @@ import { fireEvent, screen } from "@testing-library/react";
 import VenueLayoutEditor from "../../components/venue/VenueLayoutEditor";
 import type { BoothZoneResponse } from "../../orval/generated/fastAPI.schemas";
 import { renderWithProviders } from "../render";
+import redHallPlan from "../../assets/venue/red-hall.webp";
 import { testEditableLayout, testMainZone } from "../fixtures/venue";
 
 const zones: BoothZoneResponse[] = [
@@ -44,6 +45,20 @@ const drawRectangle = async (
 };
 
 describe("the venue layout editor", () => {
+  it("draws the zones over the bundled floor plan", () => {
+    const { container } = renderWithProviders(
+      <VenueLayoutEditor
+        layout={{ ...testEditableLayout, floor_plan: "red_hall" }}
+        zones={zones}
+      />,
+    );
+
+    expect(container.querySelector("image")).toHaveAttribute(
+      "href",
+      redHallPlan,
+    );
+  });
+
   it("draws a rectangle from a pointer drag", async () => {
     const { user } = renderEditor();
 

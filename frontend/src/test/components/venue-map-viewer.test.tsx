@@ -8,6 +8,7 @@ import i18n from "../i18n";
 import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
 import { testEventId } from "../fixtures/kp-booking";
+import mainHallPlan from "../../assets/venue/main-hall.webp";
 import {
   testMainZone,
   testSecondVenueLayout,
@@ -45,7 +46,9 @@ describe("the venue map viewer", () => {
       screen.getByRole("button", { name: testSideZone.name }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(testMainZone.name).length).toBeGreaterThan(1);
-    expect(screen.getAllByText(`${testMainZone.booth_size} m²`)).toHaveLength(2);
+    expect(screen.getAllByText(`${testMainZone.booth_size} m²`)).toHaveLength(
+      2,
+    );
   });
 
   it("marks a zone without free spots as full", async () => {
@@ -106,6 +109,44 @@ describe("the venue map viewer", () => {
     expect(
       await screen.findByRole("radio", { name: testSecondVenueLayout.name }),
     ).toBeInTheDocument();
+  });
+
+  it("draws the bundled floor plan of the layout", async () => {
+    const [layout] = testVenueMap.layouts;
+    venueResponse = {
+      ...testVenueMap,
+      layouts: [{ ...layout, floor_plan: "main_hall" }],
+    };
+    const { container } = renderWithProviders(
+      <VenueMapViewer eventId={testEventId} />,
+    );
+
+    await screen.findByRole("button", { name: testMainZone.name });
+
+    expect(container.querySelector("image")).toHaveAttribute(
+      "href",
+      mainHallPlan,
+    );
+    expect(
+      screen.getByRole("group", { name: "kp.venue.map_label" }),
+    ).toHaveStyle({ color: "var(--mantine-color-black)" });
+  });
+
+  it("ignores an uploaded background", async () => {
+    const [layout] = testVenueMap.layouts;
+    venueResponse = {
+      ...testVenueMap,
+      layouts: [
+        { ...layout, background_url: "https://files.test/background.png" },
+      ],
+    };
+    const { container } = renderWithProviders(
+      <VenueMapViewer eventId={testEventId} />,
+    );
+
+    await screen.findByRole("button", { name: testMainZone.name });
+
+    expect(container.querySelector("image")).toBeNull();
   });
 
   it("explains when the event has no layout yet", async () => {

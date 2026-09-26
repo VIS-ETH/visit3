@@ -55,7 +55,7 @@ export interface VenueCanvasBooth {
 interface VenueMapCanvasProps {
   width: number;
   height: number;
-  backgroundUrl?: string | null;
+  floorPlanUrl?: string | null;
   zones: VenueCanvasZone[];
   shapes: VenueCanvasShape[];
   booths: VenueCanvasBooth[];
@@ -89,7 +89,7 @@ const distanceBetween = (a: VenuePoint, b: VenuePoint) =>
 const VenueMapCanvas = ({
   width,
   height,
-  backgroundUrl,
+  floorPlanUrl,
   zones,
   shapes,
   booths,
@@ -326,14 +326,17 @@ const VenueMapCanvas = ({
           display: "block",
           touchAction: "none",
           backgroundColor: "var(--mantine-color-body)",
+          color: floorPlanUrl
+            ? "var(--mantine-color-black)"
+            : "var(--mantine-color-text)",
           borderRadius: "var(--mantine-radius-md)",
           cursor: panEnabled ? "grab" : "crosshair",
         }}
       >
         <g transform={venueViewTransform(view)}>
-          {backgroundUrl ? (
+          {floorPlanUrl ? (
             <image
-              href={backgroundUrl}
+              href={floorPlanUrl}
               x={0}
               y={0}
               width={width}
@@ -392,7 +395,7 @@ const VenueMapCanvas = ({
                   textAnchor="middle"
                   fontSize={fontSize}
                   fontWeight={600}
-                  fill="var(--mantine-color-text)"
+                  fill="currentColor"
                   style={{ pointerEvents: "none", userSelect: "none" }}
                 >
                   {zone?.name ?? t("kp.venue.shape_unassigned")}
@@ -402,7 +405,7 @@ const VenueMapCanvas = ({
                   y={labelY + fontSize * 1.2}
                   textAnchor="middle"
                   fontSize={fontSize * 0.8}
-                  fill="var(--mantine-color-text)"
+                  fill="currentColor"
                   style={{ pointerEvents: "none", userSelect: "none" }}
                 >
                   {zone?.caption ?? ""}
@@ -466,7 +469,7 @@ const VenueMapCanvas = ({
                   fill={
                     booth.isHighlighted
                       ? "var(--mantine-color-white)"
-                      : "var(--mantine-color-text)"
+                      : "currentColor"
                   }
                   style={{ pointerEvents: "none", userSelect: "none" }}
                 >

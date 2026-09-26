@@ -22,6 +22,7 @@ import VenueMapCanvas, {
   type VenueCanvasBooth,
   type VenueCanvasShape,
 } from "./VenueMapCanvas";
+import { floorPlanImage } from "./floor-plans";
 
 interface VenueBoothHighlight {
   zoneId: string;
@@ -153,7 +154,7 @@ const VenueMapViewer = ({
       ) : null}
       <Paper withBorder radius="md" p="xs">
         <VenueMapCanvas
-          backgroundUrl={layout.background_url}
+          floorPlanUrl={floorPlanImage(layout.floor_plan)}
           booths={booths}
           height={layout.height}
           onActivateShape={
