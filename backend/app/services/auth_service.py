@@ -69,6 +69,16 @@ def is_local_account(user: User) -> bool:
     return user.password is not None or user.is_company
 
 
+def is_unclaimed_local_account(user: User) -> bool:
+    return (
+        user.sub is None
+        and not user.email_confirmed
+        and user.company_id is None
+        and not user.is_staff
+        and not user.is_admin
+    )
+
+
 def _claim(decoded_token: dict[str, Any], name: str) -> str:
     value = decoded_token.get(name)
     return strip_text(value) if isinstance(value, str) else ""
@@ -466,7 +476,10 @@ class AuthService:
             )
 
         email_owner = await self.user_repository.get_by_email(email)
-        if email_owner is not None:
+        if email_owner is not None and is_unclaimed_local_account(email_owner):
+            await self.user_repository.delete_user(email_owner)
+            logger.info(f"SSO login replaced an unconfirmed local account: {email}")
+        elif email_owner is not None:
             if is_local_account(email_owner):
                 raise EmailTakenLocally(f"keycloak:{email}")
             raise EmailUsed(f"keycloak:{email}")

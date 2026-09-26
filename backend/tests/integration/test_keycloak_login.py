@@ -336,3 +336,40 @@ async def test_access_token_of_local_user_carries_the_internal_user_id(
     token = await auth_service.create_access_token(local_user)
 
     assert access_token_subject(token) == str(local_user.id)
+
+
+async def test_keycloak_login_keeps_refusing_a_confirmed_local_account_without_company(
+    auth_service,
+    user_repository,
+):
+    await user_repository.create_user(
+        User(
+            email="solo@example.com",
+            password=LOCAL_PASSWORD_HASH,
+            is_company=True,
+            email_confirmed=True,
+        )
+    )
+
+    with pytest.raises(EmailTakenLocally):
+        await auth_service.map_keycloak_to_user(
+            keycloak_token(sub="solo-sub", email="solo@example.com")
+        )
+
+
+async def test_keycloak_login_replaces_a_never_confirmed_local_account(
+    auth_service,
+    user_repository,
+):
+    squatter = await user_repository.create_user(
+        User(email="board@example.com", password=LOCAL_PASSWORD_HASH, is_company=True)
+    )
+
+    user = await auth_service.map_keycloak_to_user(
+        keycloak_token(sub="board-sub", email="board@example.com")
+    )
+
+    assert user.id != squatter.id
+    assert user.sub == "board-sub"
+    assert user.is_staff is True
+    assert await user_repository.get_by_id(squatter.id) is None
