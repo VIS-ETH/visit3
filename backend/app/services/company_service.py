@@ -17,9 +17,11 @@ from app.core.config import get_settings
 from app.core.exceptions import (
     CompanyHasUpcomingBookings,
     CompanyInvitePending,
+    CompanyNameTaken,
     CompanyNotFound,
     CompanyUserNotFound,
     IndustryNotFound,
+    MailUnavailable,
     NotAllowed,
     UserAlreadyInCompany,
     UserLastCompanyMember,
@@ -237,7 +239,7 @@ class CompanyService:
             raise NotAllowed("setup_company:empty_name")
         existing = await self.company_repository.get_by_name(normalized)
         if existing:
-            raise NotAllowed(f"setup_company:name_taken:{normalized}")
+            raise CompanyNameTaken(f"setup_company:name_taken:{normalized}")
         company = await self.company_repository.create_company(normalized)
         await self.company_repository.assign_user(self.current_user, company.id)
         logger.info(
@@ -271,25 +273,41 @@ class CompanyService:
             invited_email=normalized,
             expires_at=expires_at,
         )
-        await self.mail_template_service.send(
-            MailTemplateKey.COMPANY_INVITE,
-            [normalized],
-            CompanyInviteContext(
-                company_name=company.name,
-                invite_url=(
-                    f"{get_settings().VISIT_FRONTEND_SERVER_URL}/company/join/{token}"
-                    f"?email={quote(normalized, safe='')}"
+        try:
+            await self.mail_template_service.send(
+                MailTemplateKey.COMPANY_INVITE,
+                [normalized],
+                CompanyInviteContext(
+                    company_name=company.name,
+                    invite_url=(
+                        f"{get_settings().VISIT_FRONTEND_SERVER_URL}"
+                        f"/company/join/{token}"
+                        f"?email={quote(normalized, safe='')}"
+                    ),
                 ),
-            ),
-        )
+            )
+        except MailUnavailable:
+            await self.company_repository.delete_invite(invite)
+            raise
         logger.info(
             f"Invite sent by {self.current_user.email} to {normalized} for {company.name}"
         )
         return invite
 
+    async def _accepted_by_current_user(self, token: str) -> bool:
+        invite = await self.company_repository.get_invite_by_token(token)
+        return (
+            invite is not None
+            and invite.is_used
+            and invite.company_id == self.current_user.company_id
+            and normalize_email(invite.invited_email) == self.current_user.email
+        )
+
     async def accept_invite(self, token: str) -> User:
         require_confirmed_company_user(self.current_user)
         if self.current_user.company_id:
+            if await self._accepted_by_current_user(token):
+                return self.current_user
             raise NotAllowed(f"accept_invite:already_in_company:{self.current_user.id}")
         return await self.invite_service.join_company(
             self.current_user, token, "accept_invite"
@@ -318,7 +336,7 @@ class CompanyService:
             raise NotAllowed(f"rename_company:empty_name:{company.id}")
         existing = await self.company_repository.get_by_name(normalized)
         if existing is not None and existing.id != company.id:
-            raise NotAllowed(f"rename_company:name_taken:{normalized}")
+            raise CompanyNameTaken(f"rename_company:name_taken:{normalized}")
 
         updated_company = await self.company_repository.update_company_name(
             company, normalized

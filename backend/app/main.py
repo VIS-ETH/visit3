@@ -20,6 +20,7 @@ from app.core.exception_handlers import (
     register_exception_handlers,
 )
 from app.core.maintenance import lifespan
+from app.core.request_id import REQUEST_ID_HEADER, RequestIdMiddleware
 from app.routes.router import router as api_router
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -59,7 +60,9 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=[REQUEST_ID_HEADER],
 )
+app.add_middleware(RequestIdMiddleware)
 
 
 class HealthCheckFilter(logging.Filter):

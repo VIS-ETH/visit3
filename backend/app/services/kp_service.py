@@ -1340,6 +1340,8 @@ class KpService:
     ) -> BookingWithCompanyAndBoothZoneResponse:
         require_staff_user(self.current_user)
         booking = await self._get_booking(booking_id)
+        if booking.status == KpBookingStatus.CONFIRMED:
+            return await self._build_staff_booking_response(booking)
         ensure_booking_transition(
             STAFF_BOOKING_TRANSITIONS,
             booking,

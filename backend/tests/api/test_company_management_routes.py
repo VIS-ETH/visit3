@@ -102,8 +102,8 @@ async def test_renaming_to_a_taken_name_is_refused(
         headers=staff_headers,
     )
 
-    assert response.status_code == 403
-    assert response.json()["code"] == "error.not_allowed"
+    assert response.status_code == 409
+    assert response.json()["code"] == "error.company_name_taken"
 
 
 async def test_renaming_an_unknown_company_is_not_found(

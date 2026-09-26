@@ -544,6 +544,36 @@ class KpVenueBoothNumberDuplicate(AppError):
         )
 
 
+class MailUnavailable(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The mail service is unavailable",
+            "error.mail_unavailable",
+            identifier,
+            503,
+        )
+
+
+class CompanyNameTaken(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Another company already uses this name",
+            "error.company_name_taken",
+            identifier,
+            409,
+        )
+
+
+class ConcurrentChange(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The data was changed at the same time elsewhere",
+            "error.conflict",
+            identifier,
+            409,
+        )
+
+
 class StorageUploadFailed(AppError):
     def __init__(self, identifier: str):
         super().__init__(

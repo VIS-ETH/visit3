@@ -3,12 +3,14 @@ from collections.abc import Sequence
 from datetime import datetime, timezone
 
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.selectable import Select
 from sqlmodel import col, or_, select
 
+from app.core.exceptions import EmailUsed
 from app.core.utils import normalize_email
 from app.models.company import Company, KpCompanyProfile
 from app.models.user import Role, User
@@ -207,6 +209,9 @@ class UserRepository(BaseRepository[User]):
             await self.session.commit()
             await self.session.refresh(user)
             return user
+        except IntegrityError:
+            await self.session.rollback()
+            raise EmailUsed(f"create_user:{user.email}") from None
         except Exception as e:
             await self.session.rollback()
             raise e

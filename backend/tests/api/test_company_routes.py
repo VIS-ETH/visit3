@@ -97,8 +97,8 @@ async def test_setup_company_with_existing_name_is_rejected(
         headers={**await auth_headers(founder), **csrf_headers},
     )
 
-    assert response.status_code == 403
-    assert response.json()["code"] == "error.not_allowed"
+    assert response.status_code == 409
+    assert response.json()["code"] == "error.company_name_taken"
 
 
 async def test_setup_company_response_hides_internal_columns(

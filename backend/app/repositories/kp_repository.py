@@ -4,11 +4,13 @@ from typing import Any, Optional
 from uuid import UUID
 
 from sqlalchemy import and_, case, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlmodel import col, select
 
 from app.core.deleted_filter import include_deleted_for
+from app.core.exceptions import ConcurrentChange
 from app.models.company import Company, KpCompanyProfile
 from app.models.industry import Industry, KpCompanyProfileIndustryLink
 from app.models.kp_event import (
@@ -1384,40 +1386,86 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
+    async def _stored_answer(
+        self, booking_service_id: UUID, requirement_id: UUID
+    ) -> Optional[KpEventBookingServiceFileLink]:
+        statement = select(KpEventBookingServiceFileLink).where(
+            col(KpEventBookingServiceFileLink.booking_service_id) == booking_service_id,
+            col(KpEventBookingServiceFileLink.requirement_id) == requirement_id,
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def _write_answer(
+        self,
+        answer: Optional[KpEventBookingServiceFileLink],
+        booking_service_id: UUID,
+        requirement_id: UUID,
+        stored_file_id: UUID | None,
+        text_value: str | None,
+    ) -> None:
+        if answer is None:
+            answer = KpEventBookingServiceFileLink(
+                booking_service_id=booking_service_id,
+                requirement_id=requirement_id,
+            )
+        answer.stored_file_id = stored_file_id
+        answer.text_value = text_value
+        self._validate_model(
+            answer, exclude={"booking_service", "requirement", "stored_file"}
+        )
+        self.session.add(answer)
+        await self.session.commit()
+
+    async def _save_answer(
+        self,
+        booking_service_id: UUID,
+        requirement_id: UUID,
+        stored_file_id: UUID | None,
+        text_value: str | None,
+    ) -> KpEventBookingServiceFileLink:
+        try:
+            answer = await self.get_requirement_file(booking_service_id, requirement_id)
+            try:
+                await self._write_answer(
+                    answer,
+                    booking_service_id,
+                    requirement_id,
+                    stored_file_id,
+                    text_value,
+                )
+            except IntegrityError:
+                await self.session.rollback()
+                await self._write_answer(
+                    await self._stored_answer(booking_service_id, requirement_id),
+                    booking_service_id,
+                    requirement_id,
+                    stored_file_id,
+                    text_value,
+                )
+            saved = await self._stored_answer(booking_service_id, requirement_id)
+            if saved is None:
+                raise ConcurrentChange(
+                    f"requirement_answer:{booking_service_id}:{requirement_id}"
+                )
+            await self.session.refresh(saved)
+            return (
+                await self.get_requirement_file(booking_service_id, requirement_id)
+                or saved
+            )
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
     async def upsert_requirement_file_link(
         self,
         booking_service_id: UUID,
         requirement_id: UUID,
         stored_file_id: UUID,
     ) -> KpEventBookingServiceFileLink:
-        try:
-            requirement_file = await self.get_requirement_file(
-                booking_service_id, requirement_id
-            )
-            if requirement_file is None:
-                requirement_file = KpEventBookingServiceFileLink(
-                    booking_service_id=booking_service_id,
-                    requirement_id=requirement_id,
-                    stored_file_id=stored_file_id,
-                )
-            else:
-                requirement_file.stored_file_id = stored_file_id
-                requirement_file.text_value = None
-
-            self._validate_model(
-                requirement_file,
-                exclude={"booking_service", "requirement", "stored_file"},
-            )
-            self.session.add(requirement_file)
-            await self.session.commit()
-            await self.session.refresh(requirement_file)
-            return (
-                await self.get_requirement_file(booking_service_id, requirement_id)
-                or requirement_file
-            )
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        return await self._save_answer(
+            booking_service_id, requirement_id, stored_file_id, None
+        )
 
     async def upsert_requirement_text_answer(
         self,
@@ -1425,34 +1473,9 @@ class KpRepository(BaseRepository[KpEvent]):
         requirement_id: UUID,
         text_value: str,
     ) -> KpEventBookingServiceFileLink:
-        try:
-            requirement_answer = await self.get_requirement_file(
-                booking_service_id, requirement_id
-            )
-            if requirement_answer is None:
-                requirement_answer = KpEventBookingServiceFileLink(
-                    booking_service_id=booking_service_id,
-                    requirement_id=requirement_id,
-                    text_value=text_value,
-                )
-            else:
-                requirement_answer.stored_file_id = None
-                requirement_answer.text_value = text_value
-
-            self._validate_model(
-                requirement_answer,
-                exclude={"booking_service", "requirement", "stored_file"},
-            )
-            self.session.add(requirement_answer)
-            await self.session.commit()
-            await self.session.refresh(requirement_answer)
-            return (
-                await self.get_requirement_file(booking_service_id, requirement_id)
-                or requirement_answer
-            )
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        return await self._save_answer(
+            booking_service_id, requirement_id, None, text_value
+        )
 
     async def get_nametag_background(
         self, event_id: UUID

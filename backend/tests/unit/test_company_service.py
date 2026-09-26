@@ -7,6 +7,7 @@ import pytest
 from app.core.exceptions import (
     CompanyHasUpcomingBookings,
     CompanyInvitePending,
+    CompanyNameTaken,
     EmailNotConfirmed,
     InviteEmailMismatch,
     InviteExpired,
@@ -257,11 +258,12 @@ async def test_accept_invite_rejects_already_assigned_user(
 ):
     user = make_user(company_id=uuid4())
     service = CompanyService(company_repo, mail_template_service, storage_service, user)
+    company_repo.get_invite_by_token.return_value = None
 
     with pytest.raises(NotAllowed):
         await service.accept_invite("invite-token")
 
-    company_repo.get_invite_by_token.assert_not_awaited()
+    company_repo.assign_user.assert_not_awaited()
 
 
 async def test_accept_invite_marks_invite_used_and_assigns_user(
@@ -369,7 +371,7 @@ async def test_update_company_name_rejects_name_of_another_company(
     company_repo.get_by_name.return_value = make_company(name="New Name")
     service = CompanyService(company_repo, mail_template_service, storage_service, user)
 
-    with pytest.raises(NotAllowed):
+    with pytest.raises(CompanyNameTaken):
         await service.update_company_name("New Name")
 
     company_repo.update_company_name.assert_not_awaited()
@@ -431,7 +433,7 @@ async def test_update_company_rejects_a_taken_name(
         company_repo, mail_template_service, storage_service, staff_user
     )
 
-    with pytest.raises(NotAllowed):
+    with pytest.raises(CompanyNameTaken):
         await service.update_company(company.id, "New Name")
 
     company_repo.update_company_name.assert_not_awaited()

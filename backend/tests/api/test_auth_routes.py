@@ -318,24 +318,6 @@ async def test_password_reset_for_unknown_email_looks_like_success(
     mail_stub.SendMail.assert_not_awaited()
 
 
-async def test_password_reset_maps_grpc_failure_to_server_error(
-    client: AsyncClient,
-    csrf_headers: dict[str, str],
-    company_user: User,
-    mail_stub: AsyncMock,
-):
-    mail_stub.SendMail.side_effect = MailRpcError()
-
-    response = await client.post(
-        "/api/auth/reset-password",
-        json={"email": company_user.email},
-        headers=csrf_headers,
-    )
-
-    assert response.status_code == 500
-    assert response.json()["detail"] == "gRPC call failed"
-
-
 async def test_password_reset_sends_mail(
     client: AsyncClient,
     csrf_headers: dict[str, str],

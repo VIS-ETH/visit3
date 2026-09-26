@@ -49,6 +49,10 @@ class MailService:
             raise MailDeliveryFailed(
                 f"notification API SendMail failed ({code})"
             ) from None
+        except Exception as e:
+            raise MailDeliveryFailed(
+                f"notification API SendMail failed ({e.__class__.__name__})"
+            ) from None
 
     def construct_mail(
         self,

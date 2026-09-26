@@ -16,6 +16,7 @@ from app.core.exceptions import (
     EmailUsed,
     InvalidCredentials,
     KeycloakExchangeFailed,
+    MailUnavailable,
     NotVisMember,
     PasswordTooShort,
     PhoneNumberInvalid,
@@ -346,14 +347,17 @@ class AuthService:
         await self._apply_pending_invite(user)
         logger.info(f"Email confirmed for user: {user.email}")
         if not user.user_confirmed:
-            await self.mail_template_service.send_to_staff_notification(
-                MailTemplateKey.ACCOUNT_AWAITING_CONFIRMATION,
-                AccountAwaitingConfirmationContext(
-                    name=user.display_name,
-                    email=user.email,
-                    admin_url=frontend_url(STAFF_ACCOUNT_REVIEW_PATH),
-                ),
-            )
+            try:
+                await self.mail_template_service.send_to_staff_notification(
+                    MailTemplateKey.ACCOUNT_AWAITING_CONFIRMATION,
+                    AccountAwaitingConfirmationContext(
+                        name=user.display_name,
+                        email=user.email,
+                        admin_url=frontend_url(STAFF_ACCOUNT_REVIEW_PATH),
+                    ),
+                )
+            except MailUnavailable:
+                logger.exception(f"Staff notification failed for {user.email}")
         return True
 
     async def _apply_pending_invite(self, user: User) -> None:
@@ -378,10 +382,15 @@ class AuthService:
             "redirect_uri": settings.KEYCLOAK_CALLBACK,
         }
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                settings.SIP_AUTH_OIDC_TOKEN_ENDPOINT, data=payload
-            )
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    settings.SIP_AUTH_OIDC_TOKEN_ENDPOINT, data=payload
+                )
+        except httpx.HTTPError as error:
+            raise KeycloakExchangeFailed(
+                f"keycloak_callback:unreachable:{error.__class__.__name__}"
+            ) from None
 
         if response.status_code != 200:
             raise KeycloakExchangeFailed(f"keycloak_callback:{code}")

@@ -4,11 +4,13 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.selectable import Select
 from sqlmodel import col, select
 
+from app.core.exceptions import CompanyNameTaken
 from app.core.utils import normalize_email
 from app.models.company import Company, CompanyInvite, KpCompanyProfile
 from app.models.industry import Industry, KpCompanyProfileIndustryLink
@@ -39,6 +41,9 @@ class CompanyRepository(BaseRepository[Company]):
             await self.session.commit()
             await self.session.refresh(company)
             return company
+        except IntegrityError:
+            await self.session.rollback()
+            raise CompanyNameTaken(f"create_company:{name}") from None
         except Exception as e:
             await self.session.rollback()
             raise e
@@ -493,6 +498,14 @@ class CompanyRepository(BaseRepository[Company]):
         statement = select(CompanyInvite).where(col(CompanyInvite.token) == token)
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
+
+    async def delete_invite(self, invite: CompanyInvite) -> None:
+        try:
+            await self.hard_delete(invite)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
 
     async def mark_invite_used(self, invite: CompanyInvite):
         try:

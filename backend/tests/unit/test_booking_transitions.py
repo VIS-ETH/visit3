@@ -189,6 +189,12 @@ async def test_staff_transition_matrix(
         assert result.status == target
         return
 
+    if current == target == KpBookingStatus.CONFIRMED:
+        result = await action(service, booking.id)
+        assert result.status == KpBookingStatus.CONFIRMED
+        kp_repo.update_booking.assert_not_awaited()
+        return
+
     with pytest.raises(KpBookingStatusTransitionInvalid):
         await action(service, booking.id)
     kp_repo.update_booking.assert_not_awaited()

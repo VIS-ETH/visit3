@@ -1,12 +1,13 @@
 from collections.abc import Sequence
 
+from app.core.exceptions import MailUnavailable
 from app.mail_templates.context import MailContext
 from app.mail_templates.defaults import MAIL_TEMPLATE_DEFAULTS
 from app.mail_templates.keys import MailTemplateKey
 from app.mail_templates.renderer import RenderedMail, render_mail
 from app.mail_templates.texts import MailTemplateTexts
 from app.repositories.mail_repository import MailTemplateRepository
-from app.services.mail_service import MailService
+from app.services.mail_service import MailDeliveryFailed, MailService
 from app.services.notification_recipients import NotificationRecipients
 
 
@@ -50,8 +51,12 @@ class MailTemplateService:
         message = self.mail_service.construct_mail(
             recipients, rendered.subject, plain_text=rendered.text
         )
-        if message is not None:
+        if message is None:
+            return
+        try:
             await self.mail_service.send_mail(message)
+        except MailDeliveryFailed as error:
+            raise MailUnavailable(f"{template_identifier(key)}:{error}") from None
 
     async def send_to_staff_notification(
         self, key: MailTemplateKey, context: MailContext

@@ -4,9 +4,11 @@ from typing import TypeGuard
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from app.core.exceptions import AppError
+from app.core.exceptions import AppError, ConcurrentChange
+from app.core.request_id import current_request_id
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,13 @@ class UnexpectedErrorMiddleware:
         try:
             await self.app(scope, receive, tracking_send)
         except Exception:
-            logger.exception("Unhandled error on %s %s", scope["method"], scope["path"])
+            request_id = current_request_id()
+            logger.exception(
+                "Unhandled error on %s %s (request %s)",
+                scope["method"],
+                scope["path"],
+                request_id,
+            )
             if response_started:
                 raise
             response = JSONResponse(
@@ -40,6 +48,7 @@ class UnexpectedErrorMiddleware:
                     "code": "error.internal",
                     "identifier": "unhandled",
                     "message": "Internal server error",
+                    "requestId": request_id,
                 },
             )
             await response(scope, receive, send)
@@ -48,6 +57,21 @@ class UnexpectedErrorMiddleware:
 def register_exception_handlers(app: FastAPI) -> None:
     app.exception_handler(AppError)(app_error_handler)
     app.exception_handler(RequestValidationError)(request_validation_error_handler)
+    app.exception_handler(IntegrityError)(integrity_error_handler)
+
+
+async def integrity_error_handler(
+    request: Request, exc: IntegrityError
+) -> JSONResponse:
+    logger.warning(
+        "Concurrent change on %s %s (request %s)",
+        request.method,
+        request.url.path,
+        current_request_id(),
+    )
+    return await app_error_handler(
+        request, ConcurrentChange(f"integrity:{request.method}:{request.url.path}")
+    )
 
 
 async def app_error_handler(_request: Request, exc: AppError) -> JSONResponse:
