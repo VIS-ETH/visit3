@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Any
 from uuid import UUID
 
@@ -10,6 +11,17 @@ from app.models.storage import StoredFile
 
 DEFAULT_VENUE_LAYOUT_WIDTH = 1000
 DEFAULT_VENUE_LAYOUT_HEIGHT = 700
+
+
+class KpVenueFloorPlan(str, Enum):
+    MAIN_HALL = "main_hall"
+    RED_HALL = "red_hall"
+
+
+FLOOR_PLAN_SIZES: dict[KpVenueFloorPlan, tuple[int, int]] = {
+    KpVenueFloorPlan.MAIN_HALL: (1043, 655),
+    KpVenueFloorPlan.RED_HALL: (1148, 416),
+}
 
 
 class KpVenueLayout(BaseEntity, table=True):
@@ -27,6 +39,7 @@ class KpVenueLayout(BaseEntity, table=True):
     width: int = Field(default=DEFAULT_VENUE_LAYOUT_WIDTH, ge=1)
     height: int = Field(default=DEFAULT_VENUE_LAYOUT_HEIGHT, ge=1)
     is_active: bool = Field(default=True)
+    floor_plan: KpVenueFloorPlan | None = Field(default=None)
 
     background_stored_file: StoredFile | None = Relationship()
     zone_shapes: list["KpVenueZoneShape"] = Relationship(back_populates="layout")

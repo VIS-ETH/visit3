@@ -113,6 +113,7 @@ VENUE_LAYOUT_CLONE_FIELDS = (
     "width",
     "height",
     "is_active",
+    "floor_plan",
 )
 
 VENUE_ZONE_SHAPE_CLONE_FIELDS = (

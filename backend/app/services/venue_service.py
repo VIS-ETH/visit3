@@ -15,7 +15,12 @@ from app.core.exceptions import (
 )
 from app.models.kp_event import KpEvent, KpEventBoothZone
 from app.models.user import User
-from app.models.venue import KpVenueBooth, KpVenueLayout, KpVenueZoneShape
+from app.models.venue import (
+    FLOOR_PLAN_SIZES,
+    KpVenueBooth,
+    KpVenueLayout,
+    KpVenueZoneShape,
+)
 from app.repositories.kp_repository import KpRepository
 from app.repositories.venue_repository import VenueRepository
 from app.schemas.kp import (
@@ -51,6 +56,15 @@ class LayoutBounds:
     layout_id: UUID
     width: int
     height: int
+
+
+def sized_to_floor_plan[LayoutInput: (CreateVenueLayoutInput, UpdateVenueLayoutInput)](
+    layout_input: LayoutInput,
+) -> LayoutInput:
+    if layout_input.floor_plan is None:
+        return layout_input
+    width, height = FLOOR_PLAN_SIZES[layout_input.floor_plan]
+    return layout_input.model_copy(update={"width": width, "height": height})
 
 
 def layout_bounds(layout: KpVenueLayout) -> LayoutBounds:
@@ -171,6 +185,7 @@ class VenueService:
             width=layout.width,
             height=layout.height,
             is_active=layout.is_active,
+            floor_plan=layout.floor_plan,
             background_url=await self._background_url(layout),
             background_file=(
                 StoredFileResponse.model_validate(
@@ -218,7 +233,7 @@ class VenueService:
             event_id, "create_venue_layout", create_layout_input.name
         )
         layout = await self.venue_repository.create_layout(
-            event_id, create_layout_input
+            event_id, sized_to_floor_plan(create_layout_input)
         )
         return await self._build_single_layout(layout)
 
@@ -234,8 +249,9 @@ class VenueService:
             new_name if new_name != layout.name else None,
             layout.id,
         )
-        await self._ensure_resize_keeps_elements_inside(layout, update_layout_input)
-        updated = await self.venue_repository.update_layout(layout, update_layout_input)
+        sized_update = sized_to_floor_plan(update_layout_input)
+        await self._ensure_resize_keeps_elements_inside(layout, sized_update)
+        updated = await self.venue_repository.update_layout(layout, sized_update)
         return await self._build_single_layout(updated)
 
     async def delete_layout(self, layout_id: UUID) -> None:

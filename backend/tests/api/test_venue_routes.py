@@ -674,6 +674,11 @@ async def test_cloning_an_event_copies_layouts_shapes_and_booths(
     kp_setup: KpSetup,
     layout_id: str,
 ):
+    await client.patch(
+        f"/api/kp/venue-layouts/{layout_id}",
+        json={"floor_plan": "main_hall"},
+        headers=staff_headers,
+    )
     await put_shapes(
         client,
         staff_headers,
@@ -711,6 +716,7 @@ async def test_cloning_an_event_copies_layouts_shapes_and_booths(
     cloned_zone_id = zones.json()[0]["id"]
     assert cloned_layout["name"] == "Einstein"
     assert cloned_layout["id"] != layout_id
+    assert cloned_layout["floor_plan"] == "main_hall"
     assert cloned_layout["background_url"] is None
     assert cloned_layout["zone_shapes"][0]["shape"] == TRIANGLE
     assert cloned_layout["zone_shapes"][0]["label_position"] == [100, 50]
@@ -883,3 +889,108 @@ async def test_growing_a_layout_keeps_its_shapes(
 
     assert response.status_code == 200
     assert response.json()["zone_shapes"][0]["shape"] == TRIANGLE
+
+
+async def test_a_new_layout_takes_the_size_of_its_floor_plan(
+    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+):
+    response = await create_layout(
+        client, staff_headers, kp_setup.event_id, floor_plan="main_hall"
+    )
+
+    assert response.status_code == 200
+    layout = response.json()
+    assert layout["floor_plan"] == "main_hall"
+    assert (layout["width"], layout["height"]) == (1043, 655)
+
+
+async def test_a_layout_without_a_floor_plan_keeps_its_own_size(
+    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+):
+    response = await create_layout(
+        client, staff_headers, kp_setup.event_id, width=1200, height=800
+    )
+
+    assert response.json()["floor_plan"] is None
+    assert (response.json()["width"], response.json()["height"]) == (1200, 800)
+
+
+async def test_choosing_a_floor_plan_resizes_the_layout(
+    client: AsyncClient, staff_headers: dict[str, str], layout_id: str
+):
+    response = await client.patch(
+        f"/api/kp/venue-layouts/{layout_id}",
+        json={"floor_plan": "red_hall", "width": 5000, "height": 5000},
+        headers=staff_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["floor_plan"] == "red_hall"
+    assert (response.json()["width"], response.json()["height"]) == (1148, 416)
+
+
+async def test_clearing_the_floor_plan_keeps_the_size(
+    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+):
+    created = await create_layout(
+        client, staff_headers, kp_setup.event_id, floor_plan="red_hall"
+    )
+
+    response = await client.patch(
+        f"/api/kp/venue-layouts/{created.json()['id']}",
+        json={"floor_plan": None},
+        headers=staff_headers,
+    )
+
+    assert response.json()["floor_plan"] is None
+    assert (response.json()["width"], response.json()["height"]) == (1148, 416)
+
+
+async def test_a_floor_plan_that_would_cut_off_booths_is_rejected(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    kp_setup: KpSetup,
+    layout_id: str,
+):
+    await put_booths(
+        client,
+        staff_headers,
+        layout_id,
+        [{"booth_zone_id": kp_setup.booth_zone_id, "booth_nr": 1, "x": 50, "y": 600}],
+    )
+
+    response = await client.patch(
+        f"/api/kp/venue-layouts/{layout_id}",
+        json={"floor_plan": "red_hall"},
+        headers=staff_headers,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "error.kp_venue_out_of_bounds"
+
+
+async def test_an_unknown_floor_plan_is_rejected(
+    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+):
+    response = await create_layout(
+        client, staff_headers, kp_setup.event_id, floor_plan="blue_hall"
+    )
+
+    assert response.status_code == 422
+
+
+async def test_the_venue_map_names_the_floor_plan_of_each_layout(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    company_headers: dict[str, str],
+    kp_setup: KpSetup,
+):
+    await create_layout(
+        client, staff_headers, kp_setup.event_id, floor_plan="main_hall"
+    )
+
+    venue = await client.get(
+        f"/api/kp/events/{kp_setup.event_id}/venue", headers=company_headers
+    )
+
+    assert [layout["floor_plan"] for layout in venue.json()["layouts"]] == ["main_hall"]

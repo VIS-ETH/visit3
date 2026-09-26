@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from app.models.venue import (
     DEFAULT_VENUE_LAYOUT_HEIGHT,
     DEFAULT_VENUE_LAYOUT_WIDTH,
+    KpVenueFloorPlan,
 )
 from app.schemas.kp import BoothZoneWithAvailabilityResult, StoredFileResponse
 
@@ -46,6 +47,7 @@ class CreateVenueLayoutInput(BaseModel):
     width: int = Field(default=DEFAULT_VENUE_LAYOUT_WIDTH, ge=1)
     height: int = Field(default=DEFAULT_VENUE_LAYOUT_HEIGHT, ge=1)
     is_active: bool = True
+    floor_plan: KpVenueFloorPlan | None = None
 
 
 class CreateVenueLayoutRequest(CreateVenueLayoutInput):
@@ -58,6 +60,7 @@ class UpdateVenueLayoutInput(BaseModel):
     width: int | None = Field(default=None, ge=1)
     height: int | None = Field(default=None, ge=1)
     is_active: bool | None = None
+    floor_plan: KpVenueFloorPlan | None = None
 
 
 class UpdateVenueLayoutRequest(UpdateVenueLayoutInput):
@@ -120,6 +123,7 @@ class VenueLayoutBase(BaseModel):
     width: int
     height: int
     is_active: bool
+    floor_plan: KpVenueFloorPlan | None
     background_url: str | None
     background_file: StoredFileResponse | None
     zone_shapes: list[VenueZoneShapeResponse]
