@@ -77,6 +77,20 @@ async def test_registration_with_an_incomplete_profile_lists_the_missing_fields(
     assert response.json()["details"]["missingFields"] == ["billing_email"]
 
 
+async def test_registration_waits_for_the_general_email(
+    client: AsyncClient,
+    company_headers: dict[str, str],
+    kp_setup: KpSetup,
+    complete_company_profile: Callable[..., Awaitable[Response]],
+):
+    await complete_company_profile(company_headers, general_email=None)
+
+    response = await register(client, company_headers, kp_setup, confirm_profile=True)
+
+    assert response.status_code == 409
+    assert response.json()["details"]["missingFields"] == ["general_email"]
+
+
 async def test_registration_does_not_wait_for_the_description(
     client: AsyncClient,
     db_session: AsyncSession,

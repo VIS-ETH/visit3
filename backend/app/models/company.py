@@ -26,6 +26,7 @@ PROFILE_DESCRIPTION_MARKUP_MAX_LENGTH = 100_000
 MANDATORY_PROFILE_FIELDS = (
     "description",
     "kp_contact_user_id",
+    "general_email",
     "billing_company_name",
     "billing_street",
     "billing_postal_code",

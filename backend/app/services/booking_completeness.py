@@ -13,6 +13,7 @@ MissingItem = str
 COMPANY_PROFILE_MISSING = "company_profile"
 COMPANY_DESCRIPTION_MISSING = "company_description"
 BILLING_ADDRESS_MISSING = "billing_address"
+GENERAL_EMAIL_MISSING = "general_email"
 BILLING_FIELD_PREFIX = "billing_"
 MANDATORY_BILLING_FIELDS = tuple(
     name for name in MANDATORY_PROFILE_FIELDS if name.startswith(BILLING_FIELD_PREFIX)
@@ -56,8 +57,11 @@ def booking_completeness(booking: KpEventBooking) -> list[MissingItem]:
     ]
     if booking.company_details is None:
         missing.append(COMPANY_PROFILE_MISSING)
-    elif not booking.company_details.description.strip():
-        missing.append(COMPANY_DESCRIPTION_MISSING)
+    else:
+        if not booking.company_details.description.strip():
+            missing.append(COMPANY_DESCRIPTION_MISSING)
+        if not str(booking.company_details.general_email or "").strip():
+            missing.append(GENERAL_EMAIL_MISSING)
     if not has_billing_address(booking.company_details):
         missing.append(BILLING_ADDRESS_MISSING)
     return missing

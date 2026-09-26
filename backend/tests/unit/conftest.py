@@ -43,6 +43,7 @@ def complete_company_profile(
     values: dict[str, object] = {
         "description": "We build the best anvils in Switzerland.",
         "kp_contact_user_id": uuid4(),
+        "general_email": "info@example.com",
         "billing_company_name": "Acme AG",
         "billing_street": "Invoice street",
         "billing_house_number": "1",
@@ -62,6 +63,7 @@ def complete_company_snapshot(
 ) -> KpBookingCompanyDetails:
     values: dict[str, object] = {
         "description": "We build the best anvils in Switzerland.",
+        "general_email": "info@example.com",
         "billing_company_name": "Acme AG",
         "billing_street": "Invoice street",
         "billing_house_number": "1",

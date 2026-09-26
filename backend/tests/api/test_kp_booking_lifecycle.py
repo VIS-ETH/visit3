@@ -7,7 +7,7 @@ from uuid import UUID
 import pytest
 from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col, select
+from sqlmodel import col, select, update
 
 from app.models.kp_event import (
     KpBookingCompanyDetails,
@@ -226,6 +226,37 @@ async def test_a_missing_description_stays_a_missing_item_until_it_is_filled_in(
 
     assert before.json()["missing_items"] == ["company_description"]
     assert after.json()["missing_items"] == []
+
+
+async def test_a_general_email_added_later_completes_an_older_booking(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    kp_setup: KpSetup,
+    company_headers: dict[str, str],
+    complete_company_profile: Callable[..., Awaitable[Response]],
+):
+    await complete_company_profile(company_headers)
+    await client.post(
+        f"/api/kp/events/{kp_setup.event_id}/bookings/register",
+        json={"booth_zone_id": kp_setup.booth_zone_id, "confirm_profile": True},
+        headers=company_headers,
+    )
+    await db_session.execute(update(KpBookingCompanyDetails).values(general_email=None))
+    await db_session.commit()
+    my_booking = f"/api/kp/events/{kp_setup.event_id}/my-booking"
+
+    before = await client.get(my_booking, headers=company_headers)
+    await complete_company_profile(company_headers, general_email="hello@example.com")
+    after = await client.get(my_booking, headers=company_headers)
+    snapshot = (
+        await db_session.execute(
+            select(KpBookingCompanyDetails).execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+
+    assert before.json()["missing_items"] == ["general_email"]
+    assert after.json()["missing_items"] == []
+    assert snapshot.general_email == "hello@example.com"
 
 
 async def test_finalized_is_no_longer_a_booking_status(

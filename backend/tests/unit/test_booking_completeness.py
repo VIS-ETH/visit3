@@ -16,6 +16,7 @@ from app.services.booking_completeness import (
     BILLING_ADDRESS_MISSING,
     COMPANY_DESCRIPTION_MISSING,
     COMPANY_PROFILE_MISSING,
+    GENERAL_EMAIL_MISSING,
     booking_completeness,
     has_billing_address,
     missing_billing_fields,
@@ -149,6 +150,12 @@ def test_a_missing_description_is_reported():
     booking = make_booking(snapshot_overrides={"description": " "})
 
     assert booking_completeness(booking) == [COMPANY_DESCRIPTION_MISSING]
+
+
+def test_a_missing_general_email_is_reported():
+    booking = make_booking(snapshot_overrides={"general_email": None})
+
+    assert booking_completeness(booking) == [GENERAL_EMAIL_MISSING]
 
 
 def test_an_optional_billing_field_does_not_block_the_booking():

@@ -71,7 +71,12 @@ async def test_my_company_reports_the_profile_state(
 
 @pytest.mark.parametrize(
     ("overrides", "bookable"),
-    [({}, True), ({"description": ""}, True), ({"billing_city": ""}, False)],
+    [
+        ({}, True),
+        ({"description": ""}, True),
+        ({"billing_city": ""}, False),
+        ({"general_email": None}, False),
+    ],
 )
 async def test_only_the_description_may_wait_until_after_the_booking(
     client: AsyncClient,
@@ -85,6 +90,17 @@ async def test_only_the_description_may_wait_until_after_the_booking(
     response = await client.get("/api/company/me", headers=company_headers)
 
     assert response.json()["profile_bookable"] is bookable
+
+
+async def test_a_profile_without_a_general_email_is_incomplete(
+    company_headers: dict[str, str],
+    complete_company_profile: Callable[..., Awaitable[Response]],
+):
+    response = await complete_company_profile(company_headers, general_email=None)
+
+    assert response.json()["missing_profile_fields"] == ["general_email"]
+    assert response.json()["profile_complete"] is False
+    assert response.json()["profile_completed_at"] is None
 
 
 async def test_complete_profile_is_stored_and_marked_complete(
