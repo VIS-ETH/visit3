@@ -7,7 +7,6 @@ import pytest
 
 from app.core.config import get_oauth_settings
 from app.core.exceptions import (
-    EmailUsed,
     InvalidCredentials,
     InviteEmailMismatch,
     InviteExpired,
@@ -87,16 +86,19 @@ def auth(
     )
 
 
-async def test_register_user_rejects_duplicate_email(auth, make_user):
+async def test_register_user_mails_the_owner_of_an_existing_email(auth, make_user):
     existing_user = make_user(email="duplicate@example.com")
     auth.user_repo.get_by_email.return_value = existing_user
 
-    with pytest.raises(EmailUsed):
-        await auth.service.register_user(
-            User(email="duplicate@example.com", password="long-enough")
-        )
+    result = await auth.service.register_user(
+        User(email="duplicate@example.com", password="long-enough")
+    )
 
+    assert result is None
     auth.user_repo.create_user.assert_not_awaited()
+    key, recipients, _ = auth.mail_template_service.send.await_args.args
+    assert key == MailTemplateKey.ACCOUNT_EXISTS
+    assert recipients == ["duplicate@example.com"]
 
 
 @pytest.mark.parametrize("password", [None, "short"])
@@ -133,7 +135,7 @@ async def test_register_user_normalizes_phone_and_saves_company_user(auth):
     auth.service.hash_password.assert_awaited_once_with("very-long-password")
     auth.user_repo.create_user.assert_awaited_once()
     created_user = auth.user_repo.create_user.await_args.args[0]
-    assert result is created_user
+    assert result is None
     assert created_user.password == "hashed-password"
     assert created_user.phone_number == "+41791234567"
     assert created_user.is_admin is False
@@ -161,7 +163,7 @@ async def test_register_user_skips_confirmation_mail_for_confirmed_user(auth):
 
     result = await auth.service.register_user(confirmed_user)
 
-    assert result is confirmed_user
+    assert result is None
     auth.token_repo.revoke_confirm_email_tokens.assert_not_awaited()
     auth.token_repo.create_confirm_email_token.assert_not_awaited()
     auth.mail_template_service.send.assert_not_awaited()
@@ -334,7 +336,8 @@ async def test_refresh_user_rotates_refresh_token(auth, make_user):
         expires_at=user.created_at,
     )
     auth.token_repo.get_refresh_token_for_rotation.return_value = token
-    auth.service.create_tokens = AsyncMock(return_value=("new-access", "new-refresh"))
+    auth.service.create_access_token = AsyncMock(return_value="new-access")
+    auth.token_repo.create_refresh_token.return_value = "new-refresh"
     auth.user_repo.get_by_id.return_value = user
 
     result = await auth.service.refresh_user("old-refresh-token")
@@ -342,6 +345,9 @@ async def test_refresh_user_rotates_refresh_token(auth, make_user):
     assert result == ("new-access", "new-refresh")
     auth.token_repo.rotate_refresh_token.assert_awaited_once_with(
         user.id, "old-refresh-token"
+    )
+    auth.token_repo.create_refresh_token.assert_awaited_once_with(
+        user.id, family_id=token.family_id, idp_refresh_token=None
     )
 
 
@@ -355,7 +361,8 @@ async def test_refresh_user_does_not_rotate_an_already_rotated_token(auth, make_
         rotated_at=user.created_at,
     )
     auth.token_repo.get_refresh_token_for_rotation.return_value = token
-    auth.service.create_tokens = AsyncMock(return_value=("new-access", "new-refresh"))
+    auth.service.create_access_token = AsyncMock(return_value="new-access")
+    auth.token_repo.create_refresh_token.return_value = "new-refresh"
     auth.user_repo.get_by_id.return_value = user
 
     result = await auth.service.refresh_user("rotated-refresh-token")
