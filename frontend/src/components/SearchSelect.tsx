@@ -8,8 +8,11 @@ type SearchSelectProps = Omit<
   data: ComboboxItem[];
 };
 
-const selectText = (event: SyntheticEvent<HTMLInputElement>) =>
-  event.currentTarget.select();
+const selectText = (event: SyntheticEvent<HTMLInputElement>) => {
+  const input = event.currentTarget;
+  input.select();
+  requestAnimationFrame(() => input.select());
+};
 
 const SearchSelect = ({
   data,
