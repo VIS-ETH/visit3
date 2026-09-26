@@ -1,5 +1,6 @@
 import { generateColors } from "@mantine/colors-generator";
-import type { MantineThemeOverride } from "@mantine/core";
+import type { CSSVariablesResolver, MantineThemeOverride } from "@mantine/core";
+import { readableInk } from "./contrast";
 
 const panelStyles = {
   background: "var(--visit-panel-bg)",
@@ -102,3 +103,34 @@ export default function makeVisitTheme(
     },
   };
 }
+
+const BODY_BACKGROUND = "#f7f8f9";
+const TEXT_CONTRAST = 4.6;
+const INKED_COLORS = ["brand", "yellow"] as const;
+
+export const visitCssVariablesResolver: CSSVariablesResolver = (theme) => {
+  const inkFor = (name: (typeof INKED_COLORS)[number]) => {
+    const shades = theme.colors[name];
+    return readableInk(
+      shades[9],
+      ["#ffffff", BODY_BACKGROUND, ...shades.slice(0, 3)],
+      TEXT_CONTRAST,
+    );
+  };
+  const brandInk = inkFor("brand");
+  const light = Object.fromEntries(
+    INKED_COLORS.flatMap((name) => {
+      const ink = inkFor(name);
+      return [
+        [`--mantine-color-${name}-text`, ink],
+        [`--mantine-color-${name}-light-color`, ink],
+        [`--mantine-color-${name}-outline`, ink],
+      ];
+    }),
+  );
+  return {
+    variables: {},
+    light: { ...light, "--mantine-color-anchor": brandInk },
+    dark: {},
+  };
+};

@@ -52,7 +52,9 @@ import {
 } from "./orval/generated/user/user";
 import { getToken, refreshToken, subscribeToTokenStorage } from "./api/utils";
 import { getApiErrorStatus } from "./api/errors";
-import makeVisitTheme from "./theme/makeVisitTheme";
+import makeVisitTheme, {
+  visitCssVariablesResolver,
+} from "./theme/makeVisitTheme";
 import { colorSchemeManager } from "./theme/color-scheme-manager";
 
 const primaryColor = configOptions().primaryColor;
@@ -265,6 +267,7 @@ function App() {
     <MantineProvider
       theme={theme}
       colorSchemeManager={colorSchemeManager}
+      cssVariablesResolver={visitCssVariablesResolver}
       defaultColorScheme="auto"
     >
       <Notifications
