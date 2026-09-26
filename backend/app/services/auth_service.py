@@ -40,6 +40,7 @@ from app.services.mail_template_service import MailTemplateService
 logger = logging.getLogger(__name__)
 
 password_hash = PasswordHash.recommended()
+DUMMY_PASSWORD_HASH = password_hash.hash("visit-dummy-password")
 ACCESS_TOKEN_EXPIRE = timedelta(minutes=15)
 MIN_PASSWORD_LENGTH = 8
 UNKNOWN_NAME = "Unknown"
@@ -114,7 +115,10 @@ class AuthService:
         self, email: str, password: str
     ) -> User | Literal[False]:
         user = await self.user_repository.get_by_email(email)
-        if not user:
+        if user is None or user.password is None:
+            await asyncio.to_thread(
+                password_hash.verify_and_update, password, DUMMY_PASSWORD_HASH
+            )
             return False
         valid_password = await self.verify_and_update_password(user, password)
         if not valid_password:
