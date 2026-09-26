@@ -33,6 +33,22 @@ const companyUser: UserResponse = {
   company_id: "company-1",
 };
 
+const colleague: UserResponse = {
+  ...companyUser,
+  id: "user-2",
+  email: "bob@example.com",
+  first_name: "Bob",
+  last_name: "Builder",
+};
+
+const otherColleague: UserResponse = {
+  ...companyUser,
+  id: "user-3",
+  email: "bea@example.com",
+  first_name: "Bea",
+  last_name: "Baker",
+};
+
 const storedProfile: CompanyProfileResponse = {
   id: "profile-1",
   company_id: "company-1",
@@ -110,7 +126,7 @@ beforeEach(() => {
     ),
     http.get(`${testBackendUrl}/api/company/me/members`, () => {
       memberRequests += 1;
-      return HttpResponse.json([companyUser]);
+      return HttpResponse.json([companyUser, colleague, otherColleague]);
     }),
     http.put(
       `${testBackendUrl}/api/company/me/profile`,
@@ -183,6 +199,25 @@ describe("Company profile form", () => {
     expect(
       screen.getByText("company_profile_form.incomplete"),
     ).toBeInTheDocument();
+  });
+
+  it("picks the contact person with the keyboard while filtering", async () => {
+    const { user } = renderProfile();
+
+    const contact = await screen.findByRole("combobox", {
+      name: labelOf("company_profile_form.kp_contact_user"),
+    });
+    await waitFor(() => expect(contact).toHaveValue("Alice Example"));
+    await user.clear(contact);
+    await user.type(contact, "B");
+    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+
+    expect(contact).toHaveValue("Bea Baker");
+    await user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+    await waitFor(() => expect(putBodies).toHaveLength(1));
+    expect(putBodies[0]).toMatchObject({ kp_contact_user_id: "user-3" });
   });
 
   it("does not submit without a contact person", async () => {
