@@ -14,10 +14,7 @@ from app.core.exceptions import (
     KpExportEmpty,
     KpNameTagNotFound,
 )
-from app.core.rich_text import rich_text_plain
-from app.models.company import KpCompanyLanguage, KpCompanyProfile
 from app.models.kp_event import (
-    KpBookingCompanyDetails,
     KpEvent,
     KpEventBooking,
     KpEventNametagBackground,
@@ -31,10 +28,16 @@ from app.schemas.kp import (
     NametagExportTargetsResult,
 )
 from app.services.booking_completeness import booking_completeness
+from app.services.company_workbook import (
+    ExportLanguage,
+    company_workbook_filename,
+    company_workbook_sheets,
+)
 from app.services.csv_service import CsvService
 from app.services.pdf_service import PdfService
 from app.services.pricing import price_breakdown
 from app.services.storage_service import StorageService, UploadKind, UploadStream
+from app.services.xlsx_service import XlsxService
 
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 NAMETAG_TEMPLATE_NAME = "nametag.typ"
@@ -85,38 +88,6 @@ NAMETAG_DATA_EXPORT_FIELDS = [
     "last_name",
     "position",
 ]
-COMPANY_DETAILS_EXPORT_FIELDS = [
-    "company",
-    "booking_id",
-    "zone",
-    "booth_number",
-    "confirmed_at",
-    "brand_name",
-    "description",
-    "website",
-    "contact_person",
-    "contact_email",
-    "contact_phone",
-    "general_email",
-    "general_phone",
-    "places_of_work",
-    "industries",
-    "employee_count_switzerland",
-    "employee_count_worldwide",
-    "offers_internships",
-    "offers_part_time",
-    "offers_theses",
-    "offers_graduate_positions",
-    "languages",
-    "billing_company_name",
-    "billing_street",
-    "billing_house_number",
-    "billing_postal_code",
-    "billing_city",
-    "billing_country",
-    "billing_vat_number",
-    "billing_email",
-]
 SERVICE_REQUIREMENT_EXPORT_FIELDS = [
     "company",
     "booking_id",
@@ -141,20 +112,6 @@ BOOTH_ZONE_CAPACITY_EXPORT_FIELDS = [
     "base_price",
     *PRICE_EXPORT_FIELDS,
 ]
-CONTACT_EXPORT_FIELDS = [
-    "company",
-    "booking_id",
-    "general_email",
-    "general_phone",
-    "kp_contact_user_email",
-    "kp_contact_user_first_name",
-    "kp_contact_user_last_name",
-    "kp_contact_user_phone",
-    "billing_company_name",
-    "billing_address",
-    "billing_email",
-    "company_user_emails",
-]
 REGISTRATION_EXCEPTION_EXPORT_FIELDS = [
     "company",
     "company_id",
@@ -175,12 +132,14 @@ class ExportService:
         storage_service: StorageService,
         pdf_service: PdfService,
         csv_service: CsvService,
+        xlsx_service: XlsxService,
         current_user: User,
     ) -> None:
         self.kp_repository = kp_repository
         self.storage_service = storage_service
         self.pdf_service = pdf_service
         self.csv_service = csv_service
+        self.xlsx_service = xlsx_service
         self.current_user = current_user
 
     def _safe_filename_part(self, value: str) -> str:
@@ -218,24 +177,6 @@ class ExportService:
             "vat": self._money(breakdown.vat),
             "gross": self._money(breakdown.gross),
         }
-
-    def _languages(self, languages: Sequence[KpCompanyLanguage]) -> str:
-        return ", ".join(KpCompanyLanguage(language).value for language in languages)
-
-    def _billing_address(self, profile: KpCompanyProfile | None) -> str:
-        if profile is None:
-            return ""
-        street = " ".join(
-            part
-            for part in (profile.billing_street, profile.billing_house_number)
-            if part
-        )
-        city = " ".join(
-            part for part in (profile.billing_postal_code, profile.billing_city) if part
-        )
-        return ", ".join(
-            part for part in (street, city, profile.billing_country) if part
-        )
 
     async def _get_event_or_raise(self, event_id: UUID) -> KpEvent:
         event = await self.kp_repository.get_by_id(event_id)
@@ -624,68 +565,17 @@ class ExportService:
             rows, f"{event.name}-nametags-data.csv", NAMETAG_DATA_EXPORT_FIELDS
         )
 
-    def _company_snapshot_row(
-        self, snapshot: KpBookingCompanyDetails
-    ) -> dict[str, object]:
-        return {
-            "confirmed_at": snapshot.confirmed_at.isoformat(),
-            "brand_name": snapshot.brand_name,
-            "description": rich_text_plain(snapshot.description),
-            "website": snapshot.website or "",
-            "contact_person": snapshot.contact_person,
-            "contact_email": snapshot.contact_email or "",
-            "contact_phone": snapshot.contact_phone or "",
-            "general_email": snapshot.general_email or "",
-            "general_phone": snapshot.general_phone or "",
-            "places_of_work": snapshot.places_of_work,
-            "industries": ", ".join(snapshot.industry_names),
-            "employee_count_switzerland": snapshot.employee_count_switzerland
-            if snapshot.employee_count_switzerland is not None
-            else "",
-            "employee_count_worldwide": snapshot.employee_count_worldwide
-            if snapshot.employee_count_worldwide is not None
-            else "",
-            "offers_internships": self._bool(snapshot.offers_internships),
-            "offers_part_time": self._bool(snapshot.offers_part_time),
-            "offers_theses": self._bool(snapshot.offers_theses),
-            "offers_graduate_positions": self._bool(snapshot.offers_graduate_positions),
-            "languages": self._languages(snapshot.languages),
-            "billing_company_name": snapshot.billing_company_name,
-            "billing_street": snapshot.billing_street,
-            "billing_house_number": snapshot.billing_house_number,
-            "billing_postal_code": snapshot.billing_postal_code,
-            "billing_city": snapshot.billing_city,
-            "billing_country": snapshot.billing_country,
-            "billing_vat_number": snapshot.billing_vat_number or "",
-            "billing_email": snapshot.billing_email or "",
-        }
-
-    async def export_company_details_csv(self, event_id: UUID) -> RenderedExport:
+    async def export_company_workbook(
+        self, event_id: UUID, language: ExportLanguage
+    ) -> RenderedExport:
         require_staff_user(self.current_user)
         event, bookings = await self._list_event_bookings(event_id)
-        empty_snapshot_row = {
-            field: ""
-            for field in COMPANY_DETAILS_EXPORT_FIELDS
-            if field not in {"company", "booking_id", "zone", "booth_number"}
-        }
-        rows: list[dict[str, object]] = []
-        for booking in bookings:
-            snapshot = booking.company_details
-            rows.append(
-                {
-                    "company": booking.company.name,
-                    "booking_id": booking.id,
-                    "zone": booking.booth_zone.name,
-                    "booth_number": booking.booth_nr,
-                    **(
-                        self._company_snapshot_row(snapshot)
-                        if snapshot is not None
-                        else empty_snapshot_row
-                    ),
-                }
-            )
-        return self._csv_export(
-            rows, f"{event.name}-company-details.csv", COMPANY_DETAILS_EXPORT_FIELDS
+        content = self.xlsx_service.render(
+            company_workbook_sheets(event, bookings, language)
+        )
+        return RenderedExport(
+            content,
+            self._export_filename(company_workbook_filename(event, language)),
         )
 
     async def export_service_requirements_csv(self, event_id: UUID) -> RenderedExport:
@@ -761,51 +651,6 @@ class ExportService:
             rows,
             f"{event.name}-booth-zone-capacity.csv",
             BOOTH_ZONE_CAPACITY_EXPORT_FIELDS,
-        )
-
-    async def export_contacts_csv(self, event_id: UUID) -> RenderedExport:
-        require_staff_user(self.current_user)
-        event, bookings = await self._list_active_event_bookings(event_id)
-        rows: list[dict[str, object]] = []
-        for booking in bookings:
-            profile = booking.company.kp_profile
-            contact_user = profile.kp_contact_user if profile else None
-            company_users = sorted(
-                booking.company.users,
-                key=lambda user: (
-                    user.last_name or "",
-                    user.first_name or "",
-                    user.email,
-                ),
-            )
-            rows.append(
-                {
-                    "company": booking.company.name,
-                    "booking_id": booking.id,
-                    "general_email": profile.general_email if profile else "",
-                    "general_phone": profile.general_phone if profile else "",
-                    "kp_contact_user_email": contact_user.email if contact_user else "",
-                    "kp_contact_user_first_name": contact_user.first_name
-                    if contact_user
-                    else "",
-                    "kp_contact_user_last_name": contact_user.last_name
-                    if contact_user
-                    else "",
-                    "kp_contact_user_phone": contact_user.phone_number
-                    if contact_user
-                    else "",
-                    "billing_company_name": profile.billing_company_name
-                    if profile
-                    else "",
-                    "billing_address": self._billing_address(profile),
-                    "billing_email": profile.billing_email if profile else "",
-                    "company_user_emails": ", ".join(
-                        user.email for user in company_users
-                    ),
-                }
-            )
-        return self._csv_export(
-            rows, f"{event.name}-contacts.csv", CONTACT_EXPORT_FIELDS
         )
 
     async def export_registration_exceptions_csv(

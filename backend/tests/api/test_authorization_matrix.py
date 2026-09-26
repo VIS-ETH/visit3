@@ -201,10 +201,9 @@ ROUTE_ACCESS: dict[str, Access] = {
     "GET /api/kp/events/{event_id}/exports/waitlist-companies/download": Access.STAFF,
     "GET /api/kp/events/{event_id}/exports/booked-services/download": Access.STAFF,
     "GET /api/kp/events/{event_id}/exports/nametags-data/download": Access.STAFF,
-    "GET /api/kp/events/{event_id}/exports/company-details/download": Access.STAFF,
+    "GET /api/kp/events/{event_id}/exports/companies/download": Access.STAFF,
     "GET /api/kp/events/{event_id}/exports/service-requirements/download": Access.STAFF,
     "GET /api/kp/events/{event_id}/exports/booth-zone-capacity/download": Access.STAFF,
-    "GET /api/kp/events/{event_id}/exports/contacts/download": Access.STAFF,
     "GET /api/kp/events/{event_id}/exports/registration-exceptions/download": Access.STAFF,
     "GET /api/mail-templates": Access.STAFF,
     "GET /api/mail-templates/{key}": Access.STAFF,
@@ -275,10 +274,9 @@ KP_ROUTE_SUBJECT: dict[str, KpSubject] = {
     "GET /api/kp/events/{event_id}/exports/waitlist-companies/download": KpSubject.BOOKINGS,
     "GET /api/kp/events/{event_id}/exports/booked-services/download": KpSubject.BOOKINGS,
     "GET /api/kp/events/{event_id}/exports/nametags-data/download": KpSubject.BOOKINGS,
-    "GET /api/kp/events/{event_id}/exports/company-details/download": KpSubject.BOOKINGS,
+    "GET /api/kp/events/{event_id}/exports/companies/download": KpSubject.BOOKINGS,
     "GET /api/kp/events/{event_id}/exports/service-requirements/download": KpSubject.BOOKINGS,
     "GET /api/kp/events/{event_id}/exports/booth-zone-capacity/download": KpSubject.BOOKINGS,
-    "GET /api/kp/events/{event_id}/exports/contacts/download": KpSubject.BOOKINGS,
     "GET /api/kp/events/{event_id}/exports/registration-exceptions/download": KpSubject.BOOKINGS,
 }
 

@@ -8,6 +8,8 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import uuid4
 
+from openpyxl import load_workbook
+
 from app.models.company import Company
 from app.models.kp_event import (
     KpBookingCompanyDetails,
@@ -19,8 +21,14 @@ from app.models.kp_event import (
     KpEventBoothZone,
     NameTag,
 )
+from app.models.user import User
 from app.services.csv_service import CsvService
-from app.services.export_service import NAMETAG_TEMPLATE_NAME, ExportService
+from app.services.export_service import (
+    NAMETAG_TEMPLATE_NAME,
+    ExportLanguage,
+    ExportService,
+)
+from app.services.xlsx_service import XlsxService
 
 
 def make_event(name: str = "Kontaktparty", vat_rate_permille: int = 81) -> KpEvent:
@@ -115,12 +123,13 @@ def make_export_service(kp_repo, storage_service, staff_user) -> ExportService:
         storage_service=storage_service,
         pdf_service=Mock(),
         csv_service=CsvService(),
+        xlsx_service=XlsxService(),
         current_user=staff_user,
     )
 
 
 def read_csv_rows(content: bytes) -> list[dict[str, str]]:
-    return list(csv.DictReader(io.StringIO(content.decode("utf-8-sig"))))
+    return list(csv.DictReader(io.StringIO(content.decode("utf-8-sig")), delimiter=";"))
 
 
 class FakePdfService:
@@ -154,6 +163,7 @@ async def test_nametag_pdf_render_uses_restricted_workspace_and_json_data():
         storage_service=Mock(),
         pdf_service=pdf_service,
         csv_service=CsvService(),
+        xlsx_service=XlsxService(),
         current_user=Mock(),
     )
     name_tag = SimpleNamespace(
@@ -256,29 +266,6 @@ async def test_waitlist_export_skips_cancelled_bookings(
     assert [row["company"] for row in read_csv_rows(export.content)] == ["Acme AG"]
 
 
-async def test_contacts_export_skips_cancelled_bookings(
-    kp_repo,
-    storage_service,
-    staff_user,
-):
-    event = make_event()
-    zone = make_zone(event_id=event.id, name="Main hall")
-    active = make_export_booking(event=event, zone=zone)
-    cancelled = make_export_booking(
-        event=event,
-        zone=zone,
-        company_name="Gone AG",
-        status=KpBookingStatus.CANCELLED,
-    )
-    kp_repo.get_by_id.return_value = event
-    kp_repo.list_bookings_for_event.return_value = [active, cancelled]
-    service = make_export_service(kp_repo, storage_service, staff_user)
-
-    export = await service.export_contacts_csv(event.id)
-
-    assert [row["company"] for row in read_csv_rows(export.content)] == ["Acme AG"]
-
-
 async def test_bookings_by_zone_zip_deduplicates_colliding_entry_names(
     kp_repo,
     storage_service,
@@ -309,7 +296,37 @@ async def test_bookings_by_zone_zip_deduplicates_colliding_entry_names(
         assert read_csv_rows(archive.read("hall-a-b-2.csv")) == []
 
 
-async def test_company_details_export_writes_language_values(
+async def test_company_workbook_lists_only_people_of_active_bookings(
+    kp_repo,
+    storage_service,
+    staff_user,
+):
+    event = make_event()
+    zone = make_zone(event_id=event.id, name="Main hall")
+    active = make_export_booking(event=event, zone=zone)
+    cancelled = make_export_booking(
+        event=event,
+        zone=zone,
+        company_name="Gone AG",
+        status=KpBookingStatus.CANCELLED,
+    )
+    for booking, email in ((active, "ada@acme.test"), (cancelled, "gone@gone.test")):
+        booking.company.users = [
+            User(email=email, first_name="Ada", company_id=booking.company_id)
+        ]
+    kp_repo.get_by_id.return_value = event
+    kp_repo.list_bookings_for_event.return_value = [active, cancelled]
+    service = make_export_service(kp_repo, storage_service, staff_user)
+
+    export = await service.export_company_workbook(event.id, ExportLanguage.DE)
+
+    contacts = load_workbook(io.BytesIO(export.content))["Kontakte"]
+    assert [row[6] for row in contacts.iter_rows(min_row=2, values_only=True)] == [
+        "ada@acme.test"
+    ]
+
+
+async def test_company_workbook_names_languages_in_the_staff_language(
     kp_repo,
     storage_service,
     staff_user,
@@ -317,6 +334,7 @@ async def test_company_details_export_writes_language_values(
     event = make_event()
     zone = make_zone(event_id=event.id, name="Main hall")
     booking = make_export_booking(event=event, zone=zone)
+    booking.company.users = []
     booking.company_details = KpBookingCompanyDetails(
         id=uuid4(),
         booking_id=booking.id,
@@ -326,11 +344,15 @@ async def test_company_details_export_writes_language_values(
     kp_repo.list_bookings_for_event.return_value = [booking]
     service = make_export_service(kp_repo, storage_service, staff_user)
 
-    export = await service.export_company_details_csv(event.id)
+    german = await service.export_company_workbook(event.id, ExportLanguage.DE)
+    english = await service.export_company_workbook(event.id, ExportLanguage.EN)
 
-    assert [row["languages"] for row in read_csv_rows(export.content)] == [
-        "ENGLISH, GERMAN"
-    ]
+    assert load_workbook(io.BytesIO(german.content))["Unternehmen"]["AE2"].value == (
+        "Englisch, Deutsch"
+    )
+    assert load_workbook(io.BytesIO(english.content))["Companies"]["AE2"].value == (
+        "English, German"
+    )
 
 
 async def test_booking_export_prices_use_the_event_vat_rate(

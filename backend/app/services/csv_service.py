@@ -38,7 +38,9 @@ class CsvService:
     ) -> tuple[bytes, str]:
         output = io.StringIO(newline="")
         fieldnames = fieldnames or (list(rows[0].keys()) if rows else [])
-        writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
+        writer = csv.DictWriter(
+            output, fieldnames=fieldnames, extrasaction="ignore", delimiter=";"
+        )
         writer.writeheader()
         writer.writerows(
             {

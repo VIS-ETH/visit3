@@ -39,6 +39,7 @@ from app.services.pdf_service import PdfService
 from app.services.storage_service import StorageService
 from app.services.user_service import UserService
 from app.services.venue_service import VenueService
+from app.services.xlsx_service import XlsxService
 
 logger = logging.getLogger(__name__)
 
@@ -384,15 +385,28 @@ def get_csv_service():
 CsvServiceDep = Annotated[CsvService, Depends(get_csv_service)]
 
 
+def get_xlsx_service():
+    return XlsxService()
+
+
+XlsxServiceDep = Annotated[XlsxService, Depends(get_xlsx_service)]
+
+
 async def get_export_service(
     kp_repository: KpRepositoryDep,
     storage_service: StorageServiceDep,
     pdf_service: PdfServiceDep,
     csv_service: CsvServiceDep,
+    xlsx_service: XlsxServiceDep,
     current_user: CurrentUserDep,
 ):
     return ExportService(
-        kp_repository, storage_service, pdf_service, csv_service, current_user
+        kp_repository,
+        storage_service,
+        pdf_service,
+        csv_service,
+        xlsx_service,
+        current_user,
     )
 
 

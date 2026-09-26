@@ -4,13 +4,14 @@ import re
 import zipfile
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 from urllib.parse import unquote
 from uuid import UUID
 
 import pytest
 from httpx import AsyncClient, Response
+from openpyxl import Workbook, load_workbook
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
@@ -43,6 +44,59 @@ INVOICE_ADDRESS = "Invoice street 1"
 TEXT_ANSWER = "Two tables and a screen"
 ALLOWED_UNTIL = date.today() + timedelta(days=3)
 CSV_MEDIA_TYPE = "text/csv; charset=utf-8"
+XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+COMPANY_WORKBOOK = "companies/download"
+GERMAN_COMPANY_HEADERS = [
+    "Unternehmen",
+    "Marke",
+    "Status",
+    "Zone",
+    "Stand-Nr.",
+    "Standfläche (m²)",
+    "Buchungs-Nr.",
+    "Registriert am",
+    "Bestätigt am",
+    "Kontaktperson",
+    "E-Mail Kontaktperson",
+    "Telefon Kontaktperson",
+    "Allgemeine E-Mail",
+    "Allgemeine Telefonnummer",
+    "Website",
+    "Rechnungsempfänger",
+    "Rechnungsadresse",
+    "PLZ",
+    "Ort",
+    "Land",
+    "MWST-Nr.",
+    "Rechnungs-E-Mail",
+    "Services",
+    "Namensschilder",
+    "Netto",
+    "MWST",
+    "Brutto",
+    "Fehlende Angaben",
+    "Beschreibung",
+    "Branchen",
+    "Sprachen",
+    "Arbeitsorte",
+    "Mitarbeitende Schweiz",
+    "Mitarbeitende weltweit",
+    "Praktika",
+    "Teilzeitstellen",
+    "Abschlussarbeiten",
+    "Einstiegsstellen",
+]
+GERMAN_CONTACT_HEADERS = [
+    "Unternehmen",
+    "Status",
+    "Zone",
+    "Stand-Nr.",
+    "Vorname",
+    "Nachname",
+    "E-Mail",
+    "Telefon",
+    "Kontaktperson",
+]
 ZIP_MEDIA_TYPE = "application/zip"
 PDF_MEDIA_TYPE = "application/pdf"
 DISPOSITION = re.compile(
@@ -105,38 +159,6 @@ EXPORT_HEADERS: dict[str, list[str]] = {
         "last_name",
         "position",
     ],
-    "company-details/download": [
-        "company",
-        "booking_id",
-        "zone",
-        "booth_number",
-        "confirmed_at",
-        "brand_name",
-        "description",
-        "website",
-        "contact_person",
-        "contact_email",
-        "contact_phone",
-        "general_email",
-        "general_phone",
-        "places_of_work",
-        "industries",
-        "employee_count_switzerland",
-        "employee_count_worldwide",
-        "offers_internships",
-        "offers_part_time",
-        "offers_theses",
-        "offers_graduate_positions",
-        "languages",
-        "billing_company_name",
-        "billing_street",
-        "billing_house_number",
-        "billing_postal_code",
-        "billing_city",
-        "billing_country",
-        "billing_vat_number",
-        "billing_email",
-    ],
     "service-requirements/download": [
         "company",
         "booking_id",
@@ -161,20 +183,6 @@ EXPORT_HEADERS: dict[str, list[str]] = {
         "base_price",
         *PRICE_HEADERS,
     ],
-    "contacts/download": [
-        "company",
-        "booking_id",
-        "general_email",
-        "general_phone",
-        "kp_contact_user_email",
-        "kp_contact_user_first_name",
-        "kp_contact_user_last_name",
-        "kp_contact_user_phone",
-        "billing_company_name",
-        "billing_address",
-        "billing_email",
-        "company_user_emails",
-    ],
     "registration-exceptions/download": ["company", "company_id", "allowed_until"],
 }
 EXPORT_FILENAMES: dict[str, str] = {
@@ -182,10 +190,8 @@ EXPORT_FILENAMES: dict[str, str] = {
     "waitlist-companies/download": "-waitlist-companies.csv",
     "booked-services/download": "-booked-services.csv",
     "nametags-data/download": "-nametags-data.csv",
-    "company-details/download": "-company-details.csv",
     "service-requirements/download": "-service-requirements-status.csv",
     "booth-zone-capacity/download": "-booth-zone-capacity.csv",
-    "contacts/download": "-contacts.csv",
     "registration-exceptions/download": "-registration-exceptions.csv",
 }
 
@@ -203,7 +209,9 @@ class ExportWorld:
 
 
 def read_csv(response: Response) -> tuple[list[str], list[dict[str, str]]]:
-    reader = csv.DictReader(io.StringIO(response.content.decode("utf-8-sig")))
+    reader = csv.DictReader(
+        io.StringIO(response.content.decode("utf-8-sig")), delimiter=";"
+    )
     rows = list(reader)
     return list(reader.fieldnames or []), rows
 
@@ -524,20 +532,166 @@ async def test_bookings_export_lists_missing_items(
     assert sum(item.startswith("requirement:") for item in missing) == 2
 
 
-async def test_contacts_export_excludes_cancelled_bookings(
+def open_workbook(response: Response) -> Workbook:
+    return load_workbook(io.BytesIO(response.content))
+
+
+def sheet_rows(workbook: Workbook, title: str) -> list[dict[str, Any]]:
+    rows = [list(row) for row in workbook[title].iter_rows(values_only=True)]
+    return [dict(zip(rows[0], row, strict=True)) for row in rows[1:]]
+
+
+async def test_company_workbook_is_an_xlsx_download(
     client: AsyncClient, export_world: ExportWorld
 ):
-    _, rows = read_csv(await export(client, export_world, "contacts/download"))
+    response = await export(client, export_world, COMPANY_WORKBOOK)
 
-    assert [row["company"] for row in rows] == [OWN_COMPANY]
-    assert rows[0]["general_email"] == GENERAL_EMAIL
-    assert rows[0]["general_phone"] == GENERAL_PHONE
-    assert rows[0]["kp_contact_user_email"] == "company@example.com"
-    assert rows[0]["kp_contact_user_phone"] == ""
-    assert rows[0]["billing_company_name"] == "Acme AG"
-    assert rows[0]["billing_address"] == f"{INVOICE_ADDRESS} 1, 8000 Zurich, CH"
-    assert rows[0]["billing_email"] == "billing@example.com"
-    assert rows[0]["company_user_emails"] == "company@example.com"
+    ascii_name, encoded_name = disposition_names(response)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == XLSX_MEDIA_TYPE
+    assert encoded_name == f"{SAFE_PREFIX} Unternehmen {date.today().isoformat()}.xlsx"
+    assert ascii_name == f"{ASCII_PREFIX} Unternehmen {date.today().isoformat()}.xlsx"
+    assert open_workbook(response).sheetnames == ["Unternehmen", "Kontakte"]
+
+
+async def test_company_workbook_headers_are_human(
+    client: AsyncClient, export_world: ExportWorld
+):
+    workbook = open_workbook(await export(client, export_world, COMPANY_WORKBOOK))
+
+    firms = workbook["Unternehmen"]
+    assert [cell.value for cell in firms[1]] == GERMAN_COMPANY_HEADERS
+    assert [cell.value for cell in workbook["Kontakte"][1]] == GERMAN_CONTACT_HEADERS
+    assert firms.freeze_panes == "B2"
+    assert firms.auto_filter.ref == f"A1:AL{firms.max_row}"
+
+
+async def test_company_workbook_follows_the_staff_language(
+    client: AsyncClient, export_world: ExportWorld
+):
+    response = await export(client, export_world, f"{COMPANY_WORKBOOK}?language=en")
+
+    _, encoded_name = disposition_names(response)
+    workbook = open_workbook(response)
+    rows = sheet_rows(workbook, "Companies")
+    assert encoded_name == f"{SAFE_PREFIX} Companies {date.today().isoformat()}.xlsx"
+    assert workbook.sheetnames == ["Companies", "Contacts"]
+    assert [cell.value for cell in workbook["Companies"][1]][:4] == [
+        "Company",
+        "Brand",
+        "Status",
+        "Zone",
+    ]
+    own = next(row for row in rows if row["Company"] == OWN_COMPANY)
+    assert own["Status"] == "Registered"
+    assert own["Internships"] == "Yes"
+    assert own["Languages"] == "English, German"
+
+
+async def test_company_workbook_rows_carry_typed_values(
+    client: AsyncClient, export_world: ExportWorld
+):
+    workbook = open_workbook(await export(client, export_world, COMPANY_WORKBOOK))
+    rows = sheet_rows(workbook, "Unternehmen")
+
+    assert [row["Unternehmen"] for row in rows] == [OWN_COMPANY, OTHER_COMPANY]
+    own = rows[0]
+    assert own["Marke"] == "Acme"
+    assert own["Status"] == "Registriert"
+    assert own["Zone"] == "Main hall"
+    assert own["Standfläche (m²)"] == 12.5
+    assert isinstance(own["Buchungs-Nr."], int)
+    assert isinstance(own["Registriert am"], datetime)
+    assert own["Bestätigt am"] is None
+    assert own["Kontaktperson"] == "Test User"
+    assert own["E-Mail Kontaktperson"] == "company@example.com"
+    assert own["Allgemeine E-Mail"] == GENERAL_EMAIL
+    assert own["Allgemeine Telefonnummer"] == GENERAL_PHONE
+    assert own["Rechnungsadresse"] == f"{INVOICE_ADDRESS} 1"
+    assert own["PLZ"] == "8000"
+    assert own["Land"] == "CH"
+    assert own["Services"] == "Electricity × 1"
+    assert own["Namensschilder"] == 2
+    assert own["Netto"] == 150.0
+    assert own["Brutto"] == 162.15
+    assert own["Beschreibung"] == "We build anvils.\nSince 1900."
+    assert own["Branchen"] == "Software"
+    assert own["Sprachen"] == "Englisch, Deutsch"
+    assert own["Mitarbeitende Schweiz"] == 42
+    assert own["Praktika"] == "Ja"
+    assert own["Abschlussarbeiten"] == "Nein"
+    assert rows[1]["Status"] == "Storniert"
+    assert workbook["Unternehmen"]["Y2"].number_format == '"CHF" #,##0.00'
+    assert workbook["Unternehmen"]["H2"].number_format == "DD.MM.YYYY HH:MM"
+
+
+async def test_company_workbook_names_what_is_missing(
+    client: AsyncClient, db_session: AsyncSession, export_world: ExportWorld
+):
+    await strip_company_profile(db_session, export_world.booking_b)
+
+    rows = sheet_rows(
+        open_workbook(await export(client, export_world, COMPANY_WORKBOOK)),
+        "Unternehmen",
+    )
+
+    other = next(row for row in rows if row["Unternehmen"] == OTHER_COMPANY)
+    missing = other["Fehlende Angaben"].split("\n")
+    assert "Unternehmensprofil" in missing
+    assert "Rechnungsadresse" in missing
+    assert "Electricity · Booth layout" in missing
+    assert other["Marke"] is None
+    assert other["Beschreibung"] is None
+    assert other["Praktika"] is None
+
+
+async def test_company_workbook_keeps_company_text_inert(
+    client: AsyncClient, db_session: AsyncSession, export_world: ExportWorld
+):
+    hostile = '=HYPERLINK("https://evil.test","Klick")'
+    snapshot = (
+        await db_session.execute(
+            select(KpBookingCompanyDetails).where(
+                col(KpBookingCompanyDetails.booking_id) == UUID(export_world.booking_a)
+            )
+        )
+    ).scalar_one()
+    snapshot.brand_name = hostile
+    snapshot.description = "<p>Grüezi Zürich 🤖</p><p>@SUM(A1)</p>"
+    db_session.add(snapshot)
+    await db_session.commit()
+
+    sheet = open_workbook(await export(client, export_world, COMPANY_WORKBOOK))[
+        "Unternehmen"
+    ]
+
+    assert sheet["B2"].value == hostile
+    assert sheet["B2"].data_type == "s"
+    assert sheet["AC2"].value == "Grüezi Zürich 🤖\n@SUM(A1)"
+    assert sheet["AC2"].data_type == "s"
+
+
+async def test_company_workbook_lists_the_people_of_active_bookings(
+    client: AsyncClient, export_world: ExportWorld
+):
+    rows = sheet_rows(
+        open_workbook(await export(client, export_world, COMPANY_WORKBOOK)),
+        "Kontakte",
+    )
+
+    assert rows == [
+        {
+            "Unternehmen": OWN_COMPANY,
+            "Status": "Registriert",
+            "Zone": "Main hall",
+            "Stand-Nr.": None,
+            "Vorname": "Test",
+            "Nachname": "User",
+            "E-Mail": "company@example.com",
+            "Telefon": None,
+            "Kontaktperson": "Ja",
+        }
+    ]
 
 
 async def test_booth_zone_capacity_export_excludes_cancelled_bookings(
@@ -589,31 +743,6 @@ async def test_booked_services_export_rows(
     assert by_company[OWN_COMPANY]["gross"] == "54.05"
 
 
-async def test_company_details_export_rows(
-    client: AsyncClient, export_world: ExportWorld
-):
-    _, rows = read_csv(await export(client, export_world, "company-details/download"))
-
-    by_company = {row["company"]: row for row in rows}
-    assert by_company[OWN_COMPANY]["brand_name"] == "Acme"
-    assert by_company[OWN_COMPANY]["description"] == "We build anvils.\nSince 1900."
-    assert by_company[OWN_COMPANY]["contact_person"] == "Test User"
-    assert by_company[OWN_COMPANY]["contact_email"] == "company@example.com"
-    assert by_company[OWN_COMPANY]["general_email"] == GENERAL_EMAIL
-    assert by_company[OWN_COMPANY]["general_phone"] == GENERAL_PHONE
-    assert by_company[OWN_COMPANY]["employee_count_switzerland"] == "42"
-    assert by_company[OWN_COMPANY]["employee_count_worldwide"] == "99"
-    assert by_company[OWN_COMPANY]["offers_internships"] == "yes"
-    assert by_company[OWN_COMPANY]["offers_theses"] == "no"
-    assert by_company[OWN_COMPANY]["languages"] == "ENGLISH, GERMAN"
-    assert by_company[OWN_COMPANY]["industries"] == "Software"
-    assert by_company[OWN_COMPANY]["billing_street"] == INVOICE_ADDRESS
-    assert by_company[OWN_COMPANY]["billing_city"] == "Zurich"
-    assert by_company[OWN_COMPANY]["billing_country"] == "CH"
-    assert by_company[OWN_COMPANY]["billing_email"] == "billing@example.com"
-    assert by_company[OTHER_COMPANY]["brand_name"] == ""
-
-
 async def test_service_requirements_export_rows(
     client: AsyncClient, export_world: ExportWorld
 ):
@@ -661,10 +790,10 @@ async def test_bookings_by_zone_zip_has_one_entry_per_zone(
     ascii_name, encoded_name = disposition_names(response)
     archive = zipfile.ZipFile(io.BytesIO(response.content))
     main = csv.DictReader(
-        io.StringIO(archive.read("main-hall.csv").decode("utf-8-sig"))
+        io.StringIO(archive.read("main-hall.csv").decode("utf-8-sig")), delimiter=";"
     )
     side = csv.DictReader(
-        io.StringIO(archive.read("side-hall.csv").decode("utf-8-sig"))
+        io.StringIO(archive.read("side-hall.csv").decode("utf-8-sig")), delimiter=";"
     )
     assert response.status_code == 200
     assert response.headers["content-type"] == ZIP_MEDIA_TYPE

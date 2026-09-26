@@ -86,7 +86,7 @@ class Company(BaseEntity, table=True):
     users: list["User"] = Relationship(back_populates="company")
     invites: list["CompanyInvite"] = Relationship(back_populates="company")
     bookings: list["KpEventBooking"] = Relationship(back_populates="company")
-    kp_profile: "KpCompanyProfile" = Relationship(
+    kp_profile: Optional["KpCompanyProfile"] = Relationship(
         back_populates="company",
         sa_relationship_kwargs={"uselist": False},
     )

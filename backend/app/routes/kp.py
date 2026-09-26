@@ -54,6 +54,9 @@ from app.schemas.kp import (
     UpdateKpRequest,
     UpdateServiceRequest,
 )
+from app.services.company_workbook import ExportLanguage
+
+XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 router = APIRouter(prefix="/kp", tags=["kp"], dependencies=[CsrfDep])
 
@@ -64,6 +67,10 @@ def _pdf_download(content: bytes, filename: str) -> Response:
 
 def _csv_download(content: bytes, filename: str) -> Response:
     return _download(content, filename, "text/csv; charset=utf-8")
+
+
+def _xlsx_download(content: bytes, filename: str) -> Response:
+    return _download(content, filename, XLSX_MEDIA_TYPE)
 
 
 def _zip_download(content: bytes, filename: str) -> Response:
@@ -821,15 +828,16 @@ async def download_event_nametags_data_csv(
 
 
 @router.get(
-    "/events/{event_id}/exports/company-details/download",
-    operation_id="downloadEventCompanyDetailsCsv",
+    "/events/{event_id}/exports/companies/download",
+    operation_id="downloadEventCompaniesXlsx",
 )
-async def download_event_company_details_csv(
+async def download_event_companies_xlsx(
     export_service: ExportServiceDep,
     event_id: UUID,
+    language: ExportLanguage = ExportLanguage.DE,
 ) -> Response:
-    export = await export_service.export_company_details_csv(event_id)
-    return _csv_download(export.content, export.filename)
+    export = await export_service.export_company_workbook(event_id, language)
+    return _xlsx_download(export.content, export.filename)
 
 
 @router.get(
@@ -853,18 +861,6 @@ async def download_event_booth_zone_capacity_csv(
     event_id: UUID,
 ) -> Response:
     export = await export_service.export_booth_zone_capacity_csv(event_id)
-    return _csv_download(export.content, export.filename)
-
-
-@router.get(
-    "/events/{event_id}/exports/contacts/download",
-    operation_id="downloadEventContactsCsv",
-)
-async def download_event_contacts_csv(
-    export_service: ExportServiceDep,
-    event_id: UUID,
-) -> Response:
-    export = await export_service.export_contacts_csv(event_id)
     return _csv_download(export.content, export.filename)
 
 

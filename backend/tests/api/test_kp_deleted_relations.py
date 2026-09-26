@@ -1,7 +1,9 @@
+import io
 from collections.abc import Awaitable, Callable
 from uuid import UUID
 
 from httpx import AsyncClient, Response
+from openpyxl import load_workbook
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
@@ -10,7 +12,7 @@ from tests.api.conftest import KpSetup
 
 BOOKINGS_EXPORT = "exports/bookings/download"
 REQUIREMENTS_EXPORT = "exports/service-requirements/download"
-COMPANY_DETAILS_EXPORT = "exports/company-details/download"
+COMPANY_WORKBOOK_EXPORT = "exports/companies/download"
 
 
 async def cancel_booking(
@@ -141,13 +143,14 @@ async def test_exports_still_render_industries_of_a_deleted_industry(
     )
 
     response = await client.get(
-        f"/api/kp/events/{kp_setup.event_id}/{COMPANY_DETAILS_EXPORT}",
+        f"/api/kp/events/{kp_setup.event_id}/{COMPANY_WORKBOOK_EXPORT}",
         headers=staff_headers,
     )
 
+    sheet = load_workbook(io.BytesIO(response.content))["Unternehmen"]
     assert deleted.status_code == 200
     assert response.status_code == 200
-    assert "Robotics" in response.text
+    assert sheet["AD2"].value == "Robotics"
 
 
 async def add_service_requirement(
