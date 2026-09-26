@@ -485,9 +485,7 @@ class AuthService:
         try:
             await self.invite_service.join_company(user, token, "confirm_email")
         except AppError as error:
-            logger.warning(
-                "Pending invite not applied for %s: %s", user.id, error.code
-            )
+            logger.warning("Pending invite not applied for %s: %s", user.id, error.code)
         await self.user_repository.clear_pending_invite(user)
 
     async def keycloak_callback(self, code: str, code_verifier: str) -> str:

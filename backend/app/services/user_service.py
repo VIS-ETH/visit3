@@ -128,9 +128,7 @@ class UserService:
         result = await self.user_repository.confirm_user(user)
         if not was_confirmed:
             await self._send_account_confirmed(result)
-        logger.info(
-            "User confirmed by staff %s: %s", self.current_user.id, user.id
-        )
+        logger.info("User confirmed by staff %s: %s", self.current_user.id, user.id)
         return result
 
     async def _send_account_confirmed(self, user: User) -> None:

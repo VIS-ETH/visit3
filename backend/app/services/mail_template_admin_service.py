@@ -131,9 +131,7 @@ class MailTemplateAdminService:
         template = await self.mail_template_repository.upsert(
             str(known_key), texts, self.current_user.id
         )
-        logger.info(
-            "Mail template updated by %s: %s", self.current_user.id, known_key
-        )
+        logger.info("Mail template updated by %s: %s", self.current_user.id, known_key)
         return self._stored_result(known_key, template)
 
     async def reset_template(self, key: str) -> MailTemplateResult:
