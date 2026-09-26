@@ -286,10 +286,64 @@ describe("single quantity services on the booking page", () => {
     }, SLOW_WAIT);
   });
 
+  it("keeps the selection and allows a retry after a failed add", async () => {
+    const attempts: unknown[] = [];
+    server.use(
+      http.post(
+        `${testBackendUrl}/api/kp/bookings/${testBookingId}/services`,
+        async ({ request }) => {
+          attempts.push(await request.json());
+          if (attempts.length === 1) {
+            return HttpResponse.json(
+              { statusCode: 409, code: "error.conflict", message: "conflict" },
+              { status: 409 },
+            );
+          }
+          return HttpResponse.json(testBooking);
+        },
+      ),
+    );
+    const { user } = renderWithProviders(
+      <Routes>
+        <Route path={managePath} element={<KpBookingManage />} />
+      </Routes>,
+      { route: manageRoute },
+    );
+
+    await user.click(
+      await screen.findByRole(
+        "switch",
+        { name: "kp.booking.service_book_toggle" },
+        SLOW_WAIT,
+      ),
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "kp.booking_manage.add_services_submit",
+      }),
+    );
+    const confirm = await screen.findByRole(
+      "button",
+      { name: "kp.booking_manage.confirm_add_services_submit" },
+      SLOW_WAIT,
+    );
+    await user.click(confirm);
+    await waitFor(() => expect(attempts).toHaveLength(1), SLOW_WAIT);
+    await waitFor(() => expect(confirm).toBeEnabled(), SLOW_WAIT);
+
+    await user.click(confirm);
+
+    await waitFor(() => expect(attempts).toHaveLength(2), SLOW_WAIT);
+    expect(attempts[1]).toEqual(attempts[0]);
+  });
+
   it("still adds services once VIS confirmed the booking", async () => {
     server.use(
       http.get(`${testBackendUrl}/api/kp/events/:eventId/my-booking`, () =>
-        HttpResponse.json({ ...testBooking, status: KpBookingStatus.CONFIRMED }),
+        HttpResponse.json({
+          ...testBooking,
+          status: KpBookingStatus.CONFIRMED,
+        }),
       ),
     );
     const { user } = renderWithProviders(

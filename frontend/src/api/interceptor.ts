@@ -2,7 +2,7 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { notifications } from "@mantine/notifications";
 import serverData from "../utils/server-data";
 import i18n from "../i18";
-import { createElement } from "react";
+import { Fragment, createElement } from "react";
 import {
   clearAuthState,
   getCsrfToken,
@@ -51,6 +51,7 @@ interface ErrorResponse {
   identifier?: string;
   message?: string;
   statusCode?: number;
+  requestId?: string;
   detail?: unknown;
   fieldErrors?: Array<{
     field?: string;
@@ -114,8 +115,29 @@ const getUploadErrorMessage = (
   if (status === PAYLOAD_TOO_LARGE)
     return i18n.t("error.storage_file_too_large");
   if (status === 0 && isUpload(request)) return i18n.t("error.upload_rejected");
+  if (status === 0) return i18n.t("error.network");
   return undefined;
 };
+
+const REFERENCE_STYLE = {
+  fontSize: "var(--mantine-font-size-xs)",
+  marginTop: 4,
+  opacity: 0.7,
+};
+
+const withReference = (message: string, requestId: string | undefined) =>
+  requestId
+    ? createElement(
+        Fragment,
+        null,
+        message,
+        createElement(
+          "div",
+          { style: REFERENCE_STYLE },
+          `${i18n.t("error.reference")} ${requestId}`,
+        ),
+      )
+    : message;
 
 const getErrorMessage = (errorResponse: ErrorResponse | undefined): string => {
   const firstFieldErrorCode = errorResponse?.fieldErrors?.[0]?.code;
@@ -198,9 +220,11 @@ api.interceptors.response.use(
       notifications.show({
         color: "red",
         title: i18n.t("error.title"),
-        message:
+        message: withReference(
           getUploadErrorMessage(status, request) ??
-          getErrorMessage(errorResponse),
+            getErrorMessage(errorResponse),
+          errorResponse?.requestId,
+        ),
         icon: createElement(IconX, { size: 16 }),
         withCloseButton: true,
         withBorder: true,

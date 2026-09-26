@@ -8,7 +8,7 @@
     "currency": "CHF"
   },
   "server": {
-    "error": "Serverfehler"
+    "error": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut."
   },
   "csrf": {
     "validation_failed": "Das Sicherheitstoken der Sitzung ist abgelaufen. Bitte versuche es erneut."
@@ -78,6 +78,11 @@
     "storage_upload_failed": "Der Dateispeicher ist gerade nicht erreichbar. Bitte versuchen Sie es später erneut.",
     "upload_rejected": "Die Datei konnte nicht hochgeladen werden. Sie ist wahrscheinlich zu gross.",
     "internal": "Bei uns ist etwas schiefgelaufen. Bitte versuchen Sie es erneut.",
+    "mail_unavailable": "Die E-Mail konnte gerade nicht gesendet werden. Bitte versuchen Sie es in ein paar Minuten erneut.",
+    "company_name_taken": "Ein anderes Unternehmen verwendet diesen Namen bereits.",
+    "conflict": "Das wurde gleichzeitig an anderer Stelle geändert. Bitte laden Sie die Seite neu und versuchen Sie es erneut.",
+    "network": "VISIT ist gerade nicht erreichbar. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "reference": "Fehler-ID:",
     "storage_delete_failed": "Das Löschen der Datei ist fehlgeschlagen.",
     "storage_download_failed": "Der Datei-Download ist fehlgeschlagen.",
     "storage_file_too_large": "Die hochgeladene Datei ist zu gross.",

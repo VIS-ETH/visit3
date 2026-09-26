@@ -8,7 +8,7 @@
     "currency": "CHF"
   },
   "server": {
-    "error": "Server error"
+    "error": "Something went wrong. Please try again."
   },
   "csrf": {
     "validation_failed": "Your session security token expired. Please try again."
@@ -78,6 +78,11 @@
     "storage_upload_failed": "The file storage is unavailable right now. Please try again later.",
     "upload_rejected": "The file could not be uploaded. It is probably too large.",
     "internal": "Something went wrong on our side. Please try again.",
+    "mail_unavailable": "The email could not be sent right now. Please try again in a few minutes.",
+    "company_name_taken": "Another company already uses this name.",
+    "conflict": "This was changed at the same time elsewhere. Please reload the page and try again.",
+    "network": "VISIT cannot be reached right now. Please check your connection and try again.",
+    "reference": "Error ID:",
     "storage_delete_failed": "The file deletion failed.",
     "storage_download_failed": "The file download failed.",
     "storage_file_too_large": "The uploaded file is too large.",

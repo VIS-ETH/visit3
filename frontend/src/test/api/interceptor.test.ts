@@ -1,4 +1,6 @@
 import { File as NodeFile } from "node:buffer";
+import { Fragment, createElement } from "react";
+import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { delay, http, HttpResponse } from "msw";
 import { server } from "../server";
@@ -306,13 +308,53 @@ describe("upload failures", () => {
     expect(shownMessage()).toBe("error.upload_rejected");
   });
 
-  it("keeps the generic message for other requests the network dropped", async () => {
+  it("keeps the network message for other requests the network dropped", async () => {
     storeValidToken();
     server.use(http.get(meUrl, () => HttpResponse.error()));
     const api = await importApi();
 
     await expect(api.get("/api/user/me")).rejects.toThrow();
 
-    expect(shownMessage()).toBe("server.error");
+    expect(shownMessage()).toBe("error.network");
+  });
+});
+
+describe("unexpected failures", () => {
+  const lastNotification = () =>
+    notificationsShow.mock.calls.at(-1)?.[0] as {
+      message: unknown;
+    };
+
+  it("shows the error id of an unexpected server error", async () => {
+    storeValidToken();
+    server.use(
+      http.get(meUrl, () =>
+        HttpResponse.json(
+          {
+            statusCode: 500,
+            code: "error.internal",
+            message: "Internal server error",
+            requestId: "abc123def456",
+          },
+          { status: 500 },
+        ),
+      ),
+    );
+    const api = await importApi();
+
+    await expect(api.get("/api/user/me")).rejects.toThrow();
+
+    render(createElement(Fragment, null, lastNotification().message as never));
+    expect(screen.getByText(/abc123def456/)).toBeInTheDocument();
+  });
+
+  it("explains a request the network dropped", async () => {
+    storeValidToken();
+    server.use(http.get(meUrl, () => HttpResponse.error()));
+    const api = await importApi();
+
+    await expect(api.get("/api/user/me")).rejects.toThrow();
+
+    expect(lastNotification().message).toBe("error.network");
   });
 });

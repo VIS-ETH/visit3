@@ -660,7 +660,8 @@ const AddServicesForm = ({
     const updated = await addServices({
       bookingId,
       data: { services: payload },
-    });
+    }).catch(() => null);
+    if (!updated) return;
     setQuantities({});
     setConfirmOpen(false);
     onAdded(
