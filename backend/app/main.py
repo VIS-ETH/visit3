@@ -22,6 +22,7 @@ from app.core.exception_handlers import (
 )
 from app.core.maintenance import lifespan
 from app.core.request_id import REQUEST_ID_HEADER, RequestIdMiddleware
+from app.core.security_headers import SecurityHeadersMiddleware
 from app.routes.router import router as api_router
 from app.routes.upload_limits import upload_route_limits
 
@@ -49,7 +50,13 @@ def get_csrf_config() -> list[tuple[str, Any]]:
     return list(CsrfSettings())
 
 
-app = FastAPI(lifespan=lifespan)
+api_documentation = get_settings().DEBUG
+app = FastAPI(
+    lifespan=lifespan,
+    docs_url="/docs" if api_documentation else None,
+    redoc_url="/redoc" if api_documentation else None,
+    openapi_url="/openapi.json" if api_documentation else None,
+)
 register_exception_handlers(app)
 
 
@@ -66,6 +73,7 @@ app.add_middleware(
     expose_headers=[REQUEST_ID_HEADER],
 )
 app.add_middleware(RequestIdMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 class HealthCheckFilter(logging.Filter):
