@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from app.mail_templates.defaults import MAIL_TEMPLATE_DEFAULTS
 from app.mail_templates.keys import MailTemplateKey
 from app.models.user import User
+from tests.api.conftest import decoded_subject
 
 KEY = str(MailTemplateKey.PASSWORD_RESET)
 VALID_BODY = {
@@ -251,7 +252,7 @@ async def test_reset_lets_the_default_text_be_sent_again(
     )
 
     message = mail_stub.SendMail.await_args.args[0]
-    assert message.subject.startswith("VISIT: Passwort zurücksetzen")
+    assert decoded_subject(message).startswith("VISIT: Passwort zurücksetzen")
 
 
 async def test_preview_renders_both_languages_with_sample_values(
@@ -288,7 +289,7 @@ async def test_test_send_mails_the_caller_once(
     assert [address.mail_address.address for address in message.to] == [
         staff_user.email
     ]
-    assert message.subject.startswith("VISIT: Passwort zurücksetzen")
+    assert decoded_subject(message).startswith("VISIT: Passwort zurücksetzen")
 
 
 async def test_company_user_cannot_trigger_a_test_send(

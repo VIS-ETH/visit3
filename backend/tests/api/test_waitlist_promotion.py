@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.kp_event import KpEventBoothZoneServiceLink
 from app.models.user import User
-from tests.api.conftest import KpSetup, move_event_into_the_past
+from tests.api.conftest import KpSetup, decoded_subject, move_event_into_the_past
 
 PROMOTION_SUBJECT = (
     "VISIT: Platz in Gold frei geworden / VISIT: A spot in Gold became available"
@@ -534,7 +534,9 @@ async def test_each_promotion_mails_the_promoted_company_once(
 
     await cancel_holder(client, waitlist_world)
 
-    subjects = [call.args[0].subject for call in mail_stub.SendMail.await_args_list]
+    subjects = [
+        decoded_subject(call.args[0]) for call in mail_stub.SendMail.await_args_list
+    ]
     assert subjects == [PROMOTION_SUBJECT]
     recipients = [
         address.mail_address.address

@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Sequence
+from email.header import Header
 from typing import Any, cast
 
 import grpc
@@ -11,6 +12,13 @@ from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 logger = logging.getLogger(__name__)
 
 SENDER_FIELD_NAME_IS_A_PYTHON_KEYWORD = "from"
+SENDER_NAME = "VISIT MAIL SERVICE"
+
+
+def encode_header_text(text: str) -> str:
+    if text.isascii():
+        return text
+    return Header(text, "utf-8").encode()
 
 
 class MailDeliveryFailed(RuntimeError):
@@ -49,12 +57,13 @@ class MailService:
         plain_text: str | None = None,
         multipart_body: Mimebody | None = None,
         email_from: str | None = None,
+        sender_name: str = SENDER_NAME,
     ) -> mail_pb.Mail | None:
         if (not plain_text and not multipart_body) or not email_to:
             return None
 
         mail = mail_pb.Mail()
-        mail.subject = subject
+        mail.subject = encode_header_text(subject)
         mail.to.extend(
             [
                 mail_pb.MailAddress(
@@ -69,7 +78,7 @@ class MailService:
         sender.CopyFrom(
             mail_pb.MailAddress(
                 mail_address=mail_pb.MailAddress.Address(
-                    name="VISIT MAIL SERVICE", address=sender_address
+                    name=sender_name, address=sender_address
                 )
             )
         )

@@ -6,6 +6,7 @@ from httpx import AsyncClient
 
 from app.models.user import User
 from app.services.auth_service import AuthService
+from tests.api.conftest import decoded_subject
 
 
 def sent_message(mail_stub: AsyncMock) -> object:
@@ -46,7 +47,7 @@ async def test_registration_sends_the_confirm_email_mail(
     assert response.status_code == 200
     message = sent_message(mail_stub)
     assert recipients(message) == ["newcomer@example.com"]
-    assert getattr(message, "subject") == (
+    assert decoded_subject(message) == (
         "VISIT: E-Mail-Adresse bestätigen / VISIT: Confirm your email address"
     )
 
@@ -89,7 +90,7 @@ async def test_password_reset_request_sends_the_reset_mail(
     assert response.status_code == 200
     message = sent_message(mail_stub)
     assert recipients(message) == [company_user.email]
-    assert getattr(message, "subject") == (
+    assert decoded_subject(message) == (
         "VISIT: Passwort zurücksetzen / VISIT: Reset your password"
     )
 
@@ -106,7 +107,7 @@ async def test_company_invite_sends_the_invite_mail(
     assert response.status_code == 200
     message = sent_message(mail_stub)
     assert recipients(message) == ["guest@example.com"]
-    assert getattr(message, "subject") == (
+    assert decoded_subject(message) == (
         "VISIT: Einladung zu Acme AG / VISIT: Invitation to join Acme AG"
     )
 
@@ -127,7 +128,7 @@ async def test_email_confirmation_notifies_the_staff_address(
     assert response.status_code == 200
     message = sent_message(mail_stub)
     assert recipients(message) == ["kontaktparty@vis.ethz.ch"]
-    assert getattr(message, "subject") == (
+    assert decoded_subject(message) == (
         "VISIT: Neues Konto wartet auf Freigabe / VISIT: New account awaiting approval"
     )
 
@@ -145,7 +146,7 @@ async def test_staff_confirmation_sends_the_account_confirmed_mail(
     assert response.status_code == 200
     message = sent_message(mail_stub)
     assert recipients(message) == [unconfirmed_company_user.email]
-    assert getattr(message, "subject") == (
+    assert decoded_subject(message) == (
         "VISIT: Konto freigeschaltet / VISIT: Account activated"
     )
     assert "/auth/link/" in getattr(message, "plain_text")

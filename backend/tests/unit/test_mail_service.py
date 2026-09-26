@@ -1,3 +1,4 @@
+from email.header import decode_header, make_header
 from unittest.mock import AsyncMock
 
 from google.protobuf.json_format import MessageToDict
@@ -64,3 +65,47 @@ async def test_send_mail_delegates_to_grpc_stub():
     await service.send_mail(message)
 
     stub.SendMail.assert_awaited_once_with(message)
+
+
+PROBE = "ä ö ü Ä Ö Ü ß é € 🎉"
+
+
+def decoded(header: str) -> str:
+    return str(make_header(decode_header(header)))
+
+
+def test_construct_mail_encodes_a_non_ascii_subject():
+    message = MailService(AsyncMock()).construct_mail(
+        ["to@example.com"],
+        f"VISIT: Buchung für Kontaktparty bestätigt {PROBE}",
+        plain_text="Hello",
+    )
+
+    assert message is not None
+    assert message.subject.isascii()
+    assert message.subject.startswith("=?utf-8?")
+    assert decoded(message.subject) == (
+        f"VISIT: Buchung für Kontaktparty bestätigt {PROBE}"
+    )
+
+
+def test_construct_mail_keeps_an_ascii_subject_readable():
+    message = MailService(AsyncMock()).construct_mail(
+        ["to@example.com"], "VISIT: Account activated", plain_text="Hello"
+    )
+
+    assert message is not None
+    assert message.subject == "VISIT: Account activated"
+
+
+def test_construct_mail_leaves_the_sender_name_to_the_notifications_api():
+    message = MailService(AsyncMock()).construct_mail(
+        ["to@example.com"],
+        "Subject",
+        plain_text=f"Grüße {PROBE}",
+        sender_name=f"VISIT Ärger {PROBE}",
+    )
+
+    assert message is not None
+    assert getattr(message, "from").mail_address.name == f"VISIT Ärger {PROBE}"
+    assert message.plain_text == f"Grüße {PROBE}"

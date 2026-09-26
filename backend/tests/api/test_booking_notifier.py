@@ -12,7 +12,7 @@ from app.repositories.kp_repository import KpRepository
 from app.services.auth_service import AuthService
 from app.services.booking_notifier import MailBookingNotifier
 from app.services.mail_template_service import MailTemplateService
-from tests.api.conftest import KpSetup
+from tests.api.conftest import KpSetup, decoded_subject
 
 REJECTION_REASON = "Die Standzone ist ausgebucht."
 
@@ -85,7 +85,7 @@ async def test_every_notification_reaches_the_company_user_once(
     assert [address.mail_address.address for address in message.to] == [
         "company@example.com"
     ]
-    assert message.subject == EXPECTED_SUBJECTS[method_name]
+    assert decoded_subject(message) == EXPECTED_SUBJECTS[method_name]
     assert "/auth/link/" in message.plain_text
 
 
@@ -129,7 +129,7 @@ async def test_registering_a_booking_sends_the_registration_mail(
     assert registered.status_code == 200
     mail_stub.SendMail.assert_awaited_once()
     message = mail_stub.SendMail.await_args.args[0]
-    assert message.subject == EXPECTED_SUBJECTS["booking_registered"]
+    assert decoded_subject(message) == EXPECTED_SUBJECTS["booking_registered"]
 
 
 async def test_rejecting_a_booking_sends_the_rejection_mail(
@@ -152,7 +152,7 @@ async def test_rejecting_a_booking_sends_the_rejection_mail(
     assert rejected.status_code == 200
     mail_stub.SendMail.assert_awaited_once()
     message = mail_stub.SendMail.await_args.args[0]
-    assert message.subject == EXPECTED_SUBJECTS["booking_rejected"]
+    assert decoded_subject(message) == EXPECTED_SUBJECTS["booking_rejected"]
     assert REJECTION_REASON in message.plain_text
 
 
