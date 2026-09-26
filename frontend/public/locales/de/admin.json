@@ -26,7 +26,9 @@
       "add_submit": "Hinzufügen",
       "add_placeholder": "Unternehmensbenutzer ohne Unternehmen",
       "add_empty": "Keine Benutzer ohne Unternehmen gefunden",
-      "added": "Mitglied hinzugefügt."
+      "added": "Mitglied hinzugefügt.",
+      "acknowledge": "Als gesehen markieren",
+      "acknowledged": "Als gesehen markiert."
     },
     "delete_modal": {
       "title": "Unternehmen löschen",

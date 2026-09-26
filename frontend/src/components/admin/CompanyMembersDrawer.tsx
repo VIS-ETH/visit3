@@ -12,7 +12,7 @@ import {
 } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconAlertCircle, IconTrash } from "@tabler/icons-react";
+import { IconAlertCircle, IconEyeCheck, IconTrash } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,6 +20,7 @@ import { getApiErrorCode } from "../../api/errors";
 import {
   getGetCompanyUsersQueryKey,
   getSearchCompaniesQueryKey,
+  useAcknowledgeCompanyNewMembers,
   useAddCompanyMember,
   useGetCompanyUsers,
   useRemoveCompanyUser,
@@ -30,6 +31,7 @@ import {
   useListUsers,
 } from "../../orval/generated/user/user";
 import { getDisplayName } from "../../utils/display";
+import BookingNewAdditionsBadge from "../bookings/BookingNewAdditionsBadge";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const CANDIDATE_PAGE_SIZE = 20;
@@ -106,6 +108,26 @@ const CompanyMembersDrawer = ({
     },
   });
 
+  const { mutate: acknowledge, isPending: isAcknowledging } =
+    useAcknowledgeCompanyNewMembers({
+      mutation: {
+        onSuccess: async () => {
+          await refresh();
+          notifications.show({
+            color: "green",
+            message: t("company_management.members.acknowledged"),
+          });
+        },
+        onError: (error) => {
+          setErrorCode(getApiErrorCode(error) ?? "server.error");
+        },
+      },
+    });
+
+  const hasNewMembers = (members ?? []).some((member) =>
+    Boolean(member.new_in_company_since),
+  );
+
   const { mutate: removeMember, isPending: isRemoving } = useRemoveCompanyUser({
     mutation: {
       onSuccess: async () => {
@@ -141,6 +163,24 @@ const CompanyMembersDrawer = ({
           </Alert>
         ) : null}
 
+        {hasNewMembers ? (
+          <Group justify="flex-end">
+            <Button
+              color="gray"
+              leftSection={<IconEyeCheck size={16} />}
+              loading={isAcknowledging}
+              onClick={() => {
+                setErrorCode(null);
+                acknowledge({ companyId });
+              }}
+              size="xs"
+              variant="subtle"
+            >
+              {t("company_management.members.acknowledge")}
+            </Button>
+          </Group>
+        ) : null}
+
         {isLoading ? (
           <Loader />
         ) : members && members.length > 0 ? (
@@ -149,7 +189,12 @@ const CompanyMembersDrawer = ({
               {members.map((member) => (
                 <Table.Tr key={member.id}>
                   <Table.Td>
-                    {getDisplayName(member.first_name, member.last_name)}
+                    <Group gap="xs" wrap="nowrap">
+                      {getDisplayName(member.first_name, member.last_name)}
+                      {member.new_in_company_since ? (
+                        <BookingNewAdditionsBadge />
+                      ) : null}
+                    </Group>
                   </Table.Td>
                   <Table.Td>{member.email}</Table.Td>
                   <Table.Td w={60}>

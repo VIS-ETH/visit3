@@ -47,6 +47,7 @@ import {
   useResendUserConfirmationMail,
 } from "../orval/generated/user/user";
 import { getDisplayName } from "../utils/display";
+import BookingNewAdditionsBadge from "../components/bookings/BookingNewAdditionsBadge";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const PAGE_SIZE = 25;
@@ -195,7 +196,14 @@ const UserManagement = () => {
                           <Table.Td>
                             {getDisplayName(item.first_name, item.last_name)}
                           </Table.Td>
-                          <Table.Td>{item.company?.name ?? "-"}</Table.Td>
+                          <Table.Td>
+                            <Group gap="xs" wrap="nowrap">
+                              {item.company?.name ?? "-"}
+                              {item.new_in_company_since ? (
+                                <BookingNewAdditionsBadge />
+                              ) : null}
+                            </Group>
+                          </Table.Td>
                           <Table.Td>
                             <UserFlagBadges user={item} />
                           </Table.Td>

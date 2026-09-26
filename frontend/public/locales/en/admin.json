@@ -26,7 +26,9 @@
       "add_submit": "Add",
       "add_placeholder": "Company user without a company",
       "add_empty": "No users without a company found",
-      "added": "Member added."
+      "added": "Member added.",
+      "acknowledge": "Mark as seen",
+      "acknowledged": "Marked as seen."
     },
     "delete_modal": {
       "title": "Delete company",

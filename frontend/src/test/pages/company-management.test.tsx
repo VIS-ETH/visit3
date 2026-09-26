@@ -7,6 +7,7 @@ import {
   type CompanyListResult,
   type KpResponse,
   type StaffBookingResponse,
+  type StaffUserResponse,
   type UserResponse,
 } from "../../orval/generated/fastAPI.schemas";
 import CompanyManagement from "../../pages/CompanyManagement";
@@ -31,7 +32,7 @@ let removedMembers: { companyId: string; userId: string }[] = [];
 let deleteCalls: { companyId: string; variant: string }[] = [];
 let companies: CompanyListResult[] = [];
 let companyTotal = 2;
-let companyMembers: UserResponse[] = [];
+let companyMembers: StaffUserResponse[] = [];
 let deleteResponse: () => HttpResponse<DefaultBodyType>;
 let latestEvent: KpResponse | null = null;
 let eventBookings: StaffBookingResponse[] = [];
@@ -478,6 +479,65 @@ describe("confirming bookings from the company management", () => {
     await waitFor(() => expect(listRequests.length).toBeGreaterThan(0));
     expect(
       row.queryByRole("button", { name: "kp.manage.booking_action_accept" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("new company members", () => {
+  it("flags the company row that has new members", async () => {
+    companies = [{ ...acmeCompany, new_members_count: 1 }, globexCompany];
+    renderPage();
+    const row = await acmeRow();
+
+    expect(
+      row.getByText("kp.manage.booking_new_additions"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("kp.manage.booking_new_additions")).toHaveLength(
+      1,
+    );
+  });
+
+  it("marks the new members as seen from the members drawer", async () => {
+    const acknowledged: string[] = [];
+    companyMembers = [
+      { ...memberUser, new_in_company_since: "2026-09-26T10:00:00Z" },
+    ];
+    server.use(
+      http.post(
+        `${testBackendUrl}/api/companies/:companyId/members/acknowledge`,
+        ({ params }) => {
+          acknowledged.push(String(params.companyId));
+          companyMembers = [{ ...memberUser, new_in_company_since: null }];
+          return HttpResponse.json(companyMembers);
+        },
+      ),
+    );
+    const { user } = renderPage();
+    const row = await acmeRow();
+
+    await user.click(
+      row.getByRole("button", { name: "company_management.view_users" }),
+    );
+    const drawer = await screen.findByRole("dialog");
+    expect(
+      await within(drawer).findByText("kp.manage.booking_new_additions"),
+    ).toBeInTheDocument();
+    await user.click(
+      within(drawer).getByRole("button", {
+        name: "company_management.members.acknowledge",
+      }),
+    );
+
+    await waitFor(() => expect(acknowledged).toEqual([acmeCompany.id]));
+    await waitFor(() =>
+      expect(
+        within(drawer).queryByText("kp.manage.booking_new_additions"),
+      ).not.toBeInTheDocument(),
+    );
+    expect(
+      within(drawer).queryByRole("button", {
+        name: "company_management.members.acknowledge",
+      }),
     ).not.toBeInTheDocument();
   });
 });

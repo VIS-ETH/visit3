@@ -31,6 +31,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import CompanyBookingActions from "../components/admin/CompanyBookingActions";
 import CompanyDeleteModal from "../components/admin/CompanyDeleteModal";
+import BookingNewAdditionsBadge from "../components/bookings/BookingNewAdditionsBadge";
 import CompanyMembersDrawer from "../components/admin/CompanyMembersDrawer";
 import { useCurrentUser } from "../context/useCurrentUser";
 import {
@@ -230,6 +231,9 @@ const CompanyManagement = () => {
                             ) : (
                               <Group gap="xs" wrap="nowrap">
                                 <Text>{company.name}</Text>
+                                {company.new_members_count ? (
+                                  <BookingNewAdditionsBadge />
+                                ) : null}
                                 <ActionIcon
                                   aria-label={t("company_management.rename")}
                                   onClick={() => {

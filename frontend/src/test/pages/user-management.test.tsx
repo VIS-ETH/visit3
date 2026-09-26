@@ -2,7 +2,10 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse, type DefaultBodyType } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 import { UserProvider } from "../../context/UserContext";
-import type { UserResponse } from "../../orval/generated/fastAPI.schemas";
+import type {
+  StaffUserResponse,
+  UserResponse,
+} from "../../orval/generated/fastAPI.schemas";
 import UserManagement from "../../pages/UserManagement";
 import { testBackendUrl } from "../constants";
 import {
@@ -22,7 +25,7 @@ let patchBodies: unknown[] = [];
 let confirmedIds: string[] = [];
 let resendIds: string[] = [];
 let deletedIds: string[] = [];
-let listItems: UserResponse[] = [];
+let listItems: StaffUserResponse[] = [];
 let listTotal = 2;
 let deleteResponse: () => HttpResponse<DefaultBodyType>;
 
@@ -317,5 +320,24 @@ describe("the user management page", () => {
     expect(
       await screen.findByText("error.user_last_company_member"),
     ).toBeInTheDocument();
+  });
+});
+
+describe("new company members in the user management", () => {
+  it("flags a user who recently joined a company", async () => {
+    listItems = [
+      { ...memberUser, new_in_company_since: "2026-09-26T10:00:00Z" },
+      orphanUser,
+    ];
+    renderPage();
+
+    const row = await memberRow();
+
+    expect(
+      row.getByText("kp.manage.booking_new_additions"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("kp.manage.booking_new_additions")).toHaveLength(
+      1,
+    );
   });
 });
