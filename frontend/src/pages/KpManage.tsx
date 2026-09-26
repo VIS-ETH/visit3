@@ -350,7 +350,11 @@ const KpManage = () => {
           <DetailsTab eventId={id} />
         </Tabs.Panel>
         <Tabs.Panel value="exports" pt="md">
-          <ExportsTab eventId={id} eventName={event.name} />
+          <ExportsTab
+            eventId={id}
+            eventName={event.name}
+            canManageBooklet={user?.is_admin ?? false}
+          />
         </Tabs.Panel>
         <Tabs.Panel value="bookings" pt="md">
           <BookingsTab eventId={id} />

@@ -345,6 +345,18 @@
         "events": "Events",
         "exports": "Exporte"
       },
+      "booklet": {
+        "title": "Gestaltung der Booklet-Seite",
+        "requirements": "Eine A5-Seite als PDF, höchstens 900 KB. Die Unternehmensangaben werden darüber gelegt. Ohne PDF gilt das eingebaute Design mit der Zonenfarbe.",
+        "default_design": "Eingebautes Design",
+        "upload": "PDF hochladen",
+        "replace": "PDF ersetzen",
+        "download": "PDF herunterladen",
+        "reset": "Auf Standard zurücksetzen",
+        "reset_confirm": "Das hochgeladene PDF entfernen und wieder das eingebaute Design verwenden?",
+        "file_too_large": "Das PDF ist grösser als 900 KB.",
+        "preview_alt": "Beispielseite des Booklets"
+      },
       "exports": {
         "title": "Exporte",
         "description": "Operative KP-Daten herunterladen und Namensschild-PDFs für das Event erzeugen.",

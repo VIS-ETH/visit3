@@ -20,6 +20,11 @@
     "link_redirecting": "Logging you in, please wait."
   },
   "error": {
+    "booklet_background_not_pdf": "The booklet background must be a PDF file.",
+    "booklet_background_too_large": "The booklet background PDF is larger than 900 KB.",
+    "booklet_background_unreadable": "The booklet background PDF could not be read.",
+    "booklet_background_page_count": "The booklet background PDF must have exactly one page.",
+    "booklet_background_page_size": "The booklet background PDF must be A5 (148 × 210 mm).",
     "title": "Error",
     "unauthenticated": "User is not authenticated",
     "user_not_found": "User not found in the database",

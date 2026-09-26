@@ -41,6 +41,7 @@ import { ExportLanguage } from "../orval/generated/fastAPI.schemas";
 import { downloadBlob, safeFilenamePart } from "../utils/download";
 import { NAMETAG_BACKGROUND_ACCEPT } from "../utils/upload-formats";
 import { useWarnOnLeave } from "../utils/use-warn-on-leave";
+import BookletDesignSection from "./kp/BookletDesignSection";
 
 const downloadRequestOptions = { responseType: "blob" as const };
 const COMPANY_WORKBOOK_NAMES: Record<ExportLanguage, string> = {
@@ -61,9 +62,11 @@ type NametagExportScope = "event" | "company" | "person";
 const ExportsTab = ({
   eventId,
   eventName,
+  canManageBooklet = false,
 }: {
   eventId: string;
   eventName: string;
+  canManageBooklet?: boolean;
 }) => {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -494,6 +497,13 @@ const ExportsTab = ({
             ))}
           </SimpleGrid>
         </Stack>
+
+        {canManageBooklet ? (
+          <>
+            <Divider my="xs" />
+            <BookletDesignSection eventId={eventId} />
+          </>
+        ) : null}
       </Stack>
     </Card>
   );

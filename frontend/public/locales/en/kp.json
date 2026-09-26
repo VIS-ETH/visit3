@@ -345,6 +345,18 @@
         "events": "Events",
         "exports": "Exports"
       },
+      "booklet": {
+        "title": "Booklet page design",
+        "requirements": "One A5 page as PDF, at most 900 KB. The company content is placed on top. Without a PDF, the built-in design with the zone colour is used.",
+        "default_design": "Built-in design",
+        "upload": "Upload PDF",
+        "replace": "Replace PDF",
+        "download": "Download PDF",
+        "reset": "Reset to default",
+        "reset_confirm": "Remove the uploaded PDF and use the built-in design again?",
+        "file_too_large": "The PDF is larger than 900 KB.",
+        "preview_alt": "Sample booklet page"
+      },
       "exports": {
         "title": "Exports",
         "description": "Download operational KP data and generate event nametag PDFs.",
