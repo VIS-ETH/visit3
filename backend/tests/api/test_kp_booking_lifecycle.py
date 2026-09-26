@@ -1,5 +1,6 @@
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import Any
 from unittest.mock import AsyncMock
 from uuid import UUID
 
@@ -269,6 +270,92 @@ async def test_a_confirmed_booking_still_accepts_more_services(
     assert response.status_code == 200
     assert response.json()["status"] == "CONFIRMED"
     assert response.json()["services"][0]["quantity"] == MAX_QUANTITY_PER_BOOKING
+
+
+async def add_one_service(client: AsyncClient, world: BookingWorld) -> Response:
+    return await client.post(
+        f"/api/kp/bookings/{world.booking_id}/services",
+        json={"services": [{"service_id": world.service_id, "quantity": 1}]},
+        headers=world.company_headers,
+    )
+
+
+async def staff_booking(client: AsyncClient, world: BookingWorld) -> dict[str, Any]:
+    response = await client.get(
+        f"/api/kp/events/{world.event_id}/bookings/{world.booking_id}",
+        headers=world.staff_headers,
+    )
+    return response.json()
+
+
+async def confirm(client: AsyncClient, world: BookingWorld, action: str = "accept"):
+    await client.post(
+        f"/api/kp/bookings/{world.booking_id}/{action}",
+        headers=world.staff_headers,
+    )
+
+
+async def test_staff_see_what_was_added_after_confirmation(
+    client: AsyncClient, booking_world: BookingWorld
+):
+    await confirm(client, booking_world)
+
+    added = await add_one_service(client, booking_world)
+
+    booking = await staff_booking(client, booking_world)
+    assert booking["added_after_confirmation"] == [
+        {"booking_service_id": booking["services"][0]["id"], "quantity": 1}
+    ]
+    assert "added_after_confirmation" not in added.json()
+    my_booking = await client.get(
+        f"/api/kp/events/{booking_world.event_id}/my-booking",
+        headers=booking_world.company_headers,
+    )
+    assert "added_after_confirmation" not in my_booking.json()
+
+
+async def test_additions_before_confirmation_are_not_flagged(
+    client: AsyncClient, booking_world: BookingWorld
+):
+    await add_one_service(client, booking_world)
+    await confirm(client, booking_world)
+
+    booking = await staff_booking(client, booking_world)
+
+    assert booking["added_after_confirmation"] == []
+
+
+async def test_staff_acknowledge_the_additions(
+    client: AsyncClient, booking_world: BookingWorld
+):
+    await confirm(client, booking_world)
+    await add_one_service(client, booking_world)
+
+    response = await client.post(
+        f"/api/kp/bookings/{booking_world.booking_id}/acknowledge-additions",
+        headers=booking_world.staff_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["added_after_confirmation"] == []
+    assert response.json()["status"] == "CONFIRMED"
+    assert (await staff_booking(client, booking_world))[
+        "added_after_confirmation"
+    ] == []
+
+
+async def test_confirming_again_acknowledges_earlier_additions(
+    client: AsyncClient, booking_world: BookingWorld
+):
+    await confirm(client, booking_world)
+    await add_one_service(client, booking_world)
+
+    await confirm(client, booking_world, "undo-accept")
+    await confirm(client, booking_world)
+
+    booking = await staff_booking(client, booking_world)
+    assert booking["status"] == "CONFIRMED"
+    assert booking["added_after_confirmation"] == []
 
 
 async def test_staff_undoes_an_acceptance(

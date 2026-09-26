@@ -597,6 +597,7 @@ async def test_add_booking_services_collapses_duplicate_increment_inputs(
     kp_repo.add_booking_services.assert_awaited_once_with(
         booking,
         [BookingServiceInput(service_id=extra_service.id, quantity=3)],
+        after_confirmation=False,
     )
 
 

@@ -948,6 +948,19 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
+    async def acknowledge_booking_additions(
+        self, booking: KpEventBooking
+    ) -> KpEventBooking:
+        try:
+            for booking_service in booking.services:
+                booking_service.added_after_confirmation = 0
+                self.session.add(booking_service)
+            await self.session.commit()
+            return await self.get_booking_by_id(booking.id) or booking
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
     async def set_booking_service_quantities(
         self,
         booking: KpEventBooking,
@@ -1042,6 +1055,7 @@ class KpRepository(BaseRepository[KpEvent]):
         self,
         booking: KpEventBooking,
         services: Sequence[BookingServiceInput],
+        after_confirmation: bool = False,
     ) -> KpEventBooking:
         try:
             service_ids = [item.service_id for item in services]
@@ -1069,6 +1083,8 @@ class KpRepository(BaseRepository[KpEvent]):
                     existing_by_service_id[item.service_id] = booking_service
                 else:
                     booking_service.quantity += item.quantity
+                if after_confirmation:
+                    booking_service.added_after_confirmation += item.quantity
 
                 self._validate_model(
                     booking_service,

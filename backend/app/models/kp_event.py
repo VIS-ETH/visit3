@@ -394,6 +394,7 @@ class KpEventBookingService(BaseEntity, table=True):
     quantity: int = Field(default=1, ge=1, le=MAX_SERVICE_QUANTITY)
 
     included_quantity: int = Field(default=0, ge=0, le=MAX_SERVICE_QUANTITY)
+    added_after_confirmation: int = Field(default=0, ge=0)
 
     booking: "KpEventBooking" = Relationship(back_populates="services")
     service: "KpEventService" = Relationship(back_populates="booking_services")

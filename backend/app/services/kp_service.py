@@ -71,6 +71,7 @@ from app.models.user import User
 from app.repositories.kp_repository import KpRepository
 from app.schemas.kp import (
     BookingAdditionalServiceChargeResponse,
+    BookingAdditionResponse,
     BookingRequirementFileMapResponse,
     BookingResponse,
     BookingServiceInput,
@@ -875,6 +876,17 @@ class KpService:
             waitlist_count=booking.waitlist_count,
             company_details_submitted=booking.company_details_submitted,
             status_note=booking.status_note,
+            added_after_confirmation=[
+                BookingAdditionResponse(
+                    booking_service_id=booking_service.id,
+                    quantity=min(
+                        booking_service.added_after_confirmation,
+                        booking_service.quantity,
+                    ),
+                )
+                for booking_service in booking.services
+                if booking_service.added_after_confirmation > 0
+            ],
         )
 
     async def _confirmed_company_profile(
@@ -994,6 +1006,7 @@ class KpService:
         updated = await self.kp_repository.add_booking_services(
             booking,
             validated_services,
+            after_confirmation=booking.status == KpBookingStatus.CONFIRMED,
         )
         return await self._build_booking_response(updated)
 
@@ -1334,8 +1347,9 @@ class KpService:
             "accept_booking",
         )
         changed_at = datetime.now(timezone.utc)
+        acknowledged = await self.kp_repository.acknowledge_booking_additions(booking)
         updated = await self.kp_repository.update_booking(
-            booking,
+            acknowledged,
             UpdateBookingInput(
                 status=KpBookingStatus.CONFIRMED,
                 status_changed_at=changed_at,
@@ -1343,6 +1357,14 @@ class KpService:
             ),
         )
         await notify_best_effort(self.notifier.booking_accepted(updated))
+        return await self._build_staff_booking_response(updated)
+
+    async def acknowledge_booking_additions(
+        self, booking_id: UUID
+    ) -> BookingWithCompanyAndBoothZoneResponse:
+        require_staff_user(self.current_user)
+        booking = await self._get_booking(booking_id)
+        updated = await self.kp_repository.acknowledge_booking_additions(booking)
         return await self._build_staff_booking_response(updated)
 
     async def undo_accept_booking(

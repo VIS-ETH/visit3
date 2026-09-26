@@ -482,6 +482,18 @@ async def accept_booking(
 
 
 @router.post(
+    "/bookings/{booking_id}/acknowledge-additions",
+    operation_id="acknowledgeBookingAdditions",
+    response_model=StaffBookingResponse,
+)
+async def acknowledge_booking_additions(
+    kp_service: KpServiceDep,
+    booking_id: UUID,
+) -> BookingWithCompanyAndBoothZoneResponse:
+    return await kp_service.acknowledge_booking_additions(booking_id)
+
+
+@router.post(
     "/bookings/{booking_id}/undo-accept",
     operation_id="undoAcceptBooking",
     response_model=StaffBookingResponse,

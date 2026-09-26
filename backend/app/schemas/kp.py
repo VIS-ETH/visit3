@@ -362,6 +362,11 @@ class BookingServiceResponse(BaseModel):
     service: ServiceResponse
 
 
+class BookingAdditionResponse(BaseModel):
+    booking_service_id: UUID
+    quantity: int
+
+
 class BookingAdditionalServiceChargeResponse(BaseModel):
     name: str
     quantity: int
@@ -420,6 +425,9 @@ class BookingWithBoothZoneBase(BookingBase):
     waitlist_count: int
     company_details_submitted: bool
     status_note: str | None = None
+    added_after_confirmation: list[BookingAdditionResponse] = Field(
+        default_factory=lambda: []
+    )
 
 
 class BookingWithCompanyAndBoothZoneResponse(BookingWithBoothZoneBase):
