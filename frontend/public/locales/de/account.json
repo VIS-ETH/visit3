@@ -150,6 +150,7 @@
     "billing_email": "Rechnungs-E-Mail",
     "errors": {
       "country": "Bitte wählen Sie ein Land aus."
-    }
+    },
+    "no_match": "Keine Treffer"
   }
 }

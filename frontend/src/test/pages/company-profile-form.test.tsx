@@ -244,6 +244,84 @@ describe("Company profile form", () => {
     expect(putBodies[0]).toMatchObject({ kp_contact_user_id: "user-3" });
   });
 
+  it("searches instead of editing the chosen contact person", async () => {
+    const { user } = renderProfile();
+
+    const contact = await screen.findByRole("combobox", {
+      name: labelOf("company_profile_form.kp_contact_user"),
+    });
+    await waitFor(() => expect(contact).toHaveValue("Alice Example"));
+    await user.click(contact);
+    await user.keyboard("Be{ArrowDown}{Enter}");
+
+    expect(contact).toHaveValue("Bea Baker");
+    await user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+    await waitFor(() => expect(putBodies).toHaveLength(1));
+    expect(putBodies[0]).toMatchObject({ kp_contact_user_id: "user-3" });
+  });
+
+  it("searches instead of editing the chosen billing country", async () => {
+    const { user } = renderProfile();
+
+    const country = await screen.findByRole("combobox", {
+      name: labelOf("company_profile_form.billing_country"),
+    });
+    await waitFor(() =>
+      expect((country as HTMLInputElement).value).toContain("(CH)"),
+    );
+    await user.click(country);
+    await user.keyboard("(DE{ArrowDown}{Enter}");
+
+    expect((country as HTMLInputElement).value).toContain("(DE)");
+  });
+
+  it("shows the contact person again after searching for it", async () => {
+    const { user } = renderProfile();
+
+    const contact = await screen.findByRole("combobox", {
+      name: labelOf("company_profile_form.kp_contact_user"),
+    });
+    await waitFor(() => expect(contact).toHaveValue("Alice Example"));
+    await user.click(contact);
+    await user.keyboard("Ali{ArrowDown}{Enter}");
+
+    expect(contact).toHaveValue("Alice Example");
+  });
+
+  it("tells when no contact person matches the search", async () => {
+    const { user } = renderProfile();
+
+    const contact = await screen.findByRole("combobox", {
+      name: labelOf("company_profile_form.kp_contact_user"),
+    });
+    await waitFor(() => expect(contact).toHaveValue("Alice Example"));
+    await user.click(contact);
+    await user.keyboard("xyz");
+
+    expect(
+      await screen.findByText("company_profile_form.no_match"),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the contact person when it is chosen again", async () => {
+    const { user } = renderProfile();
+
+    const contact = await screen.findByRole("combobox", {
+      name: labelOf("company_profile_form.kp_contact_user"),
+    });
+    await waitFor(() => expect(contact).toHaveValue("Alice Example"));
+    await user.click(contact);
+    await user.keyboard("{ArrowDown}{ArrowUp}{Enter}");
+    await user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+
+    await waitFor(() => expect(putBodies).toHaveLength(1));
+    expect(putBodies[0]).toMatchObject({ kp_contact_user_id: "user-1" });
+  });
+
   it("does not submit without a contact person", async () => {
     mockProfile({
       ...storedProfile,

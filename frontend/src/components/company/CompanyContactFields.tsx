@@ -1,4 +1,4 @@
-import { Select, SimpleGrid, Stack, TextInput } from "@mantine/core";
+import { SimpleGrid, Stack, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { UserResponse } from "../../orval/generated/fastAPI.schemas";
 import { getDisplayName } from "../../utils/display";
@@ -6,6 +6,7 @@ import {
   profileFieldId,
   type CompanyProfileFieldsProps,
 } from "./company-profile-fields";
+import SearchSelect from "../SearchSelect";
 
 interface CompanyContactFieldsProps extends CompanyProfileFieldsProps {
   members: UserResponse[];
@@ -20,7 +21,7 @@ const CompanyContactFields = ({
 
   return (
     <Stack gap="md">
-      <Select
+      <SearchSelect
         id={profileFieldId("kp_contact_user_id")}
         label={t("company_profile_form.kp_contact_user")}
         placeholder={t("company_profile_form.kp_contact_user_placeholder")}
@@ -34,7 +35,7 @@ const CompanyContactFields = ({
           ),
         }))}
         withAsterisk
-        searchable
+        nothingFoundMessage={t("company_profile_form.no_match")}
         clearable
         disabled={disabled}
         value={form.values.kp_contact_user_id}

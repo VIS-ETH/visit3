@@ -1,10 +1,11 @@
-import { Select, SimpleGrid, Stack, TextInput } from "@mantine/core";
+import { SimpleGrid, Stack, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import {
   profileFieldId,
   type CompanyProfileFieldsProps,
 } from "./company-profile-fields";
 import { useCountryOptions } from "./country-options";
+import SearchSelect from "../SearchSelect";
 
 const CompanyBillingFields = ({
   form,
@@ -52,13 +53,13 @@ const CompanyBillingFields = ({
           disabled={disabled}
           {...form.getInputProps("billing_city")}
         />
-        <Select
+        <SearchSelect
           id={profileFieldId("billing_country")}
           label={t("company_profile_form.billing_country")}
           placeholder={t("company_profile_form.billing_country_placeholder")}
           data={countryOptions}
           withAsterisk
-          searchable
+          nothingFoundMessage={t("company_profile_form.no_match")}
           clearable
           disabled={disabled}
           value={form.values.billing_country}
