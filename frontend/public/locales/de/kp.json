@@ -632,6 +632,7 @@
       "floor_plan_none": "Keiner",
       "floor_plan_main_hall": "Haupthalle",
       "floor_plan_red_hall": "Rote Halle",
+      "map_too_large": "Die Karte ist zu gross zum Speichern. Entfernen Sie einige Flächen oder Punkte.",
       "layout_created": "Plan erstellt.",
       "layout_updated": "Plan aktualisiert.",
       "layout_deleted": "Plan gelöscht.",

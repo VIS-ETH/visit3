@@ -134,4 +134,42 @@ describe("saving a venue layout", () => {
     ).toBeInTheDocument();
     expect(boothsPayload).toBeNull();
   });
+
+  it("refuses to send a map that is too large for the server", async () => {
+    const hugeLayout = {
+      ...testEditableLayout,
+      width: 1000,
+      height: 1000,
+      zone_shapes: Array.from({ length: 400 }, (_, index) => ({
+        id: `huge-${index}`,
+        layout_id: testLayoutId,
+        booth_zone_id: zone.id,
+        shape: {
+          type: "polygon" as const,
+          points: Array.from(
+            { length: 200 },
+            (_, point) =>
+              [100 + (point % 50) * 1.1, 100 + point * 2.3] as [number, number],
+          ),
+        },
+        label_position: null,
+      })),
+    };
+    server.use(
+      http.get(`${testBackendUrl}/api/kp/events/:eventId/venue-layouts`, () =>
+        HttpResponse.json([hugeLayout]),
+      ),
+    );
+    const { user } = renderWithProviders(<VenueTab eventId={testEventId} />);
+
+    await screen.findByRole("radio", { name: "kp.venue.tool_rect" });
+    await drawRectangle(user);
+    await user.click(screen.getByRole("button", { name: "kp.venue.save" }));
+
+    expect(
+      await screen.findByText("kp.venue.map_too_large"),
+    ).toBeInTheDocument();
+    expect(shapesPayload).toBeNull();
+    expect(boothsPayload).toBeNull();
+  });
 });

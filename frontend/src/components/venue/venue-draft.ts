@@ -91,13 +91,32 @@ export const redoDraft = (history: VenueDraftHistory): VenueDraftHistory => {
   };
 };
 
+const roundCoordinate = (value: number) => Math.round(value * 10) / 10;
+
+const roundPoint = ([x, y]: VenuePoint): VenuePoint => [
+  roundCoordinate(x),
+  roundCoordinate(y),
+];
+
+const roundShape = (shape: VenueShape): VenueShape =>
+  shape.type === "rect"
+    ? {
+        type: "rect",
+        x: roundCoordinate(shape.x),
+        y: roundCoordinate(shape.y),
+        w: roundCoordinate(shape.w),
+        h: roundCoordinate(shape.h),
+      }
+    : { type: "polygon", points: shape.points.map(roundPoint) };
+
 export const shapesRequest = (
   draft: VenueDraft,
 ): ReplaceVenueZoneShapesRequest => ({
   shapes: draft.shapes.map((shape) => ({
     booth_zone_id: shape.zoneId,
-    shape: shape.shape,
-    label_position: shape.labelPosition,
+    shape: roundShape(shape.shape),
+    label_position:
+      shape.labelPosition === null ? null : roundPoint(shape.labelPosition),
   })),
 });
 
@@ -107,9 +126,9 @@ export const boothsRequest = (
   booths: draft.booths.map((booth) => ({
     booth_zone_id: booth.zoneId,
     booth_nr: booth.boothNr,
-    x: booth.x,
-    y: booth.y,
-    rotation: booth.rotation,
+    x: roundCoordinate(booth.x),
+    y: roundCoordinate(booth.y),
+    rotation: booth.rotation === null ? null : roundCoordinate(booth.rotation),
   })),
 });
 

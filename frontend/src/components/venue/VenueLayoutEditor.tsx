@@ -54,6 +54,7 @@ import {
 } from "./venue-draft";
 import {
   countOutsideBounds,
+  exceedsRequestLimit,
   MAX_LAYOUT_BOOTHS,
   MAX_LAYOUT_SHAPES,
   MAX_POLYGON_POINTS,
@@ -445,15 +446,15 @@ const VenueLayoutEditor = ({
 
   const save = async () => {
     setSaveErrorCode(null);
+    const shapes = shapesRequest(draft);
+    const booths = boothsRequest(draft);
+    if ([shapes, booths].some(exceedsRequestLimit)) {
+      setSaveErrorCode("kp.venue.map_too_large");
+      return;
+    }
     try {
-      await replaceShapes({
-        layoutId: layout.id,
-        data: shapesRequest(draft),
-      });
-      const saved = await replaceBooths({
-        layoutId: layout.id,
-        data: boothsRequest(draft),
-      });
+      await replaceShapes({ layoutId: layout.id, data: shapes });
+      const saved = await replaceBooths({ layoutId: layout.id, data: booths });
       setSavedDraft(draftFromLayout(saved));
       await Promise.all([
         queryClient.invalidateQueries({

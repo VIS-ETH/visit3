@@ -632,6 +632,7 @@
       "floor_plan_none": "None",
       "floor_plan_main_hall": "Main hall",
       "floor_plan_red_hall": "Red hall",
+      "map_too_large": "The map is too large to save. Remove some shapes or points.",
       "layout_created": "Layout created.",
       "layout_updated": "Layout updated.",
       "layout_deleted": "Layout deleted.",
