@@ -1,13 +1,15 @@
 from collections.abc import Awaitable, Callable
+from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col, select
 
 from app.core.config import get_settings
-from app.core.exceptions import EmailTakenLocally, NotVisMember
+from app.core.exceptions import EmailTakenLocally, EmailUsed, NotVisMember
 from app.models.user import User
+from app.repositories.company_repository import CompanyRepository
 from app.repositories.role_repository import RoleRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
@@ -75,24 +77,48 @@ async def test_an_existing_admin_keeps_admin_rights(
     assert user.is_staff is True
 
 
-async def test_an_unknown_subject_is_rejected_and_nothing_is_created(
+def rights(user: User) -> tuple[bool, bool, bool, bool]:
+    return (user.is_staff, user.is_admin, user.is_company, user.is_kp_president)
+
+
+NO_RIGHTS = (False, False, False, False)
+
+
+async def test_an_unknown_member_logs_in_without_any_rights(
     auth_service: AuthService, db_session: AsyncSession
 ):
-    with pytest.raises(NotVisMember):
-        await auth_service.login_keycloak_user(
-            claims(("vis-active", "admin")), "kc-refresh-1"
-        )
+    refresh_token = await auth_service.login_keycloak_user(
+        claims(("vis-active", "admin")), "kc-refresh-1"
+    )
 
-    assert await UserRepository(db_session).get_by_sub(SUB) is None
-    assert await UserRepository(db_session).get_by_email(EMAIL) is None
+    user = await sso_user(db_session)
+    assert refresh_token
+    assert rights(user) == NO_RIGHTS
+    assert user.roles == []
+    assert (user.user_confirmed, user.email_confirmed) == (True, True)
+    assert (user.first_name, user.last_name) == ("Grace", "Hopper")
 
 
-async def test_an_existing_non_staff_account_is_rejected_and_kept(
+async def test_an_account_without_rights_gains_none_from_the_token(
+    auth_service: AuthService, db_session: AsyncSession
+):
+    await stored_user(db_session, is_staff=False, is_admin=False, is_company=False)
+
+    await auth_service.login_keycloak_user(
+        claims(("vis-active", "admin")), "kc-refresh-1"
+    )
+
+    user = await sso_user(db_session)
+    assert rights(user) == NO_RIGHTS
+    assert [role.name for role in user.roles] == ["vis-active"]
+
+
+async def test_a_company_account_is_not_opened_through_sso(
     auth_service: AuthService, db_session: AsyncSession
 ):
     await stored_user(db_session, is_staff=False, is_admin=False, is_company=True)
 
-    with pytest.raises(NotVisMember):
+    with pytest.raises(EmailTakenLocally):
         await auth_service.login_keycloak_user(claims(("vis-active",)), "kc-refresh-1")
 
     user = await sso_user(db_session)
@@ -100,19 +126,41 @@ async def test_an_existing_non_staff_account_is_rejected_and_kept(
     assert user.is_company is True
 
 
-async def test_an_unconfirmed_local_account_is_not_replaced(
+async def test_an_unconfirmed_local_account_is_replaced(
     auth_service: AuthService,
     create_user: Callable[..., Awaitable[User]],
     db_session: AsyncSession,
 ):
     local = await create_user(email=EMAIL, email_confirmed=False, user_confirmed=False)
 
-    with pytest.raises(NotVisMember):
+    await auth_service.login_keycloak_user(claims(), "kc-refresh-1")
+
+    user = await sso_user(db_session)
+    assert user.id != local.id
+    assert rights(user) == NO_RIGHTS
+
+
+async def test_a_confirmed_local_account_keeps_its_email(
+    auth_service: AuthService,
+    create_user: Callable[..., Awaitable[User]],
+    db_session: AsyncSession,
+):
+    await create_user(email=EMAIL)
+
+    with pytest.raises(EmailTakenLocally):
         await auth_service.login_keycloak_user(claims(), "kc-refresh-1")
 
-    kept = await UserRepository(db_session).get_by_email(EMAIL)
-    assert kept is not None
-    assert kept.id == local.id
+    assert await UserRepository(db_session).get_by_sub(SUB) is None
+
+
+async def test_an_email_of_another_sso_account_is_refused(
+    auth_service: AuthService,
+    create_user: Callable[..., Awaitable[User]],
+):
+    await create_user(email=EMAIL, password=None, is_company=False)
+
+    with pytest.raises(EmailUsed):
+        await auth_service.login_keycloak_user(claims(), "kc-refresh-1")
 
 
 async def test_a_refresh_keeps_the_stored_staff_rights(
@@ -152,26 +200,155 @@ async def test_a_refresh_still_ends_when_keycloak_ended_the_session(
     assert response.status_code == 401
 
 
-async def test_a_refresh_ends_once_the_account_is_no_longer_staff(
+async def test_a_refresh_keeps_a_demoted_account_without_rights(
     client: AsyncClient,
     csrf_headers: dict[str, str],
     auth_service: AuthService,
     keycloak: FakeKeycloak,
     db_session: AsyncSession,
 ):
-    user = await stored_user(
-        db_session, is_staff=True, is_admin=False, is_company=False
-    )
+    user = await stored_user(db_session, is_staff=True, is_admin=True, is_company=False)
     refresh_token = await auth_service.login_keycloak_user(claims(()), "kc-refresh-1")
     user.is_staff = False
+    user.is_admin = False
     db_session.add(user)
     await db_session.commit()
+    keycloak.roles = ("vis-active", "admin")
 
     response = await refresh(client, csrf_headers, refresh_token)
 
-    assert response.status_code == 401
-    remaining = await db_session.execute(select(User).where(col(User.id) == user.id))
-    assert remaining.scalar_one().is_staff is False
+    demoted = await sso_user(db_session)
+    assert response.status_code == 200
+    assert (demoted.is_staff, demoted.is_admin) == (False, False)
+    assert await active_tokens(db_session, demoted) == 1
+
+
+async def test_a_new_member_refreshes_without_gaining_rights(
+    client: AsyncClient,
+    csrf_headers: dict[str, str],
+    auth_service: AuthService,
+    keycloak: FakeKeycloak,
+    db_session: AsyncSession,
+):
+    keycloak.roles = ("vis-active", "admin")
+    refresh_token = await auth_service.login_keycloak_user(claims(()), "kc-refresh-1")
+
+    first = await refresh(client, csrf_headers, refresh_token)
+    second = await refresh(client, csrf_headers, first.cookies["refresh_token"])
+
+    user = await sso_user(db_session)
+    assert first.status_code == second.status_code == 200
+    assert rights(user) == NO_RIGHTS
+    assert await active_tokens(db_session, user) == 1
+
+
+async def test_an_admin_finds_a_new_member_and_grants_staff(
+    client: AsyncClient,
+    csrf_headers: dict[str, str],
+    auth_service: AuthService,
+    keycloak: FakeKeycloak,
+    db_session: AsyncSession,
+    staff_headers: dict[str, str],
+):
+    refresh_token = await auth_service.login_keycloak_user(claims(()), "kc-refresh-1")
+    member = await sso_user(db_session)
+
+    listed = await client.get(
+        "/api/users", params={"query": EMAIL}, headers=staff_headers
+    )
+    granted = await client.patch(
+        f"/api/users/{member.id}", json={"is_staff": True}, headers=staff_headers
+    )
+    refreshed = await refresh(client, csrf_headers, refresh_token)
+    await auth_service.login_keycloak_user(claims(()), "kc-refresh-9")
+
+    user = await sso_user(db_session)
+    assert [item["id"] for item in listed.json()["items"]] == [str(member.id)]
+    assert granted.status_code == 200
+    assert refreshed.status_code == 200
+    assert (user.is_staff, user.is_admin, user.is_company) == (True, False, False)
+
+
+async def test_plain_staff_cannot_grant_a_new_member_staff(
+    client: AsyncClient,
+    auth_service: AuthService,
+    db_session: AsyncSession,
+    create_user: Callable[..., Awaitable[User]],
+    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
+    csrf_headers: dict[str, str],
+):
+    await auth_service.login_keycloak_user(claims(()), "kc-refresh-1")
+    member = await sso_user(db_session)
+    staff = await create_user(
+        email="plain.staff@example.com", is_staff=True, is_company=False
+    )
+
+    response = await client.patch(
+        f"/api/users/{member.id}",
+        json={"is_staff": True},
+        headers={**await auth_headers(staff), **csrf_headers},
+    )
+
+    assert response.status_code == 403
+    assert rights(await sso_user(db_session)) == NO_RIGHTS
+
+
+async def test_a_new_member_cannot_grant_itself_rights(
+    client: AsyncClient,
+    auth_service: AuthService,
+    db_session: AsyncSession,
+    company_user: User,
+    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
+    csrf_headers: dict[str, str],
+):
+    await auth_service.login_keycloak_user(claims(()), "kc-refresh-1")
+    member = await sso_user(db_session)
+
+    await client.patch(
+        "/api/user/me",
+        json={
+            "is_staff": True,
+            "is_admin": True,
+            "is_company": True,
+            "company_id": str(company_user.company_id),
+        },
+        headers={**await auth_headers(member), **csrf_headers},
+    )
+
+    user = await sso_user(db_session)
+    assert rights(user) == NO_RIGHTS
+    assert user.company_id is None
+
+
+async def test_a_new_member_cannot_become_a_company_user(
+    client: AsyncClient,
+    auth_service: AuthService,
+    db_session: AsyncSession,
+    company_user: User,
+    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
+    csrf_headers: dict[str, str],
+):
+    await auth_service.login_keycloak_user(claims(()), "kc-refresh-1")
+    member = await sso_user(db_session)
+    await CompanyRepository(db_session).create_invite(
+        token="member-invite",
+        company_id=UUID(str(company_user.company_id)),
+        invited_email=EMAIL,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
+    headers = {**await auth_headers(member), **csrf_headers}
+
+    setup = await client.post(
+        "/api/company/setup", json={"name": "Member AG"}, headers=headers
+    )
+    accepted = await client.post(
+        "/api/company/invite/member-invite/accept", headers=headers
+    )
+
+    user = await sso_user(db_session)
+    assert setup.status_code == accepted.status_code == 403
+    assert rights(user) == NO_RIGHTS
+    assert user.company_id is None
 
 
 def set_admin(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
@@ -225,17 +402,16 @@ async def test_set_admin_matches_a_trimmed_case_insensitive_list(
     assert (await sso_user(db_session)).is_admin is True
 
 
-async def test_set_admin_does_not_admit_other_emails(
+async def test_set_admin_leaves_other_emails_without_rights(
     auth_service: AuthService,
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ):
     set_admin(monkeypatch, "someone.else@example.com")
 
-    with pytest.raises(NotVisMember):
-        await auth_service.login_keycloak_user(claims(()), "kc-refresh-1")
+    await auth_service.login_keycloak_user(claims(()), "kc-refresh-1")
 
-    assert await UserRepository(db_session).get_by_sub(SUB) is None
+    assert rights(await sso_user(db_session)) == NO_RIGHTS
 
 
 async def test_set_admin_requires_a_verified_email_when_the_claim_is_present(
@@ -245,12 +421,11 @@ async def test_set_admin_requires_a_verified_email_when_the_claim_is_present(
 ):
     set_admin(monkeypatch, EMAIL)
 
-    with pytest.raises(NotVisMember):
-        await auth_service.login_keycloak_user(
-            {**claims(()), "email_verified": False}, "kc-refresh-1"
-        )
+    await auth_service.login_keycloak_user(
+        {**claims(()), "email_verified": False}, "kc-refresh-1"
+    )
 
-    assert await UserRepository(db_session).get_by_sub(SUB) is None
+    assert rights(await sso_user(db_session)) == NO_RIGHTS
 
 
 async def test_set_admin_never_takes_over_a_local_account(

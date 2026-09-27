@@ -564,12 +564,14 @@ class AuthService:
 
         bootstrap_admin = is_bootstrap_admin(decoded_token, email)
         roles_required = settings.KEYCLOAK_REQUIRE_ROLES or debug_admin
-        if not roles_required and not bootstrap_admin:
-            return await self._login_stored_staff(decoded_token, email, sub)
-
-        if not roles and not bootstrap_admin:
+        if roles_required and not roles and not bootstrap_admin:
             await self._offboard(sub)
             raise NotVisMember(f"keycloak:{sub}")
+
+        db_user = await self.user_repository.get_by_sub(sub)
+        staff = True
+        if not roles_required:
+            staff, admin, roles = await self._stored_privileges(db_user, email)
 
         first_name, last_name = keycloak_names(decoded_token)
 
@@ -579,18 +581,13 @@ class AuthService:
             user_confirmed=True,
             email_confirmed=True,
             is_admin=admin or bootstrap_admin,
-            is_staff=True,
+            is_staff=staff or bootstrap_admin,
             is_company=False,
             first_name=first_name,
             last_name=last_name,
         )
 
-        db_user = await self.user_repository.get_by_sub(sub)
         if db_user is not None:
-            if not roles_required:
-                roles = list(
-                    (await self.user_repository.load_user_roles(db_user)).roles
-                )
             updated = await self.user_repository.update_keycloak_user(
                 db_user, keycloak_user, roles
             )
@@ -612,28 +609,15 @@ class AuthService:
         log_bootstrap_admin(created, bootstrap_admin)
         return created
 
-    async def _login_stored_staff(
-        self, decoded_token: dict[str, Any], email: str, sub: str
-    ) -> User:
-        db_user = await self.user_repository.get_by_sub(sub)
-        if db_user is None or not (db_user.is_staff or db_user.is_admin):
-            raise NotVisMember(f"keycloak:{sub}")
-        first_name, last_name = keycloak_names(decoded_token)
-        stored_roles = list((await self.user_repository.load_user_roles(db_user)).roles)
-        return await self.user_repository.update_keycloak_user(
-            db_user,
-            User(
-                email=email,
-                sub=sub,
-                user_confirmed=True,
-                email_confirmed=True,
-                is_admin=db_user.is_admin,
-                is_staff=db_user.is_staff,
-                first_name=first_name,
-                last_name=last_name,
-            ),
-            stored_roles,
-        )
+    async def _stored_privileges(
+        self, db_user: User | None, email: str
+    ) -> tuple[bool, bool, list[Role]]:
+        if db_user is None:
+            return False, False, []
+        if db_user.is_company:
+            raise EmailTakenLocally(f"keycloak:{email}")
+        stored = await self.user_repository.load_user_roles(db_user)
+        return db_user.is_staff, db_user.is_admin, list(stored.roles)
 
     async def _offboard(self, sub: str) -> None:
         user = await self.user_repository.get_by_sub(sub)
