@@ -45,18 +45,27 @@ async def emails(response: Response) -> list[str]:
     return [item["email"] for item in response.json()["items"]]
 
 
-async def test_user_list_is_paginated_and_sorted_by_email(
-    client: AsyncClient, population: list[User], staff_headers: dict[str, str]
+async def test_user_list_is_paginated_with_unconfirmed_users_first(
+    client: AsyncClient,
+    population: list[User],
+    create_user: Callable[..., Awaitable[User]],
+    staff_headers: dict[str, str],
 ):
+    await create_user(
+        email="zoe.pending@example.com", password=None, user_confirmed=False
+    )
+
     first = await client.get("/api/users?page=1&page_size=2", headers=staff_headers)
     second = await client.get("/api/users?page=2&page_size=2", headers=staff_headers)
+    third = await client.get("/api/users?page=3&page_size=2", headers=staff_headers)
 
     assert first.status_code == 200
-    assert first.json()["total"] == 5
+    assert first.json()["total"] == 6
     assert first.json()["page"] == 1
     assert first.json()["page_size"] == 2
-    assert await emails(first) == ["admin@example.com", OTHER_COMPANY_EMAIL]
-    assert await emails(second) == ["company@example.com", "pending@example.com"]
+    assert await emails(first) == ["pending@example.com", "zoe.pending@example.com"]
+    assert await emails(second) == ["admin@example.com", OTHER_COMPANY_EMAIL]
+    assert await emails(third) == ["company@example.com", "staff@example.com"]
 
 
 async def test_user_list_rejects_an_oversized_page(
@@ -75,9 +84,9 @@ async def test_user_list_rejects_an_oversized_page(
         (
             "company",
             [
+                "pending@example.com",
                 OTHER_COMPANY_EMAIL,
                 "company@example.com",
-                "pending@example.com",
             ],
         ),
         ("staff", ["admin@example.com", "staff@example.com"]),

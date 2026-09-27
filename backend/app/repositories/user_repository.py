@@ -138,7 +138,7 @@ class UserRepository(BaseRepository[User]):
             self._searchable_users(query, user_filter)
             .options(selectinload(rel(User.company)))
             .execution_options(populate_existing=True)
-            .order_by(col(User.email))
+            .order_by(col(User.user_confirmed), col(User.email))
             .offset(offset)
             .limit(limit)
         )
