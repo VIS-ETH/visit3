@@ -27,6 +27,7 @@ import ResetPassword from "./pages/ResetPassword";
 import UnconfirmedEmail from "./pages/UnconfirmedEmail";
 import ConfirmEmail from "./pages/ConfirmEmail";
 import UnconfirmedUser from "./pages/UnconfirmedUser";
+import PendingActivation from "./pages/PendingActivation";
 import CompanyManagement from "./pages/CompanyManagement";
 import CompanyProfile from "./pages/CompanyProfile";
 import CompanyProfileAdmin from "./pages/admin/CompanyProfileAdmin";
@@ -86,6 +87,13 @@ function CompanyRoute() {
   return user.company_id ? <Outlet /> : <Navigate to="/not-allowed" replace />;
 }
 
+function ActivatedRoute() {
+  const { user } = useCurrentUser();
+  if (user && !user.is_staff && !user.is_admin && !user.is_company)
+    return <PendingActivation />;
+  return <Outlet />;
+}
+
 function ConfirmedRoute() {
   const { user } = useCurrentUser();
   if (!user) return <Navigate to="/login" replace />;
@@ -110,55 +118,57 @@ function AppRoutes() {
         <Route path="*" element={<NotFound />} />
       </Route>
       <Route element={<RootLayout navbarHidden={false} />}>
-        <Route element={<ConfirmedRoute />}>
-          <Route index path="/" element={<Home />} />
-          <Route path="/kp" element={<Kp />} />
-          <Route path="/kp/:id" element={<Kp />} />
-          <Route path="/kp/:id/booking" element={<KpBooking />} />
-          <Route
-            path="/kp/:id/booking/:bookingId"
-            element={<KpBookingConfirmation />}
-          />
-          <Route
-            path="/kp/:id/booking/:bookingId/manage"
-            element={<KpBookingManageOverview />}
-          />
-          <Route
-            path="/kp/:id/booking/:bookingId/manage/services"
-            element={<KpBookingManage />}
-          />
-        </Route>
-        <Route element={<CompanyRoute />}>
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/company" element={<CompanyProfile />} />
-          <Route path="/company/profile" element={<CompanyProfileEdit />} />
-          <Route path="/kp/join" element={<KpJoin />} />
-        </Route>
         <Route path="/setup-company" element={<SetupCompany />} />
         <Route path="/company/join/:token" element={<CompanyJoin />} />
         <Route path="/unconfirmed-email" element={<UnconfirmedEmail />} />
         <Route path="/confirm-email/:token" element={<ConfirmEmail />} />
         <Route path="/unconfirmed-user" element={<UnconfirmedUser />} />
-        <Route element={<StaffRoute />}>
-          <Route path="/user-management" element={<UserManagement />} />
-          <Route path="/admin/mail-templates" element={<MailTemplates />} />
-          <Route path="/admin/industries" element={<Industries />} />
-          <Route path="/company-management" element={<CompanyManagement />} />
-          <Route
-            path="/company-management/:companyId/profile"
-            element={<CompanyProfileAdmin />}
-          />
-          <Route
-            path="/kp/:id/bookings/:bookingId"
-            element={<KpBookingDetails />}
-          />
-        </Route>
-        <Route element={<PresidentRoute />}>
-          <Route path="/kp/:id/services/new" element={<KpServiceForm />} />
-          <Route
-            path="/kp/:id/services/:serviceId"
-            element={<KpServiceForm />}
-          />
+        <Route element={<ActivatedRoute />}>
+          <Route element={<ConfirmedRoute />}>
+            <Route index path="/" element={<Home />} />
+            <Route path="/kp" element={<Kp />} />
+            <Route path="/kp/:id" element={<Kp />} />
+            <Route path="/kp/:id/booking" element={<KpBooking />} />
+            <Route
+              path="/kp/:id/booking/:bookingId"
+              element={<KpBookingConfirmation />}
+            />
+            <Route
+              path="/kp/:id/booking/:bookingId/manage"
+              element={<KpBookingManageOverview />}
+            />
+            <Route
+              path="/kp/:id/booking/:bookingId/manage/services"
+              element={<KpBookingManage />}
+            />
+          </Route>
+          <Route element={<CompanyRoute />}>
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/company" element={<CompanyProfile />} />
+            <Route path="/company/profile" element={<CompanyProfileEdit />} />
+            <Route path="/kp/join" element={<KpJoin />} />
+          </Route>
+          <Route element={<StaffRoute />}>
+            <Route path="/user-management" element={<UserManagement />} />
+            <Route path="/admin/mail-templates" element={<MailTemplates />} />
+            <Route path="/admin/industries" element={<Industries />} />
+            <Route path="/company-management" element={<CompanyManagement />} />
+            <Route
+              path="/company-management/:companyId/profile"
+              element={<CompanyProfileAdmin />}
+            />
+            <Route
+              path="/kp/:id/bookings/:bookingId"
+              element={<KpBookingDetails />}
+            />
+          </Route>
+          <Route element={<PresidentRoute />}>
+            <Route path="/kp/:id/services/new" element={<KpServiceForm />} />
+            <Route
+              path="/kp/:id/services/:serviceId"
+              element={<KpServiceForm />}
+            />
+          </Route>
         </Route>
       </Route>
     </Routes>

@@ -39,6 +39,7 @@ const companyUser: UserResponse = {
   id: "company-1",
   email: "company@example.com",
   is_staff: false,
+  is_company: true,
 };
 
 const mockCurrentUser = (user: UserResponse) => {
