@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   Center,
-  FileInput,
   Group,
   Loader,
   Modal,
@@ -75,6 +74,7 @@ import {
   acceptForRequirement,
   allowedFormatsLabel,
 } from "../utils/upload-formats";
+import UploadFileInput from "../components/UploadFileInput";
 
 type RequirementDraft = {
   text?: string;
@@ -308,7 +308,7 @@ const RequirementEditor = ({
               {t("kp.booking_manage.retry_file_load")}
             </Button>
           ) : (
-            <FileInput
+            <UploadFileInput
               disabled={!editable}
               accept={acceptForRequirement(requirement.type)}
               description={allowedFormatsLabel(requirement.type, t)}

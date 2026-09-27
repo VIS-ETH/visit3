@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   Divider,
-  FileInput,
   Group,
   Input,
   Select,
@@ -42,6 +41,7 @@ import { downloadBlob, safeFilenamePart } from "../utils/download";
 import { NAMETAG_BACKGROUND_ACCEPT } from "../utils/upload-formats";
 import { useWarnOnLeave } from "../utils/use-warn-on-leave";
 import BookletDesignSection from "./kp/BookletDesignSection";
+import UploadFileInput from "./UploadFileInput";
 
 const downloadRequestOptions = { responseType: "blob" as const };
 const COMPANY_WORKBOOK_NAMES: Record<ExportLanguage, string> = {
@@ -367,7 +367,7 @@ const ExportsTab = ({
           </Group>
 
           <Group align="end" gap="sm">
-            <FileInput
+            <UploadFileInput
               label={t("kp.dashboard.exports.background")}
               placeholder={t("kp.dashboard.exports.background_placeholder")}
               accept={NAMETAG_BACKGROUND_ACCEPT}
