@@ -37,7 +37,7 @@ import {
 import { formatPrice } from "../../utils/price-utils";
 import { priceBreakdown } from "../../utils/pricing";
 import { KpBoothZoneColorSwatch } from "../KpBoothZoneColorSwatch";
-import VenueMapViewer from "../venue/VenueMapViewer";
+import FloorPlanImages from "../venue/FloorPlanImages";
 import {
   canSwitchBoothZone,
   isBoothZoneLocked,
@@ -237,15 +237,7 @@ const ZoneSwitchCard = ({ event, booking }: ZoneSwitchCardProps) => {
         title={t("kp.zone_switch.modal_title")}
       >
         <Stack gap="md">
-          <Text size="sm" c="dimmed">
-            {t("kp.zone_switch.map_hint")}
-          </Text>
-          <VenueMapViewer
-            eventId={event.id}
-            selectedZoneId={selectedZoneId}
-            onSelectZone={pickZone}
-            viewHeight={280}
-          />
+          <FloorPlanImages columns={2} />
 
           {errorCode ? (
             <Alert icon={<IconAlertCircle />} color="red">

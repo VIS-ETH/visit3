@@ -22,12 +22,9 @@ import {
   testEvent,
   testEventId,
 } from "../fixtures/kp-booking";
-import {
-  emptyVenueHandler,
-  testMainZone,
-  testSideZone,
-  testVenueMap,
-} from "../fixtures/venue";
+import mainHall from "../../assets/venue/main-hall.webp";
+import redHall from "../../assets/venue/red-hall.webp";
+import { testMainZone, testSideZone } from "../fixtures/venue";
 import { SLOW_TEST_TIMEOUT, SLOW_WAIT } from "../timeouts";
 
 vi.setConfig({ testTimeout: SLOW_TEST_TIMEOUT });
@@ -89,6 +86,7 @@ const switchUrl = `${testBackendUrl}/api/kp/bookings/${testBookingId}/switch-zon
 const waitlistUrl = `${testBackendUrl}/api/kp/bookings/${testBookingId}/upgrade-waitlist`;
 
 let waitlist: BookingUpgradeWaitlistEntryResponse[] = [];
+let venueRequests = 0;
 
 const installHandlers = () => {
   server.use(
@@ -100,7 +98,10 @@ const installHandlers = () => {
       () => HttpResponse.json([currentZone, freeZone, fullZone, queuedZone]),
     ),
     http.get(waitlistUrl, () => HttpResponse.json(waitlist)),
-    emptyVenueHandler,
+    http.get(`${testBackendUrl}/api/kp/events/:eventId/venue`, () => {
+      venueRequests += 1;
+      return HttpResponse.json(null, { status: 500 });
+    }),
   );
 };
 
@@ -131,6 +132,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   waitlist = [];
+  venueRequests = 0;
   localStorage.setItem("token", createToken(3600));
   installHandlers();
 });
@@ -331,27 +333,20 @@ describe("the zone switch card", () => {
     ).toBeInTheDocument();
   });
 
-  it("selects the zone that was picked on the venue map", async () => {
-    server.use(
-      http.get(`${testBackendUrl}/api/kp/events/:eventId/venue`, () =>
-        HttpResponse.json(testVenueMap),
-      ),
-    );
+  it("shows both hall plans without loading a venue map", async () => {
     const { user } = renderCard();
 
     await openModal(user);
-    await user.click(
-      await screen.findByRole("button", { name: testSideZone.name }, SLOW_WAIT),
-    );
 
     expect(
-      await screen.findByRole(
-        "button",
-        {
-          name: "kp.zone_switch.waitlist_action",
-        },
-        SLOW_WAIT,
-      ),
-    ).toBeInTheDocument();
+      screen.getByRole("img", { name: "kp.venue.floor_plan_main_hall_alt" }),
+    ).toHaveAttribute("src", mainHall);
+    expect(
+      screen.getByRole("img", { name: "kp.venue.floor_plan_red_hall_alt" }),
+    ).toHaveAttribute("src", redHall);
+    expect(
+      screen.queryByRole("group", { name: "kp.venue.map_label" }),
+    ).not.toBeInTheDocument();
+    expect(venueRequests).toBe(0);
   });
 });

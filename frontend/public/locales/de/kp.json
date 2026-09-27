@@ -702,7 +702,6 @@
       "price_same": "Gleicher Preis wie Ihre aktuelle Zone",
       "open": "Zone wechseln",
       "modal_title": "Standzone auswählen",
-      "map_hint": "Wählen Sie eine Zone im Hallenplan oder aus der Liste.",
       "already_waitlisted": "Auf Ihrer Warteliste",
       "no_zones": "Dieses Event hat keine weitere Standzone.",
       "switch_action": "In diese Zone wechseln",

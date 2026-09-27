@@ -702,7 +702,6 @@
       "price_same": "Same price as your current zone",
       "open": "Switch zone",
       "modal_title": "Choose a booth zone",
-      "map_hint": "Pick a zone on the venue map or from the list below.",
       "already_waitlisted": "On your waitlist",
       "no_zones": "This event has no other booth zone.",
       "switch_action": "Switch to this zone",
