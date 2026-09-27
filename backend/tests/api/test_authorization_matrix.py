@@ -27,12 +27,14 @@ from app.models.kp_event import (
 from app.models.user import User
 from app.models.venue import KpVenueLayout
 from app.repositories.company_repository import CompanyRepository
+from app.services.auth_service import AuthService
 from tests.api.conftest import (
     PNG_UPLOAD,
     KpSetup,
     company_profile_payload,
     kp_payload,
 )
+from tests.api.test_sso_sessions import claims, sso_user
 
 KP_PRESIDENT_ROLE = get_settings().VISIT_KP_PRESIDENT_ROLE
 INVITE_TOKEN = "matrix-invite-token"
@@ -43,6 +45,7 @@ REQUIREMENT_DESCRIPTION = "Upload the booth logo as a file."
 
 class Persona(StrEnum):
     ANONYMOUS = "anonymous"
+    PENDING = "pending"
     UNCONFIRMED = "unconfirmed"
     COMPANY = "company"
     STAFF = "staff"
@@ -411,6 +414,7 @@ def _expectations(allowed: set[Persona]) -> dict[Persona, Expected]:
 
 
 AUTHENTICATED_PERSONAS = {
+    Persona.PENDING,
     Persona.UNCONFIRMED,
     Persona.COMPANY,
     Persona.STAFF,
@@ -490,9 +494,21 @@ async def unassigned_user(create_user: Callable[..., Awaitable[User]]) -> User:
 
 
 @pytest.fixture
+async def pending_user(
+    auth_service: AuthService,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> User:
+    monkeypatch.setattr(get_settings(), "KEYCLOAK_REQUIRE_ROLES", False)
+    await auth_service.login_keycloak_user(claims(("vis-active", "admin")))
+    return await sso_user(db_session)
+
+
+@pytest.fixture
 async def matrix_headers(
     csrf_headers: dict[str, str],
     auth_headers: Callable[[User], Awaitable[dict[str, str]]],
+    pending_user: User,
     unconfirmed_user: User,
     company_user: User,
     staff_user: User,
@@ -500,6 +516,7 @@ async def matrix_headers(
     admin_user: User,
 ) -> dict[Persona, dict[str, str]]:
     users = {
+        Persona.PENDING: pending_user,
         Persona.UNCONFIRMED: unconfirmed_user,
         Persona.COMPANY: company_user,
         Persona.STAFF: staff_user,
