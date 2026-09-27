@@ -20,7 +20,6 @@ import {
   confirmProfileStep,
   installCompanyProfileHandlers,
 } from "../fixtures/company-profile";
-import { emptyVenueHandler } from "../fixtures/venue";
 
 const eventId = "event-1";
 
@@ -107,7 +106,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   installCompanyProfileHandlers();
   server.use(
-    emptyVenueHandler,
     http.get(`${testBackendUrl}/api/csrftoken`, () =>
       HttpResponse.json({ token: "csrf-1" }),
     ),

@@ -22,7 +22,6 @@ import {
   confirmProfileStep,
   installCompanyProfileHandlers,
 } from "../fixtures/company-profile";
-import { emptyVenueHandler } from "../fixtures/venue";
 import { continueToSummaryStep } from "../fixtures/booking-wizard";
 import { SLOW_TEST_TIMEOUT, SLOW_WAIT } from "../timeouts";
 
@@ -179,7 +178,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   installCompanyProfileHandlers();
   server.use(
-    emptyVenueHandler,
     http.get(csrfUrl, () => HttpResponse.json({ token: "csrf-1" })),
     http.get(myBookingUrl, () => HttpResponse.json(null)),
     http.get(zonesUrl, () => HttpResponse.json([includedZone, plainZone])),

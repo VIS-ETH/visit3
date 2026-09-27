@@ -20,7 +20,7 @@ import {
   testEvent,
   testEventId,
 } from "../fixtures/kp-booking";
-import { emptyVenueHandler, testMainZone } from "../fixtures/venue";
+import { testMainZone } from "../fixtures/venue";
 import { SLOW_TEST_TIMEOUT, SLOW_WAIT } from "../timeouts";
 
 vi.setConfig({ testTimeout: SLOW_TEST_TIMEOUT });
@@ -104,7 +104,6 @@ beforeEach(() => {
       `${testBackendUrl}/api/kp/bookings/:bookingId/upgrade-waitlist`,
       () => HttpResponse.json([]),
     ),
-    emptyVenueHandler,
   );
 });
 

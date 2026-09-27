@@ -15,7 +15,7 @@ import {
   testEvent,
   testEventId,
 } from "../fixtures/kp-booking";
-import { emptyVenueHandler, testMainZone } from "../fixtures/venue";
+import { testMainZone } from "../fixtures/venue";
 
 const overviewPath = "/kp/:id/booking/:bookingId/manage";
 const overviewRoute = `/kp/${testEventId}/booking/${testBookingId}/manage`;
@@ -72,7 +72,6 @@ beforeEach(() => {
     http.get(`${testBackendUrl}/api/kp/bookings/:bookingId/nametags`, () =>
       HttpResponse.json([]),
     ),
-    emptyVenueHandler,
   );
 });
 
