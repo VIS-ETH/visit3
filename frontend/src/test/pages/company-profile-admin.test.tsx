@@ -2,7 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { File as NodeFile } from "node:buffer";
 import { Route, Routes } from "react-router";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UserProvider } from "../../context/UserContext";
 import type { CompanyProfileResponse } from "../../orval/generated/fastAPI.schemas";
 import CompanyProfileAdmin from "../../pages/admin/CompanyProfileAdmin";
@@ -21,6 +21,8 @@ import { createToken } from "../jwt";
 import { SLOW_WAIT } from "../timeouts";
 import { renderWithProviders } from "../render";
 import { server } from "../server";
+
+vi.mock("../../utils/uploads", () => ({ UPLOADS_AVAILABLE: true }));
 
 const storedProfile: CompanyProfileResponse = {
   id: "profile-1",

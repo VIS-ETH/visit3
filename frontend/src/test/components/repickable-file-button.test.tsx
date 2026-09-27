@@ -4,6 +4,8 @@ import { File as NodeFile } from "node:buffer";
 import RepickableFileButton from "../../components/RepickableFileButton";
 import { renderWithProviders } from "../render";
 
+vi.mock("../../utils/uploads", () => ({ UPLOADS_AVAILABLE: true }));
+
 const createFile = () =>
   new NodeFile(["bytes"], "plan.pdf", {
     type: "application/pdf",

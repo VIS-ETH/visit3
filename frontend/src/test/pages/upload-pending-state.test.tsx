@@ -20,6 +20,8 @@ import {
 } from "../fixtures/kp-booking";
 import { SLOW_TEST_TIMEOUT, SLOW_WAIT } from "../timeouts";
 
+vi.mock("../../utils/uploads", () => ({ UPLOADS_AVAILABLE: true }));
+
 vi.setConfig({ testTimeout: SLOW_TEST_TIMEOUT });
 
 const pdfFile = () =>

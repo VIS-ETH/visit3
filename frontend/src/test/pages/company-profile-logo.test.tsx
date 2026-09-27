@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { File as NodeFile } from "node:buffer";
@@ -13,6 +13,8 @@ import { testBackendUrl } from "../constants";
 import { installBookletPageHandler } from "../fixtures/company-profile";
 import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
+
+vi.mock("../../utils/uploads", () => ({ UPLOADS_AVAILABLE: true }));
 
 const companyUser: UserResponse = {
   id: "user-1",

@@ -1,0 +1,98 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Button } from "@mantine/core";
+import { screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import RepickableFileButton from "../../components/RepickableFileButton";
+import CompanyLogoField from "../../components/company/CompanyLogoField";
+import { server } from "../server";
+import { testBackendUrl } from "../constants";
+import { createToken } from "../jwt";
+import { renderWithProviders } from "../render";
+import { SLOW_TEST_TIMEOUT, SLOW_WAIT } from "../timeouts";
+
+vi.mock("../../utils/uploads", () => ({ UPLOADS_AVAILABLE: false }));
+
+vi.setConfig({ testTimeout: SLOW_TEST_TIMEOUT });
+
+const NOTICE_TITLE = "uploads.unavailable_title";
+const PICK = "test.pick_file";
+
+let uploadRequests: string[] = [];
+let openFileDialog: ReturnType<typeof vi.spyOn>;
+
+const recordUpload = ({ request }: { request: Request }) => {
+  uploadRequests.push(new URL(request.url).pathname);
+  return HttpResponse.json({});
+};
+
+beforeEach(() => {
+  uploadRequests = [];
+  openFileDialog = vi.spyOn(HTMLInputElement.prototype, "click");
+  localStorage.setItem("token", createToken(3600));
+  server.use(
+    http.get(`${testBackendUrl}/api/csrftoken`, () =>
+      HttpResponse.json({ token: "csrf-1" }),
+    ),
+    http.post(`${testBackendUrl}/api/*`, recordUpload),
+    http.put(`${testBackendUrl}/api/*`, recordUpload),
+  );
+});
+
+afterEach(() => {
+  openFileDialog.mockRestore();
+});
+
+const expectNoticeInsteadOfUpload = async () => {
+  expect(
+    await screen.findByText(NOTICE_TITLE, undefined, SLOW_WAIT),
+  ).toBeInTheDocument();
+  expect(screen.getByText("uploads.unavailable_body")).toBeInTheDocument();
+  expect(openFileDialog).not.toHaveBeenCalled();
+  expect(uploadRequests).toEqual([]);
+};
+
+describe("uploads while they are unavailable", () => {
+  it("shows the notice instead of the file dialog of a file button", async () => {
+    const onChange = vi.fn();
+    const { user } = renderWithProviders(
+      <RepickableFileButton onChange={onChange}>
+        {(props) => <Button {...props}>{PICK}</Button>}
+      </RepickableFileButton>,
+    );
+
+    await user.click(screen.getByRole("button", { name: PICK }));
+
+    await expectNoticeInsteadOfUpload();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
+  });
+
+  it("closes the notice with its button", async () => {
+    const { user } = renderWithProviders(
+      <RepickableFileButton onChange={vi.fn()}>
+        {(props) => <Button {...props}>{PICK}</Button>}
+      </RepickableFileButton>,
+    );
+
+    await user.click(screen.getByRole("button", { name: PICK }));
+    await user.click(
+      await screen.findByRole("button", { name: "common.ok" }, SLOW_WAIT),
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByText(NOTICE_TITLE)).not.toBeInTheDocument(),
+    );
+  });
+
+  it("keeps the company logo from uploading", async () => {
+    const { user } = renderWithProviders(
+      <CompanyLogoField logoUrl={null} disabled={false} />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "company_profile_form.logo_upload" }),
+    );
+
+    await expectNoticeInsteadOfUpload();
+  });
+});

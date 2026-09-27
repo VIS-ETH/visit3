@@ -14,6 +14,8 @@ import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
 import { SLOW_WAIT } from "../timeouts";
 
+vi.mock("../../utils/uploads", () => ({ UPLOADS_AVAILABLE: true }));
+
 const eventId = "event-1";
 const backgroundUrl = `${testBackendUrl}/api/kp/events/${eventId}/booklet/background`;
 const previewUrl = `${testBackendUrl}/api/kp/events/${eventId}/booklet/preview`;

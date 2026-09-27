@@ -7,6 +7,10 @@
     "cancel": "Abbrechen",
     "currency": "CHF"
   },
+  "uploads": {
+    "unavailable_title": "Uploads sind noch nicht verfügbar",
+    "unavailable_body": "Das Hochladen von Dateien funktioniert gerade noch nicht. Bitte versuchen Sie es später erneut."
+  },
   "server": {
     "error": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut."
   },

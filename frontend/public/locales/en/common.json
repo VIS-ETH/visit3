@@ -7,6 +7,10 @@
     "cancel": "Cancel",
     "currency": "CHF"
   },
+  "uploads": {
+    "unavailable_title": "Uploads are not available yet",
+    "unavailable_body": "Uploading files does not work yet. Please try again later."
+  },
   "server": {
     "error": "Something went wrong. Please try again."
   },
