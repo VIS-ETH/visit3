@@ -661,6 +661,8 @@
       "floor_plan_none": "Keiner",
       "floor_plan_main_hall": "Haupthalle",
       "floor_plan_red_hall": "Rote Halle",
+      "floor_plan_main_hall_alt": "Hallenplan der Haupthalle",
+      "floor_plan_red_hall_alt": "Hallenplan der Roten Halle",
       "map_too_large": "Die Karte ist zu gross zum Speichern. Entfernen Sie einige Flächen oder Punkte.",
       "layout_created": "Plan erstellt.",
       "layout_updated": "Plan aktualisiert.",

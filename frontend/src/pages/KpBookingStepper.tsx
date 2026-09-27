@@ -74,7 +74,7 @@ import type {
 } from "../components/KpBookingSummaryStep";
 import KpBookingSummaryStep from "../components/KpBookingSummaryStep";
 import KpBookingZoneSelector from "../components/KpBookingZoneSelector";
-import VenueZonePicker from "../components/venue/VenueZonePicker";
+import FloorPlanImages from "../components/venue/FloorPlanImages";
 import {
   chargedServiceQuantity,
   clampServiceQuantity,
@@ -289,11 +289,7 @@ function KpBookingZoneStep({
           <Text fw={600} mb="sm">
             {t("kp.booking.venue_map_title")}
           </Text>
-          <VenueZonePicker
-            eventId={event.id}
-            onSelectZone={onSelectZone}
-            selectedZone={selectedZone}
-          />
+          <FloorPlanImages />
         </Grid.Col>
 
         <Grid.Col span={{ base: 12, md: 5 }}>

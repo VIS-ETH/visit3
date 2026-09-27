@@ -3,13 +3,15 @@ import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import KpBookingStepper from "../../pages/KpBookingStepper";
 import type { KpResponse } from "../../orval/generated/fastAPI.schemas";
+import mainHall from "../../assets/venue/main-hall.webp";
+import redHall from "../../assets/venue/red-hall.webp";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import i18n from "../i18n";
 import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
 import { testEventId } from "../fixtures/kp-booking";
-import { testMainZone, testSideZone, testVenueMap } from "../fixtures/venue";
+import { testMainZone, testSideZone } from "../fixtures/venue";
 import {
   confirmProfileStep,
   installCompanyProfileHandlers,
@@ -34,19 +36,14 @@ vi.setConfig({ testTimeout: SLOW_TEST_TIMEOUT });
 
 const eventUrl = `${testBackendUrl}/api/kp/events/${testEventId}`;
 
-const mapZoneButton = (name: string) =>
-  screen.getByRole("button", { name, hidden: true });
-
-const listZoneButton = () =>
-  screen.getByRole("button", {
-    name: new RegExp(`${testMainZone.booth_size} m²`),
-  });
+let venueRequests = 0;
 
 beforeAll(() => {
   i18n.addResource("en", "common", "kp.booth_size", "{{size}} m²");
 });
 
 beforeEach(() => {
+  venueRequests = 0;
   localStorage.setItem("token", createToken(3600));
   installCompanyProfileHandlers();
   server.use(
@@ -54,7 +51,10 @@ beforeEach(() => {
       HttpResponse.json({ token: "csrf-1" }),
     ),
     http.get(`${eventUrl}/my-booking`, () => HttpResponse.json(null)),
-    http.get(`${eventUrl}/venue`, () => HttpResponse.json(testVenueMap)),
+    http.get(`${eventUrl}/venue`, () => {
+      venueRequests += 1;
+      return HttpResponse.json(null, { status: 500 });
+    }),
     http.get(`${eventUrl}/booth-zones/available`, () =>
       HttpResponse.json([testMainZone, testSideZone]),
     ),
@@ -62,15 +62,39 @@ beforeEach(() => {
   );
 });
 
-describe("the venue map inside the booking wizard", () => {
-  it("selects the zone in the list when its shape is clicked on the map", async () => {
+describe("the floor plans inside the booking wizard", () => {
+  it("shows both hall plans as plain images without loading a venue map", async () => {
     const { user } = renderWithProviders(
       <KpBookingStepper event={openEvent} />,
     );
 
     await confirmProfileStep(user);
-    await screen.findByRole("button", { name: testMainZone.name }, SLOW_WAIT);
-    await user.click(mapZoneButton(testMainZone.name));
+
+    expect(
+      screen.getByRole("img", { name: "kp.venue.floor_plan_main_hall_alt" }),
+    ).toHaveAttribute("src", mainHall);
+    expect(
+      screen.getByRole("img", { name: "kp.venue.floor_plan_red_hall_alt" }),
+    ).toHaveAttribute("src", redHall);
+    expect(
+      screen.queryByRole("group", { name: "kp.venue.map_label" }),
+    ).not.toBeInTheDocument();
+    expect(venueRequests).toBe(0);
+  });
+
+  it("picks a zone from the list without any venue layout", async () => {
+    const { user } = renderWithProviders(
+      <KpBookingStepper event={openEvent} />,
+    );
+
+    await confirmProfileStep(user);
+    await user.click(
+      await screen.findByRole(
+        "button",
+        { name: new RegExp(`${testMainZone.booth_size} m²`) },
+        SLOW_WAIT,
+      ),
+    );
 
     expect(
       await screen.findByText(testMainZone.description, undefined, SLOW_WAIT),
@@ -78,24 +102,6 @@ describe("the venue map inside the booking wizard", () => {
     expect(
       screen.getByRole("button", { name: "kp.booking.continue_with_zone" }),
     ).toBeEnabled();
-  });
-
-  it("marks the shape on the map when the zone is picked from the list", async () => {
-    const { user } = renderWithProviders(
-      <KpBookingStepper event={openEvent} />,
-    );
-
-    await confirmProfileStep(user);
-    await screen.findByRole("button", { name: testMainZone.name }, SLOW_WAIT);
-    await user.click(listZoneButton());
-
-    expect(mapZoneButton(testMainZone.name)).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(mapZoneButton(testSideZone.name)).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    expect(venueRequests).toBe(0);
   });
 });
