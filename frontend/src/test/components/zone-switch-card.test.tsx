@@ -48,6 +48,7 @@ const currentZone: BoothZoneWithAvailabilityResponse = {
   order: 1,
   booth_size: 6,
   base_price: 50000,
+  registration_open: true,
   included_services: [],
   is_full: false,
 };
@@ -348,5 +349,28 @@ describe("the zone switch card", () => {
       screen.queryByRole("group", { name: "kp.venue.map_label" }),
     ).not.toBeInTheDocument();
     expect(venueRequests).toBe(0);
+  });
+
+  it("shows a closed zone as disabled with the closed badge", async () => {
+    server.use(
+      http.get(
+        `${testBackendUrl}/api/kp/events/:eventId/booth-zones/available`,
+        () =>
+          HttpResponse.json([
+            currentZone,
+            { ...freeZone, registration_open: false },
+          ]),
+      ),
+    );
+    const { user } = renderCard();
+
+    const list = await openModal(user);
+    const closedOption = zoneOption(list, freeZone.name);
+
+    expect(closedOption).toBeDisabled();
+    expect(closedOption).toHaveTextContent("kp.booking.zone_closed");
+    expect(
+      screen.queryByRole("button", { name: "kp.zone_switch.switch_action" }),
+    ).not.toBeInTheDocument();
   });
 });

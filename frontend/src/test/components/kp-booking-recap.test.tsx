@@ -23,6 +23,7 @@ const booking: BookingResponse = {
     order: 1,
     booth_size: 4,
     base_price: 100000,
+    registration_open: true,
     included_services: [],
   },
   additional_service_charges: [

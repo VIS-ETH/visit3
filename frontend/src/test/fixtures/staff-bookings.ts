@@ -31,6 +31,7 @@ const zone = (
   capacity,
   booth_size: 6,
   base_price: 50000,
+  registration_open: true,
   layout_url: null,
   included_services: [],
 });

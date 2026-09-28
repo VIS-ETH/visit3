@@ -47,6 +47,7 @@ const currentZone: BoothZoneWithAvailabilityResponse = {
   order: 1,
   booth_size: 6,
   base_price: 50000,
+  registration_open: true,
   included_services: [],
   is_full: false,
 };

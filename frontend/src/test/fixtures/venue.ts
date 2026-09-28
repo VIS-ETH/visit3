@@ -22,6 +22,7 @@ export const testMainZone: BoothZoneWithAvailabilityResult = {
   order: 1,
   booth_size: 6,
   base_price: 50000,
+  registration_open: true,
   included_services: [],
   is_full: false,
 };
@@ -35,6 +36,7 @@ export const testSideZone: BoothZoneWithAvailabilityResult = {
   order: 2,
   booth_size: 4,
   base_price: 30000,
+  registration_open: true,
   included_services: [],
   is_full: true,
 };

@@ -15,6 +15,7 @@ import type {
   BoothZoneWithAvailabilityResponse,
 } from "../orval/generated/fastAPI.schemas";
 import { useListAvailableBoothZones } from "../orval/generated/kp/kp";
+import { isZoneBookable } from "../utils/booth-zones";
 import KpBookingZoneCard from "./KpBookingZoneCard";
 
 interface KpBookingZoneSelectorProps {
@@ -62,8 +63,9 @@ const KpBookingZoneSelector = ({
             <Stack gap="sm" pr={8}>
               {availableZones?.map((zone) => {
                 const isSelected = selectedZone?.id === zone.id;
-                const isFull = zone.is_full;
-                const isDisabled = isZoneLocked ? !isSelected : isFull;
+                const isDisabled = isZoneLocked
+                  ? !isSelected
+                  : !isZoneBookable(zone);
 
                 return (
                   <KpBookingZoneCard

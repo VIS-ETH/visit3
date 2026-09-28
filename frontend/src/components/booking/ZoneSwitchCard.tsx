@@ -268,6 +268,8 @@ const ZoneSwitchCard = ({ event, booking }: ZoneSwitchCardProps) => {
                     <UnstyledButton
                       key={zone.id}
                       aria-pressed={isSelected}
+                      disabled={!zone.registration_open}
+                      style={{ opacity: zone.registration_open ? 1 : 0.5 }}
                       onClick={() => pickZone(zone.id)}
                     >
                       <Card
@@ -292,6 +294,11 @@ const ZoneSwitchCard = ({ event, booking }: ZoneSwitchCardProps) => {
                                 {t("kp.zone_switch.already_waitlisted")}
                               </Badge>
                             ) : null}
+                            {zone.registration_open ? null : (
+                              <Badge color="gray" size="sm" variant="light">
+                                {t("kp.booking.zone_closed")}
+                              </Badge>
+                            )}
                           </Group>
                           <Text size="xs" c={isFull ? "red" : "green"}>
                             {isFull

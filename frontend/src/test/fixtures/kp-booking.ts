@@ -76,6 +76,7 @@ const boothZone = {
   capacity: 20,
   booth_size: 6,
   base_price: 50000,
+  registration_open: true,
   included_services: [],
 };
 

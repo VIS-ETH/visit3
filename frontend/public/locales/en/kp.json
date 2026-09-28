@@ -80,6 +80,7 @@
       "booth_size": "Booth size",
       "base_price": "Base price",
       "zone_full": "Fully booked",
+      "zone_closed": "Registration closed",
       "continue_with_zone": "Continue with {{zone}}",
       "registration_closed": "Registration is currently closed.",
       "confirm_title": "Confirm registration",

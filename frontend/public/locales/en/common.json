@@ -98,6 +98,7 @@
     "event_banner_too_small": "The banner must be at least 800 pixels wide.",
     "storage_image_too_large": "The image is too large. Use at most 8000 pixels per side and 40 megapixels.",
     "kp_registration_closed": "Registration for this event is currently closed.",
+    "kp_zone_registration_closed": "Registration for this booth zone is currently closed.",
     "kp_booth_zone_at_capacity": "The selected booth zone has no remaining spots.",
     "kp_booth_zone_full": "The selected booth zone is full. You can join its waitlist instead.",
     "kp_booking_zone_locked": "VIS has confirmed your booking. You can still add services, but no longer change the booth zone.",

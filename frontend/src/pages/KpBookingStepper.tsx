@@ -82,6 +82,7 @@ import {
   maxServiceQuantity,
   servicesOfCategory,
 } from "../utils/kp-service-quantity";
+import { isZoneBookable } from "../utils/booth-zones";
 import { COMPANY_PROFILE_PATH } from "../utils/navigation";
 import { formatPrice } from "../utils/price-utils";
 import {
@@ -826,8 +827,8 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
   const canContinueFromProfile =
     Boolean(company?.profile_bookable) && isProfileConfirmed;
   const canContinueFromZone =
-    Boolean(selectedZone) &&
-    !selectedZone?.is_full &&
+    selectedZone !== null &&
+    isZoneBookable(selectedZone) &&
     (isRegistrationOpen || Boolean(myBooking));
 
   const backLabel =

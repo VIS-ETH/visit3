@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import KpBookingZoneCard from "../../components/KpBookingZoneCard";
+import { isZoneBookable } from "../../utils/booth-zones";
 import i18n from "../i18n";
 import { renderWithProviders } from "../render";
 import { testMainZone, testSideZone } from "../fixtures/venue";
@@ -10,7 +11,7 @@ const renderCard = (zone = testMainZone) =>
     <KpBookingZoneCard
       zone={zone}
       isSelected={false}
-      isDisabled={zone.is_full}
+      isDisabled={!isZoneBookable(zone)}
       onSelect={vi.fn()}
     />,
   );
@@ -35,5 +36,16 @@ describe("the booking zone card", () => {
       "kp.booking.zone_full",
     );
     expect(screen.getByRole("button")).not.toHaveTextContent("m²");
+  });
+});
+
+describe("a closed booking zone", () => {
+  it("is disabled and shows the closed badge", () => {
+    renderCard({ ...testMainZone, registration_open: false });
+
+    expect(screen.getByRole("button")).toBeDisabled();
+    expect(screen.getByRole("button")).toHaveTextContent(
+      "kp.booking.zone_closed",
+    );
   });
 });

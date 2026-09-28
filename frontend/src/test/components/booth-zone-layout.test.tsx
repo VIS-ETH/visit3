@@ -28,6 +28,7 @@ const zone: StaffBoothZoneResponse = {
   capacity: 10,
   booth_size: 4,
   base_price: 100000,
+  registration_open: true,
   layout_description: "Corner booth",
   layout_url: "https://files.test/zone-1/layout.png",
   included_services: [],

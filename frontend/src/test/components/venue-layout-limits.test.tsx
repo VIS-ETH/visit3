@@ -25,6 +25,7 @@ const zones: BoothZoneResponse[] = [
     order: testMainZone.order,
     booth_size: testMainZone.booth_size,
     base_price: testMainZone.base_price,
+    registration_open: true,
     included_services: [],
   },
 ];

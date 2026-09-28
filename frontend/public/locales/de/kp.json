@@ -80,6 +80,7 @@
       "booth_size": "Standgrösse",
       "base_price": "Grundpreis",
       "zone_full": "Ausgebucht",
+      "zone_closed": "Anmeldung geschlossen",
       "continue_with_zone": "Weiter mit {{zone}}",
       "registration_closed": "Die Anmeldung ist derzeit geschlossen.",
       "confirm_title": "Registrierung bestätigen",
