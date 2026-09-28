@@ -415,10 +415,10 @@ async def test_company_workbook_names_languages_in_the_staff_language(
     german = await service.export_company_workbook(event.id, ExportLanguage.DE)
     english = await service.export_company_workbook(event.id, ExportLanguage.EN)
 
-    assert load_workbook(io.BytesIO(german.content))["Unternehmen"]["AE2"].value == (
+    assert load_workbook(io.BytesIO(german.content))["Unternehmen"]["AF2"].value == (
         "Englisch, Deutsch"
     )
-    assert load_workbook(io.BytesIO(english.content))["Companies"]["AE2"].value == (
+    assert load_workbook(io.BytesIO(english.content))["Companies"]["AF2"].value == (
         "English, German"
     )
 

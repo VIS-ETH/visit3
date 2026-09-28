@@ -150,7 +150,7 @@ async def test_exports_still_render_industries_of_a_deleted_industry(
     sheet = load_workbook(io.BytesIO(response.content))["Unternehmen"]
     assert deleted.status_code == 200
     assert response.status_code == 200
-    assert sheet["AD2"].value == "Robotics"
+    assert sheet["AE2"].value == "Robotics"
 
 
 async def add_service_requirement(

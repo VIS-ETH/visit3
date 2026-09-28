@@ -43,6 +43,7 @@ OTHER_COMPANY = "Beta GmbH"
 OTHER_COMPANY_EMAIL = "beta@example.com"
 GENERAL_EMAIL = "info@acme.ch"
 GENERAL_PHONE = "044 000 00 00"
+STUDENT_EMAIL = "jobs@acme.ch"
 INVOICE_ADDRESS = "Invoice street 1"
 TEXT_ANSWER = "Two tables and a screen"
 ALLOWED_UNTIL = date.today() + timedelta(days=3)
@@ -64,6 +65,7 @@ GERMAN_COMPANY_HEADERS = [
     "Telefon Kontaktperson",
     "Allgemeine E-Mail",
     "Allgemeine Telefonnummer",
+    "E-Mail für Studierende",
     "Website",
     "Rechnungsempfänger",
     "Rechnungsadresse",
@@ -320,6 +322,7 @@ async def export_world(
             description="<p>We build <strong>anvils</strong>.</p><p>Since 1900.</p>",
             general_email=GENERAL_EMAIL,
             general_phone=GENERAL_PHONE,
+            student_contact_email=STUDENT_EMAIL,
             employee_count_switzerland=42,
             employee_count_worldwide=99,
             offers_internships=True,
@@ -566,7 +569,7 @@ async def test_company_workbook_headers_are_human(
     assert [cell.value for cell in firms[1]] == GERMAN_COMPANY_HEADERS
     assert [cell.value for cell in workbook["Kontakte"][1]] == GERMAN_CONTACT_HEADERS
     assert firms.freeze_panes == "B2"
-    assert firms.auto_filter.ref == f"A1:AL{firms.max_row}"
+    assert firms.auto_filter.ref == f"A1:AM{firms.max_row}"
 
 
 async def test_company_workbook_follows_the_staff_language(
@@ -610,6 +613,7 @@ async def test_company_workbook_rows_carry_typed_values(
     assert own["E-Mail Kontaktperson"] == "company@example.com"
     assert own["Allgemeine E-Mail"] == GENERAL_EMAIL
     assert own["Allgemeine Telefonnummer"] == GENERAL_PHONE
+    assert own["E-Mail für Studierende"] == STUDENT_EMAIL
     assert own["Rechnungsadresse"] == f"{INVOICE_ADDRESS} 1"
     assert own["PLZ"] == "8000"
     assert own["Land"] == "CH"
@@ -624,7 +628,7 @@ async def test_company_workbook_rows_carry_typed_values(
     assert own["Praktika"] == "Ja"
     assert own["Abschlussarbeiten"] == "Nein"
     assert rows[1]["Status"] == "Storniert"
-    assert workbook["Unternehmen"]["Y2"].number_format == '"CHF" #,##0.00'
+    assert workbook["Unternehmen"]["Z2"].number_format == '"CHF" #,##0.00'
     assert workbook["Unternehmen"]["H2"].number_format == "DD.MM.YYYY HH:MM"
 
 
@@ -670,8 +674,8 @@ async def test_company_workbook_keeps_company_text_inert(
 
     assert sheet["B2"].value == hostile
     assert sheet["B2"].data_type == "s"
-    assert sheet["AC2"].value == "Grüezi Zürich 🤖\n@SUM(A1)"
-    assert sheet["AC2"].data_type == "s"
+    assert sheet["AD2"].value == "Grüezi Zürich 🤖\n@SUM(A1)"
+    assert sheet["AD2"].data_type == "s"
 
 
 async def test_company_workbook_lists_the_people_of_active_bookings(
