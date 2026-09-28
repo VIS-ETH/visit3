@@ -100,6 +100,8 @@
     "storage_image_too_large": "Das Bild ist zu gross. Erlaubt sind höchstens 8000 Pixel pro Seite und 40 Megapixel.",
     "kp_registration_closed": "Die Anmeldung für dieses Event ist derzeit geschlossen.",
     "kp_zone_registration_closed": "Die Anmeldung für diese Standzone ist derzeit geschlossen.",
+    "kp_offer_cancel_deadline_passed": "Die kostenlose Stornierungsfrist für diesen Platz ist abgelaufen.",
+    "kp_offer_deadline_invalid": "Die Stornierungsfrist muss zwischen heute und dem Eventdatum liegen.",
     "kp_booth_zone_at_capacity": "Die ausgewählte Standzone hat keine verfügbaren Plätze mehr.",
     "kp_booth_zone_full": "Die ausgewählte Standzone ist ausgebucht. Sie können sich stattdessen auf die Warteliste setzen.",
     "kp_booking_zone_locked": "Der VIS hat Ihre Buchung bestätigt. Sie können weiterhin Services hinzufügen, die Standzone aber nicht mehr ändern.",

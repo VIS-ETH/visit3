@@ -3,6 +3,7 @@ import { screen } from "@testing-library/react";
 import { KpBookingCompletion } from "../../components/KpBookingCompletion";
 import { KpBookingStatus } from "../../orval/generated/fastAPI.schemas";
 import type { BookingResponse } from "../../orval/generated/fastAPI.schemas";
+import i18n from "../i18n";
 import { renderWithProviders } from "../render";
 import {
   testBooking,
@@ -273,6 +274,62 @@ describe("KpBookingCompletion", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText("kp.booking.cancel_hint"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("tells an offered place can be cancelled until its deadline", () => {
+    i18n.addResource(
+      "en",
+      "common",
+      "kp.booking.offer_notice",
+      "offered until {{date}}",
+    );
+    renderWithProviders(
+      <KpBookingCompletion
+        booking={{ ...completeBooking, offer_cancel_until: openDeadline }}
+        changeDeadline={openDeadline}
+      />,
+    );
+
+    expect(screen.getByText(/offered until .*2099/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "kp.booking.cancel_action" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("kp.booking.cancel_hint"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps a confirmed offered place cancellable until its deadline", () => {
+    renderWithProviders(
+      <KpBookingCompletion
+        booking={{
+          ...completeBooking,
+          status: KpBookingStatus.CONFIRMED,
+          offer_cancel_until: openDeadline,
+        }}
+        changeDeadline={openDeadline}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "kp.booking.cancel_action" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the offer line and the cancel action after the deadline", () => {
+    renderWithProviders(
+      <KpBookingCompletion
+        booking={{ ...completeBooking, offer_cancel_until: passedDeadline }}
+        changeDeadline={openDeadline}
+      />,
+    );
+
+    expect(
+      screen.queryByText(/kp.booking.offer_notice|offered until/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "kp.booking.cancel_action" }),
     ).not.toBeInTheDocument();
   });
 });
