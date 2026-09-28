@@ -131,11 +131,14 @@ const BookingsTab = ({ eventId }: { eventId: string }) => {
           (bookingStatusRank(left.status) - bookingStatusRank(right.status))
         );
       }
-      const leftValue =
-        sortField === "company" ? left.company.name : left.booth_zone.name;
-      const rightValue =
-        sortField === "company" ? right.company.name : right.booth_zone.name;
-      return factor * leftValue.localeCompare(rightValue);
+      if (sortField === "zone") {
+        return (
+          factor *
+          (left.booth_zone.order - right.booth_zone.order ||
+            left.booth_zone.name.localeCompare(right.booth_zone.name))
+        );
+      }
+      return factor * left.company.name.localeCompare(right.company.name);
     });
   }, [incompleteOnly, rows, search, sortDirection, sortField, statusFilter]);
 

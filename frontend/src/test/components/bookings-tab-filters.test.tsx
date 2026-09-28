@@ -7,7 +7,7 @@ import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
 import { testEventId } from "../fixtures/kp-booking";
-import { staffBookings } from "../fixtures/staff-bookings";
+import { staffBookings, testSideHallZoneId } from "../fixtures/staff-bookings";
 
 const companyOrder = () =>
   screen.getAllByRole("link").map((link) => link.textContent);
@@ -84,6 +84,26 @@ describe("the staff bookings table", () => {
     await user.click(screen.getByText("kp.manage.booking_booth_zone"));
 
     expect(companyOrder()).toEqual(["Acme AG", "Zeta SA", "Beta GmbH"]);
+  });
+
+  it("sorts by booth zone along the zone order", async () => {
+    server.use(
+      http.get(`${testBackendUrl}/api/kp/events/:eventId/bookings`, () =>
+        HttpResponse.json(
+          staffBookings.map((booking) =>
+            booking.booth_zone_id === testSideHallZoneId
+              ? { ...booking, booth_zone: { ...booking.booth_zone, order: 0 } }
+              : booking,
+          ),
+        ),
+      ),
+    );
+    const { user } = renderWithProviders(<BookingsTab eventId={testEventId} />);
+
+    await screen.findByText("Beta GmbH", {}, { timeout: 5000 });
+    await user.click(screen.getByText("kp.manage.booking_booth_zone"));
+
+    expect(companyOrder()).toEqual(["Beta GmbH", "Acme AG", "Zeta SA"]);
   });
 
   it("sorts by status along the booking lifecycle", async () => {
