@@ -61,6 +61,17 @@ const CompanyContactFields = ({
           disabled={disabled}
           {...form.getInputProps("general_phone")}
         />
+        <TextInput
+          id={profileFieldId("student_contact_email")}
+          label={t("company_profile_form.student_contact_email")}
+          placeholder={t(
+            "company_profile_form.student_contact_email_placeholder",
+          )}
+          description={t("company_profile_form.student_contact_email_hint")}
+          autoComplete="email"
+          disabled={disabled}
+          {...form.getInputProps("student_contact_email")}
+        />
       </SimpleGrid>
     </Stack>
   );

@@ -480,7 +480,59 @@ describe("Company profile form", () => {
       billing_country: "CH",
       billing_vat_number: "CHE-123.456.789",
       billing_email: "billing@example.com",
+      student_contact_email: null,
     });
+  });
+
+  it("explains the student email under the field", async () => {
+    renderProfile();
+
+    expect(
+      await screen.findByLabelText(
+        labelOf("company_profile_form.student_contact_email"),
+      ),
+    ).not.toBeRequired();
+    expect(
+      screen.getByText("company_profile_form.student_contact_email_hint"),
+    ).toBeInTheDocument();
+  });
+
+  it("sends the trimmed student email", async () => {
+    const { user } = renderProfile();
+
+    const email = await screen.findByLabelText(
+      labelOf("company_profile_form.student_contact_email"),
+    );
+    await user.click(email);
+    await user.paste("  jobs@example.com  ");
+    await user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+
+    await waitFor(() => {
+      expect(putBodies).toHaveLength(1);
+    });
+    expect(putBodies[0]).toMatchObject({
+      student_contact_email: "jobs@example.com",
+    });
+  });
+
+  it("does not submit an invalid student email", async () => {
+    const { user } = renderProfile();
+
+    const email = await screen.findByLabelText(
+      labelOf("company_profile_form.student_contact_email"),
+    );
+    await user.click(email);
+    await user.paste("jobs-at-example");
+    await user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+
+    expect(
+      await screen.findByText("validation.invalid_email"),
+    ).toBeInTheDocument();
+    expect(putBodies).toHaveLength(0);
   });
 
   it("opens for a user the organisers have not confirmed yet", async () => {
@@ -598,6 +650,44 @@ describe("Company booklet page", () => {
       expect(lastBookletBody()).toMatchObject({
         brand_name: "Examplify",
         general_email: null,
+      });
+    }, SLOW_WAIT);
+  });
+
+  it("puts a valid student email on the page", async () => {
+    const { user } = renderProfile();
+
+    const email = await screen.findByLabelText(
+      labelOf("company_profile_form.student_contact_email"),
+    );
+    await user.click(email);
+    await user.paste("jobs@example.com");
+
+    await waitFor(() => {
+      expect(lastBookletBody()).toMatchObject({
+        student_contact_email: "jobs@example.com",
+      });
+    }, SLOW_WAIT);
+  });
+
+  it("leaves an unfinished student email off the page", async () => {
+    const { user } = renderProfile();
+
+    const email = await screen.findByLabelText(
+      labelOf("company_profile_form.student_contact_email"),
+    );
+    await user.click(email);
+    await user.paste("jobs@");
+    const brandName = screen.getByLabelText(
+      labelOf("company_profile_form.brand_name"),
+    );
+    await user.clear(brandName);
+    await user.paste("Examplify Group");
+
+    await waitFor(() => {
+      expect(lastBookletBody()).toMatchObject({
+        brand_name: "Examplify Group",
+        student_contact_email: null,
       });
     }, SLOW_WAIT);
   });

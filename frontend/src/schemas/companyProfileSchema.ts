@@ -51,6 +51,13 @@ export const companyProfileSchema = z.object({
       (value) => isBlank(value) || zPhone.safeParse(value).success,
       "register.phoneNumber.invalid",
     ),
+  student_contact_email: z
+    .string()
+    .trim()
+    .refine(
+      (value) => isBlank(value) || z.email().safeParse(value).success,
+      "validation.invalid_email",
+    ),
   places_of_work: z.string().trim(),
   employee_count_switzerland: employeeCount,
   employee_count_worldwide: employeeCount,
@@ -85,6 +92,7 @@ export const emptyCompanyProfileFormValues: CompanyProfileFormValues = {
   brand_name: "",
   general_email: "",
   general_phone: "",
+  student_contact_email: "",
   places_of_work: "",
   employee_count_switzerland: "",
   employee_count_worldwide: "",
@@ -113,6 +121,7 @@ export const toCompanyProfileFormValues = (
   brand_name: profile.brand_name ?? "",
   general_email: profile.general_email ?? "",
   general_phone: profile.general_phone ?? "",
+  student_contact_email: profile.student_contact_email ?? "",
   places_of_work: profile.places_of_work ?? "",
   employee_count_switzerland: profile.employee_count_switzerland ?? "",
   employee_count_worldwide: profile.employee_count_worldwide ?? "",
@@ -145,6 +154,7 @@ export const toCompanyProfileRequest = (
   brand_name: values.brand_name.trim(),
   general_email: trimmedOrNull(values.general_email),
   general_phone: trimmedOrNull(values.general_phone),
+  student_contact_email: trimmedOrNull(values.student_contact_email),
   places_of_work: values.places_of_work.trim(),
   employee_count_switzerland: countOrNull(values.employee_count_switzerland),
   employee_count_worldwide: countOrNull(values.employee_count_worldwide),
@@ -172,12 +182,19 @@ export const toBookletPageRequest = (
   const hasValidEmail = companyProfileSchema.shape.general_email.safeParse(
     values.general_email,
   ).success;
+  const hasValidStudentEmail =
+    companyProfileSchema.shape.student_contact_email.safeParse(
+      values.student_contact_email,
+    ).success;
   return {
     description: request.description,
     website: request.website,
     brand_name: request.brand_name,
     general_email: hasValidEmail ? request.general_email : null,
     general_phone: request.general_phone,
+    student_contact_email: hasValidStudentEmail
+      ? request.student_contact_email
+      : null,
     places_of_work: request.places_of_work,
     employee_count_switzerland: request.employee_count_switzerland,
     employee_count_worldwide: request.employee_count_worldwide,
