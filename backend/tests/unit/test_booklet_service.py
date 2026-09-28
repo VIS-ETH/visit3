@@ -167,8 +167,6 @@ async def test_the_page_shows_the_unsaved_form_values(
             ]
         ],
         "website": "https://acme.example",
-        "general_email": "info@acme.example",
-        "general_phone": "+41 44 000 00 00",
         "places_of_work": "Zurich",
         "languages": ["German", "English"],
         "industries": ["Robotics"],

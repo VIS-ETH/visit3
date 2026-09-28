@@ -59,8 +59,6 @@ SAMPLE_PAGE = {
         "deployment at our customers.</p>"
     ),
     "website": "https://beispiel.example",
-    "general_email": "jobs@beispiel.example",
-    "general_phone": "+41 44 000 00 00",
     "places_of_work": "Zürich, Lausanne",
     "languages": ["English", "German"],
     "industries": ["Robotics", "Software"],
@@ -110,8 +108,6 @@ def company_page_entry(
         "brand_name": profile.brand_name.strip() or company.name,
         "description_blocks": rich_text_blocks(profile.description),
         "website": profile.website,
-        "general_email": profile.general_email,
-        "general_phone": profile.general_phone,
         "places_of_work": profile.places_of_work,
         "languages": [LANGUAGE_NAMES[language] for language in profile.languages],
         "industries": sorted(industry.name for industry in industries),

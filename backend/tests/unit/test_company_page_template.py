@@ -96,3 +96,37 @@ def test_paragraphs_and_line_breaks_are_kept(tmp_path: Path):
     assert serialized.count('"func": "par"') == 2
     assert serialized.count('"func": "linebreak"') == 1
     assert texts(rendered) == ["one", "two", "three"]
+
+
+SIDEBAR_PROBE = """
+#import "company_page.typ": company-sidebar
+#let entry = json(bytes(sys.inputs.at("data")))
+#metadata(company-sidebar(entry)) <sidebar>
+"""
+
+
+def test_the_sidebar_keeps_the_contact_data_internal(tmp_path: Path):
+    copyfile(TEMPLATES_DIR / TEMPLATE, tmp_path / TEMPLATE)
+    (tmp_path / "probe.typ").write_text(SIDEBAR_PROBE)
+    compiler = typst.Compiler(
+        str(tmp_path / "probe.typ"),
+        root=str(tmp_path),
+        font_paths=[str(FONTS_DIR)],
+        ignore_system_fonts=True,
+        sys_inputs={
+            "data": json.dumps(
+                {
+                    "general_email": "internal@acme.example",
+                    "general_phone": "+41 44 000 00 00",
+                    "website": "https://acme.example",
+                }
+            )
+        },
+    )
+
+    rendered = texts(json.loads(compiler.query("<sidebar>", field="value", one=True)))
+
+    assert "https://acme.example" in rendered
+    assert "CONTACT" not in rendered
+    assert "internal@acme.example" not in rendered
+    assert "+41 44 000 00 00" not in rendered

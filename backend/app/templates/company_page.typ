@@ -85,8 +85,6 @@
   set par(leading: 0.45em)
   let logo = field(entry, "logo_path")
   let booth = field(entry, "booth_number")
-  let contact = (field(entry, "general_email"), field(entry, "general_phone"))
-    .filter(value => value != "")
   let languages = entry.at("languages", default: ())
   let industries = entry.at("industries", default: ())
   let offers = entry.at("offers", default: (:))
@@ -98,9 +96,6 @@
   }
   if booth != "" {
     items.push(align(right, text(size: 16pt, weight: "bold", fill: white, booth)))
-  }
-  if contact.len() > 0 {
-    items.push(sidebar-row("Contact", contact.join(linebreak())))
   }
   if field(entry, "website") != "" {
     items.push(sidebar-row("Website", field(entry, "website")))
