@@ -49,6 +49,7 @@ const homeLink = () =>
 describe("the home page", () => {
   it.each([
     ["staff", staffUser],
+    ["a president", { ...staffUser, is_kp_president: true }],
     ["an admin", adminUser],
   ])(
     "shows %s the Kontaktparty dashboard without the banner",
