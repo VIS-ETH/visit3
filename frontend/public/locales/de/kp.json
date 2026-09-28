@@ -520,6 +520,8 @@
       "zone_confirm_delete": "Diese Standzone löschen?",
       "zone_move_up": "Nach oben",
       "zone_move_down": "Nach unten",
+      "zone_registration": "Anmeldung",
+      "zone_registration_open": "Anmeldung offen",
       "bookings_title": "Buchungen",
       "bookings_empty": "Noch keine Buchungen.",
       "bookings_no_results": "Keine Buchungen passen zur Suche.",

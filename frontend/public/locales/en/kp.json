@@ -520,6 +520,8 @@
       "zone_confirm_delete": "Delete this booth zone?",
       "zone_move_up": "Move up",
       "zone_move_down": "Move down",
+      "zone_registration": "Registration",
+      "zone_registration_open": "Registration open",
       "bookings_title": "Bookings",
       "bookings_empty": "No bookings yet.",
       "bookings_no_results": "No bookings match your search.",

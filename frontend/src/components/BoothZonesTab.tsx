@@ -11,6 +11,7 @@ import {
   Paper,
   Select,
   Stack,
+  Switch,
   Text,
   TextInput,
   Textarea,
@@ -136,6 +137,9 @@ const BoothZonesTab = ({ eventId }: { eventId: string }) => {
         queryClient.setQueryData(getListBoothZonesQueryKey(eventId), reordered),
     },
   });
+
+  const { mutate: toggleRegistration, isPending: isTogglingRegistration } =
+    useUpdateBoothZone({ mutation: { onSuccess: invalidate } });
 
   const zoneIds = (zones ?? []).map((zone) => zone.id);
   const moveZone = (zone: BoothZoneRow, offset: number) => {
@@ -296,6 +300,25 @@ const BoothZonesTab = ({ eventId }: { eventId: string }) => {
       searchableValue: (zone) => String(zone.included_services.length),
       textAlign: "right",
       width: 150,
+    },
+    {
+      key: "registration",
+      header: t("kp.manage.zone_registration"),
+      render: (zone) => (
+        <Switch
+          aria-label={t("kp.manage.zone_registration_open")}
+          checked={zone.registration_open}
+          disabled={isTogglingRegistration}
+          onChange={(event) =>
+            toggleRegistration({
+              boothZoneId: zone.id,
+              data: { registration_open: event.currentTarget.checked },
+            })
+          }
+        />
+      ),
+      searchableValue: (zone) => String(zone.registration_open),
+      width: 120,
     },
     {
       key: "actions",
