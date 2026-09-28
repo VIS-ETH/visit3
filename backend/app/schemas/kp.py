@@ -183,6 +183,7 @@ class UpdateBoothZoneInput(BaseModel):
     capacity: int | None = Field(default=None, ge=0)
     booth_size: float | None = Field(default=None, ge=0)
     base_price: int | None = Field(default=None, ge=0)
+    registration_open: bool | None = None
     layout_description: str | None = Field(
         default=None, max_length=LAYOUT_DESCRIPTION_MAX_LENGTH
     )
@@ -211,6 +212,7 @@ class BoothZoneResponse(BaseModel):
     order: int
     booth_size: float
     base_price: int
+    registration_open: bool
     layout_description: str | None = None
     layout_url: str | None = None
     included_services: list[IncludedServiceResponse]

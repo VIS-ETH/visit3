@@ -303,6 +303,7 @@ class KpEventBoothZone(BaseEntity, table=True):
     color: str = Field(default="#000000")
     order: int = Field(default=100, ge=0)
     capacity: int = Field(default=0, ge=0)
+    registration_open: bool = Field(default=True)
 
     booth_size: SquareMeters = Field(default=0, ge=0)
     base_price: Cents = Field(default=0, ge=0)
