@@ -15,9 +15,20 @@ function toCalendarDate(year: number, month: number, day: number) {
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function todayCalendarDate() {
-  const now = new Date();
-  return toCalendarDate(now.getFullYear(), now.getMonth() + 1, now.getDate());
+const zurichDateFormat = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Europe/Zurich",
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+});
+
+export function todayCalendarDate() {
+  const parts = Object.fromEntries(
+    zurichDateFormat
+      .formatToParts(new Date())
+      .map(({ type, value }) => [type, Number(value)]),
+  );
+  return toCalendarDate(parts.year, parts.month, parts.day);
 }
 
 function toCalendarDateOrNull(value?: string | null) {

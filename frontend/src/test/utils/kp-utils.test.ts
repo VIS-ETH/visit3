@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { formatKpIsoDateInput, getEventStatus } from "../../utils/kp-utils";
+import {
+  formatKpIsoDateInput,
+  getEventStatus,
+  isDeadlinePassed,
+} from "../../utils/kp-utils";
 import type { KpResponse } from "../../orval/generated/fastAPI.schemas";
 
 const timeZones = ["Europe/Zurich", "America/New_York", "UTC"];
@@ -53,13 +57,11 @@ const instantAtWallClock = (
   return instant;
 };
 
-const freezeLocalTime = (
-  calendarDate: string,
-  wallClock: string,
-  timeZone: string,
-) => {
+const freezeZurichTime = (calendarDate: string, wallClock: string) => {
   vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(instantAtWallClock(calendarDate, wallClock, timeZone));
+  vi.setSystemTime(
+    instantAtWallClock(calendarDate, wallClock, "Europe/Zurich"),
+  );
 };
 
 describe.each(timeZones)("getEventStatus under TZ=%s", (timeZone) => {
@@ -73,52 +75,52 @@ describe.each(timeZones)("getEventStatus under TZ=%s", (timeZone) => {
   });
 
   it.each(wallClocks)(
-    "is registration_open on the first day of the window at %s local time",
+    "is registration_open on the first day of the window at %s Zurich time",
     (wallClock) => {
-      freezeLocalTime("2026-03-01", wallClock, timeZone);
+      freezeZurichTime("2026-03-01", wallClock);
 
       expect(getEventStatus(event)).toBe("registration_open");
     },
   );
 
   it.each(wallClocks)(
-    "is registration_open on the last day of the window at %s local time",
+    "is registration_open on the last day of the window at %s Zurich time",
     (wallClock) => {
-      freezeLocalTime("2026-03-31", wallClock, timeZone);
+      freezeZurichTime("2026-03-31", wallClock);
 
       expect(getEventStatus(event)).toBe("registration_open");
     },
   );
 
   it.each(wallClocks)(
-    "is upcoming on the day before the window opens at %s local time",
+    "is upcoming on the day before the window opens at %s Zurich time",
     (wallClock) => {
-      freezeLocalTime("2026-02-28", wallClock, timeZone);
+      freezeZurichTime("2026-02-28", wallClock);
 
       expect(getEventStatus(event)).toBe("upcoming");
     },
   );
 
   it.each(wallClocks)(
-    "is not past on the event day at %s local time",
+    "is not past on the event day at %s Zurich time",
     (wallClock) => {
-      freezeLocalTime("2026-04-20", wallClock, timeZone);
+      freezeZurichTime("2026-04-20", wallClock);
 
       expect(getEventStatus(event)).toBe("upcoming");
     },
   );
 
   it.each(wallClocks)(
-    "is past on the day after the event at %s local time",
+    "is past on the day after the event at %s Zurich time",
     (wallClock) => {
-      freezeLocalTime("2026-04-21", wallClock, timeZone);
+      freezeZurichTime("2026-04-21", wallClock);
 
       expect(getEventStatus(event)).toBe("past");
     },
   );
 
   it("pads single digit months and days before comparing today with the window", () => {
-    freezeLocalTime("2026-01-05", "12:00", timeZone);
+    freezeZurichTime("2026-01-05", "12:00");
 
     expect(
       getEventStatus({
@@ -128,6 +130,32 @@ describe.each(timeZones)("getEventStatus under TZ=%s", (timeZone) => {
         event_date: "2026-01-20",
       }),
     ).toBe("registration_open");
+  });
+
+  it("opens registration at 00:37 Zurich time while UTC is still on the day before", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-27T22:37:00Z"));
+
+    expect(
+      getEventStatus({
+        ...event,
+        registration_open: "2026-09-28",
+        registration_end: "2026-10-05",
+        event_date: "2026-10-20",
+      }),
+    ).toBe("registration_open");
+  });
+
+  it("keeps a deadline open until the end of its Zurich day", () => {
+    freezeZurichTime("2026-04-10", "23:59");
+
+    expect(isDeadlinePassed(event.finalization_deadline)).toBe(false);
+  });
+
+  it("passes a deadline at midnight Zurich time", () => {
+    freezeZurichTime("2026-04-11", "00:00");
+
+    expect(isDeadlinePassed(event.finalization_deadline)).toBe(true);
   });
 });
 

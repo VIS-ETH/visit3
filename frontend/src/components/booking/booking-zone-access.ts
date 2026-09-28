@@ -3,14 +3,10 @@ import {
   type BookingResponse,
   type KpResponse,
 } from "../../orval/generated/fastAPI.schemas";
-
-const toCalendarDate = (date: Date) =>
-  `${String(date.getFullYear()).padStart(4, "0")}-${String(
-    date.getMonth() + 1,
-  ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+import { isDeadlinePassed } from "../../utils/kp-utils";
 
 export const isFinalizationDeadlinePassed = (event: KpResponse) =>
-  event.finalization_deadline.slice(0, 10) < toCalendarDate(new Date());
+  isDeadlinePassed(event.finalization_deadline);
 
 export const isBoothZoneLocked = (booking: BookingResponse) =>
   booking.status === KpBookingStatus.CONFIRMED;

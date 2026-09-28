@@ -32,6 +32,7 @@ import {
   EVENT_STATUS_COLORS,
   formatKpDisplayDate,
   getEventStatus,
+  todayCalendarDate,
 } from "../utils/kp-utils";
 import { canStartNewBooking, isInactiveBooking } from "../utils/my-booking";
 import { formatPrice } from "../utils/price-utils";
@@ -67,7 +68,7 @@ const KpCompanyView = () => {
         event.finalization_deadline,
         event.nametags_deadline,
         event.event_date,
-      ].filter((isoDate) => new Date(isoDate).getTime() <= Date.now()).length
+      ].filter((isoDate) => isoDate <= todayCalendarDate()).length
     : 0;
 
   return (

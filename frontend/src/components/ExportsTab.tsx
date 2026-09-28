@@ -38,6 +38,7 @@ import {
 } from "../orval/generated/kp/kp";
 import { ExportLanguage } from "../orval/generated/fastAPI.schemas";
 import { downloadBlob, safeFilenamePart } from "../utils/download";
+import { todayCalendarDate } from "../utils/kp-utils";
 import { NAMETAG_BACKGROUND_ACCEPT } from "../utils/upload-formats";
 import { useWarnOnLeave } from "../utils/use-warn-on-leave";
 import BookletDesignSection from "./kp/BookletDesignSection";
@@ -47,13 +48,6 @@ const downloadRequestOptions = { responseType: "blob" as const };
 const COMPANY_WORKBOOK_NAMES: Record<ExportLanguage, string> = {
   [ExportLanguage.de]: "unternehmen",
   [ExportLanguage.en]: "companies",
-};
-
-const todayIsoDate = () => {
-  const today = new Date();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-  return `${today.getFullYear()}-${month}-${day}`;
 };
 
 type EventDownloadFunction = (eventId: string) => unknown;
@@ -145,7 +139,7 @@ const ExportsTab = ({
     {
       key: "companies",
       label: t("kp.dashboard.exports.downloads.companies"),
-      filename: `${eventSlug}-${COMPANY_WORKBOOK_NAMES[exportLanguage]}-${todayIsoDate()}.xlsx`,
+      filename: `${eventSlug}-${COMPANY_WORKBOOK_NAMES[exportLanguage]}-${todayCalendarDate()}.xlsx`,
       download: (targetEventId: string) =>
         downloadEventCompaniesXlsx(
           targetEventId,
