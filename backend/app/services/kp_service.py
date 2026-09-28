@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 from uuid import UUID, uuid4
@@ -11,6 +11,7 @@ from app.core.auth_context import (
     require_staff_user,
 )
 from app.core.config import get_settings
+from app.core.dates import local_today
 from app.core.exceptions import (
     CompanyProfileIncomplete,
     CompanyProfileUnconfirmed,
@@ -663,7 +664,7 @@ class KpService:
         exception = await self.kp_repository.get_registration_exception(
             event.id, company_id
         )
-        return exception is not None and exception.allowed_until >= date.today()
+        return exception is not None and exception.allowed_until >= local_today()
 
     async def _ensure_registration_open(self, event: KpEvent, company_id: UUID) -> None:
         if not await self._is_registration_open(event, company_id):

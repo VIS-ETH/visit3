@@ -1,9 +1,9 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
-from zoneinfo import ZoneInfo
 
+from app.core.dates import LOCAL_TIMEZONE, local_today
 from app.core.rich_text import rich_text_plain
 from app.models.company import KpCompanyLanguage
 from app.models.kp_event import (
@@ -23,7 +23,6 @@ from app.services.booking_completeness import (
 from app.services.pricing import price_breakdown
 from app.services.xlsx_service import CellValue, ColumnKind, XlsxColumn, XlsxSheet
 
-LOCAL_TIMEZONE = ZoneInfo("Europe/Zurich")
 REQUIREMENT_PREFIX = "requirement:"
 
 
@@ -454,4 +453,4 @@ def company_workbook_sheets(
 
 def company_workbook_filename(event: KpEvent, language: ExportLanguage) -> str:
     label = LABELS[language].companies_sheet
-    return f"{event.name} {label} {date.today().isoformat()}.xlsx"
+    return f"{event.name} {label} {local_today().isoformat()}.xlsx"

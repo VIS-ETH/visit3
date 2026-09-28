@@ -1,11 +1,12 @@
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import ANY, AsyncMock, Mock, call
 from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
 
+from app.core.dates import local_today
 from app.core.exceptions import (
     KpBookingAlreadyExists,
     KpBookingNotFound,
@@ -712,7 +713,7 @@ async def test_register_booking_allows_registration_exception(
     exception = KpEventRegistrationException(
         event_id=event.id,
         company_id=company_id,
-        allowed_until=date.today(),
+        allowed_until=local_today(),
     )
     booking = make_booking(
         event_id=event.id,
@@ -732,6 +733,38 @@ async def test_register_booking_allows_registration_exception(
     assert result.id == booking.id
     assert result.event_id == booking.event_id
     kp_repo.create_booking.assert_awaited_once()
+
+
+async def test_register_booking_rejects_exception_after_its_zurich_day(
+    kp_repo,
+    storage_service,
+    make_user,
+    freeze_now,
+):
+    company_id = uuid4()
+    event = KpEvent(
+        id=uuid4(),
+        name="Kontaktparty",
+        registration_open=date(2026, 9, 1),
+        registration_end=date(2026, 9, 10),
+        finalization_deadline=date(2026, 10, 10),
+        nametags_deadline=date(2026, 10, 12),
+        event_date=date(2026, 10, 20),
+    )
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_by_id.return_value = event
+    kp_repo.get_registration_exception.return_value = KpEventRegistrationException(
+        event_id=event.id,
+        company_id=company_id,
+        allowed_until=date(2026, 10, 8),
+    )
+    kp_repo.get_booth_zone_by_id.return_value = make_zone(event_id=event.id)
+    freeze_now(datetime(2026, 10, 8, 22, 0, tzinfo=timezone.utc))
+
+    with pytest.raises(KpRegistrationClosed):
+        await service.register_booking(event.id, uuid4(), confirm_profile=True)
+
+    kp_repo.create_booking.assert_not_awaited()
 
 
 async def test_register_booking_rejects_zone_from_different_event(

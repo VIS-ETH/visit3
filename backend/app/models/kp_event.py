@@ -14,6 +14,7 @@ from sqlmodel import (
     UniqueConstraint,
 )
 
+from app.core.dates import local_today
 from app.core.utils import strip_text
 from app.models.base import (
     NOT_DELETED,
@@ -111,15 +112,13 @@ class KpEvent(BaseEntity, table=True):
         return Decimal(self.vat_rate_permille) / PERMILLE_PER_PERCENT
 
     def is_registration_open(self) -> bool:
-        today = date.today()
-        return self.registration_open <= today <= self.registration_end
+        return self.registration_open <= local_today() <= self.registration_end
 
     def is_finalization_deadline_passed(self) -> bool:
-        today = date.today()
-        return self.finalization_deadline < today
+        return self.finalization_deadline < local_today()
 
     def is_nametags_deadline_passed(self) -> bool:
-        return self.nametags_deadline < date.today()
+        return self.nametags_deadline < local_today()
 
     @property
     def finalization_reminder_date(self) -> date:

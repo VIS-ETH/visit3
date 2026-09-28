@@ -10,6 +10,7 @@ from app.core.auth_context import (
     require_staff_user,
 )
 from app.core.config import get_settings
+from app.core.dates import local_today
 from app.core.exceptions import (
     BookletBackgroundRejected,
     BookletPageRenderTimeout,
@@ -168,7 +169,7 @@ class BookletService:
             else ()
         )
         bookings = await self.kp_repository.list_bookings_for_company(company_id)
-        booking = upcoming_booking(bookings, date.today())
+        booking = upcoming_booking(bookings, local_today())
         event = (
             booking.event
             if booking is not None

@@ -1,7 +1,8 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
+from app.core.dates import local_today
 from app.core.maintenance import DAILY, create_scheduler, remind_incomplete_bookings
 from app.models.company import Company
 from app.models.kp_event import (
@@ -17,7 +18,7 @@ REMINDER_DAYS = 3
 
 
 def make_event(*, reminder_days: int = REMINDER_DAYS, deadline_in_days: int) -> KpEvent:
-    deadline = date.today() + timedelta(days=deadline_in_days)
+    deadline = local_today() + timedelta(days=deadline_in_days)
     return KpEvent(
         id=uuid4(),
         name="Kontaktparty",
@@ -61,7 +62,7 @@ async def test_the_job_asks_for_bookings_due_today():
     await send_incomplete_booking_reminders(kp_repository, AsyncMock(), FAKE_NOW)
 
     kp_repository.list_registered_bookings_awaiting_reminder.assert_awaited_once_with(
-        date.today()
+        local_today()
     )
 
 

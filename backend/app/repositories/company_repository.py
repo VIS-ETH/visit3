@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.selectable import Select
 from sqlmodel import col, select
 
+from app.core.dates import local_today
 from app.core.exceptions import CompanyNameTaken
 from app.core.utils import hash_str, normalize_email
 from app.models.company import Company, CompanyInvite, KpCompanyProfile
@@ -331,7 +332,7 @@ class CompanyRepository(BaseRepository[Company]):
             .where(
                 col(KpEventBooking.company_id) == company_id,
                 col(KpEventBooking.status).notin_(INACTIVE_BOOKING_STATUSES),
-                col(KpEvent.event_date) >= date.today(),
+                col(KpEvent.event_date) >= local_today(),
             )
             .limit(1)
         )

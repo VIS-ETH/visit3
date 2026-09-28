@@ -16,6 +16,7 @@ from openpyxl import Workbook, load_workbook
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
+from app.core.dates import local_today
 from app.models.company import KpCompanyProfile
 from app.models.industry import Industry
 from app.models.kp_event import (
@@ -551,8 +552,8 @@ async def test_company_workbook_is_an_xlsx_download(
     ascii_name, encoded_name = disposition_names(response)
     assert response.status_code == 200
     assert response.headers["content-type"] == XLSX_MEDIA_TYPE
-    assert encoded_name == f"{SAFE_PREFIX} Unternehmen {date.today().isoformat()}.xlsx"
-    assert ascii_name == f"{ASCII_PREFIX} Unternehmen {date.today().isoformat()}.xlsx"
+    assert encoded_name == f"{SAFE_PREFIX} Unternehmen {local_today().isoformat()}.xlsx"
+    assert ascii_name == f"{ASCII_PREFIX} Unternehmen {local_today().isoformat()}.xlsx"
     assert open_workbook(response).sheetnames == ["Unternehmen", "Kontakte"]
 
 
@@ -576,7 +577,7 @@ async def test_company_workbook_follows_the_staff_language(
     _, encoded_name = disposition_names(response)
     workbook = open_workbook(response)
     rows = sheet_rows(workbook, "Companies")
-    assert encoded_name == f"{SAFE_PREFIX} Companies {date.today().isoformat()}.xlsx"
+    assert encoded_name == f"{SAFE_PREFIX} Companies {local_today().isoformat()}.xlsx"
     assert workbook.sheetnames == ["Companies", "Contacts"]
     assert [cell.value for cell in workbook["Companies"][1]][:4] == [
         "Company",

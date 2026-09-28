@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
+from app.core.dates import local_today
 from app.core.deleted_filter import include_deleted
 from app.models.base import BaseEntity
 from app.models.company import Company, CompanyInvite, KpCompanyProfile
@@ -390,7 +391,7 @@ async def test_has_bookings_for_upcoming_events_detects_today_and_future(
     upcoming = await create_company_with_booking(
         company_repository,
         db_session,
-        event_date=date.today(),
+        event_date=local_today(),
         company_name="Today AG",
     )
 
