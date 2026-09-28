@@ -4,6 +4,7 @@
     "company_name": "Company",
     "users_count": "Members",
     "bookings_count": "Bookings",
+    "view_booking": "View booking",
     "actions": "Actions",
     "error": "Failed to load companies",
     "search_placeholder": "Search companies",

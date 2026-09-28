@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse, type DefaultBodyType } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
+import { Route, Routes, useParams } from "react-router";
 import { UserProvider } from "../../context/UserContext";
 import {
   KpBookingStatus,
@@ -37,6 +38,11 @@ let deleteResponse: () => HttpResponse<DefaultBodyType>;
 let latestEvent: KpResponse | null = null;
 let eventBookings: StaffBookingResponse[] = [];
 let bookingActions: string[] = [];
+
+const BookingRouteProbe = () => {
+  const { id, bookingId } = useParams();
+  return <p>{`${id}/${bookingId}`}</p>;
+};
 
 const acmeBooking = (status: KpBookingStatus): StaffBookingResponse => ({
   ...testStaffBooking,
@@ -408,6 +414,31 @@ describe("confirming bookings from the company management", () => {
     expect(bookingActions).toEqual(["accept"]);
     expect(
       row.getByRole("button", { name: "kp.manage.booking_action_undo_accept" }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the booking next to its confirm action", async () => {
+    latestEvent = testOpenEvent;
+    eventBookings = [acmeBooking(KpBookingStatus.REGISTERED)];
+    const { user } = renderWithProviders(
+      <UserProvider user={staffUser} isLoading={false}>
+        <Routes>
+          <Route path="/" element={<CompanyManagement />} />
+          <Route
+            path="/kp/:id/bookings/:bookingId"
+            element={<BookingRouteProbe />}
+          />
+        </Routes>
+      </UserProvider>,
+    );
+    const row = await acmeRow();
+
+    await user.click(
+      await row.findByRole("link", { name: "company_management.view_booking" }),
+    );
+
+    expect(
+      await screen.findByText(`${testOpenEvent.id}/${testStaffBooking.id}`),
     ).toBeInTheDocument();
   });
 

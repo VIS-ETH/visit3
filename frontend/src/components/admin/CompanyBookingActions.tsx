@@ -1,7 +1,8 @@
 import { Button, Group } from "@mantine/core";
-import { IconArrowBackUp, IconCheck } from "@tabler/icons-react";
+import { IconArrowBackUp, IconCheck, IconEye } from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { NavLink } from "react-router";
 import type { StaffBookingResponse } from "../../orval/generated/fastAPI.schemas";
 import {
   canAcceptBooking,
@@ -62,6 +63,15 @@ const CompanyBookingActions = ({
           {t("kp.manage.booking_action_undo_accept")}
         </Button>
       ) : null}
+      <Button
+        component={NavLink}
+        leftSection={<IconEye size={14} />}
+        size="xs"
+        to={`/kp/${eventId}/bookings/${booking.id}`}
+        variant="subtle"
+      >
+        {t("company_management.view_booking")}
+      </Button>
       <BookingConfirmModal
         body={t("kp.manage.booking_accept_body")}
         color="green"

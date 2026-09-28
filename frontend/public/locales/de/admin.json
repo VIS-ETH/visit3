@@ -4,6 +4,7 @@
     "company_name": "Unternehmen",
     "users_count": "Mitglieder",
     "bookings_count": "Buchungen",
+    "view_booking": "Buchung ansehen",
     "actions": "Aktionen",
     "error": "Unternehmen konnten nicht geladen werden",
     "search_placeholder": "Unternehmen suchen",
