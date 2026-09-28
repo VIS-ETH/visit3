@@ -17,6 +17,7 @@ from app.core.exceptions import (
     KeycloakExchangeFailed,
     NotVisMember,
 )
+from app.core.rate_limit import login_throttle
 from app.core.utils import hash_str
 from app.models.user import RefreshToken, User
 from app.repositories.token_repository import REFRESH_TOKEN_REUSE_GRACE
@@ -186,6 +187,24 @@ async def test_login_throttles_unknown_accounts_like_known_ones(
 
     assert responses[-2].status_code == 400
     assert responses[-1].status_code == 429
+
+
+async def test_a_failed_login_after_the_address_window_expired_is_rejected_cleanly(
+    client: AsyncClient,
+    csrf_headers: dict[str, str],
+    company_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    now = [1000.0]
+    monkeypatch.setattr(login_throttle, "clock", lambda: now[0])
+    monkeypatch.setattr(login_throttle._addresses, "clock", lambda: now[0])
+    await login(client, csrf_headers, "nobody@example.com", "wrong-password")
+    now[0] += get_settings().LOGIN_IP_WINDOW_SECONDS
+
+    response = await login(client, csrf_headers, company_user.email, "wrong-password")
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "error.invalid_credentials"
 
 
 async def test_a_successful_login_resets_the_failure_count(

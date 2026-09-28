@@ -87,3 +87,26 @@ def test_account_keys_ignore_case():
 
     with pytest.raises(RateLimited):
         limiter.check("10.0.0.1", "ada@example.com")
+
+
+def test_a_failure_after_the_address_window_expired_is_recorded():
+    clock = Clock()
+    limiter = throttle(clock)
+    fail(limiter, 1, "10.0.0.1", "ada@example.com")
+    clock.now += 900
+
+    fail(limiter, 1, "10.0.0.1", "bob@example.com")
+
+    limiter.check("10.0.0.1", "bob@example.com")
+
+
+def test_the_address_still_blocks_after_an_expired_window():
+    clock = Clock()
+    limiter = throttle(clock)
+    fail(limiter, 1, "10.0.0.1", "ada@example.com")
+    clock.now += 900
+    for index in range(10):
+        fail(limiter, 1, "10.0.0.1", f"user{index}@example.com")
+
+    with pytest.raises(RateLimited):
+        limiter.check("10.0.0.1", "fresh@example.com")

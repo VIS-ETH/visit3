@@ -52,6 +52,8 @@ class SlidingWindowRateLimiter:
             return False
         while hits and now - hits[0] >= self.window_seconds:
             hits.popleft()
+        if not hits:
+            del self._hits[key]
         return len(hits) >= self.limit
 
     def reset(self) -> None:
@@ -60,7 +62,7 @@ class SlidingWindowRateLimiter:
     def _drop_emptied_windows(self, now: float) -> None:
         while self._hits:
             key, hits = next(iter(self._hits.items()))
-            if now - hits[-1] < self.window_seconds:
+            if hits and now - hits[-1] < self.window_seconds:
                 return
             del self._hits[key]
 

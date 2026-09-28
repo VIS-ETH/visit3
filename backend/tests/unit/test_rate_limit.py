@@ -115,6 +115,41 @@ def test_the_oldest_key_is_evicted_first():
     assert limiter.allow("c") is False
 
 
+def test_a_window_emptied_by_a_check_does_not_break_the_next_hit():
+    clock = FakeClock()
+    limiter = _limiter(clock)
+    limiter.allow("a")
+
+    clock.advance(60)
+    assert limiter.exhausted("a") is False
+
+    assert limiter.allow("b") is True
+
+
+def test_a_window_emptied_by_a_check_is_dropped():
+    clock = FakeClock()
+    limiter = _limiter(clock)
+    limiter.allow("a")
+
+    clock.advance(60)
+    limiter.exhausted("a")
+
+    assert limiter.tracked_keys == 0
+
+
+def test_an_exhausted_key_stays_blocked_until_its_window_slides():
+    clock = FakeClock()
+    limiter = _limiter(clock)
+    for _ in range(3):
+        limiter.allow("a")
+
+    clock.advance(59)
+    assert limiter.exhausted("a") is True
+    clock.advance(1)
+    assert limiter.exhausted("a") is False
+    assert limiter.allow("a") is True
+
+
 def _request(peer: str, forwarded: str | None = None) -> Request:
     headers: list[tuple[bytes, bytes]] = []
     if forwarded is not None:
