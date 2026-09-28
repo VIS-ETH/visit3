@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
+import grpc
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient, Response
@@ -688,3 +689,30 @@ async def test_moving_the_deadline_of_a_regular_booking_is_refused(
     assert moved.status_code == 409
     assert moved.json()["code"] == "error.kp_booking_not_offered"
     assert cancelled.json()["code"] == "error.kp_booking_status_transition_invalid"
+
+
+async def test_an_offer_is_stored_when_the_mail_service_fails(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    company_headers: dict[str, str],
+    company_user: User,
+    kp_setup: KpSetup,
+    ready_company: None,
+    mail_stub: AsyncMock,
+):
+    mail_stub.SendMail.side_effect = grpc.RpcError()
+
+    offered = await offer(
+        client,
+        staff_headers,
+        kp_setup.event_id,
+        company_user.company_id,
+        kp_setup.booth_zone_id,
+        in_days(3),
+    )
+    mine = await client.get(
+        f"/api/kp/events/{kp_setup.event_id}/my-booking", headers=company_headers
+    )
+
+    assert offered.status_code == 200
+    assert mine.json()["id"] == offered.json()["id"]
