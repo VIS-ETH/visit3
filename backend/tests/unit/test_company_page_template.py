@@ -8,6 +8,8 @@ import typst
 
 from app.core.rich_text import rich_text_blocks
 from app.services.pdf_service import FONTS_DIR, TEMPLATES_DIR
+from app.services.typst_worker import render_png
+from tests.booklet_pdfs import make_pdf
 
 TEMPLATE = "company_page.typ"
 PROBE = """
@@ -130,3 +132,102 @@ def test_the_sidebar_keeps_the_contact_data_internal(tmp_path: Path):
     assert "CONTACT" not in rendered
     assert "internal@acme.example" not in rendered
     assert "+41 44 000 00 00" not in rendered
+
+
+EMAIL_PROBE = """
+#import "company_page.typ": email-lines, sidebar-inner-width, sidebar-value-size
+#set text(font: "DejaVu Sans")
+#let address = sys.inputs.at("address")
+#context {
+  let lines = email-lines(address, sidebar-inner-width)
+  let widths = lines.map(line => measure(text(size: sidebar-value-size, line)).width / 1pt)
+  [#metadata((lines: lines, widths: widths, limit: sidebar-inner-width / 1pt)) <lines>]
+}
+"""
+NORMAL_ADDRESS = "jobs@acme.example"
+LONG_ADDRESSES = [
+    "karriere.studierende-kontakt@beispiel-robotics-engineering.example.com",
+    "studierendenkontaktkarriere@beispielroboticsengineeringgruppe.example.com",
+    "a" * 64 + "@" + "b" * 60 + ".example.com",
+    "a#b$c*d_e`f<g>h@acme.example",
+]
+SEPARATOR_ADDRESS = LONG_ADDRESSES[0]
+
+
+def compile_probe(tmp_path: Path, probe: str, inputs: dict[str, str]) -> typst.Compiler:
+    copyfile(TEMPLATES_DIR / TEMPLATE, tmp_path / TEMPLATE)
+    (tmp_path / "probe.typ").write_text(probe)
+    return typst.Compiler(
+        str(tmp_path / "probe.typ"),
+        root=str(tmp_path),
+        font_paths=[str(FONTS_DIR)],
+        ignore_system_fonts=True,
+        sys_inputs=inputs,
+    )
+
+
+def email_lines(tmp_path: Path, address: str) -> dict[str, Any]:
+    compiler = compile_probe(tmp_path, EMAIL_PROBE, {"address": address})
+    return json.loads(compiler.query("<lines>", field="value", one=True))
+
+
+def sidebar_texts(tmp_path: Path, entry: dict[str, object]) -> list[str]:
+    compiler = compile_probe(tmp_path, SIDEBAR_PROBE, {"data": json.dumps(entry)})
+    return texts(json.loads(compiler.query("<sidebar>", field="value", one=True)))
+
+
+def test_a_normal_student_email_stays_on_one_line(tmp_path: Path):
+    assert email_lines(tmp_path, NORMAL_ADDRESS)["lines"] == [NORMAL_ADDRESS]
+
+
+@pytest.mark.parametrize("address", LONG_ADDRESSES)
+def test_a_long_student_email_wraps_inside_the_sidebar(tmp_path: Path, address: str):
+    probed = email_lines(tmp_path, address)
+
+    assert "".join(probed["lines"]) == address
+    assert all(width <= probed["limit"] for width in probed["widths"])
+
+
+def test_a_long_student_email_breaks_at_its_separators(tmp_path: Path):
+    lines = email_lines(tmp_path, SEPARATOR_ADDRESS)["lines"]
+
+    assert len(lines) > 1
+    assert all(line.startswith((".", "@", "-", "_")) for line in lines[1:])
+
+
+def test_the_sidebar_shows_the_student_contact_above_the_website(tmp_path: Path):
+    rendered = sidebar_texts(
+        tmp_path,
+        {"student_contact_email": NORMAL_ADDRESS, "website": "https://acme.example"},
+    )
+
+    assert rendered.index("CONTACT") < rendered.index("WEBSITE")
+
+
+def test_the_sidebar_has_no_contact_block_without_a_student_email(tmp_path: Path):
+    rendered = sidebar_texts(tmp_path, {"website": "https://acme.example"})
+
+    assert "CONTACT" not in rendered
+
+
+@pytest.mark.parametrize("with_background", [False, True])
+@pytest.mark.parametrize("address", [NORMAL_ADDRESS, *LONG_ADDRESSES])
+def test_a_page_with_a_student_email_renders_without_overflow(
+    address: str, with_background: bool
+):
+    files = {"background.pdf": make_pdf(fill="#fde68a")} if with_background else {}
+
+    png, overflow = render_png(
+        TEMPLATE,
+        {
+            "company": "Acme AG",
+            "student_contact_email": address,
+            "website": "https://acme.example",
+            "background_path": "background.pdf" if with_background else None,
+        },
+        files,
+        "overflow",
+    )
+
+    assert png.startswith(b"\x89PNG")
+    assert overflow is False

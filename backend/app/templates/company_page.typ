@@ -5,6 +5,8 @@
 #let sidebar-padding = 6mm
 #let logo-height = 22mm
 #let body-size = 8pt
+#let sidebar-value-size = 7.5pt
+#let sidebar-inner-width = sidebar-width - 2 * sidebar-padding
 #let neutral-banner = rgb("#4b5563")
 #let muted = rgb("#5f6368")
 #let white = rgb("#ffffff")
@@ -38,8 +40,39 @@
 #let sidebar-row(label, value) = stack(
   spacing: 1.4mm,
   sidebar-label(label),
-  text(size: 7.5pt, fill: white, value),
+  text(size: sidebar-value-size, fill: white, value),
 )
+
+#let email-lines(address, width) = {
+  let fits(value) = measure(text(size: sidebar-value-size, value)).width <= width
+  let pieces = ()
+  let piece = ""
+  for char in address.clusters() {
+    if char in (".", "@", "-", "_") and piece != "" {
+      pieces.push(piece)
+      piece = ""
+    }
+    piece += char
+  }
+  if piece != "" { pieces.push(piece) }
+  let lines = ()
+  let line = ""
+  for piece in pieces {
+    if line != "" and not fits(line + piece) {
+      lines.push(line)
+      line = ""
+    }
+    for char in piece.clusters() {
+      if line != "" and not fits(line + char) {
+        lines.push(line)
+        line = ""
+      }
+      line += char
+    }
+  }
+  if line != "" { lines.push(line) }
+  lines
+}
 
 #let yes-no(value) = if value [Yes] else [No]
 
@@ -85,6 +118,7 @@
   set par(leading: 0.45em)
   let logo = field(entry, "logo_path")
   let booth = field(entry, "booth_number")
+  let contact = field(entry, "student_contact_email")
   let languages = entry.at("languages", default: ())
   let industries = entry.at("industries", default: ())
   let offers = entry.at("offers", default: (:))
@@ -96,6 +130,12 @@
   }
   if booth != "" {
     items.push(align(right, text(size: 16pt, weight: "bold", fill: white, booth)))
+  }
+  if contact != "" {
+    items.push(sidebar-row(
+      "Contact",
+      context email-lines(contact, sidebar-inner-width).join(linebreak()),
+    ))
   }
   if field(entry, "website") != "" {
     items.push(sidebar-row("Website", field(entry, "website")))
@@ -133,7 +173,6 @@
 
 #let body-width = page-width - sidebar-width - 2 * content-padding
 #let body-height = page-height - 2 * content-padding
-#let sidebar-inner-width = sidebar-width - 2 * sidebar-padding
 #let sidebar-inner-height = page-height - 2 * sidebar-padding
 
 #let company-page-overflows(entry) = {

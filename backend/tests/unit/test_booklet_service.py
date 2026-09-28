@@ -185,6 +185,22 @@ async def test_the_page_shows_the_unsaved_form_values(
     }
 
 
+async def test_the_student_email_reaches_the_page_when_set(
+    prepared_repos, storage_service, pdf_service, company_user
+):
+    service = make_service(prepared_repos, storage_service, pdf_service, company_user)
+
+    await service.preview_my_company_page(
+        UpdateCompanyProfileInput(
+            general_email="info@acme.example",
+            student_contact_email="jobs@acme.example",
+        )
+    )
+
+    assert rendered_entry(pdf_service)["student_contact_email"] == "jobs@acme.example"
+    assert "general_email" not in rendered_entry(pdf_service)
+
+
 async def test_without_a_booking_the_latest_event_background_is_used(
     prepared_repos, storage_service, pdf_service, company_user, company
 ):

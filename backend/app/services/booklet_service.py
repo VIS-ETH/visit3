@@ -125,6 +125,11 @@ def company_page_entry(
         "booth_number": str(booking.booth_nr)
         if booking is not None and booking.booth_nr is not None
         else None,
+        **(
+            {"student_contact_email": profile.student_contact_email}
+            if profile.student_contact_email
+            else {}
+        ),
     }
 
 
