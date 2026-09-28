@@ -78,6 +78,7 @@
     "kp_booth_zone_not_found": "Die ausgewählte Standzone wurde nicht gefunden.",
     "kp_booth_zone_event_mismatch": "Die ausgewählte Standzone gehört zu einem anderen KP-Event.",
     "kp_booth_zone_in_use": "Diese Standzone wird noch von einer aktiven Buchung genutzt und kann nicht gelöscht werden.",
+    "kp_booth_zone_order_invalid": "Die Standzonen wurden inzwischen geändert. Bitte laden Sie die Seite neu und versuchen Sie es erneut.",
     "kp_booth_zone_name_exists": "Eine Standzone mit diesem Namen existiert bereits für dieses Event.",
     "kp_booth_zone_color_exists": "Eine Standzone mit dieser Farbe existiert bereits für dieses Event.",
     "kp_booth_number_taken": "Eine andere aktive Buchung in dieser Standzone verwendet diese Standnummer bereits.",

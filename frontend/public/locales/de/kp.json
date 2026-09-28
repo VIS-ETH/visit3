@@ -517,6 +517,8 @@
       "zone_updated": "Standzone aktualisiert.",
       "zone_deleted": "Standzone gelöscht.",
       "zone_confirm_delete": "Diese Standzone löschen?",
+      "zone_move_up": "Nach oben",
+      "zone_move_down": "Nach unten",
       "bookings_title": "Buchungen",
       "bookings_empty": "Noch keine Buchungen.",
       "bookings_no_results": "Keine Buchungen passen zur Suche.",

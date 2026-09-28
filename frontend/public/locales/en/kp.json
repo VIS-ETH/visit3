@@ -517,6 +517,8 @@
       "zone_updated": "Booth zone updated.",
       "zone_deleted": "Booth zone deleted.",
       "zone_confirm_delete": "Delete this booth zone?",
+      "zone_move_up": "Move up",
+      "zone_move_down": "Move down",
       "bookings_title": "Bookings",
       "bookings_empty": "No bookings yet.",
       "bookings_no_results": "No bookings match your search.",

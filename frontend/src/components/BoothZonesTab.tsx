@@ -20,6 +20,8 @@ import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
   IconAlertCircle,
+  IconArrowDown,
+  IconArrowUp,
   IconEdit,
   IconExternalLink,
   IconPlus,
@@ -38,6 +40,7 @@ import {
   useDeleteBoothZoneLayoutFile,
   useListBoothZones,
   useListServices,
+  useReorderBoothZones,
   useUpdateBoothZone,
   useUploadBoothZoneLayoutFile,
 } from "../orval/generated/kp/kp";
@@ -57,6 +60,7 @@ import {
 import DataTable, { type DataTableColumn } from "./DataTable";
 import RepickableFileButton from "./RepickableFileButton";
 import { useWarnOnLeave } from "../utils/use-warn-on-leave";
+import { swapped } from "../utils/swapped";
 
 type BoothZoneRow = ListBoothZonesQueryResult[number];
 
@@ -125,6 +129,22 @@ const BoothZonesTab = ({ eventId }: { eventId: string }) => {
       },
     },
   });
+
+  const { mutate: reorder, isPending: isReordering } = useReorderBoothZones({
+    mutation: {
+      onSuccess: (reordered) =>
+        queryClient.setQueryData(getListBoothZonesQueryKey(eventId), reordered),
+    },
+  });
+
+  const zoneIds = (zones ?? []).map((zone) => zone.id);
+  const moveZone = (zone: BoothZoneRow, offset: number) => {
+    const index = zoneIds.indexOf(zone.id);
+    reorder({
+      eventId,
+      data: { booth_zone_ids: swapped(zoneIds, index, index + offset) },
+    });
+  };
 
   const isSaving =
     isCreating || isUpdating || isUploadingLayout || isDeletingLayout;
@@ -281,7 +301,23 @@ const BoothZonesTab = ({ eventId }: { eventId: string }) => {
       key: "actions",
       header: "",
       render: (zone) => (
-        <Group gap="xs">
+        <Group gap="xs" wrap="nowrap">
+          <ActionIcon
+            variant="subtle"
+            aria-label={t("kp.manage.zone_move_up")}
+            disabled={zone.id === zoneIds.at(0) || isReordering}
+            onClick={() => moveZone(zone, -1)}
+          >
+            <IconArrowUp size={16} />
+          </ActionIcon>
+          <ActionIcon
+            variant="subtle"
+            aria-label={t("kp.manage.zone_move_down")}
+            disabled={zone.id === zoneIds.at(-1) || isReordering}
+            onClick={() => moveZone(zone, 1)}
+          >
+            <IconArrowDown size={16} />
+          </ActionIcon>
           <ActionIcon
             variant="subtle"
             onClick={() => openEditModal(zone)}
@@ -303,7 +339,7 @@ const BoothZonesTab = ({ eventId }: { eventId: string }) => {
           </ActionIcon>
         </Group>
       ),
-      width: 90,
+      width: 160,
     },
   ];
 

@@ -78,6 +78,7 @@
     "kp_booth_zone_not_found": "The selected booth zone could not be found.",
     "kp_booth_zone_event_mismatch": "The selected booth zone belongs to a different KP event.",
     "kp_booth_zone_in_use": "This booth zone is still used by an active booking and cannot be deleted.",
+    "kp_booth_zone_order_invalid": "The booth zones changed in the meantime. Reload the page and try again.",
     "kp_booth_zone_name_exists": "A booth zone with this name already exists for this event.",
     "kp_booth_zone_color_exists": "A booth zone with this color already exists for this event.",
     "kp_booth_number_taken": "Another active booking in this booth zone already uses this booth number.",

@@ -34,13 +34,8 @@ import {
 } from "../../orval/generated/kp/kp";
 import { formatPrice } from "../../utils/price-utils";
 import { priceBreakdown } from "../../utils/pricing";
+import { swapped } from "../../utils/swapped";
 import { KpBoothZoneColorSwatch } from "../KpBoothZoneColorSwatch";
-
-const swapped = (zoneIds: string[], index: number, target: number) => {
-  const reordered = [...zoneIds];
-  [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
-  return reordered;
-};
 
 interface WaitlistCardProps {
   event: KpResponse;
