@@ -137,6 +137,7 @@
     "kp_contact_user_placeholder": "Mitglied auswählen",
     "kp_contact_user_hint": "Die Organisator:innen wenden sich für alles rund um das Event an dieses Mitglied.",
     "general_email": "Allgemeine E-Mail",
+    "general_email_hint": "Zweite Adresse, über die wir Sie erreichen. Erscheint nicht im Booklet.",
     "general_email_placeholder": "info@firma.ch",
     "general_phone": "Allgemeine Telefonnummer",
     "billing_company_name": "Unternehmensname für die Rechnung",

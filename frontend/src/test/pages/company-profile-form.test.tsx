@@ -506,6 +506,14 @@ describe("Company profile form", () => {
 
     expect(await backLinkHref()).toBe("/kp/event-1/booking");
   });
+
+  it("explains the general email under the field", async () => {
+    renderProfile();
+
+    expect(
+      await screen.findByText("company_profile_form.general_email_hint"),
+    ).toBeInTheDocument();
+  });
 });
 
 describe("Company booklet page", () => {

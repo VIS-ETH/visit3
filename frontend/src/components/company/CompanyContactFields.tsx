@@ -49,6 +49,7 @@ const CompanyContactFields = ({
           id={profileFieldId("general_email")}
           label={t("company_profile_form.general_email")}
           placeholder={t("company_profile_form.general_email_placeholder")}
+          description={t("company_profile_form.general_email_hint")}
           withAsterisk
           autoComplete="email"
           disabled={disabled}
