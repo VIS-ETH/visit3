@@ -43,6 +43,16 @@ class CompanyNotFound(AppError):
         )
 
 
+class CompanyGeneralEmailIsLogin(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The general email must differ from the login emails of the company",
+            "error.company_general_email_is_login",
+            identifier,
+            400,
+        )
+
+
 class CompanyUserNotFound(AppError):
     def __init__(self, identifier: str):
         super().__init__(

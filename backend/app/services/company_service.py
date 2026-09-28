@@ -15,6 +15,7 @@ from app.core.auth_context import (
 )
 from app.core.config import get_settings
 from app.core.exceptions import (
+    CompanyGeneralEmailIsLogin,
     CompanyHasUpcomingBookings,
     CompanyInvitePending,
     CompanyNameTaken,
@@ -59,6 +60,10 @@ logger = logging.getLogger(__name__)
 INVITE_EXPIRE = timedelta(days=7)
 LOGO_CONTEXT = "company_profile_logo"
 LOGO_MIME_TYPES = {"image/png", "image/jpeg", "image/webp"}
+
+
+def _normalized_email(email: str | None) -> str:
+    return (email or "").strip().casefold()
 
 
 def member_result(user: User) -> CompanyMemberResult:
@@ -448,9 +453,31 @@ class CompanyService:
             raise CompanyNotFound(f"{action}:{company_id}")
         return company
 
+    async def _ensure_general_email_is_not_a_login(
+        self, company_id: UUID, general_email: str | None
+    ) -> None:
+        normalized = _normalized_email(general_email)
+        if not normalized:
+            return
+        company = await self._ensure_company_exists(
+            company_id, "update_company_profile"
+        )
+        members = await self.company_repository.get_users(company)
+        if all(_normalized_email(member.email) != normalized for member in members):
+            return
+        stored = await self.company_repository.get_kp_profile(company_id)
+        if stored is not None and _normalized_email(stored.general_email) == normalized:
+            return
+        raise CompanyGeneralEmailIsLogin(
+            f"update_company_profile:general_email_is_login:{company_id}"
+        )
+
     async def _validate_profile_input(
         self, company_id: UUID, profile_input: UpdateCompanyProfileInput
     ) -> None:
+        await self._ensure_general_email_is_not_a_login(
+            company_id, profile_input.general_email
+        )
         if profile_input.kp_contact_user_id is not None:
             company = await self._ensure_company_exists(
                 company_id, "update_company_profile"
