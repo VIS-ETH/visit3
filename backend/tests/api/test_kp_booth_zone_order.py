@@ -322,3 +322,32 @@ async def test_staff_without_president_role_cannot_reorder_zones(
     )
 
     assert response.status_code == 403
+
+
+async def test_a_clone_keeps_the_zone_order_and_reopens_closed_zones(
+    client: AsyncClient, staff_headers: dict[str, str], zone_world: ZoneWorld
+):
+    new_order = [zone_world.side_id, zone_world.annex_id, zone_world.main_id]
+    await reorder(client, staff_headers, zone_world.event_id, new_order)
+    await client.patch(
+        f"/api/kp/booth-zones/{zone_world.side_id}",
+        json={"registration_open": False},
+        headers=staff_headers,
+    )
+
+    clone = await client.post(
+        f"/api/kp/events/{zone_world.event_id}/clone",
+        json=kp_payload("Kontaktparty clone"),
+        headers=staff_headers,
+    )
+    zones = await client.get(
+        f"/api/kp/events/{clone.json()['id']}/booth-zones", headers=staff_headers
+    )
+
+    assert clone.status_code == 200
+    assert [zone["name"] for zone in zones.json()] == [
+        "Side hall",
+        "Annex",
+        "Main hall",
+    ]
+    assert all(zone["registration_open"] for zone in zones.json())
