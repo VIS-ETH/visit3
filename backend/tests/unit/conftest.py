@@ -1,9 +1,11 @@
 from collections.abc import Callable
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
 
+from app.core import dates
 from app.models.company import Company, KpCompanyProfile
 from app.models.kp_event import KpBookingCompanyDetails
 from app.models.user import User
@@ -177,3 +179,13 @@ def unconfirmed_user(make_user: Callable[..., User]) -> User:
         user_confirmed=False,
         email_confirmed=False,
     )
+
+
+@pytest.fixture
+def freeze_now(monkeypatch: pytest.MonkeyPatch) -> Callable[[datetime], None]:
+    def freeze(instant: datetime) -> None:
+        monkeypatch.setattr(
+            dates, "datetime", MagicMock(now=lambda tz=None: instant.astimezone(tz))
+        )
+
+    return freeze
