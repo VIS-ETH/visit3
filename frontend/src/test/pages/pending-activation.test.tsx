@@ -34,6 +34,7 @@ beforeEach(() => {
       HttpResponse.json(currentUser),
     ),
     http.get(`${testBackendUrl}/api/kp/latest`, () => HttpResponse.json(null)),
+    http.get(`${testBackendUrl}/api/kp/list`, () => HttpResponse.json([])),
   );
 });
 
@@ -63,7 +64,7 @@ describe("an account waiting for activation", () => {
     renderWithProviders(<App />, { route: "/" });
 
     expect(
-      await screen.findByText("home.kp.title", {}, { timeout: 5000 }),
+      await screen.findByText("kp.dashboard.title", {}, { timeout: 5000 }),
     ).toBeInTheDocument();
     expect(
       screen.queryByText("user.pending_activation"),

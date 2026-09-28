@@ -92,7 +92,7 @@ const Navbar = () => {
         <Stack gap="xs">
           <Button
             component={NavLink}
-            to="/"
+            to={user && (user.is_staff || user.is_admin) ? "/kp" : "/"}
             leftSection={<IconHome2 />}
             variant="subtle"
             justify="flex-start"

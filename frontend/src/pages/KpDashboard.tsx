@@ -17,7 +17,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
-import BackButton from "../components/BackButton";
 import DataTable, { type DataTableColumn } from "../components/DataTable";
 import {
   emptyEventSettingsValues,
@@ -183,8 +182,6 @@ const KpDashboard = () => {
 
   return (
     <Stack gap="md">
-      <BackButton to="/" />
-
       <Group justify="space-between" align="center">
         <Title order={2}>{t("kp.dashboard.title")}</Title>
         <Button leftSection={<IconPlus size={16} />} onClick={openModal}>
