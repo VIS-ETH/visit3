@@ -1,5 +1,6 @@
 import {
   Anchor,
+  Badge,
   Button,
   Center,
   Checkbox,
@@ -19,6 +20,7 @@ import {
   IconChevronDown,
   IconChevronUp,
   IconDownload,
+  IconGift,
   IconSearch,
   IconSelector,
 } from "@tabler/icons-react";
@@ -30,6 +32,7 @@ import BookingNewAdditionsBadge from "./bookings/BookingNewAdditionsBadge";
 import BookingCompletenessIcon from "./bookings/BookingCompletenessIcon";
 import BookingConfirmModal from "./bookings/BookingConfirmModal";
 import BookingDeleteModal from "./bookings/BookingDeleteModal";
+import OfferBookingModal from "./bookings/OfferBookingModal";
 import BookingRejectModal from "./bookings/BookingRejectModal";
 import BookingRowActions, {
   type BookingRowActionKind,
@@ -50,7 +53,10 @@ import {
   deleteRequiresForce,
 } from "../utils/booking-status";
 import { downloadBlob } from "../utils/download";
-import { BOOKING_STATUS_LABEL_KEYS } from "../utils/kp-utils";
+import {
+  BOOKING_STATUS_LABEL_KEYS,
+  formatKpDisplayDate,
+} from "../utils/kp-utils";
 import { formatPrice } from "../utils/price-utils";
 
 type BookingRow = ListEventBookingsQueryResult[number];
@@ -87,8 +93,15 @@ const SortableHeader = ({
   </UnstyledButton>
 );
 
-const BookingsTab = ({ eventId }: { eventId: string }) => {
+const BookingsTab = ({
+  eventId,
+  canOffer = false,
+}: {
+  eventId: string;
+  canOffer?: boolean;
+}) => {
   const { t } = useTranslation();
+  const [isOfferOpen, setIsOfferOpen] = useState(false);
   const navigate = useNavigate();
   const { data: bookings, isLoading } = useListEventBookings(eventId);
   const actions = useBookingActions(eventId);
@@ -229,6 +242,15 @@ const BookingsTab = ({ eventId }: { eventId: string }) => {
         <Group justify="space-between" align="flex-end">
           <Title order={4}>{t("kp.manage.bookings_title")}</Title>
           <Group gap="sm">
+            {canOffer ? (
+              <Button
+                leftSection={<IconGift size={16} />}
+                onClick={() => setIsOfferOpen(true)}
+                variant="default"
+              >
+                {t("kp.manage.offer_button")}
+              </Button>
+            ) : null}
             <Button
               disabled={acceptableSelectedIds.length === 0}
               loading={actions.isAccepting}
@@ -398,10 +420,24 @@ const BookingsTab = ({ eventId }: { eventId: string }) => {
                       />
                     </Table.Td>
                     <Table.Td>
-                      <Group gap="xs" wrap="nowrap">
+                      <Group gap={4} preventGrowOverflow={false}>
                         <KpBookingStatusBadge status={booking.status} />
                         {hasNewAdditions(booking) ? (
                           <BookingNewAdditionsBadge />
+                        ) : null}
+                        {booking.offer_cancel_until ? (
+                          <Badge
+                            color="grape"
+                            size="sm"
+                            variant="light"
+                            title={t("kp.manage.offer_state", {
+                              date: formatKpDisplayDate(
+                                booking.offer_cancel_until,
+                              ),
+                            })}
+                          >
+                            {t("kp.manage.offer_badge")}
+                          </Badge>
                         ) : null}
                       </Group>
                     </Table.Td>
@@ -493,6 +529,13 @@ const BookingsTab = ({ eventId }: { eventId: string }) => {
           activeBooking ? deleteRequiresForce(activeBooking.status) : false
         }
       />
+      {canOffer ? (
+        <OfferBookingModal
+          eventId={eventId}
+          opened={isOfferOpen}
+          onClose={() => setIsOfferOpen(false)}
+        />
+      ) : null}
     </Paper>
   );
 };

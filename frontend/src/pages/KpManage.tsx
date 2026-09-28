@@ -191,7 +191,7 @@ const KpManage = () => {
           />
         </Tabs.Panel>
         <Tabs.Panel value="bookings" pt="md">
-          <BookingsTab eventId={id} />
+          <BookingsTab eventId={id} canOffer={isPresident} />
         </Tabs.Panel>
         {isPresident && (
           <>

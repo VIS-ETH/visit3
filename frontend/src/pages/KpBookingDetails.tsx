@@ -18,7 +18,7 @@ import {
   IconEyeCheck,
   IconRefresh,
 } from "@tabler/icons-react";
-import { useState, type ReactNode } from "react";
+import { useContext, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
@@ -27,7 +27,9 @@ import BookingActionBar from "../components/bookings/BookingActionBar";
 import BookingCompletenessCard from "../components/bookings/BookingCompletenessCard";
 import BookingEditPanel from "../components/bookings/BookingEditPanel";
 import BookingNametagsCard from "../components/bookings/BookingNametagsCard";
+import BookingOfferCard from "../components/bookings/BookingOfferCard";
 import BookingWaitlistCard from "../components/bookings/BookingWaitlistCard";
+import { UserContext } from "../context/useCurrentUser";
 import BookingStatusTimeline from "../components/bookings/BookingStatusTimeline";
 import VenueMapViewer from "../components/venue/VenueMapViewer";
 import {
@@ -169,6 +171,7 @@ const KpBookingDetails = () => {
   });
   const isForbidden = getApiErrorCode(error) === NOT_ALLOWED_CODE;
   const actions = useBookingActions(id ?? "");
+  const isPresident = useContext(UserContext)?.user?.is_kp_president ?? false;
   const {
     data: requirementFiles,
     isLoading: isRequirementFilesLoading,
@@ -254,6 +257,14 @@ const KpBookingDetails = () => {
       />
 
       <BookingCompletenessCard booking={booking} />
+
+      {booking.offer_cancel_until ? (
+        <BookingOfferCard
+          booking={booking}
+          eventId={id}
+          canEdit={isPresident}
+        />
+      ) : null}
 
       <BookingEditPanel booking={booking} eventId={id} />
 
