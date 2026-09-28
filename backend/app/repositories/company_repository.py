@@ -235,6 +235,16 @@ class CompanyRepository(BaseRepository[Company]):
                 == "",
                 general_email=profile.general_email,
             )
+        if profile.student_contact_email:
+            await self.update_where(
+                KpBookingCompanyDetails,
+                col(KpBookingCompanyDetails.booking_id).in_(active_booking_ids),
+                func.coalesce(
+                    func.trim(col(KpBookingCompanyDetails.student_contact_email)), ""
+                )
+                == "",
+                student_contact_email=profile.student_contact_email,
+            )
 
     async def _replace_profile_industries(
         self, profile: KpCompanyProfile, industry_ids: list[UUID]

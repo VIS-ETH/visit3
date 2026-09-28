@@ -37,6 +37,7 @@ class CompanyProfileFields(BaseModel):
     brand_name: str = ""
     general_email: EmailStr | None = None
     general_phone: str | None = None
+    student_contact_email: EmailStr | None = None
     places_of_work: str = ""
     employee_count_switzerland: int | None = Field(default=None, ge=0)
     employee_count_worldwide: int | None = Field(default=None, ge=0)

@@ -93,6 +93,7 @@ COMPANY_SNAPSHOT_FIELDS = (
     "brand_name",
     "general_email",
     "general_phone",
+    "student_contact_email",
     "places_of_work",
     "employee_count_switzerland",
     "employee_count_worldwide",
