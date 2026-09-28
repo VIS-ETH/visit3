@@ -308,6 +308,8 @@
       "title": "KP Dashboard",
       "error": "KP-Dashboard-Daten konnten nicht geladen werden",
       "create_new_button": "Neue Kontaktparty erstellen",
+      "copy_button": "Kontaktparty kopieren",
+      "copy_source": "Kopieren von",
       "create_title": "Neues Event erstellen",
       "create_button": "KP-Event erstellen",
       "registration_window_label": "Anmeldung",

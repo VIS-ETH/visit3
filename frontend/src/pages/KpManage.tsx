@@ -2,36 +2,20 @@ import {
   Alert,
   Button,
   Center,
-  Divider,
   Group,
   Loader,
-  Modal,
-  SimpleGrid,
   Stack,
   Tabs,
   Text,
-  TextInput,
   Title,
 } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { IconAlertCircle, IconCopy } from "@tabler/icons-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { type ChangeEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useParams, useSearchParams } from "react-router";
 import BackButton from "../components/BackButton";
-import {
-  getListKpsQueryKey,
-  useCloneKp,
-  useGetKpById,
-} from "../orval/generated/kp/kp";
-import {
-  emptyEventSettingsValues,
-  kpWithSettingsSchema,
-  toKpWithSettingsRequest,
-  type KpWithSettingsFormValues,
-} from "../schemas/eventSettingsSchema";
-import EventSettingsFields from "../components/kp/EventSettingsFields";
+import { useGetKpById } from "../orval/generated/kp/kp";
+import CloneKpModal from "../components/kp/CloneKpModal";
 import { formatKpDisplayDate } from "../utils/kp-utils";
 import BookingsTab from "../components/BookingsTab";
 import BoothZonesTab from "../components/BoothZonesTab";
@@ -40,9 +24,7 @@ import IndustriesTab from "../components/IndustriesTab";
 import ServicesTab from "../components/ServicesTab";
 import ExportsTab from "../components/ExportsTab";
 import VenueTab from "../components/kp/VenueTab";
-import { useTranslatedForm } from "../utils/translator";
 import { useCurrentUser } from "../context/useCurrentUser";
-
 function formatDate(dateString?: string) {
   return formatKpDisplayDate(dateString);
 }
@@ -61,14 +43,6 @@ type KpManageTabValue = (typeof KP_MANAGE_TAB_VALUES)[number];
 
 const DEFAULT_KP_MANAGE_TAB: KpManageTabValue = "details";
 
-const dateFieldNames = [
-  "registrationOpen",
-  "registrationEnd",
-  "finalizationDeadline",
-  "nametagsDeadline",
-  "eventDate",
-] as const;
-
 const PRESIDENT_KP_MANAGE_TAB_VALUES: readonly KpManageTabValue[] = [
   "services",
   "booth_zones",
@@ -83,146 +57,6 @@ function isKpManageTabValue(v: string | null): v is KpManageTabValue {
 function isVisibleTab(v: KpManageTabValue, isPresident: boolean): boolean {
   return isPresident || !PRESIDENT_KP_MANAGE_TAB_VALUES.includes(v);
 }
-
-const emptyKpFormValues: KpWithSettingsFormValues = {
-  name: "",
-  registrationOpen: "",
-  registrationEnd: "",
-  finalizationDeadline: "",
-  nametagsDeadline: "",
-  eventDate: "",
-  ...emptyEventSettingsValues,
-};
-
-const CloneKpModal = ({
-  eventId,
-  opened,
-  onClose,
-}: {
-  eventId: string;
-  opened: boolean;
-  onClose: () => void;
-}) => {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const form = useTranslatedForm<typeof kpWithSettingsSchema>(
-    kpWithSettingsSchema,
-    {
-      initialValues: emptyKpFormValues,
-    },
-  );
-
-  const { mutate: clone, isPending } = useCloneKp({
-    mutation: {
-      onSuccess: async (clonedEvent) => {
-        await queryClient.invalidateQueries({ queryKey: getListKpsQueryKey() });
-        notifications.show({
-          color: "green",
-          message: t("kp.manage.clone_success"),
-        });
-        form.setValues(emptyKpFormValues);
-        onClose();
-        navigate(`/kp/${clonedEvent.id}`);
-      },
-    },
-  });
-
-  const closeAndReset = () => {
-    form.setValues(emptyKpFormValues);
-    onClose();
-  };
-
-  const getDateInputProps = (field: (typeof dateFieldNames)[number]) => {
-    const inputProps = form.getInputProps(field);
-    return {
-      ...inputProps,
-      onChange: (e: ChangeEvent<HTMLInputElement>) => {
-        inputProps.onChange(e);
-        for (const f of dateFieldNames) form.validateField(f);
-      },
-    };
-  };
-
-  const handleSubmit = (values: KpWithSettingsFormValues) => {
-    clone({
-      eventId,
-      data: toKpWithSettingsRequest(values),
-    });
-  };
-
-  return (
-    <Modal
-      opened={opened}
-      onClose={closeAndReset}
-      title={t("kp.manage.clone_title")}
-      centered
-    >
-      <form onSubmit={form.onSubmit(handleSubmit)}>
-        <Stack gap="sm">
-          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-            <TextInput
-              label={t("kp.dashboard.name")}
-              disabled={isPending}
-              {...form.getInputProps("name")}
-            />
-            <TextInput
-              label={t("kp.dashboard.registration_open")}
-              placeholder={t("kp.dashboard.date_input_placeholder")}
-              disabled={isPending}
-              {...getDateInputProps("registrationOpen")}
-            />
-            <TextInput
-              label={t("kp.dashboard.registration_end")}
-              placeholder={t("kp.dashboard.date_input_placeholder")}
-              disabled={isPending}
-              {...getDateInputProps("registrationEnd")}
-            />
-            <TextInput
-              label={t("kp.dashboard.finalization_deadline")}
-              placeholder={t("kp.dashboard.date_input_placeholder")}
-              disabled={isPending}
-              {...getDateInputProps("finalizationDeadline")}
-            />
-            <TextInput
-              label={t("kp.dashboard.nametags_deadline")}
-              placeholder={t("kp.dashboard.date_input_placeholder")}
-              disabled={isPending}
-              {...getDateInputProps("nametagsDeadline")}
-            />
-            <TextInput
-              label={t("kp.dashboard.event_date")}
-              placeholder={t("kp.dashboard.date_input_placeholder")}
-              disabled={isPending}
-              {...getDateInputProps("eventDate")}
-            />
-          </SimpleGrid>
-          <Divider />
-          <EventSettingsFields
-            disabled={isPending}
-            getInputProps={(field) => form.getInputProps(field)}
-          />
-          <Group justify="flex-end">
-            <Button
-              variant="default"
-              onClick={closeAndReset}
-              disabled={isPending}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="submit"
-              loading={isPending}
-              disabled={!form.isValid()}
-            >
-              {t("kp.manage.clone_submit")}
-            </Button>
-          </Group>
-        </Stack>
-      </form>
-    </Modal>
-  );
-};
 
 const KpManage = () => {
   const { t } = useTranslation();

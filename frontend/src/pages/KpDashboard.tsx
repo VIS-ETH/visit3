@@ -12,7 +12,7 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconAlertCircle, IconPlus } from "@tabler/icons-react";
+import { IconAlertCircle, IconCopy, IconPlus } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ import {
   toKpWithSettingsRequest,
   type KpWithSettingsFormValues,
 } from "../schemas/eventSettingsSchema";
+import CloneKpModal from "../components/kp/CloneKpModal";
 import EventSettingsFields from "../components/kp/EventSettingsFields";
 import {
   EVENT_STATUS_COLORS,
@@ -101,6 +102,13 @@ const KpDashboard = () => {
   };
 
   const { data: events, isLoading, isError } = useListKps();
+  const [copyModalOpened, { open: openCopyModal, close: closeCopyModal }] =
+    useDisclosure(false);
+  const latestEvent = events?.reduce<KpEventRow | undefined>(
+    (latest, event) =>
+      latest && latest.event_date >= event.event_date ? latest : event,
+    undefined,
+  );
   const statusLabels: Record<EventStatus, string> = {
     upcoming: t("kp.dashboard.status_upcoming"),
     registration_open: t("kp.dashboard.status_registration_open"),
@@ -184,10 +192,29 @@ const KpDashboard = () => {
     <Stack gap="md">
       <Group justify="space-between" align="center">
         <Title order={2}>{t("kp.dashboard.title")}</Title>
-        <Button leftSection={<IconPlus size={16} />} onClick={openModal}>
-          {t("kp.dashboard.create_new_button")}
-        </Button>
+        <Group gap="sm">
+          <Button
+            variant="default"
+            leftSection={<IconCopy size={16} />}
+            disabled={!latestEvent}
+            onClick={openCopyModal}
+          >
+            {t("kp.dashboard.copy_button")}
+          </Button>
+          <Button leftSection={<IconPlus size={16} />} onClick={openModal}>
+            {t("kp.dashboard.create_new_button")}
+          </Button>
+        </Group>
       </Group>
+
+      {latestEvent ? (
+        <CloneKpModal
+          eventId={latestEvent.id}
+          sourceEvents={events}
+          opened={copyModalOpened}
+          onClose={closeCopyModal}
+        />
+      ) : null}
 
       <Modal
         opened={modalOpened}

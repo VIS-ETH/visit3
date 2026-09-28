@@ -308,6 +308,8 @@
       "title": "KP Dashboard",
       "error": "Failed to load KP dashboard data",
       "create_new_button": "Create new Kontaktparty",
+      "copy_button": "Copy Kontaktparty",
+      "copy_source": "Copy from",
       "create_title": "Create new event",
       "create_button": "Create KP event",
       "registration_window_label": "Registration",
