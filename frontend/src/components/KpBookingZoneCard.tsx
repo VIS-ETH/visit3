@@ -1,4 +1,4 @@
-import { Card, Group, Text, UnstyledButton } from "@mantine/core";
+import { Badge, Card, Group, Text, UnstyledButton } from "@mantine/core";
 import { IconCheck } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { BoothZoneWithAvailabilityResponse } from "../orval/generated/fastAPI.schemas";
@@ -18,7 +18,7 @@ const KpBookingZoneCard = ({
   onSelect,
 }: KpBookingZoneCardProps) => {
   const { t } = useTranslation();
-  const isFull = zone.available_spots <= 0;
+  const isFull = zone.is_full;
 
   return (
     <UnstyledButton
@@ -49,9 +49,16 @@ const KpBookingZoneCard = ({
               }}
             />
             <div>
-              <Text fw={600} size="sm">
-                {zone.name}
-              </Text>
+              <Group gap="xs">
+                <Text fw={600} size="sm">
+                  {zone.name}
+                </Text>
+                {zone.registration_open ? null : (
+                  <Badge color="gray" size="sm" variant="light">
+                    {t("kp.booking.zone_closed")}
+                  </Badge>
+                )}
+              </Group>
               {isSelected && zone.description ? (
                 <Text size="xs" c="dimmed" mt={2}>
                   {zone.description}
@@ -68,10 +75,7 @@ const KpBookingZoneCard = ({
           <Text size="xs" fw={500} c={isFull ? "red" : "green"}>
             {isFull
               ? t("kp.booking.zone_full")
-              : t("kp.booking.zone_available", {
-                  available: zone.available_spots,
-                  total: zone.capacity,
-                })}
+              : t("kp.booth_size", { size: zone.booth_size })}
           </Text>
           <Text size="xs" c="dimmed">
             CHF {formatPrice(zone.base_price)}

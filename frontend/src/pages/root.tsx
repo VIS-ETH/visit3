@@ -11,7 +11,7 @@ import {
   getImpersonatingDisplayName,
   isImpersonating,
 } from "../api/utils";
-import { getGetCurrentUserQueryKey } from "../orval/generated/user/user";
+import { resetQueriesForIdentityChange } from "../api/query-cache";
 
 interface RootLayoutProps {
   navbarHidden: boolean;
@@ -53,7 +53,7 @@ const RootLayout = ({ navbarHidden }: RootLayoutProps) => {
 
   const handleStopImpersonating = () => {
     clearImpersonation();
-    queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+    resetQueriesForIdentityChange(queryClient);
   };
 
   return (

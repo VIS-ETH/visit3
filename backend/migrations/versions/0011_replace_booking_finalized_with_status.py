@@ -12,7 +12,6 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-# revision identifiers, used by Alembic.
 revision: str = "0011"
 down_revision: Union[str, Sequence[str], None] = "0010"
 branch_labels: Union[str, Sequence[str], None] = None
@@ -29,7 +28,6 @@ booking_status_enum = postgresql.ENUM(
 
 
 def upgrade() -> None:
-    """Upgrade schema."""
     booking_status_enum.create(op.get_bind(), checkfirst=True)
     op.add_column(
         "kpeventbooking",
@@ -54,7 +52,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Downgrade schema."""
     op.add_column(
         "kpeventbooking",
         sa.Column("finalized", sa.Boolean(), nullable=False, server_default=sa.false()),

@@ -54,7 +54,7 @@ const Register = () => {
       title={
         registeredEmail ? t("register.success.title") : t("register.title")
       }
-      subtitle={registeredEmail ? t("register.success.subtitle") : t("welcome")}
+      subtitle={registeredEmail ? t("register.success.subtitle") : undefined}
       maxWidth={620}
       backTo="/login"
     >

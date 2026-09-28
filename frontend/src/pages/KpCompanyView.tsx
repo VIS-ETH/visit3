@@ -22,6 +22,8 @@ import {
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
+import { KpBookingCompletion } from "../components/KpBookingCompletion";
+import { canSwitchBoothZone } from "../components/booking/booking-zone-access";
 import { KpBoothZoneColorSwatch } from "../components/KpBoothZoneColorSwatch";
 import { KpBookingStatusHelp } from "../components/KpBookingStatusHelp";
 import { KpBookingStatusBadge } from "../components/KpBookingStatusBadge";
@@ -30,7 +32,9 @@ import {
   EVENT_STATUS_COLORS,
   formatKpDisplayDate,
   getEventStatus,
+  todayCalendarDate,
 } from "../utils/kp-utils";
+import { canStartNewBooking, isInactiveBooking } from "../utils/my-booking";
 import { formatPrice } from "../utils/price-utils";
 
 const KpCompanyView = () => {
@@ -54,6 +58,8 @@ const KpCompanyView = () => {
     eventId,
     { query: { enabled: !!eventId } },
   );
+  const isBookingInactive = myBooking ? isInactiveBooking(myBooking) : false;
+  const canRegisterAgain = canStartNewBooking(myBooking, isRegistrationOpen);
 
   const timelineActiveStep = event
     ? [
@@ -62,7 +68,7 @@ const KpCompanyView = () => {
         event.finalization_deadline,
         event.nametags_deadline,
         event.event_date,
-      ].filter((isoDate) => new Date(isoDate).getTime() <= Date.now()).length
+      ].filter((isoDate) => isoDate <= todayCalendarDate()).length
     : 0;
 
   return (
@@ -70,12 +76,7 @@ const KpCompanyView = () => {
       <BackButton to="/" />
 
       <Group justify="space-between" align="center">
-        <div>
-          <Title order={2}>{t("kp.company_view.title")}</Title>
-          <Text c="dimmed" size="sm">
-            {t("kp.company_view.subtitle")}
-          </Text>
-        </div>
+        <Title order={2}>{t("kp.company_view.title")}</Title>
       </Group>
 
       {isLoading ? (
@@ -175,7 +176,6 @@ const KpCompanyView = () => {
             </Stack>
           </Card>
 
-          {/* Booking section */}
           {isLoadingBooking ? (
             <Center py="md">
               <Loader />
@@ -220,11 +220,10 @@ const KpCompanyView = () => {
                 </div>
                 <div>
                   <Text size="sm" c="dimmed">
-                    {t("kp.company_view.booking_price")}
+                    {t("kp.company_view.booking_total_gross")}
                   </Text>
                   <Text fw={500}>
-                    {t("common.currency")}{" "}
-                    {formatPrice(myBooking.booth_zone?.base_price ?? 0)}
+                    {t("common.currency")} {formatPrice(myBooking.price.gross)}
                   </Text>
                 </div>
                 <div>
@@ -237,16 +236,43 @@ const KpCompanyView = () => {
                   <KpBookingStatusBadge status={myBooking.status} size="md" />
                 </div>
               </SimpleGrid>
-              <Button
-                mt="md"
-                variant="light"
-                leftSection={<IconTicket size={18} />}
-                onClick={() =>
-                  navigate(`/kp/${eventId}/booking/${myBooking.id}/manage`)
-                }
-              >
-                {t("kp.company_view.manage_booking")}
-              </Button>
+              <Stack gap="md" mt="md">
+                <KpBookingCompletion
+                  booking={myBooking}
+                  changeDeadline={event.finalization_deadline}
+                />
+                {isBookingInactive ? (
+                  <Text size="sm" c="dimmed">
+                    {t("kp.company_view.inactive_booking_hint")}
+                  </Text>
+                ) : canSwitchBoothZone(event, myBooking) ? (
+                  <Text size="sm" c="dimmed">
+                    {t("kp.zone_switch.company_hint")}
+                  </Text>
+                ) : null}
+              </Stack>
+              {isBookingInactive ? (
+                canRegisterAgain ? (
+                  <Button
+                    mt="md"
+                    leftSection={<IconTicket size={18} />}
+                    onClick={() => navigate(`/kp/${eventId}/booking`)}
+                  >
+                    {t("kp.company_view.restart_booking")}
+                  </Button>
+                ) : null
+              ) : (
+                <Button
+                  mt="md"
+                  variant="light"
+                  leftSection={<IconTicket size={18} />}
+                  onClick={() =>
+                    navigate(`/kp/${eventId}/booking/${myBooking.id}/manage`)
+                  }
+                >
+                  {t("kp.company_view.manage_booking")}
+                </Button>
+              )}
             </Card>
           ) : isRegistrationOpen ? (
             <Card withBorder radius="md" p="lg" ta="center">

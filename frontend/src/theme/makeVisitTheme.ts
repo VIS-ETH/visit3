@@ -1,5 +1,6 @@
 import { generateColors } from "@mantine/colors-generator";
-import type { MantineThemeOverride } from "@mantine/core";
+import type { CSSVariablesResolver, MantineThemeOverride } from "@mantine/core";
+import { readableGlow, readableInk } from "./contrast";
 
 const panelStyles = {
   background: "var(--visit-panel-bg)",
@@ -102,3 +103,64 @@ export default function makeVisitTheme(
     },
   };
 }
+
+const BODY_BACKGROUND = "#f7f8f9";
+const DARK_BACKGROUNDS = ["#0f1318", "#171b20"];
+const TEXT_CONTRAST = 4.6;
+const TINTS_UNDER_TEXT = 3;
+const TEXT_SHADE = 6;
+const LIGHT_VARIANT_SHADE = 9;
+const DIMMED_BACKGROUND_SHADES = 2;
+
+export const visitCssVariablesResolver: CSSVariablesResolver = (theme) => {
+  const lightBackgrounds = (shades: readonly string[]) => [
+    "#ffffff",
+    BODY_BACKGROUND,
+    ...shades.slice(0, TINTS_UNDER_TEXT),
+  ];
+  const textColors = Object.entries(theme.colors).filter(
+    ([name]) => name !== "dark",
+  );
+  const light: Record<string, string> = Object.fromEntries(
+    textColors.flatMap(([name, shades]) => {
+      const backgrounds = lightBackgrounds(shades);
+      const ink = readableInk(shades[TEXT_SHADE], backgrounds, TEXT_CONTRAST);
+      return [
+        [`--mantine-color-${name}-text`, ink],
+        [`--mantine-color-${name}-outline`, ink],
+        [
+          `--mantine-color-${name}-light-color`,
+          readableInk(shades[LIGHT_VARIANT_SHADE], backgrounds, TEXT_CONTRAST),
+        ],
+      ];
+    }),
+  );
+  return {
+    variables: {},
+    light: {
+      ...light,
+      "--mantine-color-anchor": light["--mantine-color-brand-text"],
+      "--mantine-color-error": readableInk(
+        theme.colors.red[TEXT_SHADE],
+        ["#ffffff", BODY_BACKGROUND],
+        TEXT_CONTRAST,
+      ),
+      "--mantine-color-dimmed": readableInk(
+        theme.colors.gray[TEXT_SHADE],
+        [
+          "#ffffff",
+          BODY_BACKGROUND,
+          ...theme.colors.gray.slice(0, DIMMED_BACKGROUND_SHADES),
+        ],
+        TEXT_CONTRAST,
+      ),
+    },
+    dark: {
+      "--mantine-color-error": readableGlow(
+        theme.colors.red[8],
+        DARK_BACKGROUNDS,
+        TEXT_CONTRAST,
+      ),
+    },
+  };
+};

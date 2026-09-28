@@ -1,11 +1,20 @@
-import { Badge, Group, Stack, Text, Title } from "@mantine/core";
+import { Badge, Group, Stack, Title } from "@mantine/core";
 import { useCurrentUser } from "../context/useCurrentUser";
 import LinkFeatureCard from "../components/LinkFeatureCard";
+import { eventBannerImage } from "../components/home/kontaktparty-banner";
+import { useGetLatestKp } from "../orval/generated/kp/kp";
 import { useTranslation } from "react-i18next";
+import { Navigate } from "react-router";
 
 const Home = () => {
   const { user } = useCurrentUser();
   const { t } = useTranslation();
+  const isStaff = Boolean(user?.is_staff || user?.is_admin);
+  const { data: latestKp, isPending } = useGetLatestKp({
+    query: { enabled: !isStaff },
+  });
+
+  if (isStaff) return <Navigate to="/kp" replace />;
 
   return (
     <Stack gap="md">
@@ -18,14 +27,12 @@ const Home = () => {
             {t("home.portal_badge")}
           </Badge>
         </Group>
-        <Text c="dimmed" size="sm">
-          {t("home.subtitle")}
-        </Text>
       </Stack>
 
       <LinkFeatureCard
         to="/kp"
-        imageSrc="https://placehold.co/1200x600?text=Kontaktparty"
+        image={eventBannerImage(latestKp?.banner)}
+        imageLoading={isPending}
         imageAlt={t("home.kp.image_alt")}
         title={t("home.kp.title")}
         description={t("home.kp.description")}

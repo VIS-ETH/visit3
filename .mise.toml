@@ -3,8 +3,8 @@ experimental = true
 
 [tools]
 node = "24"
-uv = "0.11.6"
-prek = "0.3.13"
+uv = "0.12.17"
+prek = "0.5.3"
 
 [hooks]
 postinstall = "prek install"

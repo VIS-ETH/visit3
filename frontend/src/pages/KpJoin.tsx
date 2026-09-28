@@ -14,7 +14,6 @@ const KpJoin = () => {
     <Stack gap="md">
       <BackButton to="/" />
       <Title order={2}>{t("kp.join.title")}</Title>
-      <Text>{t("kp.join.description")}</Text>
 
       {isLoading ? (
         <Center py="md">

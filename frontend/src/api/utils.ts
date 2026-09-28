@@ -10,79 +10,101 @@ interface TokenPayload {
 
 let refreshPromise: Promise<string | null> | undefined = undefined;
 let csrfPromise: Promise<string> | undefined = undefined;
+let csrfRenewPromise: Promise<string> | undefined = undefined;
 let csrfToken: string | undefined = undefined;
 
 const backend_url = serverData.backendUrl;
+
+const fetchCsrfToken = async (): Promise<string> => {
+  const response = await axios.get(`${backend_url}/api/csrftoken`, {
+    withCredentials: true,
+  });
+  csrfToken = response.data.token;
+  return response.data.token;
+};
 
 export const getCsrfToken = async () => {
   if (csrfToken) {
     return csrfToken;
   }
-  if (csrfPromise) {
-    return await csrfPromise;
-  } else {
-    csrfPromise = axios
-      .get(`${backend_url}/api/csrftoken`, { withCredentials: true })
-      .then((res) => {
-        csrfToken = res.data.token;
-        return res.data.token;
-      })
-      .finally(() => {
-        csrfPromise = undefined;
-      });
+  csrfPromise ??= fetchCsrfToken().finally(() => {
+    csrfPromise = undefined;
+  });
 
-    return await csrfPromise;
+  return await csrfPromise;
+};
+
+export const clearCsrfToken = () => {
+  csrfToken = undefined;
+};
+
+export const renewCsrfToken = async () => {
+  csrfToken = undefined;
+  csrfRenewPromise ??= fetchCsrfToken().finally(() => {
+    csrfRenewPromise = undefined;
+  });
+
+  return await csrfRenewPromise;
+};
+
+const fetchRefreshedToken = async (): Promise<string | null> => {
+  try {
+    const response = await axios.post(
+      `${backend_url}/api/auth/refresh`,
+      {},
+      {
+        withCredentials: true,
+        headers: {
+          "X-CSRF-Token": await getCsrfToken(),
+        },
+      },
+    );
+    setToken(response.data.access_token);
+    return response.data.access_token;
+  } catch {
+    clearAuthState();
+    return null;
   }
 };
 
 export const refreshToken = async () => {
-  if (refreshPromise) {
-    return await refreshPromise;
-  } else {
-    refreshPromise = axios
-      .post(
-        `${backend_url}/api/auth/refresh`,
-        {},
-        {
-          withCredentials: true,
-          headers: {
-            "X-CSRF-Token": await getCsrfToken(),
-          },
-        },
-      )
-      .then((res) => {
-        setToken(res.data.access_token);
-        return res.data.access_token;
-      })
-      .catch(() => {
-        clearToken();
-        clearImpersonation();
-        return null;
-      })
-      .finally(() => {
-        refreshPromise = undefined;
-      });
+  refreshPromise ??= fetchRefreshedToken().finally(() => {
+    refreshPromise = undefined;
+  });
 
-    return await refreshPromise;
-  }
+  return await refreshPromise;
+};
+
+const TOKEN_STORAGE_KEY = "token";
+
+const notifyTokenChanged = () => {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event("auth-token-changed"));
 };
 
 export const setToken = (token: string) => {
-  sessionStorage.setItem("token", token);
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event("auth-token-changed"));
-  }
+  localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  notifyTokenChanged();
 };
 
 export const getToken = () => {
-  return sessionStorage.getItem("token");
+  return localStorage.getItem(TOKEN_STORAGE_KEY);
 };
 
 export const clearToken = () => {
-  sessionStorage.removeItem("token");
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event("auth-token-changed"));
-  }
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  notifyTokenChanged();
+};
+
+export const subscribeToTokenStorage = (onTokenChanged: () => void) => {
+  const handler = (event: StorageEvent) => {
+    if (event.key !== null && event.key !== TOKEN_STORAGE_KEY) return;
+    if (!getToken()) clearImpersonation();
+    onTokenChanged();
+  };
+
+  window.addEventListener("storage", handler);
+  return () => window.removeEventListener("storage", handler);
 };
 
 export const isTokenExpired = () => {
@@ -114,4 +136,10 @@ export const clearImpersonation = () => {
   sessionStorage.removeItem("impersonating_user_id");
   sessionStorage.removeItem("impersonating_display_name");
   window.dispatchEvent(new Event("impersonation-changed"));
+};
+
+export const clearAuthState = () => {
+  clearCsrfToken();
+  clearImpersonation();
+  clearToken();
 };

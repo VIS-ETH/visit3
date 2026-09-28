@@ -1,4 +1,6 @@
 import json
+import os
+import secrets
 import sys
 from pathlib import Path
 from typing import cast
@@ -10,7 +12,11 @@ backend_dir = Path(__file__).resolve().parent.parent / "backend"
 sys.path.append(str(backend_dir))
 
 dotenv_path = backend_dir / ".env"
+if not dotenv_path.exists():
+    dotenv_path = backend_dir / ".env.example"
 load_dotenv(dotenv_path)
+os.environ["DEBUG"] = "true"
+os.environ["SECRET_KEY"] = secrets.token_hex(32)
 
 from app.main import app
 

@@ -24,6 +24,7 @@ import {
   formatKpDisplayDate,
   getEventStatus,
 } from "../utils/kp-utils";
+import { activeBooking } from "../utils/my-booking";
 
 const KpCompanyEvents = () => {
   const { t } = useTranslation();
@@ -43,7 +44,7 @@ const KpCompanyEvents = () => {
   );
   const bookedEventIds = new Set(
     bookingQueries
-      .map((q) => q.data?.event_id)
+      .map((q) => activeBooking(q.data)?.event_id)
       .filter((value): value is string => Boolean(value)),
   );
 

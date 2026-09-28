@@ -1,7 +1,6 @@
-# Stage 1: Generate gRPC stubs and OpenAPI spec
-FROM python:3.12-slim AS code-generator
+FROM python:3.12-slim AS grpc-and-openapi-generator
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.17@sha256:10787c682e4184e4f290de1171fd4703dc63de99221f10fe1c99002ce7fa9acc /uv /uvx /bin/
 
 ENV UV_PROJECT_ENVIRONMENT="/opt/venv"
 ENV UV_COMPILE_BYTECODE=1
@@ -26,11 +25,10 @@ RUN find ./backend/app/generated -type d -exec touch {}/__init__.py \;
 RUN /opt/venv/bin/python ./scripts/fix_imports.py ./backend/app/generated app.generated
 
 COPY --from=common scripts/extract_docs.py ./scripts/extract_docs.py
-COPY --from=common backend/.env ./backend/.env
+COPY --from=common backend/.env.example ./backend/.env.example
 RUN /opt/venv/bin/python ./scripts/extract_docs.py /repo/visit.json
 
 
-# Build stage
 FROM node:24-alpine AS builder
 
 WORKDIR /app/frontend
@@ -42,33 +40,18 @@ COPY tsconfig*.json vite.config.ts index.html ./
 COPY public public
 COPY src src
 
-COPY --from=code-generator /repo/visit.json ./src/orval/visit.json
+COPY --from=grpc-and-openapi-generator /repo/visit.json ./src/orval/visit.json
 RUN yarn orval --config src/orval/orvalConfig.ts
 
-# Enable Vite plugin to allow handling environment variables via nginx at runtime
-# See vite.config.ts
 ENV REPLACE_ENV_FORMAT_ENVSUBST=true
 ENV NODE_ENV=production
 RUN yarn build
 
-FROM nginx:1.29-alpine AS production
+FROM nginxinc/nginx-unprivileged:1.29-alpine AS production
 
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
-COPY --from=builder /app/frontend/dist/index.html /usr/share/nginx/templates/index.html.template
-
-ENV NGINX_ENVSUBST_TEMPLATE_DIR=/usr/share/nginx/templates
-ENV NGINX_ENVSUBST_OUTPUT_DIR=/usr/share/nginx/html
-
-COPY <<EOF /etc/nginx/conf.d/default.conf
-server {
-  listen 3000;
-  server_name localhost;
-
-  location / {
-    root /usr/share/nginx/html;
-    try_files \$uri /index.html;
-  }
-}
-EOF
+COPY --from=builder /app/frontend/dist/index.html /etc/nginx/templates/index.html.template
+COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
+COPY --chmod=0755 nginx/18-visit-runtime-env.envsh /docker-entrypoint.d/18-visit-runtime-env.envsh
 
 EXPOSE 3000

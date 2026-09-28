@@ -1,19 +1,22 @@
 from dataclasses import dataclass
-from datetime import date, timedelta
-from unittest.mock import ANY, AsyncMock
+from datetime import date, datetime, timedelta, timezone
+from unittest.mock import ANY, AsyncMock, Mock, call
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 
+from app.core.dates import local_today
 from app.core.exceptions import (
     KpBookingAlreadyExists,
-    KpBookingConfirmationRequiresFinalized,
-    KpBookingConfirmedReadonly,
     KpBookingNotFound,
+    KpBookingReadonly,
     KpBookingStatusTransitionInvalid,
+    KpBookingZoneLocked,
     KpBoothZoneAtCapacity,
     KpBoothZoneEventMismatch,
     KpEventNotFound,
+    KpFinalizationDeadlinePassed,
     KpNameExists,
     KpRegistrationClosed,
     KpRequirementFileUploadNotAllowed,
@@ -22,6 +25,7 @@ from app.core.exceptions import (
     KpServiceRequirementNotFound,
     KpServiceUnavailable,
     KpWaitlistSameZone,
+    KpWaitlistZoneHasCapacity,
     NotAllowed,
 )
 from app.models.company import Company
@@ -33,6 +37,7 @@ from app.models.kp_event import (
     KpEventBookingServiceFileLink,
     KpEventBookingUpgradeWaitlist,
     KpEventBoothZone,
+    KpEventBoothZoneServiceLink,
     KpEventRegistrationException,
     KpEventService,
     KpEventServiceRequirement,
@@ -43,11 +48,11 @@ from app.schemas.kp import (
     BookingServiceInput,
     CloneKpInput,
     CreateKpInput,
-    UpdateBookingInput,
     UpdateBookingStatusInput,
 )
 from app.services.kp_service import KpService
-from app.services.storage_service import StoredObject
+from app.services.storage_service import StoredObject, UploadKind
+from tests.unit.conftest import complete_company_profile, complete_company_snapshot
 
 
 @dataclass
@@ -102,20 +107,47 @@ def make_zone(*, event_id, zone_id=None, capacity: int = 2) -> KpEventBoothZone:
     )
 
 
+def make_deadline_passed_event(*, event_id=None) -> KpEvent:
+    today = date.today()
+    return KpEvent(
+        id=event_id or uuid4(),
+        name="Kontaktparty",
+        registration_open=today - timedelta(days=10),
+        registration_end=today - timedelta(days=5),
+        finalization_deadline=today - timedelta(days=1),
+        nametags_deadline=today - timedelta(days=1),
+        event_date=today + timedelta(days=10),
+    )
+
+
 def make_booking(
     *,
+    event=None,
     event_id=None,
     company_id=None,
     booth_zone_id=None,
     status: KpBookingStatus = KpBookingStatus.REGISTERED,
 ) -> KpEventBooking:
-    return KpEventBooking(
+    event = event or make_event(event_id=event_id)
+    booking = KpEventBooking(
         id=uuid4(),
-        event_id=event_id or uuid4(),
+        event_id=event.id,
         company_id=company_id or uuid4(),
         booth_zone_id=booth_zone_id or uuid4(),
         status=status,
     )
+    booking.event = event
+    return booking
+
+
+def make_complete_booking(**kwargs: object) -> KpEventBooking:
+    booking = make_booking(**kwargs)
+    company = Company(id=booking.company_id, name="Acme AG")
+    company.kp_profile = complete_company_profile(company.id)
+    booking.company = company
+    booking.company_details = complete_company_snapshot(booking.id)
+    booking.services = []
+    return booking
 
 
 def attach_staff_booking_relations(booking: KpEventBooking) -> KpEventBooking:
@@ -311,7 +343,7 @@ async def test_register_booking_creates_booking_when_zone_has_capacity(
     kp_repo.count_active_bookings_for_zone.return_value = 1
     kp_repo.create_booking.return_value = booking
 
-    result = await service.register_booking(event.id, zone.id)
+    result = await service.register_booking(event.id, zone.id, confirm_profile=True)
 
     assert result.id == booking.id
     assert result.event_id == booking.event_id
@@ -339,7 +371,39 @@ async def test_list_available_services_for_company_returns_active_only(
 
     assert [item.id for item in result] == [active_service.id]
     assert result[0].name == active_service.name
-    kp_repo.list_services.assert_awaited_once_with(event.id)
+    kp_repo.list_services.assert_awaited_once_with(event.id, None)
+
+
+async def test_register_booking_locks_zone_before_counting_and_inserting(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    event = make_event()
+    zone = make_zone(event_id=event.id, capacity=2)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_by_id.return_value = event
+    kp_repo.get_booth_zone_by_id.return_value = zone
+    kp_repo.get_company_active_booking_for_event.return_value = None
+    kp_repo.lock_model_by_id.side_effect = [event, zone]
+    kp_repo.count_active_bookings_for_zone.return_value = 0
+    kp_repo.create_booking.return_value = make_booking(
+        event_id=event.id,
+        company_id=company_id,
+        booth_zone_id=zone.id,
+    )
+
+    await service.register_booking(event.id, zone.id, confirm_profile=True)
+
+    call_names = [name for name, _, _ in kp_repo.mock_calls]
+    zone_lock_position = [
+        index
+        for index, mock_call in enumerate(kp_repo.mock_calls)
+        if mock_call[0] == "lock_model_by_id" and mock_call[1][0] is KpEventBoothZone
+    ][0]
+    assert zone_lock_position < call_names.index("count_active_bookings_for_zone")
+    assert zone_lock_position < call_names.index("create_booking")
 
 
 async def test_register_booking_creates_selected_services(
@@ -364,13 +428,15 @@ async def test_register_booking_creates_selected_services(
     kp_repo.lock_model_by_id.side_effect = [event, zone]
     kp_repo.count_active_bookings_for_zone.return_value = 0
     kp_repo.get_service_by_id.return_value = extra_service
-    kp_repo.count_active_service_quantity.return_value = 1
+    kp_repo.count_active_charged_service_quantity.return_value = 1
     kp_repo.create_booking.return_value = booking
     selected_services = [
         BookingServiceInput(service_id=extra_service.id, quantity=2),
     ]
 
-    result = await service.register_booking(event.id, zone.id, selected_services)
+    result = await service.register_booking(
+        event.id, zone.id, selected_services, confirm_profile=True
+    )
 
     assert result.id == booking.id
     assert result.event_id == booking.event_id
@@ -399,6 +465,7 @@ async def test_register_booking_rejects_inactive_service(
             event.id,
             zone.id,
             [BookingServiceInput(service_id=inactive_service.id, quantity=1)],
+            confirm_profile=True,
         )
 
     kp_repo.create_booking.assert_not_awaited()
@@ -425,6 +492,7 @@ async def test_register_booking_rejects_service_quantity_over_booking_limit(
             event.id,
             zone.id,
             [BookingServiceInput(service_id=extra_service.id, quantity=2)],
+            confirm_profile=True,
         )
 
     kp_repo.create_booking.assert_not_awaited()
@@ -450,7 +518,7 @@ async def test_register_booking_rejects_existing_active_booking(
     )
 
     with pytest.raises(KpBookingAlreadyExists):
-        await service.register_booking(event.id, zone.id)
+        await service.register_booking(event.id, zone.id, confirm_profile=True)
 
     kp_repo.create_booking.assert_not_awaited()
 
@@ -476,8 +544,9 @@ async def test_add_booking_services_increments_existing_booking(
     updated_booking.services = [booking_service]
     service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
     kp_repo.get_service_by_id.return_value = extra_service
-    kp_repo.count_active_service_quantity.return_value = 1
+    kp_repo.count_active_charged_service_quantity.return_value = 1
     kp_repo.add_booking_services.return_value = updated_booking
 
     result = await service.add_booking_services(
@@ -516,6 +585,7 @@ async def test_add_booking_services_collapses_duplicate_increment_inputs(
     updated_booking.services = [booking_service]
     service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
     kp_repo.get_service_by_id.return_value = extra_service
     kp_repo.add_booking_services.return_value = updated_booking
 
@@ -530,21 +600,23 @@ async def test_add_booking_services_collapses_duplicate_increment_inputs(
     kp_repo.add_booking_services.assert_awaited_once_with(
         booking,
         [BookingServiceInput(service_id=extra_service.id, quantity=3)],
+        after_confirmation=False,
     )
 
 
-async def test_add_booking_services_rejects_confirmed_booking(
+async def test_add_booking_services_rejects_cancelled_booking(
     kp_repo,
     storage_service,
     make_user,
 ):
     company_id = uuid4()
-    booking = make_booking(company_id=company_id, status=KpBookingStatus.CONFIRMED)
+    booking = make_booking(company_id=company_id, status=KpBookingStatus.CANCELLED)
     service_model = make_service(event_id=booking.event_id)
     service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
 
-    with pytest.raises(KpBookingConfirmedReadonly):
+    with pytest.raises(KpBookingReadonly):
         await service.add_booking_services(
             booking.id,
             [BookingServiceInput(service_id=service_model.id, quantity=1)],
@@ -573,6 +645,7 @@ async def test_add_booking_services_counts_existing_quantity_against_limit(
     booking.services = [booking_service]
     service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
     kp_repo.get_service_by_id.return_value = service_model
 
     with pytest.raises(KpServiceQuantityInvalid):
@@ -601,7 +674,7 @@ async def test_register_booking_rejects_full_zone(
     kp_repo.count_active_bookings_for_zone.return_value = 1
 
     with pytest.raises(KpBoothZoneAtCapacity):
-        await service.register_booking(event.id, zone.id)
+        await service.register_booking(event.id, zone.id, confirm_profile=True)
 
     kp_repo.create_booking.assert_not_awaited()
 
@@ -621,7 +694,7 @@ async def test_register_booking_rejects_closed_registration(
     kp_repo.get_booth_zone_by_id.return_value = zone
 
     with pytest.raises(KpRegistrationClosed):
-        await service.register_booking(event.id, zone.id)
+        await service.register_booking(event.id, zone.id, confirm_profile=True)
 
     kp_repo.lock_model_by_id.assert_not_awaited()
     kp_repo.create_booking.assert_not_awaited()
@@ -640,7 +713,7 @@ async def test_register_booking_allows_registration_exception(
     exception = KpEventRegistrationException(
         event_id=event.id,
         company_id=company_id,
-        allowed_until=date.today(),
+        allowed_until=local_today(),
     )
     booking = make_booking(
         event_id=event.id,
@@ -655,11 +728,43 @@ async def test_register_booking_allows_registration_exception(
     kp_repo.count_active_bookings_for_zone.return_value = 0
     kp_repo.create_booking.return_value = booking
 
-    result = await service.register_booking(event.id, zone.id)
+    result = await service.register_booking(event.id, zone.id, confirm_profile=True)
 
     assert result.id == booking.id
     assert result.event_id == booking.event_id
     kp_repo.create_booking.assert_awaited_once()
+
+
+async def test_register_booking_rejects_exception_after_its_zurich_day(
+    kp_repo,
+    storage_service,
+    make_user,
+    freeze_now,
+):
+    company_id = uuid4()
+    event = KpEvent(
+        id=uuid4(),
+        name="Kontaktparty",
+        registration_open=date(2026, 9, 1),
+        registration_end=date(2026, 9, 10),
+        finalization_deadline=date(2026, 10, 10),
+        nametags_deadline=date(2026, 10, 12),
+        event_date=date(2026, 10, 20),
+    )
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_by_id.return_value = event
+    kp_repo.get_registration_exception.return_value = KpEventRegistrationException(
+        event_id=event.id,
+        company_id=company_id,
+        allowed_until=date(2026, 10, 8),
+    )
+    kp_repo.get_booth_zone_by_id.return_value = make_zone(event_id=event.id)
+    freeze_now(datetime(2026, 10, 8, 22, 0, tzinfo=timezone.utc))
+
+    with pytest.raises(KpRegistrationClosed):
+        await service.register_booking(event.id, uuid4(), confirm_profile=True)
+
+    kp_repo.create_booking.assert_not_awaited()
 
 
 async def test_register_booking_rejects_zone_from_different_event(
@@ -674,7 +779,7 @@ async def test_register_booking_rejects_zone_from_different_event(
     kp_repo.get_booth_zone_by_id.return_value = zone
 
     with pytest.raises(KpBoothZoneEventMismatch):
-        await service.register_booking(event.id, zone.id)
+        await service.register_booking(event.id, zone.id, confirm_profile=True)
 
     kp_repo.create_booking.assert_not_awaited()
 
@@ -689,6 +794,7 @@ async def test_update_my_booking_status_rejects_invalid_company_transition(
     user = make_user(company_id=company_id)
     service = KpService(kp_repo, storage_service, user)
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
 
     with pytest.raises(KpBookingStatusTransitionInvalid):
         await service.update_my_booking_status(
@@ -705,24 +811,41 @@ async def test_update_my_booking_status_allows_valid_company_transition(
     make_user,
 ):
     company_id = uuid4()
-    booking = make_booking(company_id=company_id, status=KpBookingStatus.REGISTERED)
+    booking = make_complete_booking(
+        company_id=company_id, status=KpBookingStatus.REGISTERED
+    )
     updated = attach_staff_booking_relations(
-        make_booking(company_id=company_id, status=KpBookingStatus.FINALIZED)
+        make_booking(company_id=company_id, status=KpBookingStatus.CANCELLED)
     )
     service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
     kp_repo.update_booking.return_value = updated
 
     result = await service.update_my_booking_status(
         booking.id,
-        UpdateBookingStatusInput(status=KpBookingStatus.FINALIZED),
+        UpdateBookingStatusInput(status=KpBookingStatus.CANCELLED),
     )
 
     assert result.id == updated.id
-    assert result.status == KpBookingStatus.FINALIZED
+    assert result.status == KpBookingStatus.CANCELLED
     args = kp_repo.update_booking.await_args.args
     assert args[0] is booking
-    assert args[1].status == KpBookingStatus.FINALIZED
+    assert args[1].status == KpBookingStatus.CANCELLED
+
+
+def test_update_booking_status_input_rejects_draft():
+    with pytest.raises(ValidationError):
+        UpdateBookingStatusInput.model_validate({"status": "DRAFT"})
+
+
+def test_booking_status_enum_has_no_draft():
+    assert [status.value for status in KpBookingStatus] == [
+        "REGISTERED",
+        "CONFIRMED",
+        "CANCELLED",
+        "REJECTED",
+    ]
 
 
 async def test_replace_booking_upgrade_waitlist_deduplicates_target_zones(
@@ -740,27 +863,57 @@ async def test_replace_booking_upgrade_waitlist_deduplicates_target_zones(
         company_id=company_id,
         booth_zone_id=current_zone_id,
     )
-    waitlist = [
-        KpEventBookingUpgradeWaitlist(
-            booking_id=booking.id,
-            target_booth_zone_id=target_zone_a.id,
-        )
-    ]
+    entry = KpEventBookingUpgradeWaitlist(
+        booking_id=booking.id,
+        target_booth_zone_id=target_zone_a.id,
+        priority_rank=1,
+    )
+    entry.target_booth_zone = target_zone_a
     service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
     kp_repo.get_booth_zone_by_id.side_effect = [target_zone_a, target_zone_b]
-    kp_repo.replace_booking_upgrade_waitlist_entries.return_value = waitlist
+    kp_repo.count_active_bookings_for_zone.return_value = target_zone_a.capacity
+    kp_repo.list_waitlist_entries_for_zone.return_value = [entry]
+    kp_repo.replace_booking_upgrade_waitlist_entries.return_value = [entry]
 
     result = await service.replace_booking_upgrade_waitlist(
         booking.id,
         [target_zone_a.id, target_zone_a.id, target_zone_b.id],
     )
 
-    assert result == waitlist
+    assert [(item.id, item.is_full, item.position) for item in result] == [
+        (entry.id, True, 1)
+    ]
     kp_repo.replace_booking_upgrade_waitlist_entries.assert_awaited_once_with(
         booking=booking,
         target_booth_zone_ids=[target_zone_a.id, target_zone_b.id],
     )
+
+
+async def test_replace_booking_upgrade_waitlist_rejects_a_zone_with_free_spots(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    event_id = uuid4()
+    target_zone = make_zone(event_id=event_id)
+    booking = make_booking(
+        event_id=event_id,
+        company_id=company_id,
+        booth_zone_id=uuid4(),
+    )
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
+    kp_repo.get_booth_zone_by_id.return_value = target_zone
+    kp_repo.count_active_bookings_for_zone.return_value = target_zone.capacity - 1
+
+    with pytest.raises(KpWaitlistZoneHasCapacity):
+        await service.replace_booking_upgrade_waitlist(booking.id, [target_zone.id])
+
+    kp_repo.replace_booking_upgrade_waitlist_entries.assert_not_awaited()
 
 
 async def test_replace_booking_upgrade_waitlist_rejects_current_zone(
@@ -778,6 +931,7 @@ async def test_replace_booking_upgrade_waitlist_rejects_current_zone(
     )
     service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
     kp_repo.get_booth_zone_by_id.return_value = current_zone
 
     with pytest.raises(KpWaitlistSameZone):
@@ -809,35 +963,6 @@ async def test_get_event_booking_rejects_booking_from_other_event(kp_service):
         await kp_service.service.get_event_booking(event.id, booking.id)
 
 
-async def test_confirm_booking_requires_finalized_booking(kp_service):
-    booking = make_booking(status=KpBookingStatus.REGISTERED)
-    kp_service.kp_repo.get_booking_by_id.return_value = booking
-
-    with pytest.raises(KpBookingConfirmationRequiresFinalized):
-        await kp_service.service.confirm_booking(booking.id)
-
-    kp_service.kp_repo.update_booking.assert_not_awaited()
-
-
-async def test_confirm_booking_sets_confirmed_status(kp_service):
-    booking = make_booking(status=KpBookingStatus.FINALIZED)
-    confirmed = attach_staff_booking_relations(
-        make_booking(status=KpBookingStatus.CONFIRMED)
-    )
-    kp_service.kp_repo.get_booking_by_id.return_value = booking
-    kp_service.kp_repo.update_booking.return_value = confirmed
-
-    result = await kp_service.service.confirm_booking(booking.id)
-
-    assert result.id == confirmed.id
-    assert result.status == KpBookingStatus.CONFIRMED
-    kp_service.kp_repo.update_booking.assert_awaited_once()
-    args = kp_service.kp_repo.update_booking.await_args.args
-    assert args[0] is booking
-    assert isinstance(args[1], UpdateBookingInput)
-    assert args[1].status == KpBookingStatus.CONFIRMED
-
-
 async def test_delete_service_image_keeps_stored_file_row_when_storage_delete_fails(
     kp_repo,
     storage_service,
@@ -863,6 +988,54 @@ async def test_delete_service_image_keeps_stored_file_row_when_storage_delete_fa
     kp_repo.delete_stored_file.assert_not_awaited()
 
 
+async def test_upload_service_image_reads_upload_within_limit(
+    kp_repo,
+    storage_service,
+    admin_user,
+):
+    event_id = uuid4()
+    service_model = make_service(event_id=event_id)
+    stored_file = make_stored_file("kp/services/logo.png")
+    stored_object = StoredObject(
+        key="kp/services/logo.png",
+        etag="new-etag",
+        mime_type="image/png",
+        size_bytes=5,
+        sha256="c" * 64,
+    )
+    upload = Mock()
+    kp_repo.get_service_by_id.return_value = service_model
+    kp_repo.upsert_stored_file.return_value = stored_file
+    kp_repo.set_service_image_stored_file_id.return_value = service_model
+    storage_service.read_upload.return_value = b"bytes"
+    storage_service.validate_image_file.return_value = "image/png"
+    storage_service.upload_bytes.return_value = stored_object
+    storage_service.generate_download_url.return_value = "https://files.test/logo.png"
+    service = KpService(kp_repo, storage_service, admin_user)
+
+    result = await service.upload_service_image(
+        service_id=service_model.id,
+        filename="logo.png",
+        upload=upload,
+        content_length=5,
+        content_type="image/png",
+    )
+
+    assert result.id == service_model.id
+    storage_service.read_upload.assert_awaited_once_with(
+        upload,
+        content_length=5,
+        kind=UploadKind.IMAGE,
+        error_context=f"service_image:{service_model.id}",
+    )
+    storage_service.upload_bytes.assert_awaited_once_with(
+        key=ANY,
+        content=b"bytes",
+        filename="logo.png",
+        content_type="image/png",
+    )
+
+
 async def test_upload_booking_requirement_file_rejects_text_requirement(
     kp_repo,
     storage_service,
@@ -884,14 +1057,15 @@ async def test_upload_booking_requirement_file_rejects_text_requirement(
             booking_service.id,
             requirement.id,
             "notes.txt",
-            b"text",
+            Mock(),
+            len(b"text"),
             "text/plain",
         )
 
     storage_service.upload_bytes.assert_not_awaited()
 
 
-async def test_upload_booking_requirement_file_rejects_confirmed_booking(
+async def test_upload_booking_requirement_file_rejects_cancelled_booking(
     kp_repo,
     storage_service,
     make_user,
@@ -899,18 +1073,19 @@ async def test_upload_booking_requirement_file_rejects_confirmed_booking(
     company_id = uuid4()
     booking = make_booking(
         company_id=company_id,
-        status=KpBookingStatus.CONFIRMED,
+        status=KpBookingStatus.CANCELLED,
     )
     booking_service = make_booking_service(booking=booking)
     service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
     kp_repo.get_booking_service_by_id.return_value = booking_service
 
-    with pytest.raises(KpBookingConfirmedReadonly):
+    with pytest.raises(KpBookingReadonly):
         await service.upload_booking_requirement_file(
             booking_service.id,
             uuid4(),
             "notes.pdf",
-            b"%PDF",
+            Mock(),
+            len(b"%PDF"),
             "application/pdf",
         )
 
@@ -918,7 +1093,7 @@ async def test_upload_booking_requirement_file_rejects_confirmed_booking(
     storage_service.upload_bytes.assert_not_awaited()
 
 
-async def test_delete_booking_requirement_file_rejects_confirmed_booking(
+async def test_delete_booking_requirement_file_rejects_cancelled_booking(
     kp_repo,
     storage_service,
     make_user,
@@ -926,13 +1101,13 @@ async def test_delete_booking_requirement_file_rejects_confirmed_booking(
     company_id = uuid4()
     booking = make_booking(
         company_id=company_id,
-        status=KpBookingStatus.CONFIRMED,
+        status=KpBookingStatus.CANCELLED,
     )
     booking_service = make_booking_service(booking=booking)
     service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
     kp_repo.get_booking_service_by_id.return_value = booking_service
 
-    with pytest.raises(KpBookingConfirmedReadonly):
+    with pytest.raises(KpBookingReadonly):
         await service.delete_booking_requirement_file(booking_service.id, uuid4())
 
     kp_repo.get_service_requirement_by_id.assert_not_awaited()
@@ -1160,6 +1335,7 @@ async def test_upload_booking_requirement_file_replaces_existing_text_answer(
     kp_repo.get_booking_service_by_id.return_value = booking_service
     kp_repo.get_service_requirement_by_id.return_value = requirement
     kp_repo.get_requirement_file.return_value = existing_text
+    storage_service.read_upload.return_value = b"content"
     storage_service.validate_pdf_file.return_value = "application/pdf"
     storage_service.upload_bytes.return_value = stored_object
     kp_repo.upsert_stored_file.return_value = stored_file
@@ -1169,7 +1345,8 @@ async def test_upload_booking_requirement_file_replaces_existing_text_answer(
         booking_service.id,
         requirement.id,
         "document.pdf",
-        b"content",
+        Mock(),
+        len(b"content"),
         "application/pdf",
     )
 
@@ -1212,6 +1389,7 @@ async def test_upload_booking_requirement_file_routes_pdf_validation_and_saves_l
     kp_repo.get_booking_service_by_id.return_value = booking_service
     kp_repo.get_service_requirement_by_id.return_value = requirement
     kp_repo.get_requirement_file.return_value = None
+    storage_service.read_upload.return_value = b"content"
     storage_service.validate_pdf_file.return_value = "application/pdf"
     storage_service.upload_bytes.return_value = stored_object
     kp_repo.upsert_stored_file.return_value = stored_file
@@ -1221,7 +1399,8 @@ async def test_upload_booking_requirement_file_routes_pdf_validation_and_saves_l
         booking_service.id,
         requirement.id,
         "document.pdf",
-        b"content",
+        Mock(),
+        len(b"content"),
         "application/pdf",
     )
 
@@ -1270,6 +1449,7 @@ async def test_upload_booking_requirement_file_deletes_new_upload_when_db_write_
     kp_repo.get_booking_service_by_id.return_value = booking_service
     kp_repo.get_service_requirement_by_id.return_value = requirement
     kp_repo.get_requirement_file.return_value = None
+    storage_service.read_upload.return_value = b"content"
     storage_service.validate_pdf_file.return_value = "application/pdf"
     storage_service.upload_bytes.return_value = stored_object
     kp_repo.upsert_stored_file.side_effect = RuntimeError("db failed")
@@ -1279,7 +1459,8 @@ async def test_upload_booking_requirement_file_deletes_new_upload_when_db_write_
             booking_service.id,
             requirement.id,
             "document.pdf",
-            b"content",
+            Mock(),
+            len(b"content"),
             "application/pdf",
         )
 
@@ -1318,6 +1499,7 @@ async def test_upload_booking_requirement_file_deletes_replaced_old_file(
     kp_repo.get_booking_service_by_id.return_value = booking_service
     kp_repo.get_service_requirement_by_id.return_value = requirement
     kp_repo.get_requirement_file.return_value = existing_file
+    storage_service.read_upload.return_value = b"content"
     storage_service.validate_pdf_file.return_value = "application/pdf"
     storage_service.upload_bytes.return_value = stored_object
     kp_repo.upsert_stored_file.return_value = updated_file
@@ -1327,7 +1509,8 @@ async def test_upload_booking_requirement_file_deletes_replaced_old_file(
         booking_service.id,
         requirement.id,
         "document.pdf",
-        b"content",
+        Mock(),
+        len(b"content"),
         "application/pdf",
     )
 
@@ -1377,6 +1560,7 @@ async def test_upload_booking_requirement_file_keeps_old_row_when_old_delete_fai
     kp_repo.get_booking_service_by_id.return_value = booking_service
     kp_repo.get_service_requirement_by_id.return_value = requirement
     kp_repo.get_requirement_file.return_value = existing_file
+    storage_service.read_upload.return_value = b"content"
     storage_service.validate_pdf_file.return_value = "application/pdf"
     storage_service.upload_bytes.return_value = stored_object
     storage_service.delete_object.side_effect = RuntimeError("s3 failed")
@@ -1388,7 +1572,8 @@ async def test_upload_booking_requirement_file_keeps_old_row_when_old_delete_fai
             booking_service.id,
             requirement.id,
             "document.pdf",
-            b"content",
+            Mock(),
+            len(b"content"),
             "application/pdf",
         )
 
@@ -1506,6 +1691,7 @@ async def test_list_staff_booking_requirement_files_returns_file_map(
     service = KpService(kp_repo, storage_service, staff_user)
     kp_repo.get_by_id.return_value = make_event(event_id=event_id)
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
 
     result = await service.list_staff_booking_requirement_files(event_id, booking.id)
 
@@ -1523,6 +1709,7 @@ async def test_list_staff_booking_requirement_files_rejects_event_mismatch(
     service = KpService(kp_repo, storage_service, staff_user)
     kp_repo.get_by_id.return_value = make_event(event_id=event_id)
     kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
 
     with pytest.raises(KpBookingNotFound):
         await service.list_staff_booking_requirement_files(event_id, booking.id)
@@ -1538,3 +1725,459 @@ async def test_cleanup_orphaned_stored_files_deletes_storage_and_rows(kp_service
     kp_service.storage_service.delete_object.assert_any_await("orphan/two.pdf")
     kp_service.kp_repo.delete_stored_file.assert_any_await(orphaned[0])
     kp_service.kp_repo.delete_stored_file.assert_any_await(orphaned[1])
+
+
+def make_included_link(*, zone, service_id, included_quantity: int):
+    return KpEventBoothZoneServiceLink(
+        booth_zone_id=zone.id,
+        service_id=service_id,
+        included_quantity=included_quantity,
+    )
+
+
+async def test_register_booking_counts_included_quantity_against_booking_limit(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    event = make_event()
+    zone = make_zone(event_id=event.id)
+    included_service = make_service(event_id=event.id, max_quantity_per_booking=2)
+    zone.included_services = [
+        make_included_link(
+            zone=zone, service_id=included_service.id, included_quantity=3
+        )
+    ]
+    service = KpService(kp_repo, storage_service, make_user(company_id=uuid4()))
+    kp_repo.get_by_id.return_value = event
+    kp_repo.get_booth_zone_by_id.return_value = zone
+    kp_repo.get_company_active_booking_for_event.return_value = None
+    kp_repo.lock_model_by_id.side_effect = [event, zone]
+    kp_repo.count_active_bookings_for_zone.return_value = 0
+    kp_repo.get_service_by_id.return_value = included_service
+
+    with pytest.raises(KpServiceQuantityInvalid):
+        await service.register_booking(
+            event.id,
+            zone.id,
+            [BookingServiceInput(service_id=included_service.id, quantity=1)],
+            confirm_profile=True,
+        )
+
+    kp_repo.create_booking.assert_not_awaited()
+
+
+async def test_register_booking_ignores_included_quantity_for_total_limit(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    event = make_event()
+    zone = make_zone(event_id=event.id)
+    included_service = make_service(
+        event_id=event.id,
+        max_quantity_per_booking=5,
+        max_total_quantity=5,
+    )
+    zone.included_services = [
+        make_included_link(
+            zone=zone, service_id=included_service.id, included_quantity=2
+        )
+    ]
+    booking = make_booking(
+        event_id=event.id,
+        company_id=company_id,
+        booth_zone_id=zone.id,
+    )
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_by_id.return_value = event
+    kp_repo.get_booth_zone_by_id.return_value = zone
+    kp_repo.get_company_active_booking_for_event.return_value = None
+    kp_repo.lock_model_by_id.side_effect = [event, zone]
+    kp_repo.count_active_bookings_for_zone.return_value = 0
+    kp_repo.get_service_by_id.return_value = included_service
+    kp_repo.count_active_charged_service_quantity.return_value = 5
+    kp_repo.create_booking.return_value = booking
+
+    result = await service.register_booking(
+        event.id,
+        zone.id,
+        [BookingServiceInput(service_id=included_service.id, quantity=2)],
+        confirm_profile=True,
+    )
+
+    assert result.id == booking.id
+    kp_repo.create_booking.assert_awaited_once()
+
+
+async def test_register_booking_counts_charged_quantity_against_total_limit(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    event = make_event()
+    zone = make_zone(event_id=event.id)
+    included_service = make_service(
+        event_id=event.id,
+        max_quantity_per_booking=5,
+        max_total_quantity=5,
+    )
+    zone.included_services = [
+        make_included_link(
+            zone=zone, service_id=included_service.id, included_quantity=1
+        )
+    ]
+    service = KpService(kp_repo, storage_service, make_user(company_id=uuid4()))
+    kp_repo.get_by_id.return_value = event
+    kp_repo.get_booth_zone_by_id.return_value = zone
+    kp_repo.get_company_active_booking_for_event.return_value = None
+    kp_repo.lock_model_by_id.side_effect = [event, zone]
+    kp_repo.count_active_bookings_for_zone.return_value = 0
+    kp_repo.get_service_by_id.return_value = included_service
+    kp_repo.count_active_charged_service_quantity.return_value = 4
+
+    with pytest.raises(KpServiceQuantityInvalid):
+        await service.register_booking(
+            event.id,
+            zone.id,
+            [BookingServiceInput(service_id=included_service.id, quantity=3)],
+            confirm_profile=True,
+        )
+
+    kp_repo.create_booking.assert_not_awaited()
+
+
+async def test_add_booking_services_counts_only_charged_delta_against_total_limit(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    event = make_event()
+    booking = make_booking(event_id=event.id, company_id=company_id)
+    service_model = make_service(
+        event_id=event.id,
+        max_quantity_per_booking=5,
+        max_total_quantity=3,
+    )
+    booking_service = make_booking_service(booking=booking, service_id=service_model.id)
+    booking_service.quantity = 2
+    booking_service.included_quantity = 2
+    booking_service.service = service_model
+    booking.services = [booking_service]
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
+    kp_repo.get_service_by_id.return_value = service_model
+    kp_repo.count_active_charged_service_quantity.return_value = 3
+
+    with pytest.raises(KpServiceQuantityInvalid):
+        await service.add_booking_services(
+            booking.id,
+            [BookingServiceInput(service_id=service_model.id, quantity=1)],
+        )
+
+    kp_repo.add_booking_services.assert_not_awaited()
+
+
+async def test_add_booking_services_measures_total_limit_on_charged_quantity(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    event = make_event()
+    booking = make_booking(event_id=event.id, company_id=company_id)
+    service_model = make_service(
+        event_id=event.id,
+        max_quantity_per_booking=5,
+        max_total_quantity=3,
+    )
+    booking_service = make_booking_service(booking=booking, service_id=service_model.id)
+    booking_service.quantity = 3
+    booking_service.included_quantity = 3
+    booking_service.service = service_model
+    booking.services = [booking_service]
+    updated_booking = make_booking(event_id=event.id, company_id=company_id)
+    updated_booking.services = [booking_service]
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
+    kp_repo.get_service_by_id.return_value = service_model
+    kp_repo.count_active_charged_service_quantity.return_value = 2
+    kp_repo.add_booking_services.return_value = updated_booking
+
+    await service.add_booking_services(
+        booking.id,
+        [BookingServiceInput(service_id=service_model.id, quantity=1)],
+    )
+
+    kp_repo.add_booking_services.assert_awaited_once()
+    kp_repo.count_active_charged_service_quantity.assert_awaited_once_with(
+        service_model.id
+    )
+
+
+async def test_replace_booking_upgrade_waitlist_rejects_confirmed_booking(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(company_id=company_id, status=KpBookingStatus.CONFIRMED)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
+
+    with pytest.raises(KpBookingZoneLocked):
+        await service.replace_booking_upgrade_waitlist(booking.id, [uuid4()])
+
+    kp_repo.replace_booking_upgrade_waitlist_entries.assert_not_awaited()
+
+
+async def test_replace_booking_upgrade_waitlist_rejects_cancelled_booking(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(company_id=company_id, status=KpBookingStatus.CANCELLED)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
+
+    with pytest.raises(KpBookingReadonly):
+        await service.replace_booking_upgrade_waitlist(booking.id, [uuid4()])
+
+    kp_repo.get_booth_zone_by_id.assert_not_awaited()
+    kp_repo.replace_booking_upgrade_waitlist_entries.assert_not_awaited()
+
+
+async def test_add_booking_services_rejects_after_finalization_deadline(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    event = make_deadline_passed_event()
+    booking = make_booking(event=event, company_id=company_id)
+    booking.services = []
+    service_model = make_service(event_id=event.id)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
+
+    with pytest.raises(KpFinalizationDeadlinePassed):
+        await service.add_booking_services(
+            booking.id,
+            [BookingServiceInput(service_id=service_model.id, quantity=1)],
+        )
+
+    kp_repo.add_booking_services.assert_not_awaited()
+
+
+async def test_upload_booking_requirement_file_rejects_after_finalization_deadline(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(event=make_deadline_passed_event(), company_id=company_id)
+    booking_service = make_booking_service(booking=booking)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_service_by_id.return_value = booking_service
+
+    with pytest.raises(KpFinalizationDeadlinePassed):
+        await service.upload_booking_requirement_file(
+            booking_service.id,
+            uuid4(),
+            "notes.pdf",
+            b"%PDF",
+            "application/pdf",
+        )
+
+    storage_service.upload_bytes.assert_not_awaited()
+
+
+async def test_upsert_booking_requirement_text_rejects_after_finalization_deadline(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(event=make_deadline_passed_event(), company_id=company_id)
+    booking_service = make_booking_service(booking=booking)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_service_by_id.return_value = booking_service
+
+    with pytest.raises(KpFinalizationDeadlinePassed):
+        await service.upsert_booking_requirement_text(
+            booking_service.id,
+            uuid4(),
+            "Too late.",
+        )
+
+    kp_repo.upsert_requirement_text_answer.assert_not_awaited()
+
+
+async def test_delete_booking_requirement_file_rejects_after_finalization_deadline(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(event=make_deadline_passed_event(), company_id=company_id)
+    booking_service = make_booking_service(booking=booking)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_service_by_id.return_value = booking_service
+
+    with pytest.raises(KpFinalizationDeadlinePassed):
+        await service.delete_booking_requirement_file(booking_service.id, uuid4())
+
+    kp_repo.delete_requirement_file_link.assert_not_awaited()
+    storage_service.delete_object.assert_not_awaited()
+
+
+async def test_replace_booking_upgrade_waitlist_rejects_after_finalization_deadline(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(event=make_deadline_passed_event(), company_id=company_id)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
+
+    with pytest.raises(KpFinalizationDeadlinePassed):
+        await service.replace_booking_upgrade_waitlist(booking.id, [uuid4()])
+
+    kp_repo.replace_booking_upgrade_waitlist_entries.assert_not_awaited()
+
+
+async def test_add_booking_services_locks_the_event_row(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    event = make_event()
+    booking = make_booking(event=event, company_id=company_id)
+    booking.services = []
+    extra_service = make_service(event_id=event.id)
+    updated_booking = make_booking(event=event, company_id=company_id)
+    updated_booking.services = []
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
+    kp_repo.lock_model_by_id.return_value = event
+    kp_repo.get_service_by_id.return_value = extra_service
+    kp_repo.add_booking_services.return_value = updated_booking
+
+    await service.add_booking_services(
+        booking.id,
+        [BookingServiceInput(service_id=extra_service.id, quantity=1)],
+    )
+
+    kp_repo.lock_model_by_id.assert_awaited_once_with(KpEvent, booking.event_id)
+    kp_repo.add_booking_services.assert_awaited_once()
+
+
+async def test_register_booking_locks_the_event_row_before_the_zone_row(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    event = make_event()
+    zone = make_zone(event_id=event.id, capacity=2)
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_by_id.return_value = event
+    kp_repo.get_booth_zone_by_id.return_value = zone
+    kp_repo.get_company_active_booking_for_event.return_value = None
+    kp_repo.lock_model_by_id.side_effect = [event, zone]
+    kp_repo.count_active_bookings_for_zone.return_value = 0
+    kp_repo.create_booking.return_value = make_booking(
+        event_id=event.id, company_id=company_id, booth_zone_id=zone.id
+    )
+
+    await service.register_booking(event.id, zone.id, confirm_profile=True)
+
+    assert kp_repo.lock_model_by_id.await_args_list == [
+        call(KpEvent, event.id),
+        call(KpEventBoothZone, zone.id),
+    ]
+
+
+async def test_update_my_booking_status_allows_cancel_after_finalization_deadline(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    event = make_deadline_passed_event()
+    booking = make_booking(event=event, company_id=company_id)
+    updated = attach_staff_booking_relations(
+        make_booking(
+            event=event, company_id=company_id, status=KpBookingStatus.CANCELLED
+        )
+    )
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
+    kp_repo.update_booking.return_value = updated
+
+    result = await service.update_my_booking_status(
+        booking.id,
+        UpdateBookingStatusInput(status=KpBookingStatus.CANCELLED),
+    )
+
+    assert result.status == KpBookingStatus.CANCELLED
+    kp_repo.update_booking.assert_awaited_once()
+
+
+async def test_update_my_booking_status_accepts_the_current_status_after_the_deadline(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = attach_staff_booking_relations(
+        make_booking(event=make_deadline_passed_event(), company_id=company_id)
+    )
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
+
+    result = await service.update_my_booking_status(
+        booking.id,
+        UpdateBookingStatusInput(status=booking.status),
+    )
+
+    assert result.status == booking.status
+    kp_repo.update_booking.assert_not_awaited()
+
+
+async def test_update_my_booking_status_rejects_cancelled_revival_after_deadline(
+    kp_repo,
+    storage_service,
+    make_user,
+):
+    company_id = uuid4()
+    booking = make_booking(
+        event=make_deadline_passed_event(),
+        company_id=company_id,
+        status=KpBookingStatus.CANCELLED,
+    )
+    service = KpService(kp_repo, storage_service, make_user(company_id=company_id))
+    kp_repo.get_booking_by_id.return_value = booking
+    kp_repo.lock_booking.return_value = booking
+
+    with pytest.raises(KpBookingStatusTransitionInvalid):
+        await service.update_my_booking_status(
+            booking.id,
+            UpdateBookingStatusInput(status=KpBookingStatus.REGISTERED),
+        )
+
+    kp_repo.update_booking.assert_not_awaited()

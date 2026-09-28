@@ -20,10 +20,24 @@ def test_render_csv_uses_given_field_order_and_ignores_extra_values():
     )
 
     assert filename == "users.csv"
-    rows = list(csv.DictReader(io.StringIO(content.decode("utf-8-sig"))))
+    rows = list(csv.DictReader(io.StringIO(content.decode("utf-8-sig")), delimiter=";"))
     assert rows == [
         {"email": "alice@example.com", "name": "Alice"},
         {"email": "bob@example.com", "name": "Bob"},
+    ]
+
+
+def test_render_csv_uses_a_semicolon_for_swiss_excel():
+    content, _ = CsvService().render_csv(
+        [{"name": "Müller, Hans", "city": "Zürich"}],
+        "people.csv",
+        fieldnames=["name", "city"],
+    )
+
+    assert content.startswith(b"\xef\xbb\xbf")
+    assert content.decode("utf-8-sig").splitlines() == [
+        "name;city",
+        "Müller, Hans;Zürich",
     ]
 
 
@@ -65,7 +79,7 @@ def test_render_csv_escapes_formula_injection_values():
         fieldnames=["value"],
     )
 
-    rows = list(csv.DictReader(io.StringIO(content.decode("utf-8-sig"))))
+    rows = list(csv.DictReader(io.StringIO(content.decode("utf-8-sig")), delimiter=";"))
     assert [row["value"] for row in rows] == [
         "'=cmd",
         "' +SUM(A1:A2)",
@@ -93,7 +107,7 @@ def test_render_csv_preserves_non_string_scalar_values():
         fieldnames=["count", "active", "entity_id", "day", "created_at"],
     )
 
-    rows = list(csv.DictReader(io.StringIO(content.decode("utf-8-sig"))))
+    rows = list(csv.DictReader(io.StringIO(content.decode("utf-8-sig")), delimiter=";"))
     assert rows == [
         {
             "count": "3",

@@ -3,23 +3,51 @@
     "or": "or",
     "yes": "Yes",
     "no": "No",
+    "ok": "OK",
     "cancel": "Cancel",
     "currency": "CHF"
   },
+  "uploads": {
+    "unavailable_title": "Uploads are not available yet",
+    "unavailable_body": "Uploading files does not work yet. Please try again later."
+  },
   "server": {
-    "error": "Server error"
+    "error": "Something went wrong. Please try again."
+  },
+  "csrf": {
+    "validation_failed": "Your session security token expired. Please try again."
+  },
+  "auth": {
+    "email_taken_locally": "This email address already belongs to a local account. Please log in with your password instead.",
+    "not_vis_member": "Your VIS membership is not active, so you cannot log in with your ETH account.",
+    "link_invalid": "This login link is invalid, expired or has already been used. Please log in with your password.",
+    "link_redirecting": "Logging you in, please wait."
   },
   "error": {
+    "booklet_background_not_pdf": "The booklet background must be a PDF file.",
+    "booklet_background_too_large": "The booklet background PDF is larger than 900 KB.",
+    "booklet_background_unreadable": "The booklet background PDF could not be read.",
+    "booklet_background_page_count": "The booklet background PDF must have exactly one page.",
+    "booklet_background_page_size": "The booklet background PDF must be A5 (148 × 210 mm).",
+    "booklet_background_too_complex": "The booklet background PDF is too complex to render quickly.",
+    "booklet_page_render_timeout": "The booklet page took too long to render.",
+    "export_render_timeout": "The export took too long to render. Please try again later.",
     "title": "Error",
     "unauthenticated": "User is not authenticated",
     "user_not_found": "User not found in the database",
     "company_not_found": "Company not found in the database",
     "company_user_not_found": "The selected contact user must belong to your company.",
+    "company_general_email_is_login": "Please use a different address than your login email.",
+    "company_has_upcoming_bookings": "This company still has bookings for upcoming KP events and cannot be deleted.",
+    "company_profile_incomplete": "Your company profile is incomplete. Please fill in all mandatory fields before registering.",
+    "company_profile_unconfirmed": "Please confirm that your company profile is still correct before registering.",
+    "industry_not_found": "The selected industry could not be found.",
+    "industry_name_exists": "An industry with this name already exists.",
     "keycloak_exchange_failed": "Keycloak exchange failed",
     "token_invalid": "Token is invalid",
     "not_allowed": "User is not allowed to make this request",
     "email_not_confirmed": "User email is not confirmed",
-    "not_confirmed": "User is not confirmed by an admin",
+    "not_confirmed": "User is not confirmed by the Kontaktparty organisers",
     "phone_number_invalid": "Phone number is invalid",
     "invalid_credentials": "Invalid credentials, please check your email and password",
     "email_used": "Email is already used",
@@ -30,34 +58,76 @@
     "kp_booking_not_found": "The selected KP booking could not be found.",
     "kp_booking_not_owned": "This KP booking does not belong to your company.",
     "kp_booking_status_transition_invalid": "The requested booking status change is not allowed.",
-    "kp_booking_confirmation_requires_finalized": "Only finalized bookings can be confirmed.",
-    "kp_booking_confirmed_readonly": "Confirmed bookings can no longer be changed.",
+    "kp_booking_delete_requires_force": "A confirmed booking can only be deleted after an explicit confirmation.",
+    "kp_booking_readonly": "This booking can no longer be changed.",
+    "kp_finalization_deadline_passed": "The deadline for changing your booking has passed.",
     "kp_name_tag_not_found": "The selected name tag could not be found.",
     "kp_export_background_not_found": "The name tag export background could not be found.",
     "kp_export_empty": "No name tags are available for this export.",
     "kp_service_not_found": "The selected service could not be found.",
     "kp_service_unavailable": "The selected service is no longer available.",
+    "kp_service_in_use": "This service is still booked by an active booking and cannot be deleted.",
+    "kp_service_name_exists": "A service with this name already exists for this event.",
     "kp_service_quantity_invalid": "The selected service quantity is not available.",
-    "kp_industry_not_found": "The selected industry could not be found.",
-    "kp_industry_name_exists": "An industry with this name already exists.",
+    "kp_service_event_mismatch": "The selected service belongs to a different KP event.",
+    "kp_included_service_duplicate": "This service is listed more than once in the included services.",
+    "kp_included_exceeds_max": "The included quantity is higher than the maximum quantity per booking of this service.",
+    "kp_nametag_limit_reached": "This booking has reached the maximum number of name tags.",
+    "kp_nametags_deadline_passed": "The deadline for editing name tags has passed.",
     "kp_service_requirement_not_found": "The selected service requirement could not be found.",
     "kp_requirement_booking_service_mismatch": "The selected requirement does not belong to a booked service.",
     "kp_booth_zone_not_found": "The selected booth zone could not be found.",
     "kp_booth_zone_event_mismatch": "The selected booth zone belongs to a different KP event.",
+    "kp_booth_zone_in_use": "This booth zone is still used by an active booking and cannot be deleted.",
+    "kp_booth_zone_order_invalid": "The booth zones changed in the meantime. Reload the page and try again.",
+    "kp_booth_zone_name_exists": "A booth zone with this name already exists for this event.",
+    "kp_booth_zone_color_exists": "A booth zone with this color already exists for this event.",
+    "kp_booth_number_taken": "Another active booking in this booth zone already uses this booth number.",
     "kp_waitlist_same_zone": "You cannot add your current booth zone to the waitlist.",
-    "storage_upload_failed": "The file upload failed.",
+    "storage_upload_failed": "The file storage is unavailable right now. Please try again later.",
+    "upload_rejected": "The file could not be uploaded. It is probably too large.",
+    "internal": "Something went wrong on our side. Please try again.",
+    "mail_unavailable": "The email could not be sent right now. Please try again in a few minutes.",
+    "company_name_taken": "Another company already uses this name.",
+    "conflict": "This was changed at the same time elsewhere. Please reload the page and try again.",
+    "network": "VISIT cannot be reached right now. Please check your connection and try again.",
+    "reference": "Error ID:",
     "storage_delete_failed": "The file deletion failed.",
     "storage_download_failed": "The file download failed.",
     "storage_file_too_large": "The uploaded file is too large.",
     "storage_file_invalid_mime_type": "The uploaded file type is not allowed.",
+    "event_banner_too_small": "The banner must be at least 800 pixels wide.",
+    "storage_image_too_large": "The image is too large. Use at most 8000 pixels per side and 40 megapixels.",
     "kp_registration_closed": "Registration for this event is currently closed.",
+    "kp_zone_registration_closed": "Registration for this booth zone is currently closed.",
+    "kp_offer_cancel_deadline_passed": "The free cancellation period for this place has ended.",
+    "kp_offer_deadline_invalid": "The cancellation deadline must lie between today and the event date.",
+    "kp_booking_not_offered": "This booking was not offered by VIS, so it has no cancellation deadline.",
     "kp_booth_zone_at_capacity": "The selected booth zone has no remaining spots.",
+    "kp_booth_zone_full": "The selected booth zone is full. You can join its waitlist instead.",
+    "kp_booking_zone_locked": "VIS has confirmed your booking. You can still add services, but no longer change the booth zone.",
+    "kp_booking_zone_switch_not_allowed": "This booking can no longer switch its booth zone.",
+    "kp_waitlist_zone_has_capacity": "The selected booth zone still has free spots. Please switch to it instead of waiting.",
     "kp_booking_already_exists": "Your company already has an active booking for this event.",
     "kp_requirement_file_upload_not_allowed": "This requirement does not accept file uploads.",
     "kp_requirement_text_answer_not_allowed": "This requirement does not accept text answers.",
+    "kp_venue_layout_not_found": "The selected venue plan could not be found.",
+    "kp_venue_layout_name_exists": "A venue plan with this name already exists for this event.",
+    "kp_venue_out_of_bounds": "The position lies outside the venue plan.",
+    "kp_venue_booth_number_duplicate": "The same booth number is placed more than once in this venue plan.",
     "validation_failed": "Some fields are invalid.",
     "invite_not_found": "This invite is invalid or has already been used.",
-    "invite_expired": "This invite has expired."
+    "invite_expired": "This invite has expired.",
+    "user_last_company_member": "This company would lose its last member while it still has bookings for upcoming KP events.",
+    "user_already_in_company": "This user already belongs to a company.",
+    "invite_email_mismatch": "This invite was sent to a different email address.",
+    "company_invite_pending": "An invite for this email address is already pending.",
+    "rate_limited": "Too many requests. Please wait a few minutes and try again.",
+    "session_load_failed": "Your session could not be loaded. Please try again.",
+    "mail_template_not_found": "This email template does not exist.",
+    "mail_template_invalid": "The email template uses a placeholder that is not available.",
+    "retry": "Try again",
+    "identity_provider_unavailable": "The VIS login service cannot be reached right now. Please try again in a few minutes."
   },
   "validation": {
     "required": "This field is required.",
@@ -70,13 +140,15 @@
     "invalid_date": "Please enter a valid date.",
     "invalid_string": "Please enter a valid text value.",
     "too_short": "The value is too short.",
-    "too_long": "The value is too long."
+    "too_long": "The value is too long.",
+    "invalid_url": "Please enter a valid link starting with http:// or https://.",
+    "out_of_range": "The value is outside the allowed range."
   },
   "email": {
     "title": "Email",
     "valid": "Enter a valid email",
     "confirm": {
-      "title": "Confirm Your Email",
+      "title": "Confirm your email",
       "description": "Click the button below to verify your email address",
       "success": "Email confirmed",
       "success_description": "Your email has been successfully verified. You can now log in to your account.",
@@ -91,51 +163,53 @@
       "please_wait": "Please wait while we validate your confirmation link",
       "back_to_login": "Back to Login",
       "go_to_login": "Go to Login",
-      "sent": "Confirmation mail has been sent to your email",
+      "sent": "A confirmation email has been sent",
       "sent_description": "We sent a fresh confirmation email to {{email}}.",
       "login_required": "Log in to confirm your email",
-      "login_required_description": "This page can resend confirmation mail only for a signed-in account."
+      "login_required_description": "This page can resend confirmation email only for a logged-in account."
     }
   },
   "password": {
     "wrong": "Wrong password or email",
-    "min": "Password has to be longer than 10 characters"
+    "min": "Password must be at least 8 characters long"
   },
   "company": {
-    "login": "Company Login"
+    "login": "Company login"
   },
-  "welcome": "Welcome",
   "system-theme-follow": "Follow system theme",
   "language-change": "Change language",
   "not_allowed": {
-    "title": "Access Denied",
+    "title": "Access denied",
     "description": "You do not have permission to access this page."
   },
   "not_found": {
-    "title": "Page Not Found",
+    "title": "Page not found",
     "description": "The page you are looking for does not exist."
   },
   "home": {
     "welcome_name": "Welcome {{name}}",
     "portal_badge": "VISIT Portal",
-    "subtitle": "Manage your company profile and discover upcoming Kontaktparty events.",
     "kp": {
       "title": "Kontaktparty",
       "description": "Explore the ETH job fair timeline, latest event details, and company participation options.",
-      "image_alt": "Kontaktparty event placeholder"
+      "image_alt": "Kontaktparty 2027 – Switzerland's largest academic IT recruiting fair"
     }
   },
   "nav": {
     "company_portal_of": "Company portal of",
     "vis_short": "VIS",
-    "vis_logo_alt": "VIS logo",
     "navigation": "Navigation",
     "home": "Home",
     "profile": "Profile",
     "company": "Company",
-    "user_management": "User Management",
+    "user_management": "User management",
     "kontaktparty": "Kontaktparty",
-    "company_management": "Company Management",
-    "logout": "Logout"
+    "company_management": "Company management",
+    "mail_templates": "Email templates",
+    "industries": "Industries",
+    "logout": "Logout",
+    "logout_confirm_title": "Log out?",
+    "logout_confirm_body": "You will be signed out of VISIT and have to log in again to manage your bookings.",
+    "logout_confirm_submit": "Log out"
   }
 }

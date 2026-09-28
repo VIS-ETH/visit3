@@ -1,7 +1,7 @@
 """KP requirement text answers
 
-Revision ID: 0020
-Revises: 0019
+Revision ID: 0021
+Revises: 0020
 Create Date: 2026-06-06 00:00:00.000000
 
 """
@@ -11,7 +11,6 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-# revision identifiers, used by Alembic.
 revision: str = "0021"
 down_revision: Union[str, Sequence[str], None] = "0020"
 branch_labels: Union[str, Sequence[str], None] = None

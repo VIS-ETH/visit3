@@ -3,23 +3,128 @@ from io import BytesIO
 from unittest.mock import Mock
 
 import pytest
+from botocore.awsrequest import AWSPreparedRequest, AWSResponse
 from botocore.exceptions import ClientError
+from urllib3 import HTTPHeaderDict
 
 from app.core.config import get_settings
 from app.core.exceptions import (
     StorageDownloadFailed,
     StorageFileInvalidMimeType,
     StorageFileTooLarge,
+    StorageImageTooLarge,
     StorageUploadFailed,
 )
-from app.services.storage_service import StorageService
+from app.services.storage_service import StorageService, UploadKind, sniff_mime_type
+from tests.images import decompression_bomb, iso_media_image, raster
 
 
-def make_storage_service(client=None) -> StorageService:
+def make_storage_service(client=None, **settings_overrides) -> StorageService:
     service = StorageService.__new__(StorageService)
-    service.settings = get_settings()
+    service.settings = get_settings().model_copy(
+        update={"S3_PUBLIC_ENDPOINT_URL": None, **settings_overrides}
+    )
     service.client = client or Mock()
     return service
+
+
+class CountingUpload:
+    def __init__(self, content: bytes) -> None:
+        self.content = content
+        self.offset = 0
+        self.read_calls = 0
+
+    async def read(self, size: int = -1) -> bytes:
+        self.read_calls += 1
+        end = len(self.content) if size < 0 else self.offset + size
+        chunk = self.content[self.offset : end]
+        self.offset += len(chunk)
+        return chunk
+
+
+async def test_read_upload_rejects_content_length_over_limit_before_reading():
+    service = make_storage_service(STORAGE_IMAGE_MAX_SIZE_BYTES=1024)
+    upload = CountingUpload(b"image-bytes")
+
+    with pytest.raises(StorageFileTooLarge):
+        await service.read_upload(
+            upload,
+            content_length=1025,
+            kind=UploadKind.IMAGE,
+            error_context="service_image",
+        )
+
+    assert upload.read_calls == 0
+
+
+async def test_read_upload_aborts_stream_once_limit_is_exceeded():
+    service = make_storage_service(STORAGE_IMAGE_MAX_SIZE_BYTES=1024 * 1024)
+    upload = CountingUpload(b"\x00" * (5 * 1024 * 1024))
+
+    with pytest.raises(StorageFileTooLarge):
+        await service.read_upload(
+            upload,
+            content_length=None,
+            kind=UploadKind.IMAGE,
+            error_context="service_image",
+        )
+
+    assert upload.read_calls == 2
+    assert upload.offset < len(upload.content)
+
+
+async def test_read_upload_returns_content_within_limit():
+    service = make_storage_service()
+    upload = CountingUpload(b"small image")
+
+    content = await service.read_upload(
+        upload,
+        content_length=len(b"small image"),
+        kind=UploadKind.IMAGE,
+        error_context="service_image",
+    )
+
+    assert content == b"small image"
+
+
+PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 16
+JPEG_BYTES = b"\xff\xd8\xff\xe0" + b"\x00" * 16
+GIF_BYTES = b"GIF89a" + b"\x00" * 16
+WEBP_BYTES = b"RIFF\x24\x00\x00\x00WEBPVP8 "
+PDF_BYTES = b"%PDF-1.7\n1 0 obj\n"
+MP4_BYTES = b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 16
+QUICKTIME_BYTES = b"\x00\x00\x00\x14ftypqt  " + b"\x00" * 16
+WEBM_BYTES = b"\x1a\x45\xdf\xa3" + b"\x00" * 16
+HEIC_BYTES = b"\x00\x00\x00\x18ftypheic" + b"\x00" * 16
+HEIX_BYTES = b"\x00\x00\x00\x18ftypheix" + b"\x00" * 16
+HEIF_BYTES = b"\x00\x00\x00\x18ftypmif1" + b"\x00" * 16
+AVIF_BYTES = b"\x00\x00\x00\x18ftypavif" + b"\x00" * 16
+HTML_BYTES = b"<!DOCTYPE html><html><body>hi</body></html>"
+UNKNOWN_BYTES = b"\x01\x02\x03\x04\x05\x06\x07\x08"
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        (PNG_BYTES, "image/png"),
+        (JPEG_BYTES, "image/jpeg"),
+        (GIF_BYTES, "image/gif"),
+        (WEBP_BYTES, "image/webp"),
+        (PDF_BYTES, "application/pdf"),
+        (MP4_BYTES, "video/mp4"),
+        (QUICKTIME_BYTES, "video/quicktime"),
+        (HEIC_BYTES, "image/heic"),
+        (HEIX_BYTES, "image/heic"),
+        (HEIF_BYTES, "image/heic"),
+        (AVIF_BYTES, "image/avif"),
+        (WEBM_BYTES, "video/webm"),
+        (HTML_BYTES, None),
+        (UNKNOWN_BYTES, None),
+        (b"", None),
+    ],
+)
+def test_sniff_mime_type_matches_known_signatures(content: bytes, expected: str | None):
+    assert sniff_mime_type(content) == expected
 
 
 def test_validate_image_file_accepts_known_image_type():
@@ -27,12 +132,88 @@ def test_validate_image_file_accepts_known_image_type():
 
     mime_type = service.validate_image_file(
         "logo.png",
-        b"\x89PNG\r\n",
+        raster(1, 1),
         "image/png",
         error_context="logo",
     )
 
     assert mime_type == "image/png"
+
+
+def test_validate_image_file_rejects_html_declared_as_png():
+    service = make_storage_service()
+
+    with pytest.raises(StorageFileInvalidMimeType):
+        service.validate_image_file(
+            "logo.png",
+            HTML_BYTES,
+            "image/png",
+            error_context="logo",
+        )
+
+
+def test_validate_image_file_stores_sniffed_mime_type_over_declared_one():
+    service = make_storage_service()
+
+    mime_type = service.validate_image_file(
+        "logo.bin",
+        raster(1, 1),
+        "application/octet-stream",
+        error_context="logo",
+    )
+
+    assert mime_type == "image/png"
+
+
+def test_validate_image_file_rejects_unknown_bytes():
+    service = make_storage_service()
+
+    with pytest.raises(StorageFileInvalidMimeType):
+        service.validate_image_file(
+            "logo.png",
+            UNKNOWN_BYTES,
+            "image/png",
+            error_context="logo",
+        )
+
+
+def test_validate_pdf_file_accepts_pdf_signature():
+    service = make_storage_service()
+
+    mime_type = service.validate_pdf_file(
+        "document.pdf",
+        PDF_BYTES,
+        "application/octet-stream",
+        error_context="document",
+    )
+
+    assert mime_type == "application/pdf"
+
+
+def test_validate_video_file_accepts_mp4_signature():
+    service = make_storage_service()
+
+    mime_type = service.validate_video_file(
+        "clip.mp4",
+        MP4_BYTES,
+        "video/quicktime",
+        error_context="clip",
+    )
+
+    assert mime_type == "video/mp4"
+
+
+def test_validate_image_file_rejects_pdf_bytes_for_nametag_background():
+    service = make_storage_service()
+
+    with pytest.raises(StorageFileInvalidMimeType):
+        service.validate_image_file(
+            "background.png",
+            PDF_BYTES,
+            "image/png",
+            error_context="nametag_background",
+            allowed_mime_types={"image/png", "image/jpeg"},
+        )
 
 
 def test_validate_file_rejects_wrong_mime_type():
@@ -138,3 +319,201 @@ async def test_generate_download_url_sanitizes_content_disposition_filename():
     assert "filename*=UTF-8''K%C3%A4pp-report.pdf" in disposition
     assert "\r" not in disposition
     assert "/" not in disposition
+
+
+async def test_generate_download_url_keeps_the_storage_endpoint_by_default():
+    settings = get_settings().model_copy(update={"S3_PUBLIC_ENDPOINT_URL": None})
+
+    url = await StorageService(settings).generate_download_url(
+        "kp/plan.png", "plan.png"
+    )
+
+    assert url.startswith(f"{settings.S3_ENDPOINT_URL}/")
+
+
+async def test_generate_download_url_is_signed_for_the_public_endpoint():
+    settings = get_settings().model_copy(
+        update={"S3_PUBLIC_ENDPOINT_URL": "http://localhost:9000"}
+    )
+
+    url = await StorageService(settings).generate_download_url(
+        "kp/plan.png", "plan.png"
+    )
+
+    assert url.startswith("http://localhost:9000/")
+
+
+def https_storage_service() -> StorageService:
+    return StorageService(
+        get_settings().model_copy(
+            update={
+                "SIP_S3_FILES_HOST": "s3.example.org",
+                "SIP_S3_FILES_PORT": "443",
+                "SIP_S3_FILES_USE_SSL": True,
+                "S3_PUBLIC_ENDPOINT_URL": None,
+            }
+        )
+    )
+
+
+class EmptyRawResponse:
+    def stream(self, *_: object, **__: object):
+        yield b""
+
+
+def captured_put_request(service: StorageService, content: bytes) -> AWSPreparedRequest:
+    captured: list[AWSPreparedRequest] = []
+
+    def capture(request: AWSPreparedRequest, **_: object) -> AWSResponse:
+        captured.append(request)
+        return AWSResponse(
+            request.url, 200, HTTPHeaderDict({"ETag": '"etag"'}), EmptyRawResponse()
+        )
+
+    service.client.meta.events.register("before-send.s3.PutObject", capture)
+    service.client.put_object(
+        Bucket="visit", Key="logo.png", Body=content, ContentType="image/png"
+    )
+    return captured[0]
+
+
+def test_uploads_over_https_send_a_plain_body_with_its_length():
+    content = PNG_BYTES + b"\x00" * 2048
+
+    request = captured_put_request(https_storage_service(), content)
+
+    assert request.headers.get("Content-Encoding") is None
+    assert request.headers.get("Transfer-Encoding") is None
+    assert request.headers["Content-Length"] == str(len(content))
+    assert request.headers["x-amz-content-sha256"] != (
+        "STREAMING-UNSIGNED-PAYLOAD-TRAILER"
+    )
+
+
+async def test_download_urls_are_signed_with_signature_version_4():
+    url = await https_storage_service().generate_download_url("kp/plan.png", "plan.png")
+
+    assert "X-Amz-Algorithm=AWS4-HMAC-SHA256" in url
+
+
+def test_validate_image_file_rejects_heic_with_its_sniffed_mime_type():
+    service = make_storage_service()
+
+    with pytest.raises(StorageFileInvalidMimeType) as error:
+        service.validate_image_file(
+            "photo.heic",
+            HEIC_BYTES,
+            "image/png",
+            error_context="requirement_file",
+            allowed_mime_types={"image/png", "image/jpeg"},
+        )
+
+    assert error.value.identifier.endswith("mime:image/heic")
+
+
+@pytest.mark.parametrize(
+    ("width", "height"),
+    [(8001, 1), (1, 8001), (7000, 7000)],
+)
+def test_validate_image_file_rejects_an_image_over_the_pixel_limits(
+    width: int, height: int
+):
+    service = make_storage_service()
+
+    with pytest.raises(StorageImageTooLarge) as error:
+        service.validate_image_file(
+            "huge.png", raster(width, height), "image/png", error_context="logo"
+        )
+
+    assert error.value.code == "error.storage_image_too_large"
+
+
+def test_validate_image_file_rejects_a_decompression_bomb():
+    service = make_storage_service()
+
+    with pytest.raises(StorageImageTooLarge):
+        service.validate_image_file(
+            "bomb.png", decompression_bomb(30_000), "image/png", error_context="logo"
+        )
+
+
+def test_validate_image_file_accepts_an_image_at_the_side_limit():
+    service = make_storage_service()
+
+    mime_type = service.validate_image_file(
+        "wide.png", raster(8000, 10), "image/png", error_context="logo"
+    )
+
+    assert mime_type == "image/png"
+
+
+def test_validate_image_file_rejects_an_image_without_readable_dimensions():
+    service = make_storage_service()
+
+    with pytest.raises(StorageFileInvalidMimeType) as error:
+        service.validate_image_file(
+            "broken.png", PNG_BYTES, "image/png", error_context="logo"
+        )
+
+    assert error.value.identifier == "logo:dimensions"
+
+
+@pytest.mark.parametrize("brand", [b"heic", b"avif"])
+def test_validate_image_file_reads_iso_media_extents(brand: bytes):
+    service = make_storage_service()
+
+    with pytest.raises(StorageImageTooLarge):
+        service.validate_image_file(
+            "photo.heic",
+            iso_media_image(brand, 9000, 9000),
+            "image/heic",
+            error_context="service_image",
+        )
+    assert service.validate_image_file(
+        "photo.heic",
+        iso_media_image(brand, 4032, 3024),
+        "image/heic",
+        error_context="service_image",
+    ).startswith("image/")
+
+
+def test_validate_generic_file_does_not_limit_image_dimensions():
+    service = make_storage_service()
+
+    mime_type = service.validate_generic_file(
+        "artwork.png", raster(8001, 1), "image/png", error_context="artwork"
+    )
+
+    assert mime_type == "image/png"
+
+
+def test_validate_image_or_pdf_file_limits_image_dimensions():
+    service = make_storage_service()
+
+    with pytest.raises(StorageImageTooLarge):
+        service.validate_image_or_pdf_file(
+            "layout.png", raster(8001, 1), "image/png", error_context="layout"
+        )
+
+
+@pytest.mark.parametrize(
+    ("filename", "declared_type"),
+    [
+        ("page.html", "text/html"),
+        ("drawing.svg", "image/svg+xml"),
+        ("feed.xml", "application/xml"),
+        ("script.js", "text/javascript"),
+        ("page.xhtml", None),
+        ("notes.txt", "text/plain"),
+    ],
+)
+def test_validate_generic_file_never_keeps_an_unsniffed_type(
+    filename: str, declared_type: str | None
+):
+    service = make_storage_service()
+
+    mime_type = service.validate_generic_file(
+        filename, b"<svg onload=alert(1)>", declared_type, error_context="artwork"
+    )
+
+    assert mime_type == "application/octet-stream"

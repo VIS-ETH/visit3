@@ -5,15 +5,15 @@ import {
   Button,
   Card,
   Center,
-  FileInput,
   Group,
   Loader,
   Modal,
   NumberInput,
   Paper,
-  SegmentedControl,
   SimpleGrid,
   Stack,
+  Switch,
+  Tabs,
   Text,
   Textarea,
   Title,
@@ -27,18 +27,20 @@ import {
   IconDownload,
   IconPlus,
   IconProgressCheck,
+  IconRefresh,
   IconTrash,
   IconUpload,
 } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "react-router";
-import { useListAvailableServices } from "../api/kp-services";
+import { Navigate, useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
+import { KpBookingCompletion } from "../components/KpBookingCompletion";
 import {
-  KpBookingStatus,
   KpEventServiceRequirementType,
+  KpServiceCategory,
+  type BookingResponse,
   type BookingServiceResponse,
   type ServiceRequirementResponse,
   type ServiceResponse,
@@ -54,10 +56,25 @@ import {
   useGetBookingRequirementText,
   useGetKpById,
   useGetMyBooking,
+  useListAvailableServices,
   useUpsertBookingRequirementText,
   useUploadBookingRequirementFile,
 } from "../orval/generated/kp/kp";
+import {
+  maxServiceQuantity,
+  servicesOfCategory,
+} from "../utils/kp-service-quantity";
+import { isInactiveBooking } from "../utils/my-booking";
+import { bookingRequirementElementId } from "../utils/navigation";
+import { useScrollToHash } from "../utils/use-scroll-to-hash";
+import { useWarnOnLeave } from "../utils/use-warn-on-leave";
 import { formatPrice } from "../utils/price-utils";
+import { priceBreakdown } from "../utils/pricing";
+import {
+  acceptForRequirement,
+  allowedFormatsLabel,
+} from "../utils/upload-formats";
+import UploadFileInput from "../components/UploadFileInput";
 
 type RequirementDraft = {
   text?: string;
@@ -91,8 +108,10 @@ type PendingRequirementChange =
 
 type RequirementCompletion = Record<string, boolean>;
 
-const requirementChangeKey = (bookingServiceId: string, requirementId: string) =>
-  `${bookingServiceId}:${requirementId}`;
+const requirementChangeKey = (
+  bookingServiceId: string,
+  requirementId: string,
+) => `${bookingServiceId}:${requirementId}`;
 
 const requirementTypeLabel = (
   type: KpEventServiceRequirementType,
@@ -113,13 +132,6 @@ const requirementTypeLabel = (
   return t("kp.booking.requirement_type_file");
 };
 
-const acceptForRequirement = (type: KpEventServiceRequirementType) => {
-  if (type === KpEventServiceRequirementType.image) return "image/*";
-  if (type === KpEventServiceRequirementType.pdf) return "application/pdf";
-  if (type === KpEventServiceRequirementType.video) return "video/*";
-  return undefined;
-};
-
 const requirementChangeLabel = (
   change: PendingRequirementChange,
   t: (key: string) => string,
@@ -132,6 +144,7 @@ const requirementChangeLabel = (
 const RequirementEditor = ({
   bookingServiceId,
   editable,
+  isSaving,
   onChange,
   onCompletionChange,
   pendingChange,
@@ -140,6 +153,7 @@ const RequirementEditor = ({
 }: {
   bookingServiceId: string;
   editable: boolean;
+  isSaving: boolean;
   onChange: (
     bookingServiceId: string,
     requirementId: string,
@@ -157,52 +171,51 @@ const RequirementEditor = ({
   const { t } = useTranslation();
   const [draft, setDraft] = useState<RequirementDraft>({});
   const isText = requirement.type === KpEventServiceRequirementType.text;
-  const { data: requirementFile, isFetching } = useGetBookingRequirementFile(
-    bookingServiceId,
-    requirement.id,
-    {
-      query: {
-        enabled: !isText,
-        retry: false,
-      },
+  const {
+    data: requirementFile,
+    isFetching,
+    isError: isFileError,
+    refetch: refetchFile,
+  } = useGetBookingRequirementFile(bookingServiceId, requirement.id, {
+    query: {
+      enabled: !isText,
+      retry: false,
     },
-  );
-  const { data: requirementText } = useGetBookingRequirementText(
-    bookingServiceId,
-    requirement.id,
-    {
+  });
+  const { data: requirementText, isFetched: isTextFetched } =
+    useGetBookingRequirementText(bookingServiceId, requirement.id, {
       query: {
         enabled: isText,
         retry: false,
       },
-    },
-  );
+    });
   const requirementTextValue = requirementText?.text_value ?? "";
   useEffect(() => {
-    if (!isText || draft.text !== undefined) return;
+    if (!isText || !isTextFetched || draft.text !== undefined) return;
     setDraft((current) => ({
       ...current,
-      text: requirementTextValue,
+      text:
+        pendingChange?.kind === "text"
+          ? pendingChange.text
+          : requirementTextValue,
     }));
-  }, [draft.text, isText, requirementTextValue]);
+  }, [draft.text, isText, isTextFetched, pendingChange, requirementTextValue]);
   useEffect(() => {
-    if (isText || pendingChange || !draft.file) return;
-    setDraft((current) => ({ ...current, file: null }));
+    if (isText) return;
+    const pendingFile =
+      pendingChange?.kind === "file" ? pendingChange.file : null;
+    if ((draft.file ?? null) === pendingFile) return;
+    setDraft((current) => ({ ...current, file: pendingFile }));
   }, [draft.file, isText, pendingChange]);
   useEffect(() => {
     const isComplete = isText
-      ? pendingChange?.kind === "text"
-        ? Boolean(pendingChange.text.trim())
-        : Boolean(requirementTextValue.trim())
-      : pendingChange?.kind === "delete_file"
-        ? false
-        : pendingChange?.kind === "file" || Boolean(requirementFile);
+      ? Boolean(requirementTextValue.trim())
+      : Boolean(requirementFile);
     onCompletionChange(bookingServiceId, requirement.id, isComplete);
   }, [
     bookingServiceId,
     isText,
     onCompletionChange,
-    pendingChange,
     requirement.id,
     requirementFile,
     requirementTextValue,
@@ -219,6 +232,7 @@ const RequirementEditor = ({
   return (
     <Stack
       gap="xs"
+      id={bookingRequirementElementId(requirement.id)}
       py="sm"
       style={{ borderTop: "1px solid var(--mantine-color-default-border)" }}
     >
@@ -239,9 +253,11 @@ const RequirementEditor = ({
             <Text c="dimmed" size="xs" mt={4}>
               {isFetching
                 ? t("kp.booking_manage.checking_file")
-                : requirementFile
-                  ? requirementFile.stored_file.original_filename
-                  : t("kp.booking_manage.no_file")}
+                : isFileError
+                  ? t("kp.booking_manage.file_load_error")
+                  : requirementFile
+                    ? requirementFile.stored_file.original_filename
+                    : t("kp.booking_manage.no_file")}
             </Text>
           ) : null}
         </div>
@@ -280,10 +296,22 @@ const RequirementEditor = ({
                 );
               }}
             />
+          ) : isFileError ? (
+            <Button
+              leftSection={<IconRefresh size={16} />}
+              onClick={() => {
+                void refetchFile();
+              }}
+              size="sm"
+              variant="light"
+            >
+              {t("kp.booking_manage.retry_file_load")}
+            </Button>
           ) : (
-            <FileInput
+            <UploadFileInput
               disabled={!editable}
               accept={acceptForRequirement(requirement.type)}
+              description={allowedFormatsLabel(requirement.type, t)}
               leftSection={<IconUpload size={16} />}
               placeholder={
                 requirementFile
@@ -354,8 +382,19 @@ const RequirementEditor = ({
                 : t("kp.booking_manage.delete_file")}
             </Button>
           ) : null}
-          {pendingChange ? (
-            <Badge variant="light">{t("kp.booking_manage.pending_change")}</Badge>
+          {isSaving ? (
+            <Badge
+              leftSection={<Loader color="blue" size={10} />}
+              variant="light"
+            >
+              {isText
+                ? t("kp.booking_manage.saving")
+                : t("kp.booking_manage.uploading")}
+            </Badge>
+          ) : pendingChange ? (
+            <Badge variant="light">
+              {t("kp.booking_manage.pending_change")}
+            </Badge>
           ) : null}
         </Group>
       </Group>
@@ -370,10 +409,12 @@ const BookedServiceCard = ({
   onRequirementCompletionChange,
   onRequirementChange,
   pendingChanges,
+  savingKey,
 }: {
   bookingService: BookingServiceResponse;
   completion: RequirementCompletion;
   editable: boolean;
+  savingKey: string | null;
   onRequirementCompletionChange: (
     bookingServiceId: string,
     requirementId: string,
@@ -405,6 +446,13 @@ const BookedServiceCard = ({
             <Group gap="xs">
               <Text fw={600}>{bookingService.service.name}</Text>
               <Badge variant="light">x{bookingService.quantity}</Badge>
+              {bookingService.included_quantity > 0 ? (
+                <Badge color="green" variant="light">
+                  {t("kp.booking.service_included_note", {
+                    included: bookingService.included_quantity,
+                  })}
+                </Badge>
+              ) : null}
             </Group>
             {bookingService.service.description ? (
               <Text c="dimmed" size="sm">
@@ -436,7 +484,11 @@ const BookedServiceCard = ({
             {requirements.map((requirement) => (
               <RequirementEditor
                 bookingServiceId={bookingService.id}
-                editable={editable}
+                editable={editable && savingKey === null}
+                isSaving={
+                  savingKey ===
+                  requirementChangeKey(bookingService.id, requirement.id)
+                }
                 key={requirement.id}
                 onChange={onRequirementChange}
                 onCompletionChange={onRequirementCompletionChange}
@@ -456,29 +508,131 @@ const BookedServiceCard = ({
   );
 };
 
+const AddServiceCard = ({
+  bookedQuantity,
+  editable,
+  includedQuantity,
+  onQuantityChange,
+  quantity,
+  service,
+}: {
+  bookedQuantity: number;
+  editable: boolean;
+  includedQuantity: number;
+  onQuantityChange: (quantity: number) => void;
+  quantity: number;
+  service: ServiceResponse;
+}) => {
+  const { t } = useTranslation();
+  const maxQuantity = maxServiceQuantity(service, bookedQuantity);
+  const addedQuantity = Math.max(quantity - bookedQuantity, 0);
+
+  return (
+    <Paper withBorder radius="sm" p="md">
+      <Stack gap="xs">
+        <Group justify="space-between" align="flex-start">
+          <div>
+            <Text fw={600}>{service.name}</Text>
+            {service.description ? (
+              <Text c="dimmed" size="sm">
+                {service.description}
+              </Text>
+            ) : null}
+          </div>
+          <Stack gap={4} align="flex-end">
+            <Text fw={600} size="sm">
+              CHF {formatPrice(service.price)}
+            </Text>
+            {includedQuantity > 0 ? (
+              <Badge color="green" variant="light">
+                {t("kp.booking.service_included_note", {
+                  included: includedQuantity,
+                })}
+              </Badge>
+            ) : null}
+          </Stack>
+        </Group>
+        {service.max_quantity_per_booking === 1 ? (
+          <Switch
+            checked={quantity > 0}
+            disabled={!editable || maxQuantity <= bookedQuantity}
+            label={t("kp.booking.service_book_toggle")}
+            onChange={(event) =>
+              onQuantityChange(event.currentTarget.checked ? 1 : 0)
+            }
+          />
+        ) : (
+          <NumberInput
+            allowDecimal={false}
+            allowNegative={false}
+            clampBehavior="strict"
+            disabled={!editable || maxQuantity <= bookedQuantity}
+            label={
+              service.unit_label
+                ? t("kp.booking.service_quantity_with_unit", {
+                    unit: service.unit_label,
+                  })
+                : t("kp.booking.service_quantity")
+            }
+            min={bookedQuantity}
+            max={maxQuantity}
+            step={1}
+            value={quantity}
+            onChange={(value) =>
+              onQuantityChange(
+                typeof value === "number" ? value : Number(value) || 0,
+              )
+            }
+          />
+        )}
+        {service.remaining_total_quantity != null ? (
+          <Text c="dimmed" size="xs">
+            {t("kp.booking.service_remaining_total", {
+              remaining: service.remaining_total_quantity,
+            })}
+          </Text>
+        ) : null}
+        {addedQuantity > 0 ? (
+          <Group justify="space-between" wrap="nowrap">
+            <Text size="sm" c="dimmed">
+              {t("kp.booking.service_line_total")}
+            </Text>
+            <Text fw={600} size="sm">
+              CHF {formatPrice(service.price * addedQuantity)}
+            </Text>
+          </Group>
+        ) : null}
+      </Stack>
+    </Paper>
+  );
+};
+
 const AddServicesForm = ({
   bookingId,
   bookingServices,
   editable,
   eventId,
   onAdded,
+  vatRatePercent,
 }: {
   bookingId: string;
   bookingServices: BookingServiceResponse[];
   editable: boolean;
   eventId: string;
-  onAdded: () => void;
+  onAdded: (booking: BookingResponse, serviceIds: string[]) => void;
+  vatRatePercent: number;
 }) => {
   const { t } = useTranslation();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const { data: availableServices, isLoading } = useListAvailableServices(eventId);
+  const { data: availableServices, isLoading } =
+    useListAvailableServices(eventId);
   const { mutateAsync: addServices, isPending } = useAddBookingServices();
   const bookingServiceByServiceId = useMemo(
     () => new Map(bookingServices.map((item) => [item.service_id, item])),
     [bookingServices],
   );
-  const services = availableServices ?? [];
+  const services = useMemo(() => availableServices ?? [], [availableServices]);
   const selectedServices = services
     .map((service) => {
       const bookedQuantity =
@@ -495,6 +649,7 @@ const AddServicesForm = ({
     (sum, item) => sum + item.service.price * item.quantity,
     0,
   );
+  const selectedPrice = priceBreakdown(selectedTotal, vatRatePercent);
 
   const handleSubmit = async (bookingId: string) => {
     const payload = selectedServices.map((item) => ({
@@ -502,17 +657,63 @@ const AddServicesForm = ({
       quantity: item.quantity,
     }));
     if (!payload.length) return;
-    await addServices({
+    const updated = await addServices({
       bookingId,
       data: { services: payload },
-    });
+    }).catch(() => null);
+    if (!updated) return;
     setQuantities({});
     setConfirmOpen(false);
-    onAdded();
+    onAdded(
+      updated,
+      payload.map((item) => item.service_id),
+    );
     notifications.show({
       color: "green",
       message: t("kp.booking_manage.services_added"),
     });
+  };
+
+  const renderCategory = (category: KpServiceCategory, emptyLabel: string) => {
+    const categoryServices = servicesOfCategory(services, category);
+    if (isLoading) {
+      return (
+        <Center py="md">
+          <Loader size="sm" />
+        </Center>
+      );
+    }
+    if (categoryServices.length === 0) {
+      return (
+        <Text c="dimmed" size="sm">
+          {emptyLabel}
+        </Text>
+      );
+    }
+    return (
+      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
+        {categoryServices.map((service) => {
+          const bookingService = bookingServiceByServiceId.get(service.id);
+          const bookedQuantity = bookingService?.quantity ?? 0;
+          return (
+            <AddServiceCard
+              bookedQuantity={bookedQuantity}
+              editable={editable}
+              includedQuantity={bookingService?.included_quantity ?? 0}
+              key={service.id}
+              onQuantityChange={(quantity) =>
+                setQuantities((current) => ({
+                  ...current,
+                  [service.id]: quantity,
+                }))
+              }
+              quantity={quantities[service.id] ?? bookedQuantity}
+              service={service}
+            />
+          );
+        })}
+      </SimpleGrid>
+    );
   };
 
   return (
@@ -540,8 +741,18 @@ const AddServicesForm = ({
             ))}
           </Stack>
           <Group justify="space-between">
-            <Text fw={600}>{t("kp.booking.summary_total")}</Text>
-            <Text fw={700}>CHF {formatPrice(selectedTotal)}</Text>
+            <Text size="sm">{t("kp.booking.summary_net")}</Text>
+            <Text size="sm">CHF {formatPrice(selectedTotal)}</Text>
+          </Group>
+          <Group justify="space-between">
+            <Text size="sm">
+              {t("kp.booking.summary_vat_rate", { rate: vatRatePercent })}
+            </Text>
+            <Text size="sm">CHF {formatPrice(selectedPrice.vat)}</Text>
+          </Group>
+          <Group justify="space-between">
+            <Text fw={600}>{t("kp.booking.summary_gross")}</Text>
+            <Text fw={700}>CHF {formatPrice(selectedPrice.gross)}</Text>
           </Group>
           <Group justify="flex-end">
             <Button variant="subtle" onClick={() => setConfirmOpen(false)}>
@@ -567,84 +778,28 @@ const AddServicesForm = ({
           </Text>
         </div>
 
-        {isLoading ? (
-          <Center py="md">
-            <Loader size="sm" />
-          </Center>
-        ) : services.length ? (
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
-            {services.map((service: ServiceResponse) => {
-              const bookedQuantity =
-                bookingServiceByServiceId.get(service.id)?.quantity ?? 0;
-              const remaining = Math.max(
-                service.max_quantity_per_booking - bookedQuantity,
-                0,
-              );
-              const maxQuantity = bookedQuantity + remaining;
-              const isSingleQuantity = service.max_quantity_per_booking === 1;
-              return (
-                <Paper withBorder radius="sm" p="md" key={service.id}>
-                  <Stack gap="xs">
-                    <Group justify="space-between" align="flex-start">
-                      <div>
-                        <Text fw={600}>{service.name}</Text>
-                        {service.description ? (
-                          <Text c="dimmed" size="sm">
-                            {service.description}
-                          </Text>
-                        ) : null}
-                      </div>
-                      <Text fw={600} size="sm">
-                        CHF {formatPrice(service.price)}
-                      </Text>
-                    </Group>
-                    {isSingleQuantity ? (
-                      <SegmentedControl
-                        disabled={!editable || remaining <= 0}
-                        data={[
-                          { label: t("common.no"), value: "no" },
-                          { label: t("common.yes"), value: "yes" },
-                        ]}
-                        value={
-                          (quantities[service.id] ?? bookedQuantity) > 0
-                            ? "yes"
-                            : "no"
-                        }
-                        onChange={(value) =>
-                          setQuantities((current) => ({
-                            ...current,
-                            [service.id]: value === "yes" ? 1 : 0,
-                          }))
-                        }
-                      />
-                    ) : (
-                      <NumberInput
-                        disabled={!editable || remaining <= 0}
-                        label={t("kp.booking.service_quantity")}
-                        min={bookedQuantity}
-                        max={maxQuantity}
-                        value={quantities[service.id] ?? bookedQuantity}
-                        onChange={(value) =>
-                          setQuantities((current) => ({
-                            ...current,
-                            [service.id]:
-                              typeof value === "number"
-                                ? value
-                                : Number(value) || 0,
-                          }))
-                        }
-                      />
-                    )}
-                  </Stack>
-                </Paper>
-              );
-            })}
-          </SimpleGrid>
-        ) : (
-          <Text c="dimmed" size="sm">
-            {t("kp.booking.services_none_available")}
-          </Text>
-        )}
+        <Tabs defaultValue="services" keepMounted={false}>
+          <Tabs.List mb="md">
+            <Tabs.Tab value="services">
+              {t("kp.booking_manage.add_services_tab_services")}
+            </Tabs.Tab>
+            <Tabs.Tab value="booth_elements">
+              {t("kp.booking_manage.add_services_tab_booth_elements")}
+            </Tabs.Tab>
+          </Tabs.List>
+          <Tabs.Panel value="services">
+            {renderCategory(
+              KpServiceCategory.SERVICE,
+              t("kp.booking.services_none_available"),
+            )}
+          </Tabs.Panel>
+          <Tabs.Panel value="booth_elements">
+            {renderCategory(
+              KpServiceCategory.BOOTH_ELEMENT,
+              t("kp.booking.booth_none_available"),
+            )}
+          </Tabs.Panel>
+        </Tabs>
 
         <Group justify="flex-end">
           <Button
@@ -665,6 +820,7 @@ const AddServicesForm = ({
 
 const KpBookingManage = () => {
   const { t } = useTranslation();
+  useScrollToHash();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [confirmRequirementsOpen, setConfirmRequirementsOpen] = useState(false);
@@ -676,6 +832,10 @@ const KpBookingManage = () => {
   >({});
   const [requirementCompletion, setRequirementCompletion] =
     useState<RequirementCompletion>({});
+  const [promptedServices, setPromptedServices] = useState<
+    BookingServiceResponse[]
+  >([]);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
   const { id = "", bookingId = "" } = useParams<{
     id: string;
     bookingId: string;
@@ -692,15 +852,12 @@ const KpBookingManage = () => {
   const {
     data: booking,
     isLoading: isLoadingBooking,
-    isFetching: isFetchingBooking,
     isError: isBookingError,
   } = useGetMyBooking(eventId, {
     query: { enabled: Boolean(eventId) },
   });
   const bookingServices = booking?.services ?? [];
-  const isEditable =
-    booking?.status !== KpBookingStatus.CONFIRMED &&
-    booking?.status !== KpBookingStatus.CANCELLED;
+  const isEditable = booking != null && !isInactiveBooking(booking);
   const pendingRequirementChangeList = Object.values(pendingRequirementChanges);
   const hasPendingRequirementChanges = pendingRequirementChangeList.length > 0;
   const allRequirementKeys = bookingServices.flatMap((bookingService) =>
@@ -731,12 +888,40 @@ const KpBookingManage = () => {
     isUploadingRequirementFile ||
     isSavingRequirementText ||
     isDeletingRequirementFile;
+  useWarnOnLeave(savingKey !== null);
 
   const refreshBooking = () => {
     void queryClient.invalidateQueries({
       queryKey: getGetMyBookingQueryKey(eventId),
     });
   };
+
+  const handleServicesAdded = (
+    updated: BookingResponse,
+    serviceIds: string[],
+  ) => {
+    refreshBooking();
+    setPromptedServices(
+      (updated.services ?? []).filter(
+        (bookingService) =>
+          serviceIds.includes(bookingService.service_id) &&
+          bookingService.service.requirements.length > 0,
+      ),
+    );
+  };
+
+  const listedBookingServices = bookingServices.filter(
+    (bookingService) =>
+      !promptedServices.some((prompted) => prompted.id === bookingService.id),
+  );
+
+  const promptedChangeCount = promptedServices.filter((bookingService) =>
+    bookingService.service.requirements.some(
+      (requirement) =>
+        requirementChangeKey(bookingService.id, requirement.id) in
+        pendingRequirementChanges,
+    ),
+  ).length;
 
   const handleRequirementChange = (
     bookingServiceId: string,
@@ -756,11 +941,7 @@ const KpBookingManage = () => {
   };
 
   const handleRequirementCompletionChange = useCallback(
-    (
-      bookingServiceId: string,
-      requirementId: string,
-      isComplete: boolean,
-    ) => {
+    (bookingServiceId: string, requirementId: string, isComplete: boolean) => {
       setRequirementCompletion((current) => {
         const key = requirementChangeKey(bookingServiceId, requirementId);
         if (current[key] === isComplete) return current;
@@ -786,7 +967,11 @@ const KpBookingManage = () => {
     let savedCount = 0;
 
     for (const change of pendingRequirementChangeList) {
-      const key = requirementChangeKey(change.bookingServiceId, change.requirementId);
+      const key = requirementChangeKey(
+        change.bookingServiceId,
+        change.requirementId,
+      );
+      setSavingKey(key);
       try {
         if (change.kind === "text") {
           await saveRequirementText({
@@ -828,9 +1013,11 @@ const KpBookingManage = () => {
       }
     }
 
+    setSavingKey(null);
     setPendingRequirementChanges(failedChanges);
     if (Object.keys(failedChanges).length === 0) {
       setConfirmRequirementsOpen(false);
+      setPromptedServices([]);
       notifications.show({
         color: "green",
         message: t("kp.booking_manage.requirements_saved"),
@@ -852,7 +1039,7 @@ const KpBookingManage = () => {
     });
   };
 
-  if (isLoadingEvent || isLoadingBooking || isFetchingBooking) {
+  if (isLoadingEvent || isLoadingBooking) {
     return (
       <Center py="xl">
         <Loader />
@@ -878,6 +1065,10 @@ const KpBookingManage = () => {
     );
   }
 
+  if (isInactiveBooking(booking)) {
+    return <Navigate to={`/kp/${eventId}`} replace />;
+  }
+
   return (
     <Stack gap="md">
       <Modal
@@ -889,7 +1080,10 @@ const KpBookingManage = () => {
         <Stack gap="md">
           <Text size="sm">{t("kp.booking_manage.discard_changes_body")}</Text>
           <Group justify="flex-end">
-            <Button variant="subtle" onClick={() => setPendingNavigationTo(null)}>
+            <Button
+              variant="subtle"
+              onClick={() => setPendingNavigationTo(null)}
+            >
               {t("kp.booking_manage.stay_on_page")}
             </Button>
             <Button
@@ -958,13 +1152,52 @@ const KpBookingManage = () => {
           </Group>
         </Stack>
       </Modal>
+      <Modal
+        centered
+        size="xl"
+        opened={promptedServices.length > 0}
+        onClose={() => setPromptedServices([])}
+        title={t("kp.booking_manage.requirements_prompt_title")}
+      >
+        <Stack gap="md">
+          {promptedServices.map((bookingService) => (
+            <BookedServiceCard
+              bookingService={bookingService}
+              completion={requirementCompletion}
+              editable={isEditable}
+              key={bookingService.id}
+              onRequirementCompletionChange={handleRequirementCompletionChange}
+              onRequirementChange={handleRequirementChange}
+              pendingChanges={pendingRequirementChanges}
+              savingKey={savingKey}
+            />
+          ))}
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setPromptedServices([])}>
+              {t("kp.booking_manage.requirements_prompt_later")}
+            </Button>
+            <Button
+              disabled={promptedChangeCount === 0}
+              leftSection={<IconDeviceFloppy size={16} />}
+              loading={isSavingRequirements}
+              onClick={() => {
+                void handleSaveRequirementChanges();
+              }}
+            >
+              {t("kp.booking_manage.requirements_prompt_save")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
       <ActionIcon
         aria-label={t("kp.booking_manage.back_to_manage")}
         radius="md"
         size="input-md"
         variant="transparent"
         onClick={() =>
-          navigateOrConfirmDiscard(`/kp/${eventId}/booking/${booking.id}/manage`)
+          navigateOrConfirmDiscard(
+            `/kp/${eventId}/booking/${booking.id}/manage`,
+          )
         }
       >
         <IconArrowBackUp />
@@ -995,6 +1228,11 @@ const KpBookingManage = () => {
         </Alert>
       ) : null}
 
+      <KpBookingCompletion
+        booking={booking}
+        changeDeadline={event.finalization_deadline}
+      />
+
       {hasPendingRequirementChanges ? (
         <Alert icon={<IconAlertCircle />} color="yellow">
           {t("kp.booking_manage.unsaved_changes_notice", {
@@ -1008,14 +1246,17 @@ const KpBookingManage = () => {
         bookingServices={bookingServices}
         editable={isEditable}
         eventId={eventId}
-        onAdded={refreshBooking}
+        onAdded={handleServicesAdded}
+        vatRatePercent={event.vat_rate_percent}
       />
 
       <Stack gap="md">
         <div>
           <Group justify="space-between" align="flex-start">
             <div>
-              <Title order={4}>{t("kp.booking_manage.requirements_title")}</Title>
+              <Title order={4}>
+                {t("kp.booking_manage.requirements_title")}
+              </Title>
               <Text c="dimmed" size="sm">
                 {t("kp.booking_manage.requirements_description")}
               </Text>
@@ -1061,15 +1302,18 @@ const KpBookingManage = () => {
         ) : null}
         {bookingServices.length ? (
           <Stack gap="sm">
-            {bookingServices.map((bookingService) => (
+            {listedBookingServices.map((bookingService) => (
               <BookedServiceCard
                 bookingService={bookingService}
                 completion={requirementCompletion}
                 editable={isEditable}
                 key={bookingService.id}
-                onRequirementCompletionChange={handleRequirementCompletionChange}
+                onRequirementCompletionChange={
+                  handleRequirementCompletionChange
+                }
                 onRequirementChange={handleRequirementChange}
                 pendingChanges={pendingRequirementChanges}
+                savingKey={savingKey}
               />
             ))}
           </Stack>

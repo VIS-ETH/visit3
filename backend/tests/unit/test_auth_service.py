@@ -1,16 +1,20 @@
 from dataclasses import dataclass
 from unittest.mock import AsyncMock
+from urllib.parse import parse_qs
 
+import httpx
 import pytest
 
+from app.core.config import get_oauth_settings
 from app.core.exceptions import (
-    EmailUsed,
     InvalidCredentials,
-    NotAllowed,
+    InviteEmailMismatch,
+    InviteExpired,
     PasswordTooShort,
     TokenInvalid,
 )
 from app.core.utils import hash_str
+from app.mail_templates.keys import MailTemplateKey
 from app.models.user import (
     ConfirmEmailToken,
     RefreshToken,
@@ -18,6 +22,7 @@ from app.models.user import (
     Role,
     User,
 )
+from app.services import auth_service as auth_module
 from app.services.auth_service import AuthService
 
 
@@ -27,7 +32,39 @@ class AuthServiceHarness:
     user_repo: AsyncMock
     token_repo: AsyncMock
     role_repo: AsyncMock
-    mail_service: AsyncMock
+    mail_template_service: AsyncMock
+    invite_service: AsyncMock
+
+
+async def test_keycloak_callback_uses_the_shared_client_secret(auth, monkeypatch):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json={"access_token": "login-access-token"})
+
+    client_class = httpx.AsyncClient
+    monkeypatch.setattr(
+        auth_module.httpx,
+        "AsyncClient",
+        lambda: client_class(transport=httpx.MockTransport(handler)),
+    )
+    monkeypatch.setattr(auth_module, "decode_token", lambda token: {"sub": "user"})
+    auth.service.login_keycloak_user = AsyncMock(return_value="local-login-token")
+
+    assert (
+        await auth.service.keycloak_callback("authorization-code", "pkce-verifier")
+        == "local-login-token"
+    )
+    shared = get_oauth_settings()
+    assert str(requests[0].url) == str(shared.SIP_AUTH_OIDC_TOKEN_ENDPOINT)
+    payload = parse_qs(requests[0].content.decode())
+    assert payload["grant_type"] == ["authorization_code"]
+    assert payload["code_verifier"] == ["pkce-verifier"]
+    assert payload["client_id"] == [shared.SIP_AUTH_OIDC_CLIENT_ID]
+    assert payload["client_secret"] == [
+        shared.SIP_AUTH_OIDC_CLIENT_SECRET.get_secret_value()
+    ]
 
 
 @pytest.fixture
@@ -35,27 +72,34 @@ def auth(
     user_repo,
     token_repo,
     role_repo,
-    mail_service,
+    mail_template_service,
+    invite_service,
 ):
     return AuthServiceHarness(
-        service=AuthService(user_repo, token_repo, role_repo, mail_service),
+        service=AuthService(
+            user_repo, token_repo, role_repo, mail_template_service, invite_service
+        ),
         user_repo=user_repo,
         token_repo=token_repo,
         role_repo=role_repo,
-        mail_service=mail_service,
+        mail_template_service=mail_template_service,
+        invite_service=invite_service,
     )
 
 
-async def test_register_user_rejects_duplicate_email(auth, make_user):
+async def test_register_user_mails_the_owner_of_an_existing_email(auth, make_user):
     existing_user = make_user(email="duplicate@example.com")
     auth.user_repo.get_by_email.return_value = existing_user
 
-    with pytest.raises(EmailUsed):
-        await auth.service.register_user(
-            User(email="duplicate@example.com", password="long-enough")
-        )
+    result = await auth.service.register_user(
+        User(email="duplicate@example.com", password="long-enough")
+    )
 
+    assert result is None
     auth.user_repo.create_user.assert_not_awaited()
+    key, recipients, _ = auth.mail_template_service.send.await_args.args
+    assert key == MailTemplateKey.ACCOUNT_EXISTS
+    assert recipients == ["duplicate@example.com"]
 
 
 @pytest.mark.parametrize("password", [None, "short"])
@@ -92,7 +136,7 @@ async def test_register_user_normalizes_phone_and_saves_company_user(auth):
     auth.service.hash_password.assert_awaited_once_with("very-long-password")
     auth.user_repo.create_user.assert_awaited_once()
     created_user = auth.user_repo.create_user.await_args.args[0]
-    assert result is created_user
+    assert result is None
     assert created_user.password == "hashed-password"
     assert created_user.phone_number == "+41791234567"
     assert created_user.is_admin is False
@@ -102,10 +146,10 @@ async def test_register_user_normalizes_phone_and_saves_company_user(auth):
         created_user.id
     )
     auth.token_repo.create_confirm_email_token.assert_awaited_once()
-    auth.mail_service.send_confirm_email_mail.assert_awaited_once()
-    assert auth.mail_service.send_confirm_email_mail.await_args.args[0] == (
-        created_user.email
-    )
+    auth.mail_template_service.send.assert_awaited_once()
+    key, recipients, _ = auth.mail_template_service.send.await_args.args
+    assert key == MailTemplateKey.ACCOUNT_CONFIRM_EMAIL
+    assert recipients == [created_user.email]
 
 
 async def test_register_user_skips_confirmation_mail_for_confirmed_user(auth):
@@ -120,10 +164,10 @@ async def test_register_user_skips_confirmation_mail_for_confirmed_user(auth):
 
     result = await auth.service.register_user(confirmed_user)
 
-    assert result is confirmed_user
+    assert result is None
     auth.token_repo.revoke_confirm_email_tokens.assert_not_awaited()
     auth.token_repo.create_confirm_email_token.assert_not_awaited()
-    auth.mail_service.send_confirm_email_mail.assert_not_awaited()
+    auth.mail_template_service.send.assert_not_awaited()
 
 
 async def test_send_confirm_email_revokes_old_tokens_saves_new_token_and_sends_mail(
@@ -138,10 +182,11 @@ async def test_send_confirm_email_revokes_old_tokens_saves_new_token_and_sends_m
     auth.token_repo.revoke_confirm_email_tokens.assert_awaited_once_with(user.id)
     auth.token_repo.create_confirm_email_token.assert_awaited_once()
     assert auth.token_repo.create_confirm_email_token.await_args.args[0] == user.id
-    auth.mail_service.send_confirm_email_mail.assert_awaited_once_with(
-        user.email,
-        "confirm-token",
-    )
+    auth.mail_template_service.send.assert_awaited_once()
+    key, recipients, context = auth.mail_template_service.send.await_args.args
+    assert key == MailTemplateKey.ACCOUNT_CONFIRM_EMAIL
+    assert recipients == [user.email]
+    assert context.confirm_url.endswith("/confirm-email/confirm-token")
 
 
 async def test_send_confirm_email_skips_confirmed_user(auth, make_user):
@@ -151,7 +196,7 @@ async def test_send_confirm_email_skips_confirmed_user(auth, make_user):
 
     auth.token_repo.revoke_confirm_email_tokens.assert_not_awaited()
     auth.token_repo.create_confirm_email_token.assert_not_awaited()
-    auth.mail_service.send_confirm_email_mail.assert_not_awaited()
+    auth.mail_template_service.send.assert_not_awaited()
 
 
 async def test_confirm_email_confirms_token_user_without_current_user(auth, make_user):
@@ -167,12 +212,78 @@ async def test_confirm_email_confirms_token_user_without_current_user(auth, make
     result = await auth.service.confirm_email("confirm-token")
 
     assert result is True
-    auth.token_repo.get_confirm_email_token.assert_awaited_once_with(
-        "confirm-token"
-    )
+    auth.token_repo.get_confirm_email_token.assert_awaited_once_with("confirm-token")
     auth.user_repo.get_by_id.assert_awaited_once_with(user.id)
     auth.user_repo.confirm_email.assert_awaited_once_with(user)
     auth.token_repo.revoke_confirm_email_tokens.assert_awaited_once_with(user.id)
+
+
+async def test_confirm_email_applies_and_clears_a_pending_invite(auth, make_user):
+    user = make_user(email="invited@example.com", email_confirmed=False)
+    user.pending_invite_token = "invite-token"
+    auth.token_repo.get_confirm_email_token.return_value = ConfirmEmailToken(
+        user_id=user.id,
+        token=hash_str("confirm-token"),
+        expires_at=user.created_at,
+    )
+    auth.user_repo.get_by_id.return_value = user
+
+    await auth.service.confirm_email("confirm-token")
+
+    auth.invite_service.join_company.assert_awaited_once_with(
+        user, "invite-token", "confirm_email"
+    )
+    auth.user_repo.clear_pending_invite.assert_awaited_once_with(user)
+
+
+async def test_confirm_email_survives_an_unusable_pending_invite(auth, make_user):
+    user = make_user(email="invited@example.com", email_confirmed=False)
+    user.pending_invite_token = "invite-token"
+    auth.token_repo.get_confirm_email_token.return_value = ConfirmEmailToken(
+        user_id=user.id,
+        token=hash_str("confirm-token"),
+        expires_at=user.created_at,
+    )
+    auth.user_repo.get_by_id.return_value = user
+    auth.invite_service.join_company.side_effect = InviteExpired("confirm_email")
+
+    result = await auth.service.confirm_email("confirm-token")
+
+    assert result is True
+    auth.user_repo.confirm_email.assert_awaited_once_with(user)
+    auth.user_repo.clear_pending_invite.assert_awaited_once_with(user)
+
+
+async def test_register_user_stores_a_matching_invite_token(auth):
+    auth.user_repo.get_by_email.return_value = None
+    auth.user_repo.create_user.side_effect = lambda user: user
+    auth.service.hash_password = AsyncMock(return_value="hashed-password")
+
+    await auth.service.register_user(
+        User(email="invited@example.com", password="very-long-password"),
+        "invite-token",
+    )
+
+    created_user = auth.user_repo.create_user.await_args.args[0]
+    assert created_user.pending_invite_token == "invite-token"
+    auth.invite_service.load_open_invite.assert_awaited_once_with(
+        "invite-token", "register"
+    )
+
+
+async def test_register_user_rejects_an_invite_for_another_email(auth):
+    auth.user_repo.get_by_email.return_value = None
+    auth.invite_service.ensure_email_matches.side_effect = InviteEmailMismatch(
+        "register"
+    )
+
+    with pytest.raises(InviteEmailMismatch):
+        await auth.service.register_user(
+            User(email="other@example.com", password="very-long-password"),
+            "invite-token",
+        )
+
+    auth.user_repo.create_user.assert_not_awaited()
 
 
 async def test_confirm_email_raises_for_invalid_public_token(auth):
@@ -190,9 +301,7 @@ async def test_validate_confirm_email_token_uses_public_token_lookup(auth):
     result = await auth.service.validate_confirm_email_token("confirm-token")
 
     assert result is True
-    auth.token_repo.get_confirm_email_token.assert_awaited_once_with(
-        "confirm-token"
-    )
+    auth.token_repo.get_confirm_email_token.assert_awaited_once_with("confirm-token")
 
 
 async def test_login_user_rejects_invalid_credentials(auth):
@@ -227,16 +336,41 @@ async def test_refresh_user_rotates_refresh_token(auth, make_user):
         token=hash_str("old-refresh-token"),
         expires_at=user.created_at,
     )
-    auth.service.get_active_refresh_token = AsyncMock(return_value=token)
-    auth.service.create_tokens = AsyncMock(return_value=("new-access", "new-refresh"))
+    auth.token_repo.get_refresh_token_for_rotation.return_value = token
+    auth.service.create_access_token = AsyncMock(return_value="new-access")
+    auth.token_repo.create_refresh_token.return_value = "new-refresh"
     auth.user_repo.get_by_id.return_value = user
 
     result = await auth.service.refresh_user("old-refresh-token")
 
     assert result == ("new-access", "new-refresh")
-    auth.token_repo.revoke_refresh_token.assert_awaited_once_with(
+    auth.token_repo.rotate_refresh_token.assert_awaited_once_with(
         user.id, "old-refresh-token"
     )
+    auth.token_repo.create_refresh_token.assert_awaited_once_with(
+        user.id, family_id=token.family_id, idp_refresh_token=None
+    )
+
+
+async def test_refresh_user_does_not_rotate_an_already_rotated_token(auth, make_user):
+    user = make_user()
+    token = RefreshToken(
+        user_id=user.id,
+        token=hash_str("rotated-refresh-token"),
+        expires_at=user.created_at,
+        is_revoked=True,
+        rotated_at=user.created_at,
+    )
+    auth.token_repo.get_refresh_token_for_rotation.return_value = token
+    auth.service.create_access_token = AsyncMock(return_value="new-access")
+    auth.token_repo.create_refresh_token.return_value = "new-refresh"
+    auth.user_repo.get_by_id.return_value = user
+
+    result = await auth.service.refresh_user("rotated-refresh-token")
+
+    assert result == ("new-access", "new-refresh")
+    auth.token_repo.rotate_refresh_token.assert_not_awaited()
+    auth.token_repo.revoke_refresh_token.assert_not_awaited()
 
 
 @pytest.mark.parametrize("refresh_token", ["", None])
@@ -271,9 +405,7 @@ async def test_reset_password_updates_password_and_revokes_tokens(auth, make_use
     assert result is True
     auth.user_repo.update_password.assert_awaited_once_with(user.id, "new-hash")
     auth.token_repo.revoke_all_refresh_tokens.assert_awaited_once_with(user.id)
-    auth.token_repo.revoke_reset_password_token.assert_awaited_once_with(
-        "reset-token"
-    )
+    auth.token_repo.revoke_reset_password_tokens.assert_awaited_once_with(user.id)
 
 
 async def test_map_keycloak_roles_filters_roles_and_marks_admin(auth):
@@ -296,10 +428,10 @@ async def test_request_password_reset_returns_silently_for_unknown_email(auth):
     await auth.service.request_password_reset("missing@example.com")
 
     auth.token_repo.create_reset_password_token.assert_not_awaited()
-    auth.mail_service.send_reset_password_mail.assert_not_awaited()
+    auth.mail_template_service.send.assert_not_awaited()
 
 
-async def test_request_password_reset_rejects_oauth_only_user(
+async def test_request_password_reset_returns_silently_for_oauth_only_user(
     auth,
     make_user,
 ):
@@ -308,10 +440,10 @@ async def test_request_password_reset_rejects_oauth_only_user(
         password=None,
     )
 
-    with pytest.raises(NotAllowed):
-        await auth.service.request_password_reset("oauth@example.com")
+    await auth.service.request_password_reset("oauth@example.com")
 
-    auth.mail_service.send_reset_password_mail.assert_not_awaited()
+    auth.token_repo.create_reset_password_token.assert_not_awaited()
+    auth.mail_template_service.send.assert_not_awaited()
 
 
 async def test_request_password_reset_sends_reset_mail_for_password_user(
@@ -324,8 +456,12 @@ async def test_request_password_reset_sends_reset_mail_for_password_user(
 
     await auth.service.request_password_reset("user@example.com")
 
-    auth.service.create_reset_password_token.assert_awaited_once_with(password_user)
-    auth.mail_service.send_reset_password_mail.assert_awaited_once_with(
-        "user@example.com",
-        "reset-token",
+    auth.token_repo.revoke_reset_password_tokens.assert_awaited_once_with(
+        password_user.id
     )
+    auth.service.create_reset_password_token.assert_awaited_once_with(password_user)
+    auth.mail_template_service.send.assert_awaited_once()
+    key, recipients, context = auth.mail_template_service.send.await_args.args
+    assert key == MailTemplateKey.PASSWORD_RESET
+    assert recipients == ["user@example.com"]
+    assert context.reset_url.endswith("/reset/reset-token")

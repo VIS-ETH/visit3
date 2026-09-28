@@ -1,90 +1,19 @@
-from collections.abc import AsyncIterator
+from unittest.mock import AsyncMock
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deleted_filter import register_deleted_filter
-from app.models.company import Company, CompanyInvite, KpCompanyProfile
-from app.models.kp_event import (
-    KpEvent,
-    KpEventBooking,
-    KpEventBookingService,
-    KpEventBookingServiceFileLink,
-    KpEventBookingUpgradeWaitlist,
-    KpEventBoothZone,
-    KpEventBoothZoneServiceLink,
-    KpEventNametagBackground,
-    KpEventRegistrationException,
-    KpEventService,
-    KpEventServiceRequirement,
-    KpIndustry,
-    NameTag,
-)
-from app.models.storage import StoredFile
-from app.models.user import (
-    ConfirmEmailToken,
-    RefreshToken,
-    ResetPasswordToken,
-    Role,
-    User,
-    UserRole,
-)
 from app.repositories.company_repository import CompanyRepository
+from app.repositories.industry_repository import IndustryRepository
 from app.repositories.kp_repository import KpRepository
+from app.repositories.mail_repository import MailTemplateRepository
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
-
-register_deleted_filter()
-
-INTEGRATION_TABLES = [
-    Company.__table__,
-    User.__table__,
-    Role.__table__,
-    UserRole.__table__,
-    RefreshToken.__table__,
-    ResetPasswordToken.__table__,
-    ConfirmEmailToken.__table__,
-    CompanyInvite.__table__,
-    KpCompanyProfile.__table__,
-    KpEvent.__table__,
-    KpEventBoothZone.__table__,
-    KpEventService.__table__,
-    KpEventBoothZoneServiceLink.__table__,
-    KpEventServiceRequirement.__table__,
-    KpEventBooking.__table__,
-    KpEventBookingService.__table__,
-    KpEventBookingServiceFileLink.__table__,
-    KpEventBookingUpgradeWaitlist.__table__,
-    KpEventNametagBackground.__table__,
-    KpEventRegistrationException.__table__,
-    KpIndustry.__table__,
-    NameTag.__table__,
-    StoredFile.__table__,
-]
-
-
-@pytest.fixture
-async def db_session() -> AsyncIterator[AsyncSession]:
-    engine = create_async_engine(
-        "sqlite+aiosqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-
-    async with engine.begin() as connection:
-        await connection.run_sync(
-            SQLModel.metadata.create_all,
-            tables=INTEGRATION_TABLES,
-        )
-
-    Session = async_sessionmaker(engine, expire_on_commit=False)
-    async with Session() as session:
-        yield session
-
-    await engine.dispose()
+from app.repositories.venue_repository import VenueRepository
+from app.services.auth_service import AuthService
+from app.services.invite_service import InviteService
+from app.services.mail_template_service import MailTemplateService
 
 
 @pytest.fixture
@@ -108,5 +37,47 @@ def role_repository(db_session: AsyncSession) -> RoleRepository:
 
 
 @pytest.fixture
+def industry_repository(db_session: AsyncSession) -> IndustryRepository:
+    return IndustryRepository(db_session)
+
+
+@pytest.fixture
 def kp_repository(db_session: AsyncSession) -> KpRepository:
     return KpRepository(db_session)
+
+
+@pytest.fixture
+def mail_template_repository(db_session: AsyncSession) -> MailTemplateRepository:
+    return MailTemplateRepository(db_session)
+
+
+@pytest.fixture
+def venue_repository(db_session: AsyncSession) -> VenueRepository:
+    return VenueRepository(db_session)
+
+
+@pytest.fixture
+def mail_template_service() -> AsyncMock:
+    return AsyncMock(spec=MailTemplateService)
+
+
+@pytest.fixture
+def invite_service(company_repository: CompanyRepository) -> InviteService:
+    return InviteService(company_repository)
+
+
+@pytest.fixture
+def auth_service(
+    user_repository: UserRepository,
+    token_repository: TokenRepository,
+    role_repository: RoleRepository,
+    mail_template_service: AsyncMock,
+    invite_service: InviteService,
+) -> AuthService:
+    return AuthService(
+        user_repository,
+        token_repository,
+        role_repository,
+        mail_template_service,
+        invite_service,
+    )

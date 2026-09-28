@@ -1,12 +1,36 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import func
+from sqlalchemy import Index, func, text
 from sqlalchemy.dialects.postgresql import TIMESTAMP
-from sqlmodel import Field, SQLModel  # pyright: ignore[reportUnknownVariableType]
+from sqlmodel import Field, SQLModel
 
 TIMESTAMPTZ = cast(type[Any], TIMESTAMP(timezone=True))
+
+NOT_DELETED = "deleted_at IS NULL"
+
+Cents = int
+Permille = int
+SquareMeters = float
+
+PERMILLE_PER_PERCENT = Decimal(10)
+
+
+def unique_partial_index(name: str, *columns: str, where: str) -> Index:
+    predicate = text(where)
+    return Index(
+        name,
+        *columns,
+        unique=True,
+        postgresql_where=predicate,
+        sqlite_where=predicate,
+    )
+
+
+def unique_among_active_index(name: str, *columns: str) -> Index:
+    return unique_partial_index(name, *columns, where=NOT_DELETED)
 
 
 class AppBase(SQLModel):

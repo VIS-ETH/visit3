@@ -3,14 +3,16 @@ import { zod4Resolver } from "mantine-form-zod-resolver";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function useTranslatedForm<T extends z.ZodType<any>>(
+export function useTranslatedForm<T extends z.ZodType<Record<string, unknown>>>(
   schema: T,
   options: UseFormInput<z.infer<T>>,
 ) {
   const { t } = useTranslation();
 
   return useForm<z.infer<T>>({
+    // Show field errors while the user types, not only after submit.
+    validateInputOnChange: true,
+    validateInputOnBlur: true,
     ...options,
     validate: (values) => {
       const errors = zod4Resolver(schema)(values);

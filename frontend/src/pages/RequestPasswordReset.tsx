@@ -41,7 +41,6 @@ const RequestPasswordReset = () => {
   return (
     <AuthCardLayout
       title={t("password_reset_request.title")}
-      subtitle={t("welcome")}
       maxWidth={620}
       backTo="/login"
     >

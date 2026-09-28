@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   Divider,
-  FileInput,
   Group,
   Input,
   Select,
@@ -25,8 +24,7 @@ import {
   downloadEventBookingsByZoneZip,
   downloadEventBookingsCsv,
   downloadEventBoothZoneCapacityCsv,
-  downloadEventCompanyDetailsCsv,
-  downloadEventContactsCsv,
+  downloadEventCompaniesXlsx,
   downloadEventNametags,
   downloadEventNametagsDataCsv,
   downloadEventRegistrationExceptionsCsv,
@@ -38,21 +36,37 @@ import {
   useListNametagExportTargets,
   useUploadNametagExportBackground,
 } from "../orval/generated/kp/kp";
+import { ExportLanguage } from "../orval/generated/fastAPI.schemas";
 import { downloadBlob, safeFilenamePart } from "../utils/download";
+import { todayCalendarDate } from "../utils/kp-utils";
+import { NAMETAG_BACKGROUND_ACCEPT } from "../utils/upload-formats";
+import { useWarnOnLeave } from "../utils/use-warn-on-leave";
+import BookletDesignSection from "./kp/BookletDesignSection";
+import UploadFileInput from "./UploadFileInput";
 
 const downloadRequestOptions = { responseType: "blob" as const };
+const COMPANY_WORKBOOK_NAMES: Record<ExportLanguage, string> = {
+  [ExportLanguage.de]: "unternehmen",
+  [ExportLanguage.en]: "companies",
+};
+
 type EventDownloadFunction = (eventId: string) => unknown;
 type NametagExportScope = "event" | "company" | "person";
 
 const ExportsTab = ({
   eventId,
   eventName,
+  canManageBooklet = false,
 }: {
   eventId: string;
   eventName: string;
+  canManageBooklet?: boolean;
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
+  const exportLanguage = i18n.language.startsWith("de")
+    ? ExportLanguage.de
+    : ExportLanguage.en;
   const [nametagExportScope, setNametagExportScope] =
     useState<NametagExportScope>("event");
   const [selectedNametagBookingId, setSelectedNametagBookingId] = useState<
@@ -92,6 +106,8 @@ const ExportsTab = ({
       },
     });
 
+  useWarnOnLeave(isUploadingBackground);
+
   const handleBackgroundUpload = () => {
     if (!backgroundFile) return;
     uploadBackground({
@@ -120,6 +136,17 @@ const ExportsTab = ({
     }));
 
   const exportDownloads = [
+    {
+      key: "companies",
+      label: t("kp.dashboard.exports.downloads.companies"),
+      filename: `${eventSlug}-${COMPANY_WORKBOOK_NAMES[exportLanguage]}-${todayCalendarDate()}.xlsx`,
+      download: (targetEventId: string) =>
+        downloadEventCompaniesXlsx(
+          targetEventId,
+          { language: exportLanguage },
+          downloadRequestOptions,
+        ),
+    },
     {
       key: "bookings",
       label: t("kp.dashboard.exports.downloads.bookings"),
@@ -159,13 +186,6 @@ const ExportsTab = ({
         downloadEventNametagsDataCsv(targetEventId, downloadRequestOptions),
     },
     {
-      key: "company_details",
-      label: t("kp.dashboard.exports.downloads.company_details"),
-      filename: `${eventSlug}-company-details.csv`,
-      download: (targetEventId: string) =>
-        downloadEventCompanyDetailsCsv(targetEventId, downloadRequestOptions),
-    },
-    {
       key: "service_requirements",
       label: t("kp.dashboard.exports.downloads.service_requirements"),
       filename: `${eventSlug}-service-requirements-status.csv`,
@@ -184,13 +204,6 @@ const ExportsTab = ({
           targetEventId,
           downloadRequestOptions,
         ),
-    },
-    {
-      key: "contacts",
-      label: t("kp.dashboard.exports.downloads.contacts"),
-      filename: `${eventSlug}-contacts.csv`,
-      download: (targetEventId: string) =>
-        downloadEventContactsCsv(targetEventId, downloadRequestOptions),
     },
     {
       key: "registration_exceptions",
@@ -303,6 +316,7 @@ const ExportsTab = ({
         : "nametags_pdf");
   const scopedNametagDownloadDisabled =
     !nametagBackground ||
+    isUploadingBackground ||
     (nametagExportScope === "company" && !selectedNametagBookingId) ||
     (nametagExportScope === "person" && !selectedNameTagId);
 
@@ -347,12 +361,14 @@ const ExportsTab = ({
           </Group>
 
           <Group align="end" gap="sm">
-            <FileInput
+            <UploadFileInput
               label={t("kp.dashboard.exports.background")}
               placeholder={t("kp.dashboard.exports.background_placeholder")}
-              accept="image/png,image/jpeg"
+              accept={NAMETAG_BACKGROUND_ACCEPT}
+              description={t("kp.dashboard.exports.background_allowed_formats")}
               value={backgroundFile}
               onChange={setBackgroundFile}
+              disabled={isUploadingBackground}
               flex={1}
             />
             <Button
@@ -475,6 +491,13 @@ const ExportsTab = ({
             ))}
           </SimpleGrid>
         </Stack>
+
+        {canManageBooklet ? (
+          <>
+            <Divider my="xs" />
+            <BookletDesignSection eventId={eventId} />
+          </>
+        ) : null}
       </Stack>
     </Card>
   );

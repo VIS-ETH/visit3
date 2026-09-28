@@ -1,0 +1,51 @@
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { screen } from "@testing-library/react";
+import KpBookingZoneCard from "../../components/KpBookingZoneCard";
+import { isZoneBookable } from "../../utils/booth-zones";
+import i18n from "../i18n";
+import { renderWithProviders } from "../render";
+import { testMainZone, testSideZone } from "../fixtures/venue";
+
+const renderCard = (zone = testMainZone) =>
+  renderWithProviders(
+    <KpBookingZoneCard
+      zone={zone}
+      isSelected={false}
+      isDisabled={!isZoneBookable(zone)}
+      onSelect={vi.fn()}
+    />,
+  );
+
+beforeAll(() => {
+  i18n.addResource("en", "common", "kp.booth_size", "{{size}} m²");
+});
+
+describe("the booking zone card", () => {
+  it("shows the booth size", () => {
+    renderCard();
+
+    expect(screen.getByRole("button")).toHaveTextContent(
+      `${testMainZone.booth_size} m²`,
+    );
+  });
+
+  it("marks a full zone as fully booked", () => {
+    renderCard(testSideZone);
+
+    expect(screen.getByRole("button")).toHaveTextContent(
+      "kp.booking.zone_full",
+    );
+    expect(screen.getByRole("button")).not.toHaveTextContent("m²");
+  });
+});
+
+describe("a closed booking zone", () => {
+  it("is disabled and shows the closed badge", () => {
+    renderCard({ ...testMainZone, registration_open: false });
+
+    expect(screen.getByRole("button")).toBeDisabled();
+    expect(screen.getByRole("button")).toHaveTextContent(
+      "kp.booking.zone_closed",
+    );
+  });
+});

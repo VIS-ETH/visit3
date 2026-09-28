@@ -37,7 +37,6 @@ const SetupCompany = () => {
     setupCompanySchema,
     {
       initialValues: { name: "" },
-      validateInputOnChange: true,
     },
   );
 

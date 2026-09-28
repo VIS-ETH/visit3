@@ -1,8 +1,10 @@
+from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from app.core.utils import strip_text
+from app.schemas.text import PHONE_MAX_LENGTH, PersonName
 
 
 class CompanyResponse(BaseModel):
@@ -20,10 +22,13 @@ class CompanyUserResponse(BaseModel):
     phone_number: str | None = None
     user_confirmed: bool
     email_confirmed: bool
+    pending_email: str | None = None
     company: CompanyResponse | None = None
 
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     email: str
     first_name: str | None = None
@@ -32,55 +37,83 @@ class UserResponse(BaseModel):
     is_staff: bool
     is_admin: bool
     is_company: bool
+    is_kp_president: bool
     user_confirmed: bool
     email_confirmed: bool
     company_id: UUID | None = None
     company: CompanyResponse | None = None
 
 
+class StaffUserResponse(UserResponse):
+    new_in_company_since: datetime | None = None
+    pending_email: str | None = None
+
+
+class UserFilter(StrEnum):
+    ALL = "all"
+    UNCONFIRMED = "unconfirmed"
+    COMPANY = "company"
+    STAFF = "staff"
+
+
+class UserPageResult(BaseModel):
+    items: list[StaffUserResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class UserPageResponse(UserPageResult):
+    pass
+
+
 class RegisterUserInput(BaseModel):
     email: EmailStr
     password: str
-    first_name: str = Field(min_length=1)
-    last_name: str = Field(min_length=1)
-    phone_number: str | None = None
-
-    @field_validator("first_name", "last_name", mode="before")
-    @classmethod
-    def strip_names(cls, v: str) -> str:
-        return strip_text(v)
+    first_name: PersonName
+    last_name: PersonName
+    phone_number: str | None = Field(default=None, max_length=PHONE_MAX_LENGTH)
+    invite_token: str | None = None
 
 
 class RegisterUserRequest(RegisterUserInput):
     pass
 
 
-class UpdateUserProfileInput(BaseModel):
-    first_name: str | None = Field(default=None, min_length=1)
-    last_name: str | None = Field(default=None, min_length=1)
-    phone_number: str | None = None
+class UserProfileFieldsInput(BaseModel):
+    first_name: PersonName | None = None
+    last_name: PersonName | None = None
+    phone_number: str | None = Field(default=None, max_length=PHONE_MAX_LENGTH)
 
-    @field_validator("first_name", "last_name", mode="before")
-    @classmethod
-    def strip_names(cls, v: str | None) -> str | None:
-        return strip_text(v)
+
+class UpdateUserProfileInput(UserProfileFieldsInput):
+    pass
 
 
 class UpdateUserProfileRequest(UpdateUserProfileInput):
     pass
 
 
-class UpdateCompanyUserInput(BaseModel):
+class UpdateCompanyUserInput(UserProfileFieldsInput):
     email: EmailStr | None = None
-    first_name: str | None = Field(default=None, min_length=1)
-    last_name: str | None = Field(default=None, min_length=1)
-    phone_number: str | None = None
     company_id: UUID | None = None
+    user_confirmed: bool | None = None
+    is_staff: bool | None = None
+    is_admin: bool | None = None
 
-    @field_validator("first_name", "last_name", mode="before")
+    @field_validator("user_confirmed", "is_staff", "is_admin")
     @classmethod
-    def strip_names(cls, v: str | None) -> str | None:
-        return strip_text(v)
+    def flag_cannot_be_cleared(cls, v: bool | None) -> bool:
+        if v is None:
+            raise ValueError("flag cannot be cleared")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def email_cannot_be_cleared(cls, v: EmailStr | None) -> EmailStr:
+        if v is None:
+            raise ValueError("email cannot be cleared")
+        return v
 
 
 class UpdateCompanyUserRequest(UpdateCompanyUserInput):

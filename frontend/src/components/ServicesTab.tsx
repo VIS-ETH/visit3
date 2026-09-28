@@ -13,6 +13,7 @@ import { IconEdit, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
+import { KpServiceCategory } from "../orval/generated/fastAPI.schemas";
 import {
   getListServicesQueryKey,
   type ListServicesQueryResult,
@@ -20,6 +21,7 @@ import {
   useListServices,
   useUpdateService,
 } from "../orval/generated/kp/kp";
+import { servicesOfCategory } from "../utils/kp-service-quantity";
 import DataTable, { type DataTableColumn } from "./DataTable";
 
 type ServiceRow = ListServicesQueryResult[number];
@@ -146,6 +148,19 @@ const ServicesTab = ({ eventId }: { eventId: string }) => {
     },
   ];
 
+  const groups = [
+    {
+      title: t("kp.manage.services_group_services"),
+      emptyLabel: t("kp.manage.services_group_services_empty"),
+      category: KpServiceCategory.SERVICE,
+    },
+    {
+      title: t("kp.manage.services_group_booth_elements"),
+      emptyLabel: t("kp.manage.services_group_booth_elements_empty"),
+      category: KpServiceCategory.BOOTH_ELEMENT,
+    },
+  ];
+
   return (
     <Paper withBorder p="lg" radius="md">
       <Stack gap="md">
@@ -161,13 +176,22 @@ const ServicesTab = ({ eventId }: { eventId: string }) => {
           </Button>
         </Group>
 
-        <DataTable
-          columns={columns}
-          data={services}
-          emptyLabel={t("kp.manage.services_empty")}
-          getRowKey={(service) => service.id}
-          isLoading={isLoading}
-        />
+        {groups.map((group) => (
+          <Stack gap="xs" key={group.category}>
+            <Title order={5}>{group.title}</Title>
+            <DataTable
+              columns={columns}
+              data={
+                services
+                  ? servicesOfCategory(services, group.category)
+                  : undefined
+              }
+              emptyLabel={group.emptyLabel}
+              getRowKey={(service) => service.id}
+              isLoading={isLoading}
+            />
+          </Stack>
+        ))}
       </Stack>
     </Paper>
   );

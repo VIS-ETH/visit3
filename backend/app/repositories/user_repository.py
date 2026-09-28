@@ -1,13 +1,45 @@
 import uuid
 from collections.abc import Sequence
+from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlmodel import col, select, update
+from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.sql.selectable import Select
+from sqlmodel import col, or_, select
 
+from app.core.exceptions import EmailUsed
 from app.core.utils import normalize_email
-from app.models.user import User
+from app.models.company import Company, KpCompanyProfile
+from app.models.user import Role, User
 from app.repositories.base import BaseRepository, rel
+from app.schemas.user import UserFilter, UserProfileFieldsInput
+
+
+def _filter_conditions(user_filter: UserFilter) -> list[ColumnElement[bool]]:
+    if user_filter is UserFilter.UNCONFIRMED:
+        return [col(User.user_confirmed).is_(False)]
+    if user_filter is UserFilter.COMPANY:
+        return [col(User.is_company).is_(True)]
+    if user_filter is UserFilter.STAFF:
+        return [col(User.is_staff).is_(True)]
+    return []
+
+
+def _search_conditions(query: str | None) -> list[ColumnElement[bool]]:
+    term = (query or "").strip()
+    if not term:
+        return []
+    return [
+        or_(
+            col(User.email).icontains(term, autoescape=True),
+            col(User.first_name).icontains(term, autoescape=True),
+            col(User.last_name).icontains(term, autoescape=True),
+            col(Company.name).icontains(term, autoescape=True),
+        )
+    ]
 
 
 class UserRepository(BaseRepository[User]):
@@ -74,17 +106,44 @@ class UserRepository(BaseRepository[User]):
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
-    async def get_by_sub_or_email(
-        self, sub: str | None, email: str | None
-    ) -> User | None:
-        """Get a user by sub first, then fallback to email if needed."""
-        if sub is not None:
-            user = await self.get_by_sub(sub)
-            if user is not None:
-                return user
-        if email is not None:
-            return await self.get_by_email(email)
-        return None
+    def _searchable_users(
+        self, query: str | None, user_filter: UserFilter
+    ) -> Select[tuple[User]]:
+        return (
+            select(User)
+            .outerjoin(
+                Company,
+                (col(User.company_id) == col(Company.id)) & self._not_deleted(Company),
+            )
+            .where(
+                self._not_deleted(User),
+                *_filter_conditions(user_filter),
+                *_search_conditions(query),
+            )
+        )
+
+    async def count_users_matching(
+        self, query: str | None, user_filter: UserFilter
+    ) -> int:
+        statement = self._searchable_users(query, user_filter).with_only_columns(
+            func.count(col(User.id))
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one()
+
+    async def search_users(
+        self, query: str | None, user_filter: UserFilter, offset: int, limit: int
+    ) -> Sequence[User]:
+        statement = (
+            self._searchable_users(query, user_filter)
+            .options(selectinload(rel(User.company)))
+            .execution_options(populate_existing=True)
+            .order_by(col(User.user_confirmed), col(User.email))
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().all()
 
     async def get_unconfirmed_users(self) -> Sequence[User]:
         statement = (
@@ -106,34 +165,46 @@ class UserRepository(BaseRepository[User]):
             await self.session.rollback()
             raise e
 
+    async def purge_unconfirmed_accounts(self, max_age: timedelta) -> int:
+        cutoff = datetime.now(timezone.utc) - max_age
+        statement = select(User).where(
+            col(User.email_confirmed) == False,
+            col(User.company_id).is_(None),
+            col(User.sub).is_(None),
+            col(User.created_at) < cutoff,
+        )
+        stale = (await self.session.execute(statement)).scalars().all()
+        for user in stale:
+            await self.delete_user(user)
+        return len(stale)
+
     async def delete_user(self, user: User):
         try:
+            await self.update_where(
+                KpCompanyProfile,
+                col(KpCompanyProfile.kp_contact_user_id) == user.id,
+                kp_contact_user_id=None,
+            )
             self.delete(user)
             await self.session.commit()
         except Exception as e:
             await self.session.rollback()
             raise e
 
-    async def update_company_user(
-        self,
-        user: User,
-        email: str | None = None,
-        first_name: str | None = None,
-        last_name: str | None = None,
-        phone_number: str | None = None,
-        company_id: uuid.UUID | None = None,
-    ) -> User:
+    async def update_user(self, user: User, update: UserProfileFieldsInput) -> User:
         try:
-            if email is not None:
-                user.email = email
-            if first_name is not None:
-                user.first_name = first_name
-            if last_name is not None:
-                user.last_name = last_name
-            if phone_number is not None:
-                user.phone_number = phone_number
-            if company_id is not None:
-                user.company_id = company_id
+            changes = update.model_dump(exclude_unset=True)
+            if "company_id" in changes and changes["company_id"] != user.company_id:
+                changes["new_in_company_since"] = (
+                    datetime.now(timezone.utc)
+                    if changes["company_id"] is not None
+                    else None
+                )
+            email = changes.get("email")
+            email_changed = email is not None and normalize_email(email) != user.email
+            user.sqlmodel_update(changes)
+            if email_changed:
+                user.email_confirmed = False
 
             self._validate_user(user)
             self.session.add(user)
@@ -143,45 +214,60 @@ class UserRepository(BaseRepository[User]):
             await self.session.rollback()
             raise e
 
-    async def create_user(self, user: User):
+    async def create_user(self, user: User, roles: Sequence[Role] = ()) -> User:
         try:
             self._validate_user(user)
             self.session.add(user)
+            user.roles = list(roles)
             await self.session.commit()
             await self.session.refresh(user)
             return user
+        except IntegrityError:
+            await self.session.rollback()
+            raise EmailUsed(f"create_user:{user.email}") from None
         except Exception as e:
             await self.session.rollback()
             raise e
 
-    async def create_or_update_user(self, user: User):
+    async def update_keycloak_user(
+        self, db_user: User, keycloak_user: User, roles: Sequence[Role]
+    ) -> User:
         try:
-            self._validate_user(user)
-            db_user = await self.get_by_sub_or_email(user.sub, user.email)
-            if db_user is None:
-                return await self.create_user(user)
-            else:
-                update_data = user.model_dump(exclude={"id", "roles", "company"})
-                for key, value in update_data.items():
-                    setattr(db_user, key, value)
+            db_user.email = keycloak_user.email
+            db_user.first_name = keycloak_user.first_name
+            db_user.last_name = keycloak_user.last_name
+            db_user.is_staff = keycloak_user.is_staff
+            db_user.is_admin = keycloak_user.is_admin
+            db_user.user_confirmed = keycloak_user.user_confirmed
+            db_user.email_confirmed = keycloak_user.email_confirmed
 
-                await self.load_user_roles(db_user)
-                db_user.roles = user.roles
-                self._validate_user(db_user)
-                self.session.add(db_user)
-                await self.session.commit()
-                await self.session.refresh(db_user)
-                return db_user
+            await self.load_user_roles(db_user)
+            db_user.roles = list(roles)
+            self._validate_user(db_user)
+            self.session.add(db_user)
+            await self.session.commit()
+            await self.session.refresh(db_user)
+            return db_user
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def revoke_privileges(self, user: User) -> None:
+        try:
+            await self.load_user_roles(user)
+            user.is_staff = False
+            user.is_admin = False
+            user.roles = []
+            self.session.add(user)
+            await self.session.commit()
         except Exception as e:
             await self.session.rollback()
             raise e
 
     async def update_password(self, user_id: uuid.UUID, new_password_hash: str):
         try:
-            await self.session.execute(
-                update(User)
-                .where(col(User.id) == user_id)
-                .values(password=new_password_hash)
+            await self.update_where(
+                User, col(User.id) == user_id, password=new_password_hash
             )
             await self.session.commit()
         except Exception as e:
@@ -191,6 +277,41 @@ class UserRepository(BaseRepository[User]):
     async def confirm_email(self, user: User):
         try:
             user.email_confirmed = True
+            self.session.add(user)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def set_pending_email(self, user: User, email: str | None) -> User:
+        try:
+            user.pending_email = email
+            self.session.add(user)
+            await self.session.commit()
+            return await self.load_user_company(user)
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def apply_email_change(self, user: User, email: str) -> User:
+        try:
+            user.email = email
+            user.email_confirmed = True
+            user.pending_email = None
+            self._validate_user(user)
+            self.session.add(user)
+            await self.session.commit()
+            return user
+        except IntegrityError:
+            await self.session.rollback()
+            raise EmailUsed(f"apply_email_change:{email}") from None
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def clear_pending_invite(self, user: User) -> None:
+        try:
+            user.pending_invite_token = None
             self.session.add(user)
             await self.session.commit()
         except Exception as e:

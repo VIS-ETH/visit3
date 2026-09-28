@@ -1,14 +1,22 @@
-class AppError(Exception):
-    """Base class for all application-specific exceptions."""
+from collections.abc import Sequence
+from typing import Any
 
+
+class AppError(Exception):
     def __init__(
-        self, message: str, code: str, identifier: str, status_code: int = 500
+        self,
+        message: str,
+        code: str,
+        identifier: str,
+        status_code: int = 500,
+        details: dict[str, Any] | None = None,
     ):
         super().__init__(message)
         self.message = message
         self.code = code
         self.identifier = identifier
         self.status_code = status_code
+        self.details = details
 
 
 class Unauthenticated(AppError):
@@ -35,6 +43,16 @@ class CompanyNotFound(AppError):
         )
 
 
+class CompanyGeneralEmailIsLogin(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The general email must differ from the login emails of the company",
+            "error.company_general_email_is_login",
+            identifier,
+            400,
+        )
+
+
 class CompanyUserNotFound(AppError):
     def __init__(self, identifier: str):
         super().__init__(
@@ -42,6 +60,87 @@ class CompanyUserNotFound(AppError):
             "error.company_user_not_found",
             identifier,
             400,
+        )
+
+
+class CompanyInvitePending(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "An unused invite for this email already exists",
+            "error.company_invite_pending",
+            identifier,
+            409,
+        )
+
+
+class CompanyProfileIncomplete(AppError):
+    def __init__(self, identifier: str, missing_fields: Sequence[str]):
+        super().__init__(
+            "Company profile is missing mandatory fields",
+            "error.company_profile_incomplete",
+            identifier,
+            409,
+            {"missingFields": list(missing_fields)},
+        )
+
+
+class CompanyProfileUnconfirmed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The company profile has to be confirmed before registering",
+            "error.company_profile_unconfirmed",
+            identifier,
+            400,
+        )
+
+
+class IndustryNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Industry not found",
+            "error.industry_not_found",
+            identifier,
+            404,
+        )
+
+
+class IndustryNameExists(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "An industry with this name already exists",
+            "error.industry_name_exists",
+            identifier,
+            409,
+        )
+
+
+class CompanyHasUpcomingBookings(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Company still has bookings for upcoming KP events",
+            "error.company_has_upcoming_bookings",
+            identifier,
+            409,
+        )
+
+
+class UserLastCompanyMember(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Company would lose its last member while bookings are upcoming",
+            "error.user_last_company_member",
+            identifier,
+            409,
+        )
+
+
+class UserAlreadyInCompany(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "User already belongs to a company",
+            "error.user_already_in_company",
+            identifier,
+            409,
         )
 
 
@@ -135,11 +234,61 @@ class KpBoothZoneEventMismatch(AppError):
         )
 
 
+class KpBoothZoneNameExists(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP booth zone with this name already exists for this event",
+            "error.kp_booth_zone_name_exists",
+            identifier,
+            409,
+        )
+
+
+class KpBoothZoneColorExists(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP booth zone with this color already exists for this event",
+            "error.kp_booth_zone_color_exists",
+            identifier,
+            409,
+        )
+
+
+class KpBoothZoneOrderInvalid(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP booth zone order must list every zone of the event exactly once",
+            "error.kp_booth_zone_order_invalid",
+            identifier,
+            400,
+        )
+
+
+class KpBoothZoneInUse(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP booth zone is still used by an active booking",
+            "error.kp_booth_zone_in_use",
+            identifier,
+            409,
+        )
+
+
 class KpWaitlistSameZone(AppError):
     def __init__(self, identifier: str):
         super().__init__(
             "Cannot add the current booth zone to the waitlist",
             "error.kp_waitlist_same_zone",
+            identifier,
+            400,
+        )
+
+
+class KpWaitlistZoneHasCapacity(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The selected booth zone still has free capacity",
+            "error.kp_waitlist_zone_has_capacity",
             identifier,
             400,
         )
@@ -155,11 +304,81 @@ class KpRegistrationClosed(AppError):
         )
 
 
+class KpOfferCancelDeadlinePassed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The free cancellation period of this offered place has ended",
+            "error.kp_offer_cancel_deadline_passed",
+            identifier,
+            409,
+        )
+
+
+class KpBookingNotOffered(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "This booking was not offered by VIS",
+            "error.kp_booking_not_offered",
+            identifier,
+            409,
+        )
+
+
+class KpOfferDeadlineInvalid(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The cancellation deadline must lie between today and the event",
+            "error.kp_offer_deadline_invalid",
+            identifier,
+            422,
+        )
+
+
+class KpZoneRegistrationClosed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Registration for this booth zone is not open",
+            "error.kp_zone_registration_closed",
+            identifier,
+            403,
+        )
+
+
 class KpBoothZoneAtCapacity(AppError):
     def __init__(self, identifier: str):
         super().__init__(
             "The selected booth zone has no remaining capacity",
             "error.kp_booth_zone_at_capacity",
+            identifier,
+            409,
+        )
+
+
+class KpBoothZoneFull(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The selected booth zone is full",
+            "error.kp_booth_zone_full",
+            identifier,
+            409,
+        )
+
+
+class KpBookingZoneLocked(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Confirmed KP bookings can no longer change their booth zone",
+            "error.kp_booking_zone_locked",
+            identifier,
+            409,
+        )
+
+
+class KpBookingZoneSwitchNotAllowed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "This KP booking cannot switch to the requested booth zone",
+            "error.kp_booking_zone_switch_not_allowed",
             identifier,
             409,
         )
@@ -175,6 +394,16 @@ class KpBookingAlreadyExists(AppError):
         )
 
 
+class KpBoothNumberTaken(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Another active booking in this booth zone already uses this booth number",
+            "error.kp_booth_number_taken",
+            identifier,
+            409,
+        )
+
+
 class KpBookingStatusTransitionInvalid(AppError):
     def __init__(self, identifier: str):
         super().__init__(
@@ -185,21 +414,31 @@ class KpBookingStatusTransitionInvalid(AppError):
         )
 
 
-class KpBookingConfirmationRequiresFinalized(AppError):
+class KpBookingDeleteRequiresForce(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "Only finalized KP bookings can be confirmed",
-            "error.kp_booking_confirmation_requires_finalized",
+            "Confirmed KP bookings can only be deleted with force",
+            "error.kp_booking_delete_requires_force",
             identifier,
-            400,
+            409,
         )
 
 
-class KpBookingConfirmedReadonly(AppError):
+class KpBookingReadonly(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "Confirmed KP bookings can no longer be changed by the company",
-            "error.kp_booking_confirmed_readonly",
+            "Cancelled or rejected KP bookings can no longer be changed",
+            "error.kp_booking_readonly",
+            identifier,
+            403,
+        )
+
+
+class KpFinalizationDeadlinePassed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The change deadline for this KP event has passed",
+            "error.kp_finalization_deadline_passed",
             identifier,
             403,
         )
@@ -212,6 +451,26 @@ class KpServiceNotFound(AppError):
             "error.kp_service_not_found",
             identifier,
             404,
+        )
+
+
+class KpServiceNameExists(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP service with this name already exists for this event",
+            "error.kp_service_name_exists",
+            identifier,
+            409,
+        )
+
+
+class KpServiceInUse(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP service is still booked by an active booking",
+            "error.kp_service_in_use",
+            identifier,
+            409,
         )
 
 
@@ -235,23 +494,53 @@ class KpServiceQuantityInvalid(AppError):
         )
 
 
-class KpIndustryNotFound(AppError):
+class KpServiceEventMismatch(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "KP industry not found",
-            "error.kp_industry_not_found",
+            "KP service belongs to a different KP event",
+            "error.kp_service_event_mismatch",
             identifier,
-            404,
+            400,
         )
 
 
-class KpIndustryNameExists(AppError):
+class KpIncludedServiceDuplicate(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "KP industry with this name already exists",
-            "error.kp_industry_name_exists",
+            "KP service is included more than once in this booth zone",
+            "error.kp_included_service_duplicate",
             identifier,
             400,
+        )
+
+
+class KpIncludedExceedsMax(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The included quantity exceeds the maximum quantity per booking",
+            "error.kp_included_exceeds_max",
+            identifier,
+            400,
+        )
+
+
+class KpNametagLimitReached(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "This booking has reached its maximum number of name tags",
+            "error.kp_nametag_limit_reached",
+            identifier,
+            400,
+        )
+
+
+class KpNametagsDeadlinePassed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The name tag deadline for this KP event has passed",
+            "error.kp_nametags_deadline_passed",
+            identifier,
+            403,
         )
 
 
@@ -275,13 +564,93 @@ class KpRequirementBookingServiceMismatch(AppError):
         )
 
 
+class KpVenueLayoutNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP venue layout not found",
+            "error.kp_venue_layout_not_found",
+            identifier,
+            404,
+        )
+
+
+class KpVenueLayoutNameExists(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP venue layout with this name already exists for this event",
+            "error.kp_venue_layout_name_exists",
+            identifier,
+            409,
+        )
+
+
+class KpVenueOutOfBounds(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The position lies outside the venue layout bounds",
+            "error.kp_venue_out_of_bounds",
+            identifier,
+            400,
+        )
+
+
+class KpVenueBoothNumberDuplicate(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The same booth number is placed more than once in this layout",
+            "error.kp_venue_booth_number_duplicate",
+            identifier,
+            409,
+        )
+
+
+class IdentityProviderUnavailable(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The identity provider is unavailable",
+            "error.identity_provider_unavailable",
+            identifier,
+            503,
+        )
+
+
+class MailUnavailable(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The mail service is unavailable",
+            "error.mail_unavailable",
+            identifier,
+            503,
+        )
+
+
+class CompanyNameTaken(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Another company already uses this name",
+            "error.company_name_taken",
+            identifier,
+            409,
+        )
+
+
+class ConcurrentChange(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The data was changed at the same time elsewhere",
+            "error.conflict",
+            identifier,
+            409,
+        )
+
+
 class StorageUploadFailed(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "File upload failed",
+            "File storage is unavailable",
             "error.storage_upload_failed",
             identifier,
-            500,
+            503,
         )
 
 
@@ -305,11 +674,64 @@ class StorageDownloadFailed(AppError):
         )
 
 
+class EventBannerTooSmall(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The banner image is too narrow",
+            "error.event_banner_too_small",
+            identifier,
+            400,
+        )
+
+
+class BookletBackgroundRejected(AppError):
+    def __init__(
+        self, reason: str, identifier: str, details: dict[str, object] | None = None
+    ):
+        super().__init__(
+            "The booklet background was rejected",
+            f"error.booklet_background_{reason}",
+            identifier,
+            400,
+            details,
+        )
+
+
+class BookletPageRenderTimeout(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The booklet page took too long to render",
+            "error.booklet_page_render_timeout",
+            identifier,
+            503,
+        )
+
+
+class ExportRenderTimeout(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The export took too long to render",
+            "error.export_render_timeout",
+            identifier,
+            503,
+        )
+
+
 class StorageFileTooLarge(AppError):
     def __init__(self, identifier: str):
         super().__init__(
             "The uploaded file is too large",
             "error.storage_file_too_large",
+            identifier,
+            400,
+        )
+
+
+class StorageImageTooLarge(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The uploaded image has too many pixels",
+            "error.storage_image_too_large",
             identifier,
             400,
         )
@@ -342,6 +764,36 @@ class KpRequirementTextAnswerNotAllowed(AppError):
             "error.kp_requirement_text_answer_not_allowed",
             identifier,
             400,
+        )
+
+
+class MailTemplateNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Mail template not found",
+            "error.mail_template_not_found",
+            identifier,
+            404,
+        )
+
+
+class MailTemplateInvalid(AppError):
+    def __init__(
+        self,
+        identifier: str,
+        detail: str,
+        field: str,
+        variable: str | None = None,
+    ):
+        details = {"field": field}
+        if variable is not None:
+            details["variable"] = variable
+        super().__init__(
+            f"Mail template is invalid: {detail}",
+            "error.mail_template_invalid",
+            identifier,
+            400,
+            details,
         )
 
 
@@ -403,6 +855,26 @@ class EmailUsed(AppError):
         super().__init__("Email is already used", "error.email_used", identifier, 400)
 
 
+class EmailTakenLocally(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Email already belongs to a local account",
+            "auth.email_taken_locally",
+            identifier,
+            403,
+        )
+
+
+class NotVisMember(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "User has no active VIS membership role",
+            "auth.not_vis_member",
+            identifier,
+            403,
+        )
+
+
 class PasswordTooShort(AppError):
     def __init__(self, identifier: str):
         super().__init__(
@@ -430,3 +902,30 @@ class InviteNotFound(AppError):
 class InviteExpired(AppError):
     def __init__(self, identifier: str):
         super().__init__("Invite has expired", "error.invite_expired", identifier, 400)
+
+
+class InviteEmailMismatch(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Invite was issued for a different email address",
+            "error.invite_email_mismatch",
+            identifier,
+            403,
+        )
+
+
+class RateLimited(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Too many requests, please try again later",
+            "error.rate_limited",
+            identifier,
+            429,
+        )
+
+
+class CsrfInvalid(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "CSRF validation failed", "csrf.validation_failed", identifier, 403
+        )

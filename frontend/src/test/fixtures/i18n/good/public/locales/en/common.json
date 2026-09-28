@@ -1,0 +1,11 @@
+{
+  "fixture": {
+    "body": "Every booth comes with a table and two chairs.",
+    "booth_number_label": "Booth number",
+    "booth_number_error": "Pick a booth number",
+    "booth_photo_alt": "Photo of a booth",
+    "save": "Save",
+    "saved": "Booth saved",
+    "title": "Booth"
+  }
+}

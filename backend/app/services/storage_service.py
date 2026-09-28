@@ -2,10 +2,13 @@ import asyncio
 import hashlib
 import mimetypes
 from dataclasses import dataclass
-from typing import Any, cast
+from enum import Enum
+from functools import cached_property
+from typing import Any, Protocol, cast
 
-import boto3  # pyright: ignore[reportMissingTypeStubs]
-from botocore.exceptions import (  # pyright: ignore[reportMissingTypeStubs]
+import boto3
+from botocore.config import Config
+from botocore.exceptions import (
     BotoCoreError,
     ClientError,
 )
@@ -17,8 +20,81 @@ from app.core.exceptions import (
     StorageDownloadFailed,
     StorageFileInvalidMimeType,
     StorageFileTooLarge,
+    StorageImageTooLarge,
     StorageUploadFailed,
 )
+from app.core.images import image_size
+
+UPLOAD_CHUNK_SIZE_BYTES = 1024 * 1024
+UNKNOWN_MIME_TYPE = "application/octet-stream"
+
+S3_CLIENT_CONFIG = Config(
+    signature_version="s3v4",
+    request_checksum_calculation="when_required",
+    response_checksum_validation="when_required",
+)
+
+IMAGE_OR_PDF_MIME_TYPES = {
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+    "application/pdf",
+}
+
+
+class UploadKind(Enum):
+    IMAGE = "image"
+    PDF = "pdf"
+    VIDEO = "video"
+    FILE = "file"
+
+
+class UploadStream(Protocol):
+    async def read(self, size: int = -1, /) -> bytes: ...
+
+
+@dataclass(frozen=True)
+class MimeSignature:
+    mime_type: str
+    markers: tuple[tuple[int, bytes], ...]
+
+
+MIME_SIGNATURES = (
+    MimeSignature("image/png", ((0, b"\x89PNG\r\n\x1a\n"),)),
+    MimeSignature("image/jpeg", ((0, b"\xff\xd8\xff"),)),
+    MimeSignature("image/gif", ((0, b"GIF87a"),)),
+    MimeSignature("image/gif", ((0, b"GIF89a"),)),
+    MimeSignature("image/webp", ((0, b"RIFF"), (8, b"WEBP"))),
+    MimeSignature("application/pdf", ((0, b"%PDF-"),)),
+    MimeSignature("image/heic", ((4, b"ftypheic"),)),
+    MimeSignature("image/heic", ((4, b"ftypheix"),)),
+    MimeSignature("image/heic", ((4, b"ftypmif1"),)),
+    MimeSignature("image/avif", ((4, b"ftypavif"),)),
+    MimeSignature("video/quicktime", ((4, b"ftypqt"),)),
+    MimeSignature("video/quicktime", ((4, b"moov"),)),
+    MimeSignature("video/mp4", ((4, b"ftyp"),)),
+    MimeSignature("video/webm", ((0, b"\x1a\x45\xdf\xa3"),)),
+)
+
+
+def upload_limit_bytes(settings: Settings, kind: UploadKind) -> int:
+    if kind is UploadKind.IMAGE:
+        return settings.STORAGE_IMAGE_MAX_SIZE_BYTES
+    if kind is UploadKind.PDF:
+        return settings.STORAGE_PDF_MAX_SIZE_BYTES
+    if kind is UploadKind.VIDEO:
+        return settings.STORAGE_VIDEO_MAX_SIZE_BYTES
+    return settings.STORAGE_FILE_MAX_SIZE_BYTES
+
+
+def sniff_mime_type(content: bytes) -> str | None:
+    for signature in MIME_SIGNATURES:
+        if all(
+            content.startswith(magic, offset) for offset, magic in signature.markers
+        ):
+            return signature.mime_type
+    return None
 
 
 @dataclass
@@ -30,16 +106,28 @@ class StoredObject:
     sha256: str
 
 
+def s3_client(settings: Settings, endpoint_url: str) -> Any:
+    return cast(Any, boto3).client(
+        "s3",
+        endpoint_url=endpoint_url,
+        region_name=settings.S3_REGION,
+        aws_access_key_id=settings.SIP_S3_FILES_ACCESS_KEY,
+        aws_secret_access_key=settings.SIP_S3_FILES_SECRET_KEY,
+        config=S3_CLIENT_CONFIG,
+    )
+
+
 class StorageService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.client: Any = cast(Any, boto3).client(
-            "s3",
-            endpoint_url=settings.S3_ENDPOINT_URL,
-            region_name=settings.S3_REGION,
-            aws_access_key_id=settings.SIP_S3_FILES_ACCESS_KEY,
-            aws_secret_access_key=settings.SIP_S3_FILES_SECRET_KEY,
-        )
+        self.client: Any = s3_client(settings, settings.S3_ENDPOINT_URL)
+
+    @cached_property
+    def presign_client(self) -> Any:
+        public_endpoint_url = self.settings.S3_PUBLIC_ENDPOINT_URL
+        if public_endpoint_url is None:
+            return self.client
+        return s3_client(self.settings, public_endpoint_url)
 
     def _normalize_mime_type(
         self, filename: str, content_type: str | None = None
@@ -47,10 +135,33 @@ class StorageService:
         if content_type:
             return content_type
         guessed_type, _ = mimetypes.guess_type(filename)
-        return guessed_type or "application/octet-stream"
+        return guessed_type or UNKNOWN_MIME_TYPE
 
     def compute_sha256(self, content: bytes) -> str:
         return hashlib.sha256(content).hexdigest()
+
+    def max_upload_size_bytes(self, kind: UploadKind) -> int:
+        return upload_limit_bytes(self.settings, kind)
+
+    async def read_upload(
+        self,
+        upload: UploadStream,
+        *,
+        content_length: int | None,
+        kind: UploadKind,
+        error_context: str,
+    ) -> bytes:
+        max_size_bytes = self.max_upload_size_bytes(kind)
+        if content_length is not None and content_length > max_size_bytes:
+            raise StorageFileTooLarge(f"{error_context}:size:{content_length}")
+        chunks: list[bytes] = []
+        size = 0
+        while chunk := await upload.read(UPLOAD_CHUNK_SIZE_BYTES):
+            size += len(chunk)
+            if size > max_size_bytes:
+                raise StorageFileTooLarge(f"{error_context}:size:{size}")
+            chunks.append(chunk)
+        return b"".join(chunks)
 
     def validate_file(
         self,
@@ -62,20 +173,32 @@ class StorageService:
         error_context: str,
         allowed_mime_types: set[str] | None = None,
         mime_prefix: str | None = None,
-        required_signatures: dict[str, bytes] | None = None,
     ) -> str:
-        mime_type = self._normalize_mime_type(filename, content_type)
+        sniffed_mime_type = sniff_mime_type(content)
+        restricted = allowed_mime_types is not None or mime_prefix is not None
+        if sniffed_mime_type is None and restricted:
+            raise StorageFileInvalidMimeType(f"{error_context}:signature")
+        mime_type = sniffed_mime_type or UNKNOWN_MIME_TYPE
         if allowed_mime_types is not None and mime_type not in allowed_mime_types:
             raise StorageFileInvalidMimeType(f"{error_context}:mime:{mime_type}")
         if mime_prefix is not None and not mime_type.startswith(mime_prefix):
             raise StorageFileInvalidMimeType(f"{error_context}:mime:{mime_type}")
         if len(content) > max_size_bytes:
             raise StorageFileTooLarge(f"{error_context}:size:{len(content)}")
-        if required_signatures is not None:
-            signature = required_signatures.get(mime_type)
-            if signature is not None and not content.startswith(signature):
-                raise StorageFileInvalidMimeType(f"{error_context}:signature")
+        if restricted and mime_type.startswith("image/"):
+            self._validate_image_size(content, mime_type, error_context)
         return mime_type
+
+    def _validate_image_size(
+        self, content: bytes, mime_type: str, error_context: str
+    ) -> None:
+        size = image_size(content, mime_type)
+        if size is None:
+            raise StorageFileInvalidMimeType(f"{error_context}:dimensions")
+        if not size.within_limits:
+            raise StorageImageTooLarge(
+                f"{error_context}:pixels:{size.width}x{size.height}"
+            )
 
     def validate_image_file(
         self,
@@ -85,17 +208,32 @@ class StorageService:
         *,
         error_context: str,
         allowed_mime_types: set[str] | None = None,
-        required_signatures: dict[str, bytes] | None = None,
     ) -> str:
         return self.validate_file(
             filename,
             content,
             content_type,
-            max_size_bytes=self.settings.STORAGE_IMAGE_MAX_SIZE_BYTES,
+            max_size_bytes=self.max_upload_size_bytes(UploadKind.IMAGE),
             error_context=error_context,
             allowed_mime_types=allowed_mime_types,
             mime_prefix="image/" if allowed_mime_types is None else None,
-            required_signatures=required_signatures,
+        )
+
+    def validate_image_or_pdf_file(
+        self,
+        filename: str,
+        content: bytes,
+        content_type: str | None,
+        *,
+        error_context: str,
+    ) -> str:
+        return self.validate_file(
+            filename,
+            content,
+            content_type,
+            max_size_bytes=self.max_upload_size_bytes(UploadKind.PDF),
+            error_context=error_context,
+            allowed_mime_types=IMAGE_OR_PDF_MIME_TYPES,
         )
 
     def validate_pdf_file(
@@ -110,7 +248,7 @@ class StorageService:
             filename,
             content,
             content_type,
-            max_size_bytes=self.settings.STORAGE_PDF_MAX_SIZE_BYTES,
+            max_size_bytes=self.max_upload_size_bytes(UploadKind.PDF),
             error_context=error_context,
             allowed_mime_types={"application/pdf"},
         )
@@ -127,7 +265,7 @@ class StorageService:
             filename,
             content,
             content_type,
-            max_size_bytes=self.settings.STORAGE_VIDEO_MAX_SIZE_BYTES,
+            max_size_bytes=self.max_upload_size_bytes(UploadKind.VIDEO),
             error_context=error_context,
             mime_prefix="video/",
         )
@@ -144,7 +282,7 @@ class StorageService:
             filename,
             content,
             content_type,
-            max_size_bytes=self.settings.STORAGE_FILE_MAX_SIZE_BYTES,
+            max_size_bytes=self.max_upload_size_bytes(UploadKind.FILE),
             error_context=error_context,
         )
 
@@ -206,7 +344,7 @@ class StorageService:
         def _presign() -> str:
             return cast(
                 str,
-                self.client.generate_presigned_url(
+                self.presign_client.generate_presigned_url(
                     "get_object",
                     Params={
                         "Bucket": self.settings.SIP_S3_FILES_BUCKET,

@@ -1,0 +1,162 @@
+from collections.abc import AsyncIterator, Awaitable, Callable
+
+import pytest
+from httpx import AsyncClient, Response
+
+from app.core.config import get_settings
+from app.services.storage_service import StorageService
+from tests.api.conftest import PNG_BYTES, KpSetup
+from tests.api.test_upload_routes import FakeS3Client, ImageRequirement
+from tests.images import decompression_bomb
+
+HTML_BYTES = b"<!DOCTYPE html><html><body><script>alert(document.domain)</script>"
+SVG_BYTES = b'<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>'
+STREAM_LIMIT_BYTES = 64 * 1024
+STREAM_CHUNK_BYTES = 64 * 1024
+BOUNDARY = "sec-boundary"
+BOMB_SIDE = 30_000
+MAX_LOGO_PIXELS = 40_000_000
+
+
+@pytest.fixture
+def s3_client() -> FakeS3Client:
+    return FakeS3Client()
+
+
+@pytest.fixture
+def storage_service(s3_client: FakeS3Client) -> StorageService:
+    service = StorageService.__new__(StorageService)
+    service.settings = get_settings().model_copy(
+        update={"S3_PUBLIC_ENDPOINT_URL": None}
+    )
+    service.client = s3_client
+    return service
+
+
+@pytest.fixture
+async def file_requirement(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    company_headers: dict[str, str],
+    kp_setup: KpSetup,
+    complete_company_profile: Callable[..., Awaitable[Response]],
+) -> ImageRequirement:
+    service = await client.post(
+        f"/api/kp/events/{kp_setup.event_id}/services",
+        json={
+            "name": "Print data",
+            "price": 0,
+            "requirements": [
+                {
+                    "type": "file",
+                    "name": "Artwork",
+                    "description": "Upload the artwork for the booth banner.",
+                }
+            ],
+        },
+        headers=staff_headers,
+    )
+    await complete_company_profile(company_headers)
+    booking = await client.post(
+        f"/api/kp/events/{kp_setup.event_id}/bookings/register",
+        json={
+            "booth_zone_id": kp_setup.booth_zone_id,
+            "services": [{"service_id": service.json()["id"], "quantity": 1}],
+            "confirm_profile": True,
+        },
+        headers=company_headers,
+    )
+    return ImageRequirement(
+        booking_service_id=booking.json()["services"][0]["id"],
+        requirement_id=service.json()["requirements"][0]["id"],
+    )
+
+
+@pytest.mark.parametrize(
+    ("filename", "content", "declared_type"),
+    [
+        ("artwork.html", HTML_BYTES, "text/html"),
+        ("artwork.svg", SVG_BYTES, "image/svg+xml"),
+    ],
+)
+async def test_generic_requirement_upload_does_not_store_the_declared_active_type(
+    client: AsyncClient,
+    s3_client: FakeS3Client,
+    company_headers: dict[str, str],
+    file_requirement: ImageRequirement,
+    filename: str,
+    content: bytes,
+    declared_type: str,
+):
+    response = await client.post(
+        f"/api/kp/booking-services/{file_requirement.booking_service_id}"
+        f"/requirements/{file_requirement.requirement_id}/file",
+        files={"file": (filename, content, declared_type)},
+        headers=company_headers,
+    )
+
+    assert response.status_code == 200
+    [(_, stored_type)] = s3_client.objects.values()
+    assert stored_type == "application/octet-stream"
+
+
+async def test_logo_upload_rejects_a_decompression_bomb(
+    client: AsyncClient,
+    s3_client: FakeS3Client,
+    company_headers: dict[str, str],
+):
+    bomb = decompression_bomb(BOMB_SIDE)
+    assert len(bomb) < get_settings().STORAGE_IMAGE_MAX_SIZE_BYTES
+    assert BOMB_SIDE * BOMB_SIDE > MAX_LOGO_PIXELS
+
+    response = await client.post(
+        "/api/company/me/profile/logo",
+        files={"file": ("logo.png", bomb, "image/png")},
+        headers=company_headers,
+    )
+
+    assert response.status_code == 400
+    assert s3_client.objects == {}
+
+
+@pytest.mark.parametrize("declare_length", [True, False], ids=["declared", "chunked"])
+async def test_upload_size_limit_stops_reading_an_oversized_body(
+    client: AsyncClient,
+    company_headers: dict[str, str],
+    declare_length: bool,
+):
+    image_limit = get_settings().STORAGE_IMAGE_MAX_SIZE_BYTES
+    streamed_bytes = 3 * image_limit
+    prefix = (
+        f"--{BOUNDARY}\r\n"
+        'Content-Disposition: form-data; name="file"; filename="logo.png"\r\n'
+        "Content-Type: image/png\r\n\r\n"
+    ).encode() + PNG_BYTES
+    suffix = f"\r\n--{BOUNDARY}--\r\n".encode()
+    consumed = 0
+
+    async def body() -> AsyncIterator[bytes]:
+        nonlocal consumed
+        for part in (
+            prefix,
+            *[b"\x00" * STREAM_CHUNK_BYTES] * (streamed_bytes // STREAM_CHUNK_BYTES),
+            suffix,
+        ):
+            consumed += len(part)
+            yield part
+
+    total = len(prefix) + streamed_bytes + len(suffix)
+    length_header = {"Content-Length": str(total)} if declare_length else {}
+    response = await client.post(
+        "/api/company/me/profile/logo",
+        content=body(),
+        headers={
+            **company_headers,
+            **length_header,
+            "Content-Type": f"multipart/form-data; boundary={BOUNDARY}",
+        },
+    )
+
+    assert response.status_code == 413
+    assert response.json()["code"] == "error.storage_file_too_large"
+    assert consumed <= image_limit + STREAM_LIMIT_BYTES + 2 * STREAM_CHUNK_BYTES

@@ -1,4 +1,4 @@
-from sqlmodel import Field  # pyright: ignore[reportUnknownVariableType]
+from sqlmodel import Field
 
 from app.models.base import BaseEntity
 
