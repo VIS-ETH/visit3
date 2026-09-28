@@ -199,6 +199,7 @@ class KpEventBooking(BaseEntity, table=True):
     )
 
     booth_nr: int | None = Field(default=None, ge=1)
+    offer_cancel_until: date | None = Field(default=None)
 
     event: "KpEvent" = Relationship(back_populates="bookings")
     company: Company = Relationship(back_populates="bookings")
@@ -216,6 +217,12 @@ class KpEventBooking(BaseEntity, table=True):
     @property
     def is_active(self) -> bool:
         return self.status not in INACTIVE_BOOKING_STATUSES
+
+    def is_offer_cancellable(self) -> bool:
+        return (
+            self.offer_cancel_until is not None
+            and local_today() <= self.offer_cancel_until
+        )
 
     @property
     def total_price(self) -> int:

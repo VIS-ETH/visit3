@@ -297,6 +297,17 @@ class ServiceResponse(BaseModel):
 
 class CreateBookingInput(BaseModel):
     status: KpBookingStatus = KpBookingStatus.REGISTERED
+    offer_cancel_until: date | None = None
+
+
+class OfferBookingRequest(BaseModel):
+    company_id: UUID
+    booth_zone_id: UUID
+    cancel_until: date
+
+
+class UpdateBookingOfferRequest(BaseModel):
+    cancel_until: date
 
 
 class UpdateBookingInput(BaseModel):
@@ -308,6 +319,7 @@ class UpdateBookingInput(BaseModel):
     rejection_reason: str | None = None
     confirmed_at: datetime | None = None
     reminder_sent_at: datetime | None = None
+    offer_cancel_until: date | None = None
 
 
 class UpdateBookingStatusInput(BaseModel):
@@ -425,6 +437,7 @@ class BookingBase(BaseModel):
     status_changed_at: datetime | None = None
     confirmed_at: datetime | None = None
     rejection_reason: str | None = None
+    offer_cancel_until: date | None = None
     missing_items: list[str] = Field(default_factory=lambda: [])
     is_complete: bool = True
 

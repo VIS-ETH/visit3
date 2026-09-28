@@ -1,8 +1,9 @@
 from datetime import date, datetime, timezone
+from uuid import uuid4
 
 import pytest
 
-from app.models.kp_event import KpEvent
+from app.models.kp_event import KpEvent, KpEventBooking
 
 
 def make_event() -> KpEvent:
@@ -56,3 +57,34 @@ def test_nametags_deadline_passes_after_the_zurich_day(freeze_now, instant, expe
     freeze_now(instant)
 
     assert make_event().is_nametags_deadline_passed() is expected
+
+
+@pytest.mark.parametrize(
+    ("instant", "expected"),
+    [
+        (utc(10, 4, 21, 59), True),
+        (utc(10, 4, 22, 30), True),
+        (utc(10, 5, 21, 59), True),
+        (utc(10, 5, 22, 0), False),
+    ],
+)
+def test_an_offer_stays_cancellable_through_its_zurich_deadline(
+    freeze_now, instant, expected
+):
+    freeze_now(instant)
+    booking = KpEventBooking(
+        event_id=uuid4(),
+        company_id=uuid4(),
+        booth_zone_id=uuid4(),
+        offer_cancel_until=date(2026, 10, 5),
+    )
+
+    assert booking.is_offer_cancellable() is expected
+
+
+def test_a_regular_booking_has_no_offer_window():
+    booking = KpEventBooking(
+        event_id=uuid4(), company_id=uuid4(), booth_zone_id=uuid4()
+    )
+
+    assert booking.is_offer_cancellable() is False
