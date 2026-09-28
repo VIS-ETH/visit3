@@ -514,6 +514,32 @@ describe("Company profile form", () => {
       await screen.findByText("company_profile_form.general_email_hint"),
     ).toBeInTheDocument();
   });
+
+  it("shows a rejected login email on the general email field", async () => {
+    server.use(
+      http.put(`${testBackendUrl}/api/company/me/profile`, () =>
+        HttpResponse.json(
+          { code: "error.company_general_email_is_login" },
+          { status: 400 },
+        ),
+      ),
+    );
+    const { user } = renderProfile();
+
+    const email = await screen.findByLabelText(
+      labelOf("company_profile_form.general_email"),
+    );
+    await user.clear(email);
+    await user.paste(companyUser.email);
+    await user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+
+    expect(
+      await screen.findByText("error.company_general_email_is_login"),
+    ).toBeInTheDocument();
+    expect(email).toHaveAttribute("aria-invalid", "true");
+  });
 });
 
 describe("Company booklet page", () => {

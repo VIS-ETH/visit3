@@ -24,6 +24,7 @@ import CompanyOfferFields from "../../components/company/CompanyOfferFields";
 import CompanyProfileBadge from "../../components/company/CompanyProfileBadge";
 import CompanyProfileMissingFields from "../../components/company/CompanyProfileMissingFields";
 import CompanyProfileSection from "../../components/company/CompanyProfileSection";
+import { showProfileFieldError } from "../../components/company/company-profile-fields";
 import {
   getGetCompanyProfileQueryKey,
   previewCompanyBookletPage,
@@ -94,6 +95,7 @@ const CompanyProfileAdmin = () => {
           message: t("company_profile_form.save_success"),
         });
       },
+      onError: (error) => showProfileFieldError(form, error, t),
     },
   });
 

@@ -208,6 +208,37 @@ describe("the staff company profile page", () => {
   });
 });
 
+describe("the staff general email field", () => {
+  it("explains the field and shows a rejected login email on it", async () => {
+    server.use(
+      http.put(`${testBackendUrl}/api/company/:companyId/profile`, () =>
+        HttpResponse.json(
+          { code: "error.company_general_email_is_login" },
+          { status: 400 },
+        ),
+      ),
+    );
+    const { user } = renderPage();
+
+    const email = await screen.findByDisplayValue(
+      storedProfile.general_email ?? "",
+    );
+    expect(
+      screen.getByText("company_profile_form.general_email_hint"),
+    ).toBeInTheDocument();
+    await user.clear(email);
+    await user.paste(memberUser.email);
+    await user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+
+    expect(
+      await screen.findByText("error.company_general_email_is_login"),
+    ).toBeInTheDocument();
+    expect(email).toHaveAttribute("aria-invalid", "true");
+  });
+});
+
 describe("the staff booklet page", () => {
   it("renders the page of the company in the route", async () => {
     renderPage();

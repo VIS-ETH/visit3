@@ -1,4 +1,6 @@
 import type { UseFormReturnType } from "@mantine/form";
+import type { TFunction } from "i18next";
+import { getApiErrorCode } from "../../api/errors";
 import type { CompanyProfileFormValues } from "../../schemas/companyProfileSchema";
 
 export interface CompanyProfileFieldsProps {
@@ -19,6 +21,19 @@ export const MANDATORY_PROFILE_FIELDS = [
 ] as const;
 
 type MandatoryProfileField = (typeof MANDATORY_PROFILE_FIELDS)[number];
+
+export const showProfileFieldError = (
+  form: CompanyProfileFieldsProps["form"],
+  error: unknown,
+  t: TFunction,
+) => {
+  if (getApiErrorCode(error) === "error.company_general_email_is_login") {
+    form.setFieldError(
+      "general_email",
+      t("error.company_general_email_is_login"),
+    );
+  }
+};
 
 export const profileFieldId = (field: string) =>
   `company-profile-${field.replaceAll("_", "-")}`;

@@ -37,6 +37,7 @@
     "user_not_found": "Benutzer wurde in der Datenbank nicht gefunden",
     "company_not_found": "Unternehmen wurde in der Datenbank nicht gefunden",
     "company_user_not_found": "Der ausgewählte Kontaktbenutzer muss zu Ihrem Unternehmen gehören.",
+    "company_general_email_is_login": "Bitte eine andere Adresse als Ihre Login-E-Mail angeben.",
     "company_has_upcoming_bookings": "Dieses Unternehmen hat noch Buchungen für bevorstehende KP-Events und kann nicht gelöscht werden.",
     "company_profile_incomplete": "Ihr Unternehmensprofil ist unvollständig. Bitte füllen Sie alle Pflichtfelder aus, bevor Sie sich anmelden.",
     "company_profile_unconfirmed": "Bitte bestätigen Sie, dass Ihr Unternehmensprofil noch korrekt ist, bevor Sie sich anmelden.",
