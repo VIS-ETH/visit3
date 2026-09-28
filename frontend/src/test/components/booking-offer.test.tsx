@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import BookingsTab from "../../components/BookingsTab";
 import BookingOfferCard from "../../components/bookings/BookingOfferCard";
 import OfferBookingModal from "../../components/bookings/OfferBookingModal";
 import { server } from "../server";
@@ -10,6 +11,7 @@ import { renderWithProviders } from "../render";
 import { testEventId } from "../fixtures/kp-booking";
 import {
   acmeBooking,
+  staffBookings,
   testMainHallZone,
   testSideHallZone,
 } from "../fixtures/staff-bookings";
@@ -103,6 +105,46 @@ describe("the offer place form", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
+  it("keeps the form open and names the reason of a refused offer", async () => {
+    server.use(
+      http.post(`${testBackendUrl}/api/kp/events/:eventId/bookings/offer`, () =>
+        HttpResponse.json(
+          { code: "error.company_profile_incomplete" },
+          { status: 422 },
+        ),
+      ),
+    );
+    const onClose = vi.fn();
+    const { user } = renderWithProviders(
+      <OfferBookingModal eventId={testEventId} opened onClose={onClose} />,
+    );
+
+    await user.click(
+      await screen.findByRole(
+        "combobox",
+        { name: "kp.manage.booking_company" },
+        SLOW_WAIT,
+      ),
+    );
+    await user.click(await screen.findByRole("option", { name: "Offered AG" }));
+    await user.click(
+      screen.getByRole("combobox", { name: "kp.manage.booking_booth_zone" }),
+    );
+    await user.click(await screen.findByRole("option", { name: "Main hall" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "kp.manage.offer_cancel_until" }),
+      "05.10.2026",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "kp.manage.offer_button" }),
+    );
+
+    expect(
+      await screen.findByText("error.company_profile_incomplete"),
+    ).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("waits for a valid deadline before offering", async () => {
     const { user } = renderWithProviders(
       <OfferBookingModal eventId={testEventId} opened onClose={vi.fn()} />,
@@ -120,6 +162,44 @@ describe("the offer place form", () => {
     expect(
       screen.getByRole("button", { name: "kp.manage.offer_button" }),
     ).toBeDisabled();
+  });
+});
+
+describe("offered bookings in the staff list", () => {
+  beforeEach(() => {
+    server.use(
+      http.get(`${testBackendUrl}/api/kp/events/:eventId/bookings`, () =>
+        HttpResponse.json(
+          staffBookings.map((booking) =>
+            booking.id === acmeBooking.id
+              ? { ...booking, offer_cancel_until: "2026-10-05" }
+              : booking,
+          ),
+        ),
+      ),
+    );
+  });
+
+  it("marks only the offered booking", async () => {
+    renderWithProviders(<BookingsTab eventId={testEventId} canOffer />);
+
+    expect(
+      await screen.findAllByText("kp.manage.offer_badge", undefined, SLOW_WAIT),
+    ).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: "kp.manage.offer_button" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the offer action from staff without the president role", async () => {
+    renderWithProviders(<BookingsTab eventId={testEventId} />);
+
+    expect(
+      await screen.findByText("kp.manage.offer_badge", undefined, SLOW_WAIT),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "kp.manage.offer_button" }),
+    ).not.toBeInTheDocument();
   });
 });
 
