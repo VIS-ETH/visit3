@@ -53,6 +53,7 @@ from app.schemas.kp import (
     NameTagResult,
     RegisterBookingRequest,
     RejectBookingRequest,
+    ReorderBoothZonesRequest,
     ReplaceBookingUpgradeWaitlistRequest,
     ReplaceNameTagsRequest,
     RequirementFileDownloadResponse,
@@ -178,6 +179,17 @@ async def create_booth_zone(
     kp_service: KpServiceDep, event_id: UUID, request: CreateBoothZoneRequest
 ) -> StaffBoothZoneResponse:
     return await kp_service.create_booth_zone(event_id, request)
+
+
+@router.put(
+    "/events/{event_id}/booth-zones/order",
+    operation_id="reorderBoothZones",
+    response_model=list[StaffBoothZoneResponse],
+)
+async def reorder_booth_zones(
+    kp_service: KpServiceDep, event_id: UUID, request: ReorderBoothZonesRequest
+) -> list[StaffBoothZoneResponse]:
+    return await kp_service.reorder_booth_zones(event_id, request.booth_zone_ids)
 
 
 @router.patch(

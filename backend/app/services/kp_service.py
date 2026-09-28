@@ -30,6 +30,7 @@ from app.core.exceptions import (
     KpBoothZoneInUse,
     KpBoothZoneNameExists,
     KpBoothZoneNotFound,
+    KpBoothZoneOrderInvalid,
     KpEventNotFound,
     KpFinalizationDeadlinePassed,
     KpIncludedExceedsMax,
@@ -322,6 +323,22 @@ class KpService:
             event_id, create_booth_zone_input
         )
         return await self._build_staff_booth_zone_response(zone)
+
+    async def reorder_booth_zones(
+        self, event_id: UUID, booth_zone_ids: Sequence[UUID]
+    ) -> list[StaffBoothZoneResponse]:
+        require_kp_president_user(self.current_user)
+        await self._get_event(event_id)
+        zones = {
+            zone.id: zone
+            for zone in await self.kp_repository.list_booth_zones(event_id)
+        }
+        if len(booth_zone_ids) != len(zones) or set(booth_zone_ids) != set(zones):
+            raise KpBoothZoneOrderInvalid(f"reorder_booth_zones:{event_id}")
+        reordered = await self.kp_repository.reorder_booth_zones(
+            event_id, [zones[zone_id] for zone_id in booth_zone_ids]
+        )
+        return [await self._build_staff_booth_zone_response(zone) for zone in reordered]
 
     async def update_booth_zone(
         self, booth_zone_id: UUID, update_booth_zone_input: UpdateBoothZoneInput

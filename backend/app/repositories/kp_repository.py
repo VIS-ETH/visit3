@@ -433,6 +433,19 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
+    async def reorder_booth_zones(
+        self, event_id: UUID, zones: Sequence[KpEventBoothZone]
+    ) -> Sequence[KpEventBoothZone]:
+        try:
+            for position, zone in enumerate(zones):
+                zone.order = position
+                self.session.add(zone)
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+        return await self.list_booth_zones(event_id)
+
     def _validate_zone(self, zone: KpEventBoothZone) -> None:
         self._validate_model(
             zone,

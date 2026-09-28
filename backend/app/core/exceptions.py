@@ -244,6 +244,16 @@ class KpBoothZoneColorExists(AppError):
         )
 
 
+class KpBoothZoneOrderInvalid(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP booth zone order must list every zone of the event exactly once",
+            "error.kp_booth_zone_order_invalid",
+            identifier,
+            400,
+        )
+
+
 class KpBoothZoneInUse(AppError):
     def __init__(self, identifier: str):
         super().__init__(

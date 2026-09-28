@@ -193,6 +193,10 @@ class UpdateBoothZoneRequest(UpdateBoothZoneInput):
     pass
 
 
+class ReorderBoothZonesRequest(BaseModel):
+    booth_zone_ids: list[UUID]
+
+
 class IncludedServiceResponse(BaseModel):
     service_id: UUID
     included_quantity: int
