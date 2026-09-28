@@ -665,3 +665,26 @@ async def test_an_offered_place_counts_against_the_zone_capacity(
 
     assert refused.status_code == 409
     assert booking.offer_cancel_until == in_days(3)
+
+
+async def test_moving_the_deadline_of_a_regular_booking_is_refused(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    company_headers: dict[str, str],
+    kp_setup: KpSetup,
+    register_booking: Callable[..., Awaitable[Response]],
+):
+    booking = await register_booking(company_headers, kp_setup)
+    booking_id = booking.json()["id"]
+    await client.post(f"/api/kp/bookings/{booking_id}/accept", headers=staff_headers)
+
+    moved = await client.patch(
+        f"/api/kp/bookings/{booking_id}/offer",
+        json={"cancel_until": in_days(3).isoformat()},
+        headers=staff_headers,
+    )
+    cancelled = await set_status(client, company_headers, booking_id, "CANCELLED")
+
+    assert moved.status_code == 409
+    assert moved.json()["code"] == "error.kp_booking_not_offered"
+    assert cancelled.json()["code"] == "error.kp_booking_status_transition_invalid"

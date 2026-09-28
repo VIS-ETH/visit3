@@ -18,6 +18,7 @@ from app.core.exceptions import (
     KpBookingAlreadyExists,
     KpBookingDeleteRequiresForce,
     KpBookingNotFound,
+    KpBookingNotOffered,
     KpBookingNotOwned,
     KpBookingReadonly,
     KpBookingStatusTransitionInvalid,
@@ -1070,6 +1071,8 @@ class KpService:
     ) -> BookingWithCompanyAndBoothZoneResponse:
         require_kp_president_user(self.current_user)
         booking = await self._get_booking(booking_id, lock=True)
+        if booking.offer_cancel_until is None:
+            raise KpBookingNotOffered(f"update_booking_offer:not_offered:{booking_id}")
         self._ensure_offer_deadline(
             booking.event, request.cancel_until, "update_booking_offer"
         )

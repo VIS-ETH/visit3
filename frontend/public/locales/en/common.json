@@ -102,6 +102,7 @@
     "kp_zone_registration_closed": "Registration for this booth zone is currently closed.",
     "kp_offer_cancel_deadline_passed": "The free cancellation period for this place has ended.",
     "kp_offer_deadline_invalid": "The cancellation deadline must lie between today and the event date.",
+    "kp_booking_not_offered": "This booking was not offered by VIS, so it has no cancellation deadline.",
     "kp_booth_zone_at_capacity": "The selected booth zone has no remaining spots.",
     "kp_booth_zone_full": "The selected booth zone is full. You can join its waitlist instead.",
     "kp_booking_zone_locked": "VIS has confirmed your booking. You can still add services, but no longer change the booth zone.",

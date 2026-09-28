@@ -314,6 +314,16 @@ class KpOfferCancelDeadlinePassed(AppError):
         )
 
 
+class KpBookingNotOffered(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "This booking was not offered by VIS",
+            "error.kp_booking_not_offered",
+            identifier,
+            409,
+        )
+
+
 class KpOfferDeadlineInvalid(AppError):
     def __init__(self, identifier: str):
         super().__init__(
