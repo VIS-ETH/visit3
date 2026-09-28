@@ -3,6 +3,7 @@ from uuid import UUID
 from app.models.kp_event import KpBookingStatus, KpEvent
 from app.repositories.kp_repository import KpRepository
 from app.services.booking_notifier import BookingNotifier, notify_best_effort
+from app.services.registration_exceptions import has_registration_exception
 from app.services.zone_switch_stock import service_exceeding_stock
 
 
@@ -30,6 +31,10 @@ async def promote_waitlist(
             await kp_repository.delete_waitlist_entry(entry)
             continue
         if booking.status != KpBookingStatus.REGISTERED:
+            continue
+        if not zone.registration_open and not await has_registration_exception(
+            kp_repository, event_id, booking.company_id
+        ):
             continue
         if await service_exceeding_stock(kp_repository, booking, zone) is not None:
             continue

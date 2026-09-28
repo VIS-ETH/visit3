@@ -294,6 +294,16 @@ class KpRegistrationClosed(AppError):
         )
 
 
+class KpZoneRegistrationClosed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Registration for this booth zone is not open",
+            "error.kp_zone_registration_closed",
+            identifier,
+            403,
+        )
+
+
 class KpBoothZoneAtCapacity(AppError):
     def __init__(self, identifier: str):
         super().__init__(

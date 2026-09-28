@@ -400,6 +400,23 @@ async def test_promotion_stops_after_the_finalization_deadline(
     ]
 
 
+async def test_promotion_skips_a_closed_zone(
+    client: AsyncClient, waitlist_world: WaitlistWorld
+):
+    await client.patch(
+        f"/api/kp/booth-zones/{waitlist_world.upgrade_zone_id}",
+        json={"registration_open": False},
+        headers=waitlist_world.staff_headers,
+    )
+
+    await cancel_holder(client, waitlist_world)
+
+    assert (
+        await booth_zone_of(client, waitlist_world, waitlist_world.first_booking_id)
+        == waitlist_world.home_zone_id
+    )
+
+
 @dataclass(frozen=True)
 class StockWorld:
     event_id: str

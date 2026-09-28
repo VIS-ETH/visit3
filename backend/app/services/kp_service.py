@@ -11,7 +11,6 @@ from app.core.auth_context import (
     require_staff_user,
 )
 from app.core.config import get_settings
-from app.core.dates import local_today
 from app.core.exceptions import (
     CompanyProfileIncomplete,
     CompanyProfileUnconfirmed,
@@ -52,6 +51,7 @@ from app.core.exceptions import (
     KpServiceUnavailable,
     KpWaitlistSameZone,
     KpWaitlistZoneHasCapacity,
+    KpZoneRegistrationClosed,
 )
 from app.models.company import BOOKING_REQUIRED_PROFILE_FIELDS, KpCompanyProfile
 from app.models.kp_event import (
@@ -122,6 +122,7 @@ from app.services.booth_zone_view import (
 )
 from app.services.download_urls import DownloadUrls
 from app.services.pricing import price_breakdown
+from app.services.registration_exceptions import has_registration_exception
 from app.services.storage_service import StorageService, UploadKind, UploadStream
 from app.services.waitlist_promotion import promote_waitlist
 from app.services.zone_switch_stock import service_exceeding_stock
@@ -659,12 +660,9 @@ class KpService:
         return await self._build_service_response(updated)
 
     async def _is_registration_open(self, event: KpEvent, company_id: UUID) -> bool:
-        if event.is_registration_open():
-            return True
-        exception = await self.kp_repository.get_registration_exception(
-            event.id, company_id
+        return event.is_registration_open() or await has_registration_exception(
+            self.kp_repository, event.id, company_id
         )
-        return exception is not None and exception.allowed_until >= local_today()
 
     async def _ensure_registration_open(self, event: KpEvent, company_id: UUID) -> None:
         if not await self._is_registration_open(event, company_id):
@@ -672,14 +670,28 @@ class KpService:
                 f"register_booking:closed:{event.id}:{company_id}"
             )
 
+    async def _ensure_zone_registration_open(
+        self, zone: KpEventBoothZone, company_id: UUID, context: str
+    ) -> None:
+        if zone.registration_open or await has_registration_exception(
+            self.kp_repository, zone.event_id, company_id
+        ):
+            return
+        raise KpZoneRegistrationClosed(f"{context}:zone_closed:{zone.id}:{company_id}")
+
     async def list_booth_zones_for_company(
         self, event_id: UUID
     ) -> list[BoothZoneWithAvailabilityResult]:
-        require_confirmed_company_user(self.current_user)
+        user = require_confirmed_company_user(self.current_user).user
         await self._get_event(event_id)
-        return await booth_zones_with_availability(
+        zones = await booth_zones_with_availability(
             self.kp_repository, self.download_urls, event_id
         )
+        if user.company_id is None or not await has_registration_exception(
+            self.kp_repository, event_id, user.company_id
+        ):
+            return zones
+        return [zone.model_copy(update={"registration_open": True}) for zone in zones]
 
     async def _validate_service_quantity(
         self,
@@ -963,6 +975,9 @@ class KpService:
             )
 
         locked_zone = await self._lock_zone_until_booking_is_inserted(booth_zone_id)
+        await self._ensure_zone_registration_open(
+            locked_zone, company_user.company_id, "register_booking"
+        )
 
         count = await self.kp_repository.count_active_bookings_for_zone(
             event_id, booth_zone_id
@@ -1248,6 +1263,9 @@ class KpService:
                 raise KpWaitlistSameZone(
                     f"booking_upgrade_waitlist:same_zone:{booking_id}:{target_zone.id}"
                 )
+            await self._ensure_zone_registration_open(
+                target_zone, company_user.company_id, "booking_upgrade_waitlist"
+            )
             if await self._free_spots_in_zone(target_zone) > 0:
                 raise KpWaitlistZoneHasCapacity(
                     f"booking_upgrade_waitlist:has_capacity:{booking_id}:{target_zone.id}"
@@ -1306,6 +1324,9 @@ class KpService:
 
         locked_zone = await self._lock_zone_until_booking_is_inserted(
             booth_zone_id, "switch_booking_zone"
+        )
+        await self._ensure_zone_registration_open(
+            locked_zone, company_user.company_id, "switch_booking_zone"
         )
         count = await self.kp_repository.count_active_bookings_for_zone(
             booking.event_id, booth_zone_id
