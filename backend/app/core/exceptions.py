@@ -304,6 +304,26 @@ class KpRegistrationClosed(AppError):
         )
 
 
+class KpOfferCancelDeadlinePassed(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The free cancellation period of this offered place has ended",
+            "error.kp_offer_cancel_deadline_passed",
+            identifier,
+            409,
+        )
+
+
+class KpOfferDeadlineInvalid(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The cancellation deadline must lie between today and the event",
+            "error.kp_offer_deadline_invalid",
+            identifier,
+            422,
+        )
+
+
 class KpZoneRegistrationClosed(AppError):
     def __init__(self, identifier: str):
         super().__init__(

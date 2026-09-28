@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
 from uuid import UUID, uuid4
@@ -11,6 +11,7 @@ from app.core.auth_context import (
     require_staff_user,
 )
 from app.core.config import get_settings
+from app.core.dates import local_today
 from app.core.exceptions import (
     CompanyProfileIncomplete,
     CompanyProfileUnconfirmed,
@@ -38,6 +39,8 @@ from app.core.exceptions import (
     KpNameExists,
     KpNametagLimitReached,
     KpNametagsDeadlinePassed,
+    KpOfferCancelDeadlinePassed,
+    KpOfferDeadlineInvalid,
     KpRegistrationClosed,
     KpRequirementBookingServiceMismatch,
     KpRequirementFileUploadNotAllowed,
@@ -91,6 +94,7 @@ from app.schemas.kp import (
     MyBookingResponse,
     NameTagInput,
     NameTagResult,
+    OfferBookingRequest,
     RejectBookingInput,
     RequirementFileResponse,
     RequirementTextResponse,
@@ -103,6 +107,7 @@ from app.schemas.kp import (
     StoredFileResponse,
     UpdateBookingBoothNumberInput,
     UpdateBookingInput,
+    UpdateBookingOfferRequest,
     UpdateBookingStatusInput,
     UpdateBoothZoneInput,
     UpdateKpInput,
@@ -142,6 +147,11 @@ COMPANY_BOOKING_TRANSITIONS: BookingTransitions = {
     KpBookingStatus.CONFIRMED: frozenset(),
     KpBookingStatus.CANCELLED: frozenset(),
     KpBookingStatus.REJECTED: frozenset(),
+}
+
+OFFERED_BOOKING_TRANSITIONS: BookingTransitions = {
+    **COMPANY_BOOKING_TRANSITIONS,
+    KpBookingStatus.CONFIRMED: frozenset({KpBookingStatus.CANCELLED}),
 }
 
 STAFF_BOOKING_TRANSITIONS: BookingTransitions = {
@@ -817,6 +827,7 @@ class KpService:
             status_changed_at=booking.status_changed_at,
             confirmed_at=booking.confirmed_at,
             rejection_reason=booking.rejection_reason,
+            offer_cancel_until=booking.offer_cancel_until,
             missing_items=missing_items,
             is_complete=not missing_items,
             booth_zone=booth_zone,
@@ -892,6 +903,7 @@ class KpService:
             status_changed_at=booking.status_changed_at,
             confirmed_at=booking.confirmed_at,
             rejection_reason=booking.rejection_reason,
+            offer_cancel_until=booking.offer_cancel_until,
             missing_items=missing_items,
             is_complete=not missing_items,
             company=booking.company,
@@ -1004,6 +1016,67 @@ class KpService:
         )
         await notify_best_effort(self.notifier.booking_registered(booking))
         return await self._build_booking_response(booking)
+
+    def _ensure_offer_deadline(
+        self, event: KpEvent, cancel_until: date, context: str
+    ) -> None:
+        if not local_today() <= cancel_until < event.event_date:
+            raise KpOfferDeadlineInvalid(f"{context}:{event.id}:{cancel_until}")
+
+    async def offer_booking(
+        self, event_id: UUID, request: OfferBookingRequest
+    ) -> BookingWithCompanyAndBoothZoneResponse:
+        require_kp_president_user(self.current_user)
+        event = await self._get_event(event_id)
+        self._ensure_offer_deadline(event, request.cancel_until, "offer_booking")
+        zone = await self.kp_repository.get_booth_zone_by_id(request.booth_zone_id)
+        if zone is None:
+            raise KpBoothZoneNotFound(
+                f"offer_booking:zone_not_found:{request.booth_zone_id}"
+            )
+        if zone.event_id != event_id:
+            raise KpBoothZoneEventMismatch(
+                f"offer_booking:zone_event_mismatch:{request.booth_zone_id}"
+            )
+        profile = await self._confirmed_company_profile(request.company_id, True)
+        await self.kp_repository.lock_model_by_id(KpEvent, event_id)
+        existing = await self.kp_repository.get_company_active_booking_for_event(
+            event_id, request.company_id
+        )
+        if existing is not None:
+            raise KpBookingAlreadyExists(
+                f"offer_booking:already_exists:{event_id}:{request.company_id}"
+            )
+        locked_zone = await self._lock_zone_until_booking_is_inserted(
+            zone.id, "offer_booking"
+        )
+        booking = await self.kp_repository.create_booking(
+            event_id=event_id,
+            company_id=request.company_id,
+            booth_zone_id=zone.id,
+            create_booking_input=CreateBookingInput(
+                offer_cancel_until=request.cancel_until
+            ),
+            included_services=locked_zone.included_services,
+            company_profile=profile,
+        )
+        await notify_best_effort(
+            self.notifier.booking_offered(booking, request.cancel_until)
+        )
+        return await self._build_staff_booking_response(booking)
+
+    async def update_booking_offer(
+        self, booking_id: UUID, request: UpdateBookingOfferRequest
+    ) -> BookingWithCompanyAndBoothZoneResponse:
+        require_kp_president_user(self.current_user)
+        booking = await self._get_booking(booking_id, lock=True)
+        self._ensure_offer_deadline(
+            booking.event, request.cancel_until, "update_booking_offer"
+        )
+        updated = await self.kp_repository.update_booking(
+            booking, UpdateBookingInput(offer_cancel_until=request.cancel_until)
+        )
+        return await self._build_staff_booking_response(updated)
 
     async def add_booking_services(
         self,
@@ -1355,8 +1428,15 @@ class KpService:
         next_status = update_booking_input.status
         if booking.status == next_status:
             return await self._build_booking_response(booking)
+        transitions = COMPANY_BOOKING_TRANSITIONS
+        if booking.offer_cancel_until is not None:
+            if not booking.is_offer_cancellable():
+                raise KpOfferCancelDeadlinePassed(
+                    f"update_my_booking_status:offer_closed:{booking_id}"
+                )
+            transitions = OFFERED_BOOKING_TRANSITIONS
         ensure_booking_transition(
-            COMPANY_BOOKING_TRANSITIONS,
+            transitions,
             booking,
             next_status,
             "update_my_booking_status",

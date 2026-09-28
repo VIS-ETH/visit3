@@ -188,6 +188,8 @@ ROUTE_ACCESS: dict[str, Access] = {
     "POST /api/kp/bookings/{booking_id}/reject": Access.STAFF,
     "PATCH /api/kp/bookings/{booking_id}": Access.STAFF,
     "DELETE /api/kp/bookings/{booking_id}": Access.STAFF,
+    "POST /api/kp/events/{event_id}/bookings/offer": Access.PRESIDENT,
+    "PATCH /api/kp/bookings/{booking_id}/offer": Access.PRESIDENT,
     "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.COMPANY,
     "POST /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.COMPANY,
     "DELETE /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.COMPANY,
@@ -228,11 +230,13 @@ ROUTE_ACCESS: dict[str, Access] = {
 class KpSubject(StrEnum):
     BOOKINGS = "bookings"
     EVENT_CONFIGURATION = "event-configuration"
+    BOOKING_OFFERS = "booking-offers"
 
 
 SUBJECT_MINIMUM_ROLE: dict[KpSubject, Access] = {
     KpSubject.BOOKINGS: Access.STAFF,
     KpSubject.EVENT_CONFIGURATION: Access.PRESIDENT,
+    KpSubject.BOOKING_OFFERS: Access.PRESIDENT,
 }
 
 KP_ROUTE_SUBJECT: dict[str, KpSubject] = {
@@ -273,6 +277,8 @@ KP_ROUTE_SUBJECT: dict[str, KpSubject] = {
     "POST /api/kp/bookings/{booking_id}/reject": KpSubject.BOOKINGS,
     "PATCH /api/kp/bookings/{booking_id}": KpSubject.BOOKINGS,
     "DELETE /api/kp/bookings/{booking_id}": KpSubject.BOOKINGS,
+    "POST /api/kp/events/{event_id}/bookings/offer": KpSubject.BOOKING_OFFERS,
+    "PATCH /api/kp/bookings/{booking_id}/offer": KpSubject.BOOKING_OFFERS,
     "GET /api/kp/staff/bookings/{booking_id}/nametags": KpSubject.BOOKINGS,
     "GET /api/kp/staff/bookings/{booking_id}/upgrade-waitlist": KpSubject.BOOKINGS,
     "GET /api/kp/staff/booking-services/{booking_service_id}/requirements/{requirement_id}/file": KpSubject.BOOKINGS,
@@ -338,6 +344,12 @@ REQUEST_BODIES: dict[str, dict[str, Any]] = {
     "PATCH /api/kp/bookings/{booking_id}/status": {"status": "REGISTERED"},
     "PATCH /api/kp/bookings/{booking_id}/booth-number": {"booth_nr": 7},
     "PATCH /api/kp/bookings/{booking_id}": {},
+    "POST /api/kp/events/{event_id}/bookings/offer": {
+        "company_id": "{company_id}",
+        "booth_zone_id": "{booth_zone_id}",
+        "cancel_until": "2099-01-01",
+    },
+    "PATCH /api/kp/bookings/{booking_id}/offer": {"cancel_until": "2099-01-01"},
     "POST /api/kp/bookings/{booking_id}/reject": {
         "reason": "The booth zone is no longer available for {persona}"
     },

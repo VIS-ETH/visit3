@@ -51,6 +51,7 @@ from app.schemas.kp import (
     NametagExportTargetsResult,
     NameTagResponse,
     NameTagResult,
+    OfferBookingRequest,
     RegisterBookingRequest,
     RejectBookingRequest,
     ReorderBoothZonesRequest,
@@ -68,6 +69,7 @@ from app.schemas.kp import (
     StaffUpdateBookingRequest,
     SwitchBookingZoneRequest,
     UpdateBookingBoothNumberRequest,
+    UpdateBookingOfferRequest,
     UpdateBookingStatusRequest,
     UpdateBoothZoneRequest,
     UpdateKpRequest,
@@ -570,6 +572,28 @@ async def update_booking(
     request: StaffUpdateBookingRequest,
 ) -> BookingWithCompanyAndBoothZoneResponse:
     return await kp_service.update_booking(booking_id, request)
+
+
+@router.post(
+    "/events/{event_id}/bookings/offer",
+    operation_id="offerBooking",
+    response_model=StaffBookingResponse,
+)
+async def offer_booking(
+    kp_service: KpServiceDep, event_id: UUID, request: OfferBookingRequest
+) -> BookingWithCompanyAndBoothZoneResponse:
+    return await kp_service.offer_booking(event_id, request)
+
+
+@router.patch(
+    "/bookings/{booking_id}/offer",
+    operation_id="updateBookingOffer",
+    response_model=StaffBookingResponse,
+)
+async def update_booking_offer(
+    kp_service: KpServiceDep, booking_id: UUID, request: UpdateBookingOfferRequest
+) -> BookingWithCompanyAndBoothZoneResponse:
+    return await kp_service.update_booking_offer(booking_id, request)
 
 
 @router.delete("/bookings/{booking_id}", operation_id="deleteBooking")
