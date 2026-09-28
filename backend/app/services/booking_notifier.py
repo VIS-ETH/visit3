@@ -1,10 +1,12 @@
 import logging
 from collections.abc import Callable, Coroutine, Sequence
+from datetime import date
 from typing import Any, Protocol
 
 from app.mail_templates.context import (
     BookingAcceptedContext,
     BookingContext,
+    BookingOfferedContext,
     BookingRejectedContext,
     BookingReminderContext,
     MailContext,
@@ -42,6 +44,11 @@ class BookingNotifier(Protocol):
         return None
 
     async def waitlist_promoted(self, booking: KpEventBooking) -> None:
+        return None
+
+    async def booking_offered(
+        self, booking: KpEventBooking, cancel_until: date
+    ) -> None:
         return None
 
 
@@ -131,3 +138,14 @@ class MailBookingNotifier:
 
     async def waitlist_promoted(self, booking: KpEventBooking) -> None:
         await self._send_to_company(booking, MailTemplateKey.WAITLIST_PROMOTED)
+
+    async def booking_offered(
+        self, booking: KpEventBooking, cancel_until: date
+    ) -> None:
+        await self._send_to_company(
+            booking,
+            MailTemplateKey.BOOKING_OFFERED,
+            lambda context: BookingOfferedContext(
+                **context.variables(), cancel_until=cancel_until.isoformat()
+            ),
+        )

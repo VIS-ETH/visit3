@@ -1,4 +1,5 @@
 from collections.abc import Awaitable, Callable
+from datetime import date
 from unittest.mock import AsyncMock
 from uuid import UUID
 
@@ -15,6 +16,7 @@ from app.services.mail_template_service import MailTemplateService
 from tests.api.conftest import KpSetup, decoded_subject
 
 REJECTION_REASON = "Die Standzone ist ausgebucht."
+OFFER_DEADLINE = date(2026, 10, 5)
 
 EXPECTED_SUBJECTS = {
     "booking_registered": "VISIT: Anmeldung für Kontaktparty erhalten"
@@ -27,6 +29,8 @@ EXPECTED_SUBJECTS = {
     " / VISIT: Your booking for Kontaktparty is incomplete",
     "waitlist_promoted": "VISIT: Platz in Main hall frei geworden"
     " / VISIT: A spot in Main hall became available",
+    "booking_offered": "VISIT: Platz für Kontaktparty angeboten"
+    " / VISIT: A place at Kontaktparty offered to you",
 }
 
 NOTIFICATIONS: dict[
@@ -43,6 +47,9 @@ NOTIFICATIONS: dict[
         lambda notifier, booking: notifier.booking_incomplete_reminder(booking)
     ),
     "waitlist_promoted": lambda notifier, booking: notifier.waitlist_promoted(booking),
+    "booking_offered": lambda notifier, booking: notifier.booking_offered(
+        booking, OFFER_DEADLINE
+    ),
 }
 
 

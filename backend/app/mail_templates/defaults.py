@@ -241,4 +241,22 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
             '<p><a href="{{ login_url }}">Open booking</a></p>'
         ),
     ),
+    MailTemplateKey.BOOKING_OFFERED: MailTemplateTexts(
+        subject_de="VISIT: Platz für {{ event_name }} angeboten",
+        subject_en="VISIT: A place at {{ event_name }} offered to you",
+        body_de=(
+            "<p>Hallo {{ name }},</p>"
+            "<p>VIS hat {{ company_name }} für {{ event_name }} einen Platz in der"
+            " Standzone {{ booth_zone_name }} angeboten. Sie können ihn bis zum"
+            " {{ cancel_until }} kostenlos stornieren.</p>"
+            '<p><a href="{{ login_url }}">Buchung öffnen</a></p>'
+        ),
+        body_en=(
+            "<p>Hello {{ name }},</p>"
+            "<p>VIS offered {{ company_name }} a place in booth zone"
+            " {{ booth_zone_name }} for {{ event_name }}. You can cancel it free of"
+            " charge until {{ cancel_until }}.</p>"
+            '<p><a href="{{ login_url }}">Open booking</a></p>'
+        ),
+    ),
 }

@@ -15,3 +15,4 @@ class MailTemplateKey(StrEnum):
     BOOKING_REJECTED = "booking_rejected"
     BOOKING_INCOMPLETE_REMINDER = "booking_incomplete_reminder"
     WAITLIST_PROMOTED = "waitlist_promoted"
+    BOOKING_OFFERED = "booking_offered"

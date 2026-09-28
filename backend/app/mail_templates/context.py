@@ -86,6 +86,11 @@ class BookingReminderContext(BookingContext):
     finalization_deadline: str
 
 
+@dataclass(frozen=True)
+class BookingOfferedContext(BookingContext):
+    cancel_until: str
+
+
 SAMPLE_CONTEXTS: dict[MailTemplateKey, MailContext] = {
     MailTemplateKey.ACCOUNT_CONFIRM_EMAIL: AccountConfirmEmailContext(
         name="Ada Lovelace",
@@ -160,6 +165,14 @@ SAMPLE_CONTEXTS: dict[MailTemplateKey, MailContext] = {
         event_name="Kontaktparty 2026",
         booth_zone_name="Haupthalle",
         login_url="https://visit.vis.ethz.ch/auth/link/sample-token",
+    ),
+    MailTemplateKey.BOOKING_OFFERED: BookingOfferedContext(
+        name="Ada Lovelace",
+        company_name="Acme AG",
+        event_name="Kontaktparty 2026",
+        booth_zone_name="Haupthalle",
+        login_url="https://visit.vis.ethz.ch/auth/link/sample-token",
+        cancel_until="2026-10-01",
     ),
 }
 
