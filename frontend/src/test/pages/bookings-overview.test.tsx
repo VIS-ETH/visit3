@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import BookingsOverview from "../../pages/BookingsOverview";
 import {
@@ -10,6 +10,7 @@ import {
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
+import i18n from "../i18n";
 import { renderWithProviders } from "../render";
 import { testEvent } from "../fixtures/kp-booking";
 import { SLOW_TEST_TIMEOUT, SLOW_WAIT } from "../timeouts";
@@ -56,9 +57,23 @@ const summaryFor = (
       booth_zone_id: "zone-main",
       name: "Main hall",
       color: "#112233",
-      ...totals(3 * scale, 400000 * scale, 50000 * scale),
+      base_price: 150000,
+      capacity: 20,
+      free: 20 - 2 * scale,
+      ...totals(2 * scale, 300000 * scale, 50000 * scale),
+    },
+    {
+      booth_zone_id: "zone-closed",
+      name: "Closed hall",
+      color: "#445566",
+      base_price: 100000,
+      capacity: 0,
+      free: 0,
+      ...totals(scale, 100000 * scale, 0),
     },
   ],
+  capacity: 20,
+  free: 20 - 2 * scale,
   cancelled_count: 1,
   rejected_count: 0,
 });
@@ -118,5 +133,31 @@ describe("the bookings overview", () => {
     await waitFor(() =>
       expect(summaryRequests).toEqual([latestEvent.id, olderEvent.id]),
     );
+  });
+
+  it("shows the price and the occupancy of every zone", async () => {
+    i18n.addResource(
+      "en",
+      "common",
+      "kp.bookings_overview.per_booth",
+      "CHF {{price}} per booth",
+    );
+    renderWithProviders(<BookingsOverview />);
+    await screen.findByText("CHF 4864.50", undefined, SLOW_WAIT);
+
+    const mainHall = screen.getByRole("row", { name: /Main hall/ });
+    expect(
+      within(mainHall).getByText("CHF 1500.00 per booth"),
+    ).toBeInTheDocument();
+    expect(within(mainHall).getByText("2 / 20")).toBeInTheDocument();
+    expect(within(mainHall).getByText("18")).toBeInTheDocument();
+    const closedHall = screen.getByRole("row", { name: /Closed hall/ });
+    expect(within(closedHall).getByText("1 / 0")).toBeInTheDocument();
+    expect(within(closedHall).getByText("0")).toBeInTheDocument();
+    const totalRow = screen.getByRole("row", {
+      name: /kp.bookings_overview.all/,
+    });
+    expect(within(totalRow).getByText("3 / 20")).toBeInTheDocument();
+    expect(within(totalRow).getByText("18")).toBeInTheDocument();
   });
 });

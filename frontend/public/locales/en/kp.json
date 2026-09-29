@@ -312,6 +312,8 @@
       "total_detail": "CHF {{net}} net · CHF {{vat}} VAT ({{rate}}%)",
       "all": "All bookings",
       "bookings": "Bookings",
+      "free": "Free",
+      "per_booth": "CHF {{price}} per booth",
       "base": "Base prices",
       "services": "Services",
       "net": "Net",

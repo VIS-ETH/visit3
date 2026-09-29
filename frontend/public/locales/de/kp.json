@@ -312,6 +312,8 @@
       "total_detail": "CHF {{net}} netto · CHF {{vat}} MwSt. ({{rate}}%)",
       "all": "Alle Buchungen",
       "bookings": "Buchungen",
+      "free": "Frei",
+      "per_booth": "CHF {{price}} pro Stand",
       "base": "Grundpreise",
       "services": "Services",
       "net": "Netto",
