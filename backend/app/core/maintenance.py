@@ -17,6 +17,7 @@ from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
 from app.services.booking_notifier import MailBookingNotifier
+from app.services.booking_offers import process_booking_offers
 from app.services.booking_reminders import send_incomplete_booking_reminders
 from app.services.invite_service import InviteService
 from app.services.mail_service import MailService
@@ -85,6 +86,15 @@ async def remind_incomplete_bookings() -> None:
         )
 
 
+async def handle_booking_offers() -> None:
+    async with SessionLocal() as session:
+        await process_booking_offers(
+            KpRepository(session),
+            _booking_notifier(session),
+            datetime.now(timezone.utc),
+        )
+
+
 def create_scheduler() -> Scheduler:
     scheduler = Scheduler()
     scheduler.add(cleanup_expired_tokens, interval=HOURLY)
@@ -92,6 +102,7 @@ def create_scheduler() -> Scheduler:
     scheduler.add(purge_unconfirmed_accounts, interval=HOURLY)
     scheduler.add(cleanup_orphaned_stored_files, interval=HOURLY)
     scheduler.add(remind_incomplete_bookings, interval=DAILY)
+    scheduler.add(handle_booking_offers, interval=HOURLY)
     return scheduler
 
 
