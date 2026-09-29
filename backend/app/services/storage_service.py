@@ -32,6 +32,8 @@ S3_CLIENT_CONFIG = Config(
     signature_version="s3v4",
     request_checksum_calculation="when_required",
     response_checksum_validation="when_required",
+    connect_timeout=5,
+    retries={"mode": "standard", "total_max_attempts": 3},
 )
 
 IMAGE_OR_PDF_MIME_TYPES = {
@@ -106,8 +108,12 @@ class StoredObject:
     sha256: str
 
 
+def drop_expect_header(request: Any, **_: Any) -> None:
+    request.headers.pop("Expect", None)
+
+
 def s3_client(settings: Settings, endpoint_url: str) -> Any:
-    return cast(Any, boto3).client(
+    client = cast(Any, boto3).client(
         "s3",
         endpoint_url=endpoint_url,
         region_name=settings.S3_REGION,
@@ -115,6 +121,8 @@ def s3_client(settings: Settings, endpoint_url: str) -> Any:
         aws_secret_access_key=settings.SIP_S3_FILES_SECRET_KEY,
         config=S3_CLIENT_CONFIG,
     )
+    client.meta.events.register("before-send.s3.*", drop_expect_header)
+    return client
 
 
 class StorageService:
