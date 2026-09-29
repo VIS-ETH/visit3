@@ -30,17 +30,21 @@ from tests.unit.conftest import complete_company_profile, complete_company_snaps
 REJECTION_REASON = "The booth zone is not available for this company."
 
 EXPECTED_COMPANY_TRANSITIONS = {
+    KpBookingStatus.OFFERED: {KpBookingStatus.CANCELLED},
     KpBookingStatus.REGISTERED: {KpBookingStatus.CANCELLED},
     KpBookingStatus.CONFIRMED: set[KpBookingStatus](),
     KpBookingStatus.CANCELLED: set[KpBookingStatus](),
     KpBookingStatus.REJECTED: set[KpBookingStatus](),
+    KpBookingStatus.EXPIRED: set[KpBookingStatus](),
 }
 
 EXPECTED_STAFF_TRANSITIONS = {
+    KpBookingStatus.OFFERED: {KpBookingStatus.REJECTED},
     KpBookingStatus.REGISTERED: {KpBookingStatus.CONFIRMED, KpBookingStatus.REJECTED},
     KpBookingStatus.CONFIRMED: {KpBookingStatus.REGISTERED},
     KpBookingStatus.CANCELLED: set[KpBookingStatus](),
     KpBookingStatus.REJECTED: set[KpBookingStatus](),
+    KpBookingStatus.EXPIRED: set[KpBookingStatus](),
 }
 
 ORDERED_PAIRS = [

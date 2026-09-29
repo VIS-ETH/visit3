@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.models.kp_event import KpEvent, KpEventBooking
+from app.models.kp_event import KpBookingStatus, KpEvent, KpEventBooking
 
 
 def make_event() -> KpEvent:
@@ -68,23 +68,25 @@ def test_nametags_deadline_passes_after_the_zurich_day(freeze_now, instant, expe
         (utc(10, 5, 22, 0), False),
     ],
 )
-def test_an_offer_stays_cancellable_through_its_zurich_deadline(
-    freeze_now, instant, expected
-):
+def test_an_offer_stays_open_through_its_zurich_deadline(freeze_now, instant, expected):
     freeze_now(instant)
     booking = KpEventBooking(
         event_id=uuid4(),
         company_id=uuid4(),
         booth_zone_id=uuid4(),
-        offer_cancel_until=date(2026, 10, 5),
+        status=KpBookingStatus.OFFERED,
+        offer_deadline=date(2026, 10, 5),
     )
 
-    assert booking.is_offer_cancellable() is expected
+    assert booking.is_offer_open() is expected
 
 
-def test_a_regular_booking_has_no_offer_window():
+def test_a_registered_booking_is_no_open_offer():
     booking = KpEventBooking(
-        event_id=uuid4(), company_id=uuid4(), booth_zone_id=uuid4()
+        event_id=uuid4(),
+        company_id=uuid4(),
+        booth_zone_id=uuid4(),
+        offer_deadline=date(2099, 10, 5),
     )
 
-    assert booking.is_offer_cancellable() is False
+    assert booking.is_offer_open() is False

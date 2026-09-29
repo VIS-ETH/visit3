@@ -16,6 +16,10 @@ DELETES_ALLOWED_IN_UPGRADES: dict[str, str] = {
     "DELETE FROM mailtemplate WHERE key = 'booking_finalized'": (
         "the finalized booking mail left together with the finalized status"
     ),
+    "DELETE FROM mailtemplate WHERE key = 'booking_offered'": (
+        "an edited offer mail still promises free cancellation instead of"
+        " asking for a binding confirmation"
+    ),
 }
 FORBIDDEN_RAW_DDL = (
     "CREATE TABLE",

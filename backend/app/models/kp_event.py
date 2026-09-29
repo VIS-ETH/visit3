@@ -37,7 +37,7 @@ from app.models.company import (
 from app.models.industry import Industry
 from app.models.storage import StoredFile
 
-ACTIVE_BOOKING = f"status NOT IN ('CANCELLED', 'REJECTED') AND {NOT_DELETED}"
+ACTIVE_BOOKING = f"status NOT IN ('CANCELLED', 'REJECTED', 'EXPIRED') AND {NOT_DELETED}"
 UNLIMITED_TOTAL_QUANTITY = 0
 MAX_SERVICE_QUANTITY = 999
 DEFAULT_MAX_NAMETAGS_PER_BOOKING = 10
@@ -144,13 +144,21 @@ class KpEvent(BaseEntity, table=True):
 
 
 class KpBookingStatus(str, Enum):
+    OFFERED = "OFFERED"
     REGISTERED = "REGISTERED"
     CONFIRMED = "CONFIRMED"
     CANCELLED = "CANCELLED"
     REJECTED = "REJECTED"
+    EXPIRED = "EXPIRED"
 
 
-INACTIVE_BOOKING_STATUSES = (KpBookingStatus.CANCELLED, KpBookingStatus.REJECTED)
+INACTIVE_BOOKING_STATUSES = (
+    KpBookingStatus.CANCELLED,
+    KpBookingStatus.REJECTED,
+    KpBookingStatus.EXPIRED,
+)
+BOOKED_STATUSES = (KpBookingStatus.REGISTERED, KpBookingStatus.CONFIRMED)
+OFFER_ONLY_STATUSES = (KpBookingStatus.OFFERED, KpBookingStatus.EXPIRED)
 
 
 class KpEventBooking(BaseEntity, table=True):
@@ -199,7 +207,14 @@ class KpEventBooking(BaseEntity, table=True):
     )
 
     booth_nr: int | None = Field(default=None, ge=1)
-    offer_cancel_until: date | None = Field(default=None)
+    offer_deadline: date | None = Field(default=None)
+    offer_made_on: date | None = Field(default=None)
+    offer_week_reminder_sent_at: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
+    offer_day_reminder_sent_at: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
 
     event: "KpEvent" = Relationship(back_populates="bookings")
     company: Company = Relationship(back_populates="bookings")
@@ -218,10 +233,19 @@ class KpEventBooking(BaseEntity, table=True):
     def is_active(self) -> bool:
         return self.status not in INACTIVE_BOOKING_STATUSES
 
-    def is_offer_cancellable(self) -> bool:
+    @property
+    def is_booked(self) -> bool:
+        return self.status in BOOKED_STATUSES
+
+    @property
+    def is_participant(self) -> bool:
+        return self.status not in OFFER_ONLY_STATUSES
+
+    def is_offer_open(self) -> bool:
         return (
-            self.offer_cancel_until is not None
-            and local_today() <= self.offer_cancel_until
+            self.status == KpBookingStatus.OFFERED
+            and self.offer_deadline is not None
+            and local_today() <= self.offer_deadline
         )
 
     @property
