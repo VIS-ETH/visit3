@@ -136,15 +136,13 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def reject_unsafe_debug_settings(self) -> "Settings":
-        if self.DEBUG_KEYCLOAK_ADMIN and not self.DEBUG:
+        if self.DEBUG_KEYCLOAK_ADMIN and not (
+            self.DEBUG and is_local_url(self.VISIT_FRONTEND_SERVER_URL)
+        ):
             raise UnsafeDebugSetting(
                 "DEBUG_KEYCLOAK_ADMIN=true makes every SSO account an admin and is "
-                "only allowed together with DEBUG=true."
-            )
-        if self.DEBUG and not is_local_url(self.VISIT_FRONTEND_SERVER_URL):
-            raise UnsafeDebugSetting(
-                "DEBUG=true is only allowed when VISIT_FRONTEND_SERVER_URL points to "
-                "localhost."
+                "only allowed together with DEBUG=true and a "
+                "VISIT_FRONTEND_SERVER_URL that points to localhost."
             )
         return self
 
