@@ -15,6 +15,7 @@ import {
   IconHome2,
   IconLogout2,
   IconMail,
+  IconReportMoney,
   IconSettings,
   IconUser,
 } from "@tabler/icons-react";
@@ -167,6 +168,15 @@ const Navbar = () => {
                 justify="flex-start"
               >
                 {t("nav.industries")}
+              </Button>
+              <Button
+                component={NavLink}
+                to="/bookings-overview"
+                leftSection={<IconReportMoney />}
+                variant="subtle"
+                justify="flex-start"
+              >
+                {t("nav.bookings_overview")}
               </Button>
             </>
           )}

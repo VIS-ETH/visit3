@@ -305,6 +305,22 @@
       "finalization_deadline": "Change deadline",
       "nametags_deadline": "Nametags deadline"
     },
+    "bookings_overview": {
+      "title": "Bookings overview",
+      "event": "Kontaktparty",
+      "total": "Total incl. VAT",
+      "total_detail": "CHF {{net}} net · CHF {{vat}} VAT ({{rate}}%)",
+      "all": "All bookings",
+      "bookings": "Bookings",
+      "base": "Base prices",
+      "services": "Services",
+      "net": "Net",
+      "gross": "Incl. VAT",
+      "by_status": "Status",
+      "by_zone": "Booth zone",
+      "excluded": "Not counted: {{cancelled}} cancelled, {{rejected}} rejected",
+      "empty": "No Kontaktparty yet."
+    },
     "dashboard": {
       "title": "KP Dashboard",
       "error": "Failed to load KP dashboard data",

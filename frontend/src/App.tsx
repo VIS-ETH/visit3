@@ -17,6 +17,7 @@ import Home from "./pages/Home";
 import UserManagement from "./pages/UserManagement";
 import MailTemplates from "./pages/MailTemplates";
 import Industries from "./pages/admin/Industries";
+import BookingsOverview from "./pages/BookingsOverview";
 import { Navigate, Outlet, Route, Routes } from "react-router";
 import RootLayout from "./pages/root";
 import AuthLink from "./pages/AuthLink";
@@ -152,6 +153,7 @@ function AppRoutes() {
             <Route path="/user-management" element={<UserManagement />} />
             <Route path="/admin/mail-templates" element={<MailTemplates />} />
             <Route path="/admin/industries" element={<Industries />} />
+            <Route path="/bookings-overview" element={<BookingsOverview />} />
             <Route path="/company-management" element={<CompanyManagement />} />
             <Route
               path="/company-management/:companyId/profile"

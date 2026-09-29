@@ -305,6 +305,22 @@
       "finalization_deadline": "Änderungsfrist",
       "nametags_deadline": "Namensschildfrist"
     },
+    "bookings_overview": {
+      "title": "Buchungsübersicht",
+      "event": "Kontaktparty",
+      "total": "Total inkl. MwSt.",
+      "total_detail": "CHF {{net}} netto · CHF {{vat}} MwSt. ({{rate}}%)",
+      "all": "Alle Buchungen",
+      "bookings": "Buchungen",
+      "base": "Grundpreise",
+      "services": "Services",
+      "net": "Netto",
+      "gross": "Inkl. MwSt.",
+      "by_status": "Status",
+      "by_zone": "Standzone",
+      "excluded": "Nicht gezählt: {{cancelled}} storniert, {{rejected}} abgelehnt",
+      "empty": "Noch keine Kontaktparty."
+    },
     "dashboard": {
       "title": "KP Dashboard",
       "error": "KP-Dashboard-Daten konnten nicht geladen werden",
