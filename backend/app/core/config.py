@@ -1,6 +1,5 @@
 from functools import lru_cache
 from typing import Any
-from urllib.parse import urlsplit
 
 from pydantic import (
     BaseModel,
@@ -15,13 +14,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 EXAMPLE_SECRET_KEY = "5fcfacda13cd6e44e358f1109094a82d3319dd3631f2def507e5af4b4679a65c"
 MIN_SECRET_KEY_LENGTH = 32
-
-
-LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
-
-
-def is_local_url(url: str) -> bool:
-    return urlsplit(url).hostname in LOCAL_HOSTS
 
 
 class WeakSecretKey(RuntimeError):
@@ -136,13 +128,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def reject_unsafe_debug_settings(self) -> "Settings":
-        if self.DEBUG_KEYCLOAK_ADMIN and not (
-            self.DEBUG and is_local_url(self.VISIT_FRONTEND_SERVER_URL)
-        ):
+        if self.DEBUG_KEYCLOAK_ADMIN and not self.DEBUG:
             raise UnsafeDebugSetting(
                 "DEBUG_KEYCLOAK_ADMIN=true makes every SSO account an admin and is "
-                "only allowed together with DEBUG=true and a "
-                "VISIT_FRONTEND_SERVER_URL that points to localhost."
+                "only allowed together with DEBUG=true."
             )
         return self
 

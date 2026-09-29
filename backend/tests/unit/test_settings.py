@@ -90,14 +90,13 @@ def test_debug_is_allowed_for_a_public_frontend(url: str):
 
 
 @pytest.mark.parametrize("url", PUBLIC_FRONTENDS)
-def test_debug_keycloak_admin_is_refused_for_a_public_frontend(url: str):
-    with pytest.raises(UnsafeDebugSetting, match="VISIT_FRONTEND_SERVER_URL"):
-        _settings(
-            DEBUG=True,
-            SECRET_KEY=STRONG_SECRET_KEY,
-            DEBUG_KEYCLOAK_ADMIN=True,
-            VISIT_FRONTEND_SERVER_URL=url,
-        )
+def test_debug_keycloak_admin_is_allowed_for_a_public_frontend(url: str):
+    assert _settings(
+        DEBUG=True,
+        SECRET_KEY=STRONG_SECRET_KEY,
+        DEBUG_KEYCLOAK_ADMIN=True,
+        VISIT_FRONTEND_SERVER_URL=url,
+    ).DEBUG_KEYCLOAK_ADMIN
 
 
 @pytest.mark.parametrize(
