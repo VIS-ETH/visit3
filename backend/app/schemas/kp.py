@@ -498,6 +498,9 @@ class BookingZoneTotals(BookingTotals):
     booth_zone_id: UUID
     name: str
     color: str
+    base_price: int
+    capacity: int
+    free: int
 
 
 class BookingSummaryResponse(BaseModel):
@@ -506,6 +509,8 @@ class BookingSummaryResponse(BaseModel):
     total: BookingTotals
     by_status: list[BookingStatusTotals]
     by_zone: list[BookingZoneTotals]
+    capacity: int
+    free: int
     cancelled_count: int
     rejected_count: int
 

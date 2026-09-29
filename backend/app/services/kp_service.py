@@ -115,7 +115,6 @@ from app.schemas.kp import (
     UpdateKpInput,
     UpdateServiceInput,
 )
-from app.schemas.pricing import PriceBreakdown
 from app.services.booking_completeness import booking_completeness
 from app.services.booking_notifier import (
     BookingNotifier,
@@ -126,10 +125,11 @@ from app.services.booking_summary import booking_summary
 from app.services.booth_zone_view import (
     booth_zone_response,
     booth_zones_with_availability,
+    free_spots,
     staff_booth_zone_response,
 )
 from app.services.download_urls import DownloadUrls
-from app.services.pricing import price_breakdown
+from app.services.pricing import booking_price
 from app.services.registration_exceptions import has_registration_exception
 from app.services.storage_service import StorageService, UploadKind, UploadStream
 from app.services.waitlist_promotion import promote_waitlist
@@ -817,7 +817,7 @@ class KpService:
             if booth_zone_model is not None
             else None
         )
-        net_total = self._booking_net_total(booking)
+        net_total = booking.total_price
         missing_items = booking_completeness(booking)
         return BookingResponse(
             id=booking.id,
@@ -837,22 +837,8 @@ class KpService:
             services=services,
             additional_service_charges=additional_service_charges,
             net_total=net_total,
-            price=self._booking_price(booking, net_total),
+            price=booking_price(booking, booking.event.vat_rate_permille),
         )
-
-    def _booking_net_total(self, booking: KpEventBooking) -> int:
-        booth_zone = getattr(booking, "booth_zone", None)
-        base_price = booth_zone.base_price if booth_zone is not None else 0
-        return base_price + sum(
-            self._service_line_net(booking_service)
-            for booking_service in booking.services
-        )
-
-    def _service_line_net(self, booking_service: KpEventBookingService) -> int:
-        return booking_service.charged_quantity * booking_service.service.price
-
-    def _booking_price(self, booking: KpEventBooking, net_total: int) -> PriceBreakdown:
-        return price_breakdown(net_total, booking.event.vat_rate_permille)
 
     async def _build_booking_services(
         self, booking: KpEventBooking
@@ -869,7 +855,7 @@ class KpService:
                 included_quantity=booking_service.included_quantity,
                 charged_quantity=booking_service.charged_quantity,
                 unit_price=booking_service.service.price,
-                line_net=self._service_line_net(booking_service),
+                line_net=booking_service.line_net,
                 service=await self._build_service_response(booking_service.service),
             )
             for booking_service in booking.services
@@ -879,7 +865,7 @@ class KpService:
                 name=booking_service.service.name,
                 quantity=booking_service.quantity,
                 charged_quantity=booking_service.charged_quantity,
-                line_net=self._service_line_net(booking_service),
+                line_net=booking_service.line_net,
             )
             for booking_service in booking.services
             if booking_service.charged_quantity > 0
@@ -893,7 +879,7 @@ class KpService:
             booking
         )
         booth_zone = await self._build_staff_booth_zone_response(booking.booth_zone)
-        net_total = self._booking_net_total(booking)
+        net_total = booking.total_price
         missing_items = booking_completeness(booking)
         return BookingWithCompanyAndBoothZoneResponse(
             id=booking.id,
@@ -914,7 +900,7 @@ class KpService:
             services=services,
             additional_service_charges=additional_service_charges,
             net_total=net_total,
-            price=self._booking_price(booking, net_total),
+            price=booking_price(booking, booking.event.vat_rate_permille),
             booked_services_count=booking.booked_services_count,
             booked_services_summary=booking.booked_services_summary,
             nametag_count=booking.nametag_count,
@@ -1218,7 +1204,7 @@ class KpService:
         taken = await self.kp_repository.count_active_bookings_for_zone(
             zone.event_id, zone.id
         )
-        return max(zone.capacity - taken, 0)
+        return free_spots(zone.capacity, taken)
 
     def _ensure_nametags_editable(self, booking: KpEventBooking, context: str) -> None:
         if not booking.is_active:

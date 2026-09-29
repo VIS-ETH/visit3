@@ -31,6 +31,7 @@ from app.schemas.kp import (
     NametagExportTargetsResult,
 )
 from app.services.booking_completeness import booking_completeness
+from app.services.booth_zone_view import free_spots
 from app.services.company_workbook import (
     ExportLanguage,
     company_workbook_filename,
@@ -652,7 +653,7 @@ class ExportService:
                     "zone": zone.name,
                     "capacity": zone.capacity,
                     "booked_count": len(zone_bookings),
-                    "remaining_capacity": max(zone.capacity - len(zone_bookings), 0),
+                    "remaining_capacity": free_spots(zone.capacity, len(zone_bookings)),
                     "waitlist_demand": waitlist_demand,
                     "booth_size_m2": zone.booth_size,
                     "base_price": self._money(zone.base_price),
