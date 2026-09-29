@@ -1,9 +1,7 @@
 import {
   Alert,
-  Anchor,
   Card,
   Center,
-  Checkbox,
   Group,
   Loader,
   Stack,
@@ -13,7 +11,6 @@ import {
 import { notifications } from "@mantine/notifications";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
@@ -43,6 +40,7 @@ import { formatPrice } from "../utils/price-utils";
 import { priceBreakdown } from "../utils/pricing";
 import { useWarnOnLeave } from "../utils/use-warn-on-leave";
 import SummaryPriceBreakdown from "./SummaryPriceBreakdown";
+import BookingConsentChecks from "./booking/BookingConsentChecks";
 
 const BOOKING_ALREADY_EXISTS_CODE = "error.kp_booking_already_exists";
 
@@ -310,31 +308,6 @@ const KpBookingSummaryStep = ({
     isSubmitting,
   ]);
 
-  const requiredLabel = (content: ReactNode, showError: boolean) => (
-    <Text
-      component="span"
-      size="sm"
-      lh={1.45}
-      c={showError ? "red" : undefined}
-    >
-      {content}
-      <Text component="span" c="red" fw={700} ml={4} aria-hidden>
-        *
-      </Text>
-    </Text>
-  );
-
-  const agbLabelContent = termsUrl ? (
-    <>
-      {t("kp.booking.confirm_agb_prefix")}{" "}
-      <Anchor href={termsUrl} target="_blank" rel="noopener noreferrer">
-        {t("kp.booking.confirm_agb_link")}
-      </Anchor>
-    </>
-  ) : (
-    t("kp.booking.confirm_agb_checkbox")
-  );
-
   if (isLoadingBooking) {
     return (
       <Center py="xl">
@@ -402,23 +375,15 @@ const KpBookingSummaryStep = ({
       ) : (
         <>
           <Stack gap="sm" mt="lg">
-            <Checkbox
-              ref={agbCheckboxRef}
-              checked={agbAccepted}
-              onChange={(e) => setAgbAccepted(e.currentTarget.checked)}
-              label={requiredLabel(
-                agbLabelContent,
-                consentHighlight && !agbAccepted,
-              )}
-            />
-            <Checkbox
-              ref={bindingCheckboxRef}
-              checked={bindingAccepted}
-              onChange={(e) => setBindingAccepted(e.currentTarget.checked)}
-              label={requiredLabel(
-                t("kp.booking.confirm_binding_checkbox"),
-                consentHighlight && !bindingAccepted,
-              )}
+            <BookingConsentChecks
+              termsUrl={termsUrl}
+              agbAccepted={agbAccepted}
+              bindingAccepted={bindingAccepted}
+              onAgbChange={setAgbAccepted}
+              onBindingChange={setBindingAccepted}
+              highlight={consentHighlight}
+              agbCheckboxRef={agbCheckboxRef}
+              bindingCheckboxRef={bindingCheckboxRef}
             />
           </Stack>
         </>
