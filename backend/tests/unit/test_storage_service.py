@@ -1,5 +1,7 @@
 import hashlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
+from threading import Thread
 from unittest.mock import Mock
 
 import pytest
@@ -15,7 +17,12 @@ from app.core.exceptions import (
     StorageImageTooLarge,
     StorageUploadFailed,
 )
-from app.services.storage_service import StorageService, UploadKind, sniff_mime_type
+from app.services.storage_service import (
+    StorageService,
+    UploadKind,
+    s3_client,
+    sniff_mime_type,
+)
 from tests.images import decompression_bomb, iso_media_image, raster
 
 
@@ -517,3 +524,40 @@ def test_validate_generic_file_never_keeps_an_unsniffed_type(
     )
 
     assert mime_type == "application/octet-stream"
+
+
+class RecordingS3Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+    received: list[dict[str, str]] = []
+
+    def do_PUT(self) -> None:
+        self.received.append(dict(self.headers.items()))
+        self.rfile.read(int(self.headers.get("Content-Length", "0")))
+        self.send_response(200)
+        self.send_header("ETag", '"etag"')
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def log_message(self, format: str, *args: object) -> None:
+        return
+
+
+def test_uploads_are_sent_without_an_expect_header():
+    RecordingS3Handler.received = []
+    server = ThreadingHTTPServer(("127.0.0.1", 0), RecordingS3Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        client = s3_client(
+            get_settings(), f"http://127.0.0.1:{server.server_address[1]}"
+        )
+        client.put_object(Bucket="visit", Key="logo.png", Body=b"png-bytes")
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    headers = {
+        name.lower(): value for name, value in RecordingS3Handler.received[0].items()
+    }
+    assert "expect" not in headers
+    assert headers["content-length"] == "9"

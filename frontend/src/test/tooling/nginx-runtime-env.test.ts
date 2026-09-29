@@ -10,11 +10,16 @@ const template = readFileSync(
   "utf8",
 );
 const RUNTIME_VARIABLES = ["VISIT_STORAGE_PUBLIC_URL", "VISIT_BACKEND_WEB_URL"];
+const UPLOADS_FLAG = "VISIT_UPLOADS_UNAVAILABLE";
+const pageTemplate = readFileSync(
+  path.join(process.cwd(), "index.html"),
+  "utf8",
+).replaceAll(`%VITE_${UPLOADS_FLAG}%`, `\${${UPLOADS_FLAG}}`);
 
 const sourceScript = (env: Record<string, string>) => {
   const inherited = Object.fromEntries(
     Object.entries(process.env).filter(
-      ([name]) => !RUNTIME_VARIABLES.includes(name),
+      ([name]) => ![...RUNTIME_VARIABLES, UPLOADS_FLAG].includes(name),
     ),
   );
   const result = spawnSync("sh", ["-c", `. ./${script} && env`], {
@@ -44,6 +49,13 @@ const cspOf = (rendered: string) => {
     .split("\n")
     .find((candidate) => candidate.includes("Content-Security-Policy"));
   return line ?? "";
+};
+
+const uploadsFlagOf = (exported: Record<string, string>) => {
+  const serverData = envsubst(pageTemplate, exported).match(
+    /<script type="application\/json" id="server-data">([\s\S]*?)<\/script>/,
+  )?.[1];
+  return JSON.parse(serverData ?? "{}").uploadsUnavailable;
 };
 
 const directive = (csp: string, name: string) =>
@@ -109,5 +121,19 @@ describe("the nginx runtime environment", () => {
     ]);
     expect(directive(csp, "default-src")).toEqual(["'self'"]);
     expect(directive(csp, "frame-ancestors")).toEqual(["'none'"]);
+  });
+
+  it("leaves the uploads flag empty and quiet when it is unset", () => {
+    const { exported, log } = sourceScript({});
+
+    expect(exported[UPLOADS_FLAG]).toBe("");
+    expect(log).not.toContain(UPLOADS_FLAG);
+    expect(uploadsFlagOf(exported)).toBe("");
+  });
+
+  it("passes a set uploads flag into the page", () => {
+    const { exported } = sourceScript({ [UPLOADS_FLAG]: "true" });
+
+    expect(uploadsFlagOf(exported)).toBe("true");
   });
 });

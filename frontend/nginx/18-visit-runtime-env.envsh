@@ -6,3 +6,4 @@ for visit_variable in VISIT_STORAGE_PUBLIC_URL VISIT_BACKEND_WEB_URL; do
   fi
 done
 unset visit_variable visit_value
+export VISIT_UPLOADS_UNAVAILABLE="${VISIT_UPLOADS_UNAVAILABLE:-}"

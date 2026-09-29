@@ -19,7 +19,14 @@ import {
 } from "../fixtures/kp-booking";
 import { SLOW_TEST_TIMEOUT, SLOW_WAIT } from "../timeouts";
 
-vi.mock("../../utils/uploads", () => ({ UPLOADS_AVAILABLE: false }));
+vi.hoisted(() => {
+  const element = document.getElementById("server-data");
+  if (element === null) throw new Error("server data missing");
+  element.textContent = JSON.stringify({
+    ...JSON.parse(element.textContent ?? "{}"),
+    uploadsUnavailable: "true",
+  });
+});
 
 vi.setConfig({ testTimeout: SLOW_TEST_TIMEOUT });
 

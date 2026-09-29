@@ -30,6 +30,7 @@ from app.schemas.kp import (
     AddBookingServicesRequest,
     BookingRequirementFileMapResponse,
     BookingResponse,
+    BookingSummaryResponse,
     BookingUpgradeWaitlistEntryResponse,
     BookingUpgradeWaitlistEntryResult,
     BookingWithCompanyAndBoothZoneResponse,
@@ -386,6 +387,17 @@ async def list_event_bookings(
     kp_service: KpServiceDep, event_id: UUID
 ) -> list[BookingWithCompanyAndBoothZoneResponse]:
     return await kp_service.list_bookings_for_event(event_id)
+
+
+@router.get(
+    "/events/{event_id}/bookings/summary",
+    operation_id="getBookingsSummary",
+    response_model=BookingSummaryResponse,
+)
+async def get_bookings_summary(
+    kp_service: KpServiceDep, event_id: UUID
+) -> BookingSummaryResponse:
+    return await kp_service.get_bookings_summary(event_id)
 
 
 @router.get(

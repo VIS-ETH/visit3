@@ -4,6 +4,8 @@ interface ServerData {
   backendUrl: string;
 
   visWebsiteUrl: string;
+
+  uploadsUnavailable?: string;
 }
 
 const getServerData = () => {

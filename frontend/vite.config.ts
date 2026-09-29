@@ -6,6 +6,7 @@ const RUNTIME_CONFIGURABLE_ENV_VARS = [
   "VSETH_ORG_CONFIG",
   "VISIT_BACKEND_WEB_URL",
   "VIS_WEBSITE_URL",
+  "VISIT_UPLOADS_UNAVAILABLE",
 ];
 
 const envsubstFormatIsRequested = () =>

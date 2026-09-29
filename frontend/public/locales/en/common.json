@@ -207,6 +207,7 @@
     "company_management": "Company management",
     "mail_templates": "Email templates",
     "industries": "Industries",
+    "bookings_overview": "Bookings overview",
     "logout": "Logout",
     "logout_confirm_title": "Log out?",
     "logout_confirm_body": "You will be signed out of VISIT and have to log in again to manage your bookings.",
