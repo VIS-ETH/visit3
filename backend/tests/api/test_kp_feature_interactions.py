@@ -31,7 +31,7 @@ from tests.api.conftest import (
 GOLD_COLOR = "#AABBCC"
 LOGIN_EMAIL = "company@example.com"
 STUDENT_EMAIL = "jobs@acme.example"
-DEADLINE_PASSED_CODE = "error.kp_offer_cancel_deadline_passed"
+OFFER_EXPIRED_CODE = "error.kp_offer_expired"
 DEADLINE_INVALID_CODE = "error.kp_offer_deadline_invalid"
 
 
@@ -64,15 +64,25 @@ async def offer(
     event_id: str,
     company_id: object,
     zone_id: str,
-    cancel_until: date,
+    deadline: date,
 ) -> Response:
     return await client.post(
         f"/api/kp/events/{event_id}/bookings/offer",
         json={
             "company_id": str(company_id),
             "booth_zone_id": zone_id,
-            "cancel_until": cancel_until.isoformat(),
+            "deadline": deadline.isoformat(),
         },
+        headers=headers,
+    )
+
+
+async def accept_offer(
+    client: AsyncClient, headers: dict[str, str], booking_id: str
+) -> Response:
+    return await client.post(
+        f"/api/kp/bookings/{booking_id}/accept-offer",
+        json={"confirm_profile": True, "accept_terms": True},
         headers=headers,
     )
 
@@ -263,7 +273,7 @@ async def test_a_clone_copies_zones_but_no_bookings_or_offers(
     assert [zone["name"] for zone in zones.json()] == ["Gold", "Main hall"]
     assert all(zone["registration_open"] for zone in zones.json())
     assert gold_id not in {zone["id"] for zone in zones.json()}
-    assert source["offer_cancel_until"] == in_days(3).isoformat()
+    assert source["offer_deadline"] == in_days(3).isoformat()
 
 
 async def test_reordering_zones_keeps_an_offered_booking(
@@ -291,7 +301,7 @@ async def test_reordering_zones_keeps_an_offered_booking(
     assert reordered.status_code == 200
     assert mine.json()["id"] == offered_id
     assert mine.json()["booth_zone_id"] == gold_id
-    assert mine.json()["offer_cancel_until"] == in_days(3).isoformat()
+    assert mine.json()["offer_deadline"] == in_days(3).isoformat()
     assert [zone["id"] for zone in available.json()] == [
         gold_id,
         kp_setup.booth_zone_id,
@@ -323,6 +333,7 @@ async def test_an_offer_reaches_a_company_whose_general_email_is_its_login(
         kp_setup.booth_zone_id,
         in_days(3),
     )
+    accepted = await accept_offer(client, company_headers, offered.json()["id"])
     saved = await client.put(
         "/api/company/me/profile",
         json=company_profile_payload(
@@ -334,7 +345,7 @@ async def test_an_offer_reaches_a_company_whose_general_email_is_its_login(
     )
 
     assert offered.status_code == 200
-    assert offered.json()["missing_items"] == []
+    assert accepted.json()["missing_items"] == []
     assert (await snapshot(db_session, offered.json()["id"])).general_email == (
         LOGIN_EMAIL
     )
@@ -374,6 +385,7 @@ async def test_the_student_email_reaches_an_offered_booking_and_the_booklet(
         gold_id,
         in_days(3),
     )
+    await accept_offer(client, company_headers, offered.json()["id"])
     preview = await client.post(
         f"/api/company/{company_user.company_id}/profile/booklet-page",
         json=payload,
@@ -389,7 +401,7 @@ async def test_the_student_email_reaches_an_offered_booking_and_the_booklet(
     assert entry["zone_color"] == GOLD_COLOR
 
 
-async def test_an_offered_booking_switches_zones_and_keeps_its_deadline(
+async def test_a_pending_offer_cannot_switch_zones_but_can_be_declined(
     client: AsyncClient,
     staff_headers: dict[str, str],
     company_headers: dict[str, str],
@@ -405,13 +417,11 @@ async def test_an_offered_booking_switches_zones_and_keeps_its_deadline(
     )
     cancelled = await set_status(client, company_headers, offered_id, "CANCELLED")
 
-    assert switched.status_code == 200
-    assert switched.json()["booth_zone_id"] == kp_setup.booth_zone_id
-    assert switched.json()["offer_cancel_until"] == in_days(3).isoformat()
+    assert switched.status_code == 409
     assert cancelled.status_code == 200
 
 
-async def test_an_offered_booking_cannot_switch_into_a_closed_zone(
+async def test_an_accepted_offer_cannot_switch_into_a_closed_zone(
     client: AsyncClient,
     staff_headers: dict[str, str],
     company_headers: dict[str, str],
@@ -419,6 +429,7 @@ async def test_an_offered_booking_cannot_switch_into_a_closed_zone(
     gold_offer: tuple[str, str],
 ):
     _, offered_id = gold_offer
+    await accept_offer(client, company_headers, offered_id)
     await close_zone(client, staff_headers, kp_setup.booth_zone_id)
 
     switched = await client.post(
@@ -588,7 +599,7 @@ async def test_offers_use_the_zurich_day_after_registration_closed(
     ("hour", "minute", "expected_status"),
     [(22, 59, 200), (23, 0, 409)],
 )
-async def test_an_offer_is_cancellable_until_the_end_of_its_zurich_day(
+async def test_an_offer_can_be_accepted_until_the_end_of_its_zurich_day(
     client: AsyncClient,
     staff_headers: dict[str, str],
     company_headers: dict[str, str],
@@ -610,13 +621,11 @@ async def test_an_offer_is_cancellable_until_the_end_of_its_zurich_day(
     )
     freeze_now(utc_instant(deadline, hour, minute))
 
-    response = await set_status(
-        client, company_headers, offered.json()["id"], "CANCELLED"
-    )
+    response = await accept_offer(client, company_headers, offered.json()["id"])
 
     assert response.status_code == expected_status
     if expected_status == 409:
-        assert response.json()["code"] == DEADLINE_PASSED_CODE
+        assert response.json()["code"] == OFFER_EXPIRED_CODE
 
 
 async def test_a_cancelled_offer_cannot_be_rebooked_after_registration_closed(
@@ -665,7 +674,7 @@ async def test_an_offered_place_counts_against_the_zone_capacity(
     ).scalar_one()
 
     assert refused.status_code == 409
-    assert booking.offer_cancel_until == in_days(3)
+    assert booking.offer_deadline == in_days(3)
 
 
 async def test_moving_the_deadline_of_a_regular_booking_is_refused(
@@ -681,7 +690,7 @@ async def test_moving_the_deadline_of_a_regular_booking_is_refused(
 
     moved = await client.patch(
         f"/api/kp/bookings/{booking_id}/offer",
-        json={"cancel_until": in_days(3).isoformat()},
+        json={"deadline": in_days(3).isoformat()},
         headers=staff_headers,
     )
     cancelled = await set_status(client, company_headers, booking_id, "CANCELLED")

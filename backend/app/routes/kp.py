@@ -27,6 +27,7 @@ from app.schemas.company import (
     BookletPageResult,
 )
 from app.schemas.kp import (
+    AcceptOfferRequest,
     AddBookingServicesRequest,
     BookingRequirementFileMapResponse,
     BookingResponse,
@@ -606,6 +607,17 @@ async def update_booking_offer(
     kp_service: KpServiceDep, booking_id: UUID, request: UpdateBookingOfferRequest
 ) -> BookingWithCompanyAndBoothZoneResponse:
     return await kp_service.update_booking_offer(booking_id, request)
+
+
+@router.post(
+    "/bookings/{booking_id}/accept-offer",
+    operation_id="acceptBookingOffer",
+    response_model=BookingResponse,
+)
+async def accept_booking_offer(
+    kp_service: KpServiceDep, booking_id: UUID, request: AcceptOfferRequest
+) -> BookingResponse:
+    return await kp_service.accept_offer(booking_id, request)
 
 
 @router.delete("/bookings/{booking_id}", operation_id="deleteBooking")

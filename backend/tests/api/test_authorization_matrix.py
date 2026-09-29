@@ -191,6 +191,7 @@ ROUTE_ACCESS: dict[str, Access] = {
     "DELETE /api/kp/bookings/{booking_id}": Access.STAFF,
     "POST /api/kp/events/{event_id}/bookings/offer": Access.PRESIDENT,
     "PATCH /api/kp/bookings/{booking_id}/offer": Access.PRESIDENT,
+    "POST /api/kp/bookings/{booking_id}/accept-offer": Access.COMPANY,
     "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.COMPANY,
     "POST /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.COMPANY,
     "DELETE /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.COMPANY,
@@ -349,9 +350,13 @@ REQUEST_BODIES: dict[str, dict[str, Any]] = {
     "POST /api/kp/events/{event_id}/bookings/offer": {
         "company_id": "{company_id}",
         "booth_zone_id": "{booth_zone_id}",
-        "cancel_until": "2099-01-01",
+        "deadline": "2099-01-01",
     },
-    "PATCH /api/kp/bookings/{booking_id}/offer": {"cancel_until": "2099-01-01"},
+    "PATCH /api/kp/bookings/{booking_id}/offer": {"deadline": "2099-01-01"},
+    "POST /api/kp/bookings/{booking_id}/accept-offer": {
+        "confirm_profile": True,
+        "accept_terms": True,
+    },
     "POST /api/kp/bookings/{booking_id}/reject": {
         "reason": "The booth zone is no longer available for {persona}"
     },

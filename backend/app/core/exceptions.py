@@ -304,13 +304,33 @@ class KpRegistrationClosed(AppError):
         )
 
 
-class KpOfferCancelDeadlinePassed(AppError):
+class KpOfferExpired(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "The free cancellation period of this offered place has ended",
-            "error.kp_offer_cancel_deadline_passed",
+            "The deadline to confirm this offered place has passed",
+            "error.kp_offer_expired",
             identifier,
             409,
+        )
+
+
+class KpOfferPending(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "This offered place has to be confirmed before it can be changed",
+            "error.kp_offer_pending",
+            identifier,
+            409,
+        )
+
+
+class KpTermsNotAccepted(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The terms and conditions have to be accepted",
+            "error.kp_terms_not_accepted",
+            identifier,
+            422,
         )
 
 

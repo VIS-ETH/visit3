@@ -22,7 +22,7 @@ from app.core.images import image_within_limits
 from app.core.rich_text import rich_text_blocks
 from app.models.company import Company, KpCompanyLanguage
 from app.models.industry import Industry
-from app.models.kp_event import INACTIVE_BOOKING_STATUSES, KpEvent, KpEventBooking
+from app.models.kp_event import KpEvent, KpEventBooking
 from app.models.storage import StoredFile
 from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
@@ -91,8 +91,7 @@ def upcoming_booking(
     upcoming = [
         booking
         for booking in bookings
-        if booking.status not in INACTIVE_BOOKING_STATUSES
-        and booking.event.event_date >= today
+        if booking.is_booked and booking.event.event_date >= today
     ]
     return min(upcoming, key=lambda booking: booking.event.event_date, default=None)
 

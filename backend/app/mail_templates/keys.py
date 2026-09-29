@@ -16,3 +16,5 @@ class MailTemplateKey(StrEnum):
     BOOKING_INCOMPLETE_REMINDER = "booking_incomplete_reminder"
     WAITLIST_PROMOTED = "waitlist_promoted"
     BOOKING_OFFERED = "booking_offered"
+    BOOKING_OFFER_WEEK_REMINDER = "booking_offer_week_reminder"
+    BOOKING_OFFER_DAY_REMINDER = "booking_offer_day_reminder"

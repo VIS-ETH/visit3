@@ -62,7 +62,7 @@ async def test_the_summary_adds_up_the_active_booking_prices(
     registered = (
         await register_booking(registered_headers, kp_setup, quantity=2)
     ).json()
-    offered_user, _ = await company_headers_for(
+    offered_user, offered_headers = await company_headers_for(
         "beta", create_user, auth_headers, csrf_headers, complete_company_profile
     )
     offered = await client.post(
@@ -70,9 +70,14 @@ async def test_the_summary_adds_up_the_active_booking_prices(
         json={
             "company_id": str(offered_user.company_id),
             "booth_zone_id": gold.json()["id"],
-            "cancel_until": (local_today() + timedelta(days=3)).isoformat(),
+            "deadline": (local_today() + timedelta(days=3)).isoformat(),
         },
         headers=staff_headers,
+    )
+    await client.post(
+        f"/api/kp/bookings/{offered.json()['id']}/accept-offer",
+        json={"confirm_profile": True, "accept_terms": True},
+        headers=offered_headers,
     )
     await client.post(
         f"/api/kp/bookings/{offered.json()['id']}/accept", headers=staff_headers
@@ -316,20 +321,80 @@ async def test_zone_rows_show_price_and_occupancy(
         json={
             "company_id": str(offered_user.company_id),
             "booth_zone_id": closed.json()["id"],
-            "cancel_until": (local_today() + timedelta(days=3)).isoformat(),
+            "deadline": (local_today() + timedelta(days=3)).isoformat(),
         },
         headers=staff_headers,
     )
 
     body = (await summary(client, staff_headers, kp_setup.event_id)).json()
 
+    keys = ("base_price", "capacity", "count", "occupied", "free")
     zones = {zone["name"]: zone for zone in body["by_zone"]}
-    assert {
-        key: zones["Main hall"][key]
-        for key in ("base_price", "capacity", "count", "free")
-    } == {"base_price": 10000, "capacity": 5, "count": 1, "free": 4}
-    assert {
-        key: zones["Closed"][key] for key in ("base_price", "capacity", "count", "free")
-    } == {"base_price": 9900, "capacity": 0, "count": 1, "free": 0}
+    assert {key: zones["Main hall"][key] for key in keys} == {
+        "base_price": 10000,
+        "capacity": 5,
+        "count": 1,
+        "occupied": 1,
+        "free": 4,
+    }
+    assert {key: zones["Closed"][key] for key in keys} == {
+        "base_price": 9900,
+        "capacity": 0,
+        "count": 0,
+        "occupied": 1,
+        "free": 0,
+    }
     assert body["capacity"] == 5
+    assert body["occupied"] == 2
     assert body["free"] == 4
+
+
+async def test_a_pending_offer_is_listed_apart_from_the_booked_revenue(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    kp_setup: KpSetup,
+    create_user: Callable[..., Awaitable[User]],
+    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
+    csrf_headers: dict[str, str],
+    complete_company_profile: Callable[..., Awaitable[Response]],
+    register_booking: Callable[..., Awaitable[Response]],
+):
+    _, booked_headers = await company_headers_for(
+        "booked", create_user, auth_headers, csrf_headers, complete_company_profile
+    )
+    booked = (await register_booking(booked_headers, kp_setup, quantity=1)).json()
+    offered_user, _ = await company_headers_for(
+        "pending", create_user, auth_headers, csrf_headers, complete_company_profile
+    )
+    pending = await client.post(
+        f"/api/kp/events/{kp_setup.event_id}/bookings/offer",
+        json={
+            "company_id": str(offered_user.company_id),
+            "booth_zone_id": kp_setup.booth_zone_id,
+            "deadline": (local_today() + timedelta(days=3)).isoformat(),
+        },
+        headers=staff_headers,
+    )
+    bookings = {
+        booking["id"]: booking
+        for booking in (
+            await client.get(
+                f"/api/kp/events/{kp_setup.event_id}/bookings", headers=staff_headers
+            )
+        ).json()
+    }
+
+    body = (await summary(client, staff_headers, kp_setup.event_id)).json()
+
+    assert body["total"]["count"] == 1
+    assert body["total"]["price"] == bookings[booked["id"]]["price"]
+    assert [entry["status"] for entry in body["by_status"]] == [
+        "REGISTERED",
+        "CONFIRMED",
+    ]
+    assert body["offered"]["count"] == 1
+    assert body["offered"]["price"] == bookings[pending.json()["id"]]["price"]
+    main_hall = body["by_zone"][0]
+    assert main_hall["count"] == 1
+    assert main_hall["occupied"] == 2
+    assert main_hall["price"] == bookings[booked["id"]]["price"]
