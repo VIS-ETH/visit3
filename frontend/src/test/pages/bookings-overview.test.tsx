@@ -52,6 +52,7 @@ const summaryFor = (
       ...totals(scale, 100000 * scale, 0),
     },
   ],
+  offered: totals(scale, 150000 * scale, 0),
   by_zone: [
     {
       booth_zone_id: "zone-main",
@@ -59,7 +60,8 @@ const summaryFor = (
       color: "#112233",
       base_price: 150000,
       capacity: 20,
-      free: 20 - 2 * scale,
+      occupied: 3 * scale,
+      free: 20 - 3 * scale,
       ...totals(2 * scale, 300000 * scale, 50000 * scale),
     },
     {
@@ -68,14 +70,17 @@ const summaryFor = (
       color: "#445566",
       base_price: 100000,
       capacity: 0,
+      occupied: scale,
       free: 0,
       ...totals(scale, 100000 * scale, 0),
     },
   ],
   capacity: 20,
-  free: 20 - 2 * scale,
+  occupied: 4 * scale,
+  free: 20 - 3 * scale,
   cancelled_count: 1,
   rejected_count: 0,
+  expired_count: 2,
 });
 
 let summaryRequests: string[] = [];
@@ -149,15 +154,31 @@ describe("the bookings overview", () => {
     expect(
       within(mainHall).getByText("CHF 1500.00 per booth"),
     ).toBeInTheDocument();
-    expect(within(mainHall).getByText("2 / 20")).toBeInTheDocument();
-    expect(within(mainHall).getByText("18")).toBeInTheDocument();
+    expect(within(mainHall).getByText("3 / 20")).toBeInTheDocument();
+    expect(within(mainHall).getByText("17")).toBeInTheDocument();
     const closedHall = screen.getByRole("row", { name: /Closed hall/ });
     expect(within(closedHall).getByText("1 / 0")).toBeInTheDocument();
     expect(within(closedHall).getByText("0")).toBeInTheDocument();
     const totalRow = screen.getByRole("row", {
       name: /kp.bookings_overview.all/,
     });
-    expect(within(totalRow).getByText("3 / 20")).toBeInTheDocument();
-    expect(within(totalRow).getByText("18")).toBeInTheDocument();
+    expect(within(totalRow).getByText("4 / 20")).toBeInTheDocument();
+    expect(within(totalRow).getByText("17")).toBeInTheDocument();
+  });
+
+  it("lists pending offers in their own row outside the total", async () => {
+    renderWithProviders(<BookingsOverview />);
+    await screen.findByText("CHF 4864.50", undefined, SLOW_WAIT);
+
+    const offeredRow = screen.getByRole("row", {
+      name: /kp.booking.status.offered.label/,
+    });
+    expect(within(offeredRow).getByText("1")).toBeInTheDocument();
+    expect(within(offeredRow).getAllByText("1500.00")).toHaveLength(2);
+    expect(within(offeredRow).getByText("1621.50")).toBeInTheDocument();
+    const totalRow = screen.getByRole("row", {
+      name: /kp.bookings_overview.all/,
+    });
+    expect(within(totalRow).getByText("4000.00")).toBeInTheDocument();
   });
 });

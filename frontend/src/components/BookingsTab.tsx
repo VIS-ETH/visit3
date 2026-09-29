@@ -1,6 +1,5 @@
 import {
   Anchor,
-  Badge,
   Button,
   Center,
   Checkbox,
@@ -45,6 +44,7 @@ import {
   type ListEventBookingsQueryResult,
   useListEventBookings,
 } from "../orval/generated/kp/kp";
+import { KpBookingStatus } from "../orval/generated/fastAPI.schemas";
 import {
   BOOKING_STATUS_ORDER,
   bookingStatusRank,
@@ -421,23 +421,20 @@ const BookingsTab = ({
                     </Table.Td>
                     <Table.Td>
                       <Group gap={4} preventGrowOverflow={false}>
-                        <KpBookingStatusBadge status={booking.status} />
+                        <KpBookingStatusBadge
+                          status={booking.status}
+                          miw="max-content"
+                        />
                         {hasNewAdditions(booking) ? (
                           <BookingNewAdditionsBadge />
                         ) : null}
-                        {booking.offer_cancel_until ? (
-                          <Badge
-                            color="grape"
-                            size="sm"
-                            variant="light"
-                            title={t("kp.manage.offer_state", {
-                              date: formatKpDisplayDate(
-                                booking.offer_cancel_until,
-                              ),
+                        {booking.status === KpBookingStatus.OFFERED &&
+                        booking.offer_deadline ? (
+                          <Text size="xs" c="dimmed">
+                            {t("kp.manage.offer_until", {
+                              date: formatKpDisplayDate(booking.offer_deadline),
                             })}
-                          >
-                            {t("kp.manage.offer_badge")}
-                          </Badge>
+                          </Text>
                         ) : null}
                       </Group>
                     </Table.Td>

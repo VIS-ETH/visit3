@@ -33,6 +33,7 @@ import { UserContext } from "../context/useCurrentUser";
 import BookingStatusTimeline from "../components/bookings/BookingStatusTimeline";
 import VenueMapViewer from "../components/venue/VenueMapViewer";
 import {
+  KpBookingStatus,
   KpEventServiceRequirementType,
   type RequirementFileResponse,
   type ServiceRequirementResponse,
@@ -258,7 +259,7 @@ const KpBookingDetails = () => {
 
       <BookingCompletenessCard booking={booking} />
 
-      {booking.offer_cancel_until ? (
+      {booking.status === KpBookingStatus.OFFERED ? (
         <BookingOfferCard
           booking={booking}
           eventId={id}

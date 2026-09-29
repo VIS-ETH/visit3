@@ -14,44 +14,46 @@ import { IconAlertCircle } from "@tabler/icons-react";
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { KpBoothZoneColorSwatch } from "../components/KpBoothZoneColorSwatch";
-import type { BookingTotals } from "../orval/generated/fastAPI.schemas";
+import {
+  KpBookingStatus,
+  type BookingTotals,
+} from "../orval/generated/fastAPI.schemas";
 import { useGetBookingsSummary, useListKps } from "../orval/generated/kp/kp";
 import { BOOKING_STATUS_LABEL_KEYS } from "../utils/kp-utils";
 import { formatPrice } from "../utils/price-utils";
 
-const Occupancy = ({
-  taken,
-  capacity,
-}: {
-  taken: number;
+interface Occupancy {
+  occupied: number;
   capacity: number;
-}) => (
-  <Text size="sm" c={taken > capacity ? "red" : undefined}>
-    {`${taken} / ${capacity}`}
-  </Text>
-);
+  free: number;
+}
 
 const TotalsRow = ({
   label,
   totals,
-  capacity,
-  free,
+  occupancy,
+  dimmed = false,
 }: {
   label: ReactNode;
   totals: BookingTotals;
-  capacity?: number;
-  free?: number;
+  occupancy?: Occupancy;
+  dimmed?: boolean;
 }) => (
-  <Table.Tr>
+  <Table.Tr c={dimmed ? "dimmed" : undefined}>
     <Table.Td>{label}</Table.Td>
     <Table.Td ta="right">
-      {capacity === undefined ? (
-        totals.count
+      {occupancy ? (
+        <Text
+          size="sm"
+          c={occupancy.occupied > occupancy.capacity ? "red" : undefined}
+        >
+          {`${occupancy.occupied} / ${occupancy.capacity}`}
+        </Text>
       ) : (
-        <Occupancy taken={totals.count} capacity={capacity} />
+        totals.count
       )}
     </Table.Td>
-    <Table.Td ta="right">{free}</Table.Td>
+    <Table.Td ta="right">{occupancy?.free}</Table.Td>
     <Table.Td ta="right">{formatPrice(totals.base)}</Table.Td>
     <Table.Td ta="right">{formatPrice(totals.services)}</Table.Td>
     <Table.Td ta="right">{formatPrice(totals.price.net)}</Table.Td>
@@ -161,6 +163,15 @@ const BookingsOverview = () => {
                         totals={entry}
                       />
                     ))}
+                    {summary.offered.count > 0 ? (
+                      <TotalsRow
+                        label={t(
+                          BOOKING_STATUS_LABEL_KEYS[KpBookingStatus.OFFERED],
+                        )}
+                        totals={summary.offered}
+                        dimmed
+                      />
+                    ) : null}
                     {sectionRow(t("kp.bookings_overview.by_zone"))}
                     {summary.by_zone.map((zone) => (
                       <TotalsRow
@@ -179,8 +190,7 @@ const BookingsOverview = () => {
                           </Group>
                         }
                         totals={zone}
-                        capacity={zone.capacity}
-                        free={zone.free}
+                        occupancy={zone}
                       />
                     ))}
                   </Table.Tbody>
@@ -192,8 +202,7 @@ const BookingsOverview = () => {
                         </Text>
                       }
                       totals={summary.total}
-                      capacity={summary.capacity}
-                      free={summary.free}
+                      occupancy={summary}
                     />
                   </Table.Tfoot>
                 </Table>
@@ -202,6 +211,7 @@ const BookingsOverview = () => {
                 {t("kp.bookings_overview.excluded", {
                   cancelled: summary.cancelled_count,
                   rejected: summary.rejected_count,
+                  expired: summary.expired_count,
                 })}
               </Text>
             </Stack>
