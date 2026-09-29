@@ -11,8 +11,6 @@ import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
 import { SLOW_WAIT } from "../timeouts";
 
-vi.mock("../../utils/uploads", () => ({ UPLOADS_AVAILABLE: true }));
-
 const eventId = "event-1";
 const bannerUrl = `${testBackendUrl}/api/kp/events/${eventId}/banner`;
 const customSource = "https://files.test/banner/1200.webp";

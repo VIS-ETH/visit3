@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -20,8 +20,6 @@ import {
   confirmProfileStep,
   installCompanyProfileHandlers,
 } from "../fixtures/company-profile";
-
-vi.mock("../../utils/uploads", () => ({ UPLOADS_AVAILABLE: true }));
 
 const eventId = "event-1";
 
