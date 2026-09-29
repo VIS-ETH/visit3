@@ -483,6 +483,33 @@ class StaffBookingResponse(BookingWithBoothZoneBase):
     company: CompanyResponse
 
 
+class BookingTotals(BaseModel):
+    count: int
+    base: int
+    services: int
+    price: PriceBreakdown
+
+
+class BookingStatusTotals(BookingTotals):
+    status: KpBookingStatus
+
+
+class BookingZoneTotals(BookingTotals):
+    booth_zone_id: UUID
+    name: str
+    color: str
+
+
+class BookingSummaryResponse(BaseModel):
+    event_id: UUID
+    vat_rate_percent: VatRatePercent
+    total: BookingTotals
+    by_status: list[BookingStatusTotals]
+    by_zone: list[BookingZoneTotals]
+    cancelled_count: int
+    rejected_count: int
+
+
 class RequirementFileResponse(BaseModel):
     id: UUID
     booking_service_id: UUID

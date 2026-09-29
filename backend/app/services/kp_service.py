@@ -82,6 +82,7 @@ from app.schemas.kp import (
     BookingResponse,
     BookingServiceInput,
     BookingServiceResponse,
+    BookingSummaryResponse,
     BookingUpgradeWaitlistEntryResult,
     BookingWithCompanyAndBoothZoneResponse,
     BoothZoneResponse,
@@ -121,6 +122,7 @@ from app.services.booking_notifier import (
     SilentBookingNotifier,
     notify_best_effort,
 )
+from app.services.booking_summary import booking_summary
 from app.services.booth_zone_view import (
     booth_zone_response,
     booth_zones_with_availability,
@@ -1148,6 +1150,15 @@ class KpService:
         return [
             await self._build_staff_booking_response(booking) for booking in bookings
         ]
+
+    async def get_bookings_summary(self, event_id: UUID) -> BookingSummaryResponse:
+        require_staff_user(self.current_user)
+        event = await self._get_event(event_id)
+        return booking_summary(
+            event,
+            await self.kp_repository.list_booth_zones(event_id),
+            await self.kp_repository.list_bookings_for_event(event_id),
+        )
 
     async def get_event_booking(
         self, event_id: UUID, booking_id: UUID
