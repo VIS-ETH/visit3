@@ -225,11 +225,17 @@ class KpEventBooking(BaseEntity, table=True):
         )
 
     @property
+    def base_price(self) -> int:
+        booth_zone: KpEventBoothZone | None = getattr(self, "booth_zone", None)
+        return booth_zone.base_price if booth_zone is not None else 0
+
+    @property
+    def services_price(self) -> int:
+        return sum(booking_service.line_net for booking_service in self.services)
+
+    @property
     def total_price(self) -> int:
-        return self.booth_zone.base_price + sum(
-            booking_service.charged_quantity * booking_service.service.price
-            for booking_service in self.services
-        )
+        return self.base_price + self.services_price
 
     @property
     def booked_services_count(self) -> int:
@@ -415,6 +421,10 @@ class KpEventBookingService(BaseEntity, table=True):
     @property
     def charged_quantity(self) -> int:
         return max(self.quantity - self.included_quantity, 0)
+
+    @property
+    def line_net(self) -> int:
+        return self.charged_quantity * self.service.price
 
 
 class KpEventBookingServiceFileLink(BaseEntity, table=True):
