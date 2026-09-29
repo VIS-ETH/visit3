@@ -32,6 +32,9 @@ const nginxEnvsubstVarsPlugin = () => ({
 });
 
 export default defineConfig({
+  define: {
+    "import.meta.env.VITE_BUILD_ID": JSON.stringify(Date.now().toString(36)),
+  },
   server: {
     port: 3000,
     strictPort: true,

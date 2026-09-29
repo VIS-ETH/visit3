@@ -59,3 +59,19 @@ describe("nginx security headers", () => {
     expect(policy()["frame-ancestors"]).toEqual(["'none'"]);
   });
 });
+
+describe("nginx caching", () => {
+  it("keeps the security headers on every path", () => {
+    expect(template).not.toMatch(/location[^{]*\{[^}]*add_header/);
+  });
+
+  it("revalidates pages and locales but caches hashed assets for good", () => {
+    expect(template).toContain(
+      "add_header Cache-Control $visit_cache_control always;",
+    );
+    expect(template).toMatch(
+      /~\^\/assets\/\s+"public, max-age=31536000, immutable";/,
+    );
+    expect(template).toMatch(/default\s+"no-cache";/);
+  });
+});

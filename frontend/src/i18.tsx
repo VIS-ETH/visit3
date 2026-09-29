@@ -2,6 +2,7 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import HttpBackend from "i18next-http-backend";
+import { LOCALE_LOAD_PATH } from "./utils/locale-load-path";
 
 const namespaces = ["common", "auth", "account", "admin", "kp"];
 
@@ -20,7 +21,7 @@ i18n
       escapeValue: false,
     },
     backend: {
-      loadPath: "/locales/{{lng}}/{{ns}}.json",
+      loadPath: LOCALE_LOAD_PATH,
     },
   });
 
