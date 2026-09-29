@@ -17,11 +17,11 @@ export const canStartNewBooking = (
   isRegistrationOpen: boolean,
 ) => (booking ? booking.can_register : isRegistrationOpen);
 
-export const isOfferCancellable = (booking: BookingResponse) =>
-  Boolean(booking.offer_cancel_until) &&
-  !isDeadlinePassed(booking.offer_cancel_until ?? "");
+export const isPendingOffer = (booking: BookingResponse) =>
+  booking.status === KpBookingStatus.OFFERED;
 
-export const canCompanyCancel = (booking: BookingResponse) =>
-  booking.offer_cancel_until
-    ? isOfferCancellable(booking) && !isInactiveBooking(booking)
-    : booking.status === KpBookingStatus.REGISTERED;
+export const isOfferOpen = (booking: BookingResponse) =>
+  isPendingOffer(booking) && !isDeadlinePassed(booking.offer_deadline ?? "");
+
+export const isManageableBooking = (booking: BookingResponse) =>
+  !isInactiveBooking(booking) && !isPendingOffer(booking);

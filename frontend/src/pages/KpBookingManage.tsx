@@ -64,7 +64,7 @@ import {
   maxServiceQuantity,
   servicesOfCategory,
 } from "../utils/kp-service-quantity";
-import { isInactiveBooking } from "../utils/my-booking";
+import { isManageableBooking } from "../utils/my-booking";
 import { bookingRequirementElementId } from "../utils/navigation";
 import { useScrollToHash } from "../utils/use-scroll-to-hash";
 import { useWarnOnLeave } from "../utils/use-warn-on-leave";
@@ -857,7 +857,7 @@ const KpBookingManage = () => {
     query: { enabled: Boolean(eventId) },
   });
   const bookingServices = booking?.services ?? [];
-  const isEditable = booking != null && !isInactiveBooking(booking);
+  const isEditable = booking != null && isManageableBooking(booking);
   const pendingRequirementChangeList = Object.values(pendingRequirementChanges);
   const hasPendingRequirementChanges = pendingRequirementChangeList.length > 0;
   const allRequirementKeys = bookingServices.flatMap((bookingService) =>
@@ -1065,7 +1065,7 @@ const KpBookingManage = () => {
     );
   }
 
-  if (isInactiveBooking(booking)) {
+  if (!isManageableBooking(booking)) {
     return <Navigate to={`/kp/${eventId}`} replace />;
   }
 

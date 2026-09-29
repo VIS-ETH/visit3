@@ -4,13 +4,16 @@ import {
 } from "../orval/generated/fastAPI.schemas";
 
 export const BOOKING_STATUS_ORDER: readonly KpBookingStatus[] = [
+  KpBookingStatus.OFFERED,
   KpBookingStatus.REGISTERED,
   KpBookingStatus.CONFIRMED,
   KpBookingStatus.CANCELLED,
   KpBookingStatus.REJECTED,
+  KpBookingStatus.EXPIRED,
 ];
 
 const ACTIVE_BOOKING_STATUSES: readonly KpBookingStatus[] = [
+  KpBookingStatus.OFFERED,
   KpBookingStatus.REGISTERED,
   KpBookingStatus.CONFIRMED,
 ];
@@ -22,7 +25,7 @@ export const canUndoAcceptBooking = (status: KpBookingStatus) =>
   status === KpBookingStatus.CONFIRMED;
 
 export const canRejectBooking = (status: KpBookingStatus) =>
-  status === KpBookingStatus.REGISTERED;
+  status === KpBookingStatus.REGISTERED || status === KpBookingStatus.OFFERED;
 
 export const deleteRequiresForce = (status: KpBookingStatus) =>
   status === KpBookingStatus.CONFIRMED;

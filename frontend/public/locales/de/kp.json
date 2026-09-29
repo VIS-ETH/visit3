@@ -135,6 +135,10 @@
       "status_help_title": "Buchungsstatus erklärt",
       "status_help_description": "Im KP-Prozess durchläuft eine Buchung folgende Stati:",
       "status": {
+        "offered": {
+          "label": "Angeboten, offen",
+          "description": "Der VIS hat einen Platz für Sie reserviert. Er wird zur Buchung, sobald Sie ihn vor Ablauf der Frist bestätigen."
+        },
         "registered": {
           "label": "Registriert",
           "description": "Die Registrierung Ihrer Standzone wurde erfolgreich erfasst."
@@ -150,6 +154,10 @@
         "rejected": {
           "label": "Abgelehnt",
           "description": "Die KP-Organisatoren haben diese Buchung abgelehnt. Der Grund wird auf der Buchungsseite angezeigt."
+        },
+        "expired": {
+          "label": "Verfallen",
+          "description": "Das Angebot wurde nicht rechtzeitig bestätigt, der Platz wurde freigegeben."
         }
       },
       "no_booking_yet": "Es wurde noch keine Buchung erstellt.",
@@ -220,14 +228,30 @@
       "confirmed_body": "Der VIS hat Ihre Buchung bestätigt. Sie können weiterhin Services hinzufügen, die Standzone aber nicht mehr ändern.",
       "cancel_action": "Buchung stornieren",
       "cancel_hint": "Sie können stornieren, solange die Buchung nicht bestätigt ist.",
-      "offer_notice": "VIS hat Ihnen diesen Platz angeboten. Sie können ihn bis {{date}} kostenlos stornieren.",
       "cancel_confirm_title": "Buchung stornieren?",
       "cancel_confirm_body": "Mit der Stornierung wird Ihr Standplatz für andere Unternehmen freigegeben und kann hier nicht rückgängig gemacht werden. Gebuchte Services und hochgeladene Unterlagen gehen verloren, und Sie müssen sich neu anmelden, falls Sie es sich anders überlegen.",
       "cancel_confirm_keep": "Buchung behalten",
       "cancel_confirm_submit": "Buchung stornieren",
       "cancel_success": "Ihre Buchung wurde storniert.",
       "cancelled_title": "Buchung storniert",
-      "cancelled_body": "Diese Buchung wurde storniert. Ihr Standplatz wurde wieder freigegeben."
+      "cancelled_body": "Diese Buchung wurde storniert. Ihr Standplatz wurde wieder freigegeben.",
+      "expired_title": "Angebot verfallen",
+      "expired_body": "Der angebotene Platz wurde nicht rechtzeitig bestätigt und ist wieder freigegeben."
+    },
+    "offer": {
+      "title": "Für Sie reservierter Platz",
+      "deadline_notice": "Der VIS hat diesen Platz für Sie reserviert. Bestätigen Sie die Buchung bis {{date}} verbindlich, sonst verfällt die Reservierung.",
+      "confirm": "Buchung verbindlich bestätigen",
+      "decline": "Ablehnen",
+      "expired": "Die Frist ist abgelaufen, die Reservierung ist verfallen.",
+      "confirm_title": "Buchung verbindlich bestätigen",
+      "confirm_submit": "Verbindlich buchen",
+      "confirmed": "Ihre Buchung ist eingegangen.",
+      "decline_title": "Angebot ablehnen?",
+      "decline_body": "Der Platz wird sofort freigegeben und anderen Unternehmen angeboten.",
+      "decline_keep": "Angebot behalten",
+      "decline_submit": "Angebot ablehnen",
+      "declined": "Angebot abgelehnt."
     },
     "booking_manage": {
       "title": "Buchung #{{bookingNumber}} verwalten",
@@ -320,7 +344,7 @@
       "gross": "Inkl. MwSt.",
       "by_status": "Status",
       "by_zone": "Standzone",
-      "excluded": "Nicht gezählt: {{cancelled}} storniert, {{rejected}} abgelehnt",
+      "excluded": "Nicht gezählt: {{cancelled}} storniert, {{rejected}} abgelehnt, {{expired}} verfallen. Die Belegung enthält offene Angebote.",
       "empty": "Noch keine Kontaktparty."
     },
     "dashboard": {
@@ -542,13 +566,13 @@
       "zone_move_up": "Nach oben",
       "zone_move_down": "Nach unten",
       "offer_button": "Platz anbieten",
-      "offer_cancel_until": "Kostenlos stornierbar bis",
+      "offer_deadline": "Bestätigen bis",
       "offer_success": "Platz angeboten.",
       "offer_title": "Von VIS angeboten",
-      "offer_state": "Das Unternehmen kann bis {{date}} kostenlos stornieren.",
+      "offer_state": "Das Unternehmen muss die Buchung bis {{date}} bestätigen, sonst verfällt die Reservierung.",
       "offer_save": "Frist speichern",
       "offer_saved": "Frist gespeichert.",
-      "offer_badge": "Angeboten",
+      "offer_until": "bis {{date}}",
       "zone_registration": "Anmeldung",
       "zone_registration_open": "Anmeldung offen",
       "bookings_title": "Buchungen",
@@ -638,9 +662,11 @@
       "booking_missing_item_billing_address": "Rechnungsadresse fehlt",
       "booking_missing_item_unknown": "Es fehlt noch etwas",
       "booking_timeline_title": "Statusverlauf",
+      "booking_timeline_offered": "Angeboten",
       "booking_timeline_registered": "Registriert",
       "booking_timeline_confirmed": "Bestätigt",
       "booking_timeline_rejected": "Abgelehnt",
+      "booking_timeline_expired": "Verfallen",
       "booking_timeline_pending": "Noch offen",
       "booking_completeness_complete": "Vollständig",
       "booking_completeness_incomplete": "Unvollständig",

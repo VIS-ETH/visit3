@@ -135,6 +135,10 @@
       "status_help_title": "Booking status guide",
       "status_help_description": "Each booking moves through these statuses during the KP process:",
       "status": {
+        "offered": {
+          "label": "Offered, pending",
+          "description": "VIS has reserved a place for you. It becomes a booking once you confirm it before the deadline."
+        },
         "registered": {
           "label": "Registered",
           "description": "Your booth zone registration was received successfully."
@@ -150,6 +154,10 @@
         "rejected": {
           "label": "Rejected",
           "description": "The KP organizers rejected this booking. The reason is shown on the booking page."
+        },
+        "expired": {
+          "label": "Expired",
+          "description": "The offer was not confirmed in time and the place was released."
         }
       },
       "no_booking_yet": "No booking has been created yet.",
@@ -220,14 +228,30 @@
       "confirmed_body": "VIS has confirmed your booking. You can still add services, but no longer change the booth zone.",
       "cancel_action": "Cancel booking",
       "cancel_hint": "You can cancel as long as the booking is not confirmed.",
-      "offer_notice": "VIS offered you this place. You can cancel it free of charge until {{date}}.",
       "cancel_confirm_title": "Cancel this booking?",
       "cancel_confirm_body": "Cancelling releases your booth spot to other companies and cannot be undone here. Booked services and uploaded requirements are lost, and you have to register again if you change your mind.",
       "cancel_confirm_keep": "Keep booking",
       "cancel_confirm_submit": "Cancel booking",
       "cancel_success": "Your booking was cancelled.",
       "cancelled_title": "Booking cancelled",
-      "cancelled_body": "This booking was cancelled. Your booth spot was released."
+      "cancelled_body": "This booking was cancelled. Your booth spot was released.",
+      "expired_title": "Offer expired",
+      "expired_body": "The offered place was not confirmed in time and has been released."
+    },
+    "offer": {
+      "title": "Place reserved for you",
+      "deadline_notice": "VIS has reserved this place for you. Confirm the booking by {{date}}, otherwise the reservation expires.",
+      "confirm": "Confirm booking",
+      "decline": "Decline",
+      "expired": "The deadline has passed and the reservation has expired.",
+      "confirm_title": "Confirm booking",
+      "confirm_submit": "Book with obligation",
+      "confirmed": "Your booking is registered.",
+      "decline_title": "Decline the offer?",
+      "decline_body": "The place is released at once and offered to other companies.",
+      "decline_keep": "Keep offer",
+      "decline_submit": "Decline offer",
+      "declined": "Offer declined."
     },
     "booking_manage": {
       "title": "Manage Booking #{{bookingNumber}}",
@@ -320,7 +344,7 @@
       "gross": "Incl. VAT",
       "by_status": "Status",
       "by_zone": "Booth zone",
-      "excluded": "Not counted: {{cancelled}} cancelled, {{rejected}} rejected",
+      "excluded": "Not counted: {{cancelled}} cancelled, {{rejected}} rejected, {{expired}} expired. Occupancy includes pending offers.",
       "empty": "No Kontaktparty yet."
     },
     "dashboard": {
@@ -542,13 +566,13 @@
       "zone_move_up": "Move up",
       "zone_move_down": "Move down",
       "offer_button": "Offer place",
-      "offer_cancel_until": "Free cancellation until",
+      "offer_deadline": "Confirm by",
       "offer_success": "Place offered.",
       "offer_title": "Offered by VIS",
-      "offer_state": "The company can cancel free of charge until {{date}}.",
+      "offer_state": "The company has to confirm the booking by {{date}}, otherwise the reservation expires.",
       "offer_save": "Save deadline",
       "offer_saved": "Deadline saved.",
-      "offer_badge": "Offered",
+      "offer_until": "until {{date}}",
       "zone_registration": "Registration",
       "zone_registration_open": "Registration open",
       "bookings_title": "Bookings",
@@ -638,9 +662,11 @@
       "booking_missing_item_billing_address": "Billing address is missing",
       "booking_missing_item_unknown": "Something is still missing",
       "booking_timeline_title": "Status history",
+      "booking_timeline_offered": "Offered",
       "booking_timeline_registered": "Registered",
       "booking_timeline_confirmed": "Confirmed",
       "booking_timeline_rejected": "Rejected",
+      "booking_timeline_expired": "Expired",
       "booking_timeline_pending": "Still open",
       "booking_completeness_complete": "Complete",
       "booking_completeness_incomplete": "Incomplete",

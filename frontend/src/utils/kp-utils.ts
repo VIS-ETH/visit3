@@ -129,23 +129,29 @@ export const EVENT_STATUS_COLORS: Record<EventStatus, string> = {
 };
 
 export const BOOKING_STATUS_COLORS: Record<KpBookingStatus, string> = {
+  OFFERED: "grape",
   REGISTERED: "blue",
   CONFIRMED: "green",
   CANCELLED: "red",
   REJECTED: "red",
+  EXPIRED: "gray",
 };
 
 export const BOOKING_STATUS_LABEL_KEYS: Record<KpBookingStatus, string> = {
+  OFFERED: "kp.booking.status.offered.label",
   REGISTERED: "kp.booking.status.registered.label",
   CONFIRMED: "kp.booking.status.confirmed.label",
   CANCELLED: "kp.booking.status.cancelled.label",
   REJECTED: "kp.booking.status.rejected.label",
+  EXPIRED: "kp.booking.status.expired.label",
 };
 
 export const BOOKING_STATUS_DESCRIPTION_KEYS: Record<KpBookingStatus, string> =
   {
+    OFFERED: "kp.booking.status.offered.description",
     REGISTERED: "kp.booking.status.registered.description",
     CONFIRMED: "kp.booking.status.confirmed.description",
     CANCELLED: "kp.booking.status.cancelled.description",
     REJECTED: "kp.booking.status.rejected.description",
+    EXPIRED: "kp.booking.status.expired.description",
   };
