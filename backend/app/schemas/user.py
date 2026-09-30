@@ -47,6 +47,8 @@ class UserResponse(BaseModel):
 class StaffUserResponse(UserResponse):
     new_in_company_since: datetime | None = None
     pending_email: str | None = None
+    created_at: datetime
+    last_login_at: datetime | None = None
 
 
 class UserFilter(StrEnum):
