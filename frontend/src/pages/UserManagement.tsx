@@ -52,6 +52,24 @@ import BookingNewAdditionsBadge from "../components/bookings/BookingNewAdditions
 const SEARCH_DEBOUNCE_MS = 300;
 const PAGE_SIZE = 25;
 
+const signupDateFormat = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+});
+const lastLoginFormat = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+const formatTimestamp = (
+  format: Intl.DateTimeFormat,
+  value?: string | null,
+) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return format.format(parsed);
+};
+
 const filterLabelKeys: Record<UserFilter, string> = {
   [UserFilter.all]: "user_management.filters.all",
   [UserFilter.unconfirmed]: "user_management.filters.unconfirmed",
@@ -177,7 +195,7 @@ const UserManagement = () => {
               <Text c="dimmed">{t("user_management.table_empty")}</Text>
             ) : (
               <>
-                <Table.ScrollContainer minWidth={900}>
+                <Table.ScrollContainer minWidth={1100}>
                   <Table highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
@@ -186,6 +204,8 @@ const UserManagement = () => {
                         <Table.Th>{t("user_management.company")}</Table.Th>
                         <Table.Th>{t("user_management.flags.header")}</Table.Th>
                         <Table.Th>{t("user_management.status")}</Table.Th>
+                        <Table.Th>{t("user_management.signed_up")}</Table.Th>
+                        <Table.Th>{t("user_management.last_login")}</Table.Th>
                         <Table.Th>{t("user_management.actions")}</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -223,6 +243,28 @@ const UserManagement = () => {
                                 </Badge>
                               )}
                             </Group>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm" style={{ whiteSpace: "nowrap" }}>
+                              {formatTimestamp(
+                                signupDateFormat,
+                                item.created_at,
+                              ) ?? "-"}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            {item.last_login_at ? (
+                              <Text size="sm" style={{ whiteSpace: "nowrap" }}>
+                                {formatTimestamp(
+                                  lastLoginFormat,
+                                  item.last_login_at,
+                                )}
+                              </Text>
+                            ) : (
+                              <Text size="sm" c="dimmed">
+                                {t("user_management.never_logged_in")}
+                              </Text>
+                            )}
                           </Table.Td>
                           <Table.Td>
                             <Group gap="xs" wrap="nowrap">

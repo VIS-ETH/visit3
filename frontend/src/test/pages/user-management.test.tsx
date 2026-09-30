@@ -170,6 +170,34 @@ describe("the user management page", () => {
     });
   });
 
+  it("shows when each user signed up and last logged in", async () => {
+    renderPage();
+    const member = await memberRow();
+    const orphanCell = screen.getByText(orphanUser.email).closest("tr");
+    if (!orphanCell) throw new Error("row not found");
+    const orphan = within(orphanCell);
+    const date = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
+    const dateTime = new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+
+    expect(
+      member.getByText(date.format(new Date(memberUser.created_at))),
+    ).toBeInTheDocument();
+    expect(
+      member.getByText("user_management.never_logged_in"),
+    ).toBeInTheDocument();
+    expect(
+      orphan.getByText(date.format(new Date(orphanUser.created_at))),
+    ).toBeInTheDocument();
+    expect(
+      orphan.getByText(
+        dateTime.format(new Date(orphanUser.last_login_at ?? "")),
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("confirms a user", async () => {
     const { user } = renderPage();
     const row = await memberRow();
