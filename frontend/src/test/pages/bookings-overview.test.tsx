@@ -4,6 +4,7 @@ import { http, HttpResponse } from "msw";
 import BookingsOverview from "../../pages/BookingsOverview";
 import {
   KpBookingStatus,
+  KpServiceCategory,
   type BookingSummaryResponse,
   type KpResponse,
 } from "../../orval/generated/fastAPI.schemas";
@@ -73,6 +74,34 @@ const summaryFor = (
       occupied: scale,
       free: 0,
       ...totals(scale, 100000 * scale, 0),
+    },
+  ],
+  by_service: [
+    {
+      service_id: "service-power",
+      name: "Electricity",
+      category: KpServiceCategory.SERVICE,
+      unit_label: "socket",
+      unit_price: 5000,
+      booking_count: 2 * scale,
+      quantity: 10 * scale,
+      included_quantity: 2,
+      price: { net: 50000 * scale, vat: 4050 * scale, gross: 54050 * scale },
+      max_total_quantity: 30,
+      remaining_total_quantity: 30 - 10 * scale,
+    },
+    {
+      service_id: "service-table",
+      name: "Bar table",
+      category: KpServiceCategory.BOOTH_ELEMENT,
+      unit_label: null,
+      unit_price: 2000,
+      booking_count: 0,
+      quantity: 0,
+      included_quantity: 0,
+      price: { net: 0, vat: 0, gross: 0 },
+      max_total_quantity: 0,
+      remaining_total_quantity: null,
     },
   ],
   capacity: 20,
@@ -180,5 +209,46 @@ describe("the bookings overview", () => {
       name: /kp.bookings_overview.all/,
     });
     expect(within(totalRow).getByText("4000.00")).toBeInTheDocument();
+  });
+
+  it("sums up every service with its remaining stock", async () => {
+    i18n.addResource(
+      "en",
+      "common",
+      "kp.bookings_overview.per_unit",
+      "CHF {{price}} per {{unit}}",
+    );
+    i18n.addResource(
+      "en",
+      "common",
+      "kp.bookings_overview.included",
+      "+{{count}} included",
+    );
+    renderWithProviders(<BookingsOverview />);
+    await screen.findByText("CHF 4864.50", undefined, SLOW_WAIT);
+
+    expect(
+      screen.getByText("kp.manage.services_group_services"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("kp.manage.services_group_booth_elements"),
+    ).toBeInTheDocument();
+    const electricity = screen.getByRole("row", { name: /Electricity/ });
+    expect(
+      within(electricity).getByText("CHF 50.00 per socket"),
+    ).toBeInTheDocument();
+    expect(within(electricity).getByText("10")).toBeInTheDocument();
+    expect(within(electricity).getByText("+2 included")).toBeInTheDocument();
+    expect(within(electricity).getByText("20 / 30")).toBeInTheDocument();
+    expect(within(electricity).getByText("500.00")).toBeInTheDocument();
+    expect(within(electricity).getByText("540.50")).toBeInTheDocument();
+    const table = screen.getByRole("row", { name: /Bar table/ });
+    expect(
+      within(table).getByText("kp.bookings_overview.unlimited"),
+    ).toBeInTheDocument();
+    const totalRow = screen.getByRole("row", {
+      name: /kp.bookings_overview.services_total/,
+    });
+    expect(within(totalRow).getByText("540.50")).toBeInTheDocument();
   });
 });

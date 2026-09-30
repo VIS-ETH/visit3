@@ -345,6 +345,15 @@
       "by_status": "Status",
       "by_zone": "Standzone",
       "excluded": "Nicht gezählt: {{cancelled}} storniert, {{rejected}} abgelehnt, {{expired}} verfallen. Die Belegung enthält offene Angebote.",
+      "by_service": "Services und Standelemente",
+      "quantity": "Gebucht",
+      "available": "Verfügbar",
+      "per_unit": "CHF {{price}} pro {{unit}}",
+      "unit": "Einheit",
+      "included": "+{{count}} inklusive",
+      "unlimited": "Unbegrenzt",
+      "services_total": "Alle Services",
+      "services_note": "Gebucht zählt registrierte und bestätigte Buchungen; inklusive Mengen sind in der Standzone enthalten. Der verfügbare Bestand zieht auch offene Angebote ab.",
       "empty": "Noch keine Kontaktparty."
     },
     "dashboard": {

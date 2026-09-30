@@ -11,11 +11,13 @@ import {
   Title,
 } from "@mantine/core";
 import { IconAlertCircle } from "@tabler/icons-react";
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { KpBoothZoneColorSwatch } from "../components/KpBoothZoneColorSwatch";
 import {
   KpBookingStatus,
+  KpServiceCategory,
+  type BookingServiceTotals,
   type BookingTotals,
 } from "../orval/generated/fastAPI.schemas";
 import { useGetBookingsSummary, useListKps } from "../orval/generated/kp/kp";
@@ -60,6 +62,137 @@ const TotalsRow = ({
     <Table.Td ta="right">{formatPrice(totals.price.gross)}</Table.Td>
   </Table.Tr>
 );
+
+const SERVICE_CATEGORY_LABEL_KEYS: Record<KpServiceCategory, string> = {
+  [KpServiceCategory.SERVICE]: "kp.manage.services_group_services",
+  [KpServiceCategory.BOOTH_ELEMENT]: "kp.manage.services_group_booth_elements",
+};
+
+const sumPrices = (services: BookingServiceTotals[]) =>
+  services.reduce(
+    (sum, service) => ({
+      net: sum.net + service.price.net,
+      gross: sum.gross + service.price.gross,
+    }),
+    { net: 0, gross: 0 },
+  );
+
+const ServiceRow = ({ service }: { service: BookingServiceTotals }) => {
+  const { t } = useTranslation();
+  const remaining = service.remaining_total_quantity;
+  return (
+    <Table.Tr>
+      <Table.Td>
+        <Text size="sm">{service.name}</Text>
+        <Text size="xs" c="dimmed">
+          {t("kp.bookings_overview.per_unit", {
+            price: formatPrice(service.unit_price),
+            unit: service.unit_label ?? t("kp.bookings_overview.unit"),
+          })}
+        </Text>
+      </Table.Td>
+      <Table.Td ta="right">
+        <Text size="sm">{service.quantity}</Text>
+        {service.included_quantity > 0 ? (
+          <Text size="xs" c="dimmed">
+            {t("kp.bookings_overview.included", {
+              count: service.included_quantity,
+            })}
+          </Text>
+        ) : null}
+      </Table.Td>
+      <Table.Td ta="right">{service.booking_count}</Table.Td>
+      <Table.Td ta="right">
+        {remaining === null ? (
+          <Text size="sm" c="dimmed">
+            {t("kp.bookings_overview.unlimited")}
+          </Text>
+        ) : (
+          <Text size="sm" c={remaining === 0 ? "red" : undefined}>
+            {`${remaining} / ${service.max_total_quantity}`}
+          </Text>
+        )}
+      </Table.Td>
+      <Table.Td ta="right">{formatPrice(service.price.net)}</Table.Td>
+      <Table.Td ta="right">{formatPrice(service.price.gross)}</Table.Td>
+    </Table.Tr>
+  );
+};
+
+const ServiceTotalsTable = ({
+  services,
+}: {
+  services: BookingServiceTotals[];
+}) => {
+  const { t } = useTranslation();
+  const total = sumPrices(services);
+  const categories = Object.values(KpServiceCategory)
+    .map((category) => ({
+      category,
+      services: services.filter((service) => service.category === category),
+    }))
+    .filter((group) => group.services.length > 0);
+
+  return (
+    <Paper withBorder p="lg" radius="md">
+      <Stack gap="sm">
+        <Title order={4}>{t("kp.bookings_overview.by_service")}</Title>
+        <Table.ScrollContainer minWidth={680}>
+          <Table>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th />
+                <Table.Th ta="right">
+                  {t("kp.bookings_overview.quantity")}
+                </Table.Th>
+                <Table.Th ta="right">
+                  {t("kp.bookings_overview.bookings")}
+                </Table.Th>
+                <Table.Th ta="right">
+                  {t("kp.bookings_overview.available")}
+                </Table.Th>
+                <Table.Th ta="right">{t("kp.bookings_overview.net")}</Table.Th>
+                <Table.Th ta="right">
+                  {t("kp.bookings_overview.gross")}
+                </Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {categories.map((group) => (
+                <Fragment key={group.category}>
+                  <Table.Tr>
+                    <Table.Th colSpan={6}>
+                      <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                        {t(SERVICE_CATEGORY_LABEL_KEYS[group.category])}
+                      </Text>
+                    </Table.Th>
+                  </Table.Tr>
+                  {group.services.map((service) => (
+                    <ServiceRow key={service.service_id} service={service} />
+                  ))}
+                </Fragment>
+              ))}
+            </Table.Tbody>
+            <Table.Tfoot>
+              <Table.Tr>
+                <Table.Td colSpan={4}>
+                  <Text size="sm" fw={600}>
+                    {t("kp.bookings_overview.services_total")}
+                  </Text>
+                </Table.Td>
+                <Table.Td ta="right">{formatPrice(total.net)}</Table.Td>
+                <Table.Td ta="right">{formatPrice(total.gross)}</Table.Td>
+              </Table.Tr>
+            </Table.Tfoot>
+          </Table>
+        </Table.ScrollContainer>
+        <Text size="xs" c="dimmed">
+          {t("kp.bookings_overview.services_note")}
+        </Text>
+      </Stack>
+    </Paper>
+  );
+};
 
 const BookingsOverview = () => {
   const { t } = useTranslation();
@@ -216,6 +349,10 @@ const BookingsOverview = () => {
               </Text>
             </Stack>
           </Paper>
+
+          {summary.by_service.length > 0 ? (
+            <ServiceTotalsTable services={summary.by_service} />
+          ) : null}
         </>
       )}
     </Stack>

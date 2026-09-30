@@ -345,6 +345,15 @@
       "by_status": "Status",
       "by_zone": "Booth zone",
       "excluded": "Not counted: {{cancelled}} cancelled, {{rejected}} rejected, {{expired}} expired. Occupancy includes pending offers.",
+      "by_service": "Services and booth elements",
+      "quantity": "Booked",
+      "available": "Available",
+      "per_unit": "CHF {{price}} per {{unit}}",
+      "unit": "unit",
+      "included": "+{{count}} included",
+      "unlimited": "Unlimited",
+      "services_total": "All services",
+      "services_note": "Booked counts registered and confirmed bookings; included quantities are free with the booth zone. Available stock also subtracts pending offers.",
       "empty": "No Kontaktparty yet."
     },
     "dashboard": {
