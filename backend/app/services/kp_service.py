@@ -1188,6 +1188,7 @@ class KpService:
         return booking_summary(
             event,
             await self.kp_repository.list_booth_zones(event_id),
+            await self.kp_repository.list_services(event_id),
             await self.kp_repository.list_bookings_for_event(event_id),
         )
 

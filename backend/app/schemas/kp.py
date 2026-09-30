@@ -513,6 +513,20 @@ class BookingZoneTotals(BookingTotals):
     free: int
 
 
+class BookingServiceTotals(BaseModel):
+    service_id: UUID
+    name: str
+    category: KpServiceCategory
+    unit_label: str | None
+    unit_price: int
+    booking_count: int
+    quantity: int
+    included_quantity: int
+    price: PriceBreakdown
+    max_total_quantity: int
+    remaining_total_quantity: int | None
+
+
 class BookingSummaryResponse(BaseModel):
     event_id: UUID
     vat_rate_percent: VatRatePercent
@@ -520,6 +534,7 @@ class BookingSummaryResponse(BaseModel):
     by_status: list[BookingStatusTotals]
     offered: BookingTotals
     by_zone: list[BookingZoneTotals]
+    by_service: list[BookingServiceTotals]
     capacity: int
     occupied: int
     free: int

@@ -398,3 +398,67 @@ async def test_a_pending_offer_is_listed_apart_from_the_booked_revenue(
     assert main_hall["count"] == 1
     assert main_hall["occupied"] == 2
     assert main_hall["price"] == bookings[booked["id"]]["price"]
+
+
+async def test_services_are_summed_over_the_booked_quantities(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    kp_setup: KpSetup,
+    create_user: Callable[..., Awaitable[User]],
+    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
+    csrf_headers: dict[str, str],
+    complete_company_profile: Callable[..., Awaitable[Response]],
+    register_booking: Callable[..., Awaitable[Response]],
+):
+    event_url = f"/api/kp/events/{kp_setup.event_id}"
+    await client.patch(
+        f"/api/kp/services/{kp_setup.service_id}",
+        json={"max_total_quantity": 10},
+        headers=staff_headers,
+    )
+    retired = await client.post(
+        f"{event_url}/services",
+        json={"name": "Retired", "price": 100},
+        headers=staff_headers,
+    )
+    await client.patch(
+        f"/api/kp/services/{retired.json()['id']}",
+        json={"is_active": False},
+        headers=staff_headers,
+    )
+    _, alpha_headers = await company_headers_for(
+        "alpha", create_user, auth_headers, csrf_headers, complete_company_profile
+    )
+    await register_booking(alpha_headers, kp_setup, quantity=2)
+    _, gamma_headers = await company_headers_for(
+        "gamma", create_user, auth_headers, csrf_headers, complete_company_profile
+    )
+    cancelled = (await register_booking(gamma_headers, kp_setup)).json()
+    await client.patch(
+        f"/api/kp/bookings/{cancelled['id']}/status",
+        json={"status": "CANCELLED"},
+        headers=gamma_headers,
+    )
+
+    body = (await summary(client, staff_headers, kp_setup.event_id)).json()
+
+    assert [service["name"] for service in body["by_service"]] == ["Electricity"]
+    electricity = body["by_service"][0]
+    assert electricity["category"] == "SERVICE"
+    assert electricity["unit_price"] == 5000
+    assert electricity["booking_count"] == 1
+    assert electricity["quantity"] == 2
+    assert electricity["included_quantity"] == 0
+    assert electricity["price"]["net"] == 10000
+    assert electricity["max_total_quantity"] == 10
+    assert electricity["remaining_total_quantity"] == 8
+    assert body["total"]["services"] == 10000
+
+
+async def test_unlimited_services_have_no_remaining_quantity(
+    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+):
+    body = (await summary(client, staff_headers, kp_setup.event_id)).json()
+
+    assert body["by_service"][0]["remaining_total_quantity"] is None
+    assert body["by_service"][0]["price"] == {"net": 0, "vat": 0, "gross": 0}
