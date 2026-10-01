@@ -91,6 +91,34 @@ class BookingOfferedContext(BookingContext):
     deadline: str
 
 
+@dataclass(frozen=True)
+class MailCampaignContext(MailContext):
+    name: str
+    company_name: str
+    event_name: str
+    event_date: str
+    registration_end: str
+    finalization_deadline: str
+    nametags_deadline: str
+    booth_zone_name: str
+    offer_deadline: str
+    login_url: str
+
+
+MAIL_CAMPAIGN_SAMPLE_CONTEXT = MailCampaignContext(
+    name="Ada Lovelace",
+    company_name="Acme AG",
+    event_name="Kontaktparty 2026",
+    event_date="2026-10-20",
+    registration_end="2026-09-15",
+    finalization_deadline="2026-09-30",
+    nametags_deadline="2026-10-05",
+    booth_zone_name="Haupthalle",
+    offer_deadline="2026-09-20",
+    login_url="https://visit.vis.ethz.ch/login",
+)
+
+
 SAMPLE_CONTEXTS: dict[MailTemplateKey, MailContext] = {
     MailTemplateKey.ACCOUNT_CONFIRM_EMAIL: AccountConfirmEmailContext(
         name="Ada Lovelace",
