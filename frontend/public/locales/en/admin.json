@@ -162,6 +162,146 @@
     "preview_text": "Plain text",
     "preview_frame_title": "Email preview"
   },
+  "mail_campaigns": {
+    "title": "Mails",
+    "description": "Write mails to companies and send them now or at a set time.",
+    "error": "Failed to load the mails",
+    "list_title": "Mails",
+    "new": "New",
+    "empty": "No mails yet.",
+    "new_title": "New mail",
+    "name": "Internal name",
+    "event": "Kontaktparty",
+    "section": {
+      "audience": "Audience",
+      "content": "Content",
+      "preview": "Preview"
+    },
+    "status": {
+      "DRAFT": "Draft",
+      "SCHEDULED": "Scheduled",
+      "SENDING": "Sending",
+      "SENT": "Sent",
+      "PARTIALLY_FAILED": "Partly failed"
+    },
+    "recipient_status": {
+      "PENDING": "Pending",
+      "SENDING": "Sending",
+      "SENT": "Sent",
+      "FAILED": "Failed",
+      "SKIPPED": "Skipped"
+    },
+    "segment": {
+      "ALL": "All companies",
+      "NOT_REGISTERED": "Not registered",
+      "REGISTERED": "Registered",
+      "CONFIRMED": "Confirmed",
+      "OFFERED": "Offered, pending",
+      "WAITLISTED": "Waitlisted"
+    },
+    "audience": {
+      "segments": "Send to",
+      "segments_hint": "Registered includes confirmed bookings. A pending offer does not count as registered.",
+      "zones": "Booth zones",
+      "zones_hint": "Only bookings in these zones. Leave empty for all zones.",
+      "zones_placeholder": "All zones",
+      "include": "Always include",
+      "exclude": "Never include",
+      "company_placeholder": "Pick companies"
+    },
+    "recipients": {
+      "title": "Recipients",
+      "summary": "{{count}} to send, {{skipped}} skipped",
+      "empty": "No company matches.",
+      "company": "Company",
+      "address": "Address",
+      "via": "Via",
+      "manual": "manual"
+    },
+    "skip": {
+      "NO_ADDRESS": "No contact person or general email",
+      "DUPLICATE_ADDRESS": "Same address as another company"
+    },
+    "source": {
+      "CONTACT": "Contact person",
+      "GENERAL_EMAIL": "General email"
+    },
+    "failure": {
+      "DELIVERY_FAILED": "Rejected by the mail service",
+      "RENDER_FAILED": "Text could not be rendered",
+      "INTERRUPTED": "Interrupted, delivery unknown",
+      "ABORTED": "Stopped after repeated failures"
+    },
+    "tab_en_optional": "English (optional)",
+    "english_hint": "Without English text the mail is sent in German only.",
+    "english_incomplete": "Fill in both the English subject and body, or neither.",
+    "variable": {
+      "name": "Contact person, or the company name when the general email is used",
+      "company_name": "Company name",
+      "event_name": "Name of the Kontaktparty",
+      "event_date": "Date of the Kontaktparty",
+      "registration_end": "End of registration",
+      "finalization_deadline": "Deadline to complete the booking",
+      "nametags_deadline": "Deadline for name tags",
+      "booth_zone_name": "Booked booth zone, otherwise -",
+      "offer_deadline": "Deadline of an open offer, otherwise -",
+      "login_url": "Login link, personal for contact persons"
+    },
+    "preview_company": "Preview for",
+    "preview_sample": "Sample data",
+    "test_send": "Send test to me",
+    "test_send_success": "Test mail sent to you.",
+    "save": "Save",
+    "save_success": "Mail saved.",
+    "send_now": "Send now",
+    "send_success": "The mail is being sent.",
+    "schedule": "Schedule",
+    "schedule_success": "Mail scheduled.",
+    "delete": "Delete",
+    "delete_success": "Mail deleted.",
+    "cancel": "Cancel",
+    "scheduled_for": "Scheduled for {{date}}",
+    "scheduled_hint": "Changes apply to the scheduled mail. Recipients are determined when it is sent.",
+    "unschedule": "Cancel schedule",
+    "send_modal": {
+      "title": "Send mail now?",
+      "message": "The mail goes out now to {{count}} companies.",
+      "message_one": "The mail goes out now to 1 company.",
+      "nobody": "No company would receive this mail.",
+      "confirm": "Send now"
+    },
+    "schedule_modal": {
+      "title": "Schedule mail",
+      "label": "Date and time (Zurich time)",
+      "hint": "Sent within a minute after this time to the companies that match then.",
+      "past": "Pick a time in the future.",
+      "confirm": "Schedule"
+    },
+    "delete_modal": {
+      "title": "Delete mail?",
+      "message": "Delete the draft {{name}}?"
+    },
+    "retry": "Retry failed ({{count}})",
+    "retry_success": "Failed mails are being sent again.",
+    "duplicate": "Copy as new draft",
+    "counts": {
+      "sent": "Sent",
+      "failed": "Failed",
+      "skipped": "Skipped",
+      "pending": "Pending"
+    },
+    "filter": {
+      "all": "All",
+      "failed": "Failed",
+      "skipped": "Skipped"
+    },
+    "log": {
+      "status": "Status",
+      "time": "Time",
+      "note": "Note",
+      "empty": "No entries."
+    }
+  },
   "industries": {
     "page_title": "Industries",
     "page_subtitle": "The industries companies can pick in their Kontaktparty profile.",

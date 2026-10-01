@@ -162,6 +162,146 @@
     "preview_text": "Nur Text",
     "preview_frame_title": "E-Mail-Vorschau"
   },
+  "mail_campaigns": {
+    "title": "E-Mails",
+    "description": "E-Mails an Unternehmen schreiben und sofort oder zu einem festen Zeitpunkt versenden.",
+    "error": "E-Mails konnten nicht geladen werden",
+    "list_title": "E-Mails",
+    "new": "Neu",
+    "empty": "Noch keine E-Mails.",
+    "new_title": "Neue E-Mail",
+    "name": "Interner Name",
+    "event": "Kontaktparty",
+    "section": {
+      "audience": "Zielgruppe",
+      "content": "Inhalt",
+      "preview": "Vorschau"
+    },
+    "status": {
+      "DRAFT": "Entwurf",
+      "SCHEDULED": "Geplant",
+      "SENDING": "Wird gesendet",
+      "SENT": "Gesendet",
+      "PARTIALLY_FAILED": "Teilweise fehlgeschlagen"
+    },
+    "recipient_status": {
+      "PENDING": "Ausstehend",
+      "SENDING": "Wird gesendet",
+      "SENT": "Gesendet",
+      "FAILED": "Fehlgeschlagen",
+      "SKIPPED": "Übersprungen"
+    },
+    "segment": {
+      "ALL": "Alle Unternehmen",
+      "NOT_REGISTERED": "Nicht registriert",
+      "REGISTERED": "Registriert",
+      "CONFIRMED": "Bestätigt",
+      "OFFERED": "Angeboten, offen",
+      "WAITLISTED": "Warteliste"
+    },
+    "audience": {
+      "segments": "Senden an",
+      "segments_hint": "Registriert umfasst auch bestätigte Buchungen. Ein offenes Angebot zählt nicht als registriert.",
+      "zones": "Standzonen",
+      "zones_hint": "Nur Buchungen in diesen Zonen. Leer lassen für alle Zonen.",
+      "zones_placeholder": "Alle Zonen",
+      "include": "Immer einschliessen",
+      "exclude": "Nie einschliessen",
+      "company_placeholder": "Unternehmen auswählen"
+    },
+    "recipients": {
+      "title": "Empfänger",
+      "summary": "{{count}} zu senden, {{skipped}} übersprungen",
+      "empty": "Kein Unternehmen passt.",
+      "company": "Unternehmen",
+      "address": "Adresse",
+      "via": "Über",
+      "manual": "manuell"
+    },
+    "skip": {
+      "NO_ADDRESS": "Keine Kontaktperson und keine allgemeine E-Mail",
+      "DUPLICATE_ADDRESS": "Gleiche Adresse wie ein anderes Unternehmen"
+    },
+    "source": {
+      "CONTACT": "Kontaktperson",
+      "GENERAL_EMAIL": "Allgemeine E-Mail"
+    },
+    "failure": {
+      "DELIVERY_FAILED": "Vom E-Mail-Dienst abgelehnt",
+      "RENDER_FAILED": "Text konnte nicht erzeugt werden",
+      "INTERRUPTED": "Unterbrochen, Zustellung unklar",
+      "ABORTED": "Nach wiederholten Fehlern gestoppt"
+    },
+    "tab_en_optional": "Englisch (optional)",
+    "english_hint": "Ohne englischen Text wird die E-Mail nur auf Deutsch versendet.",
+    "english_incomplete": "Bitte englischen Betreff und Text beide ausfüllen oder beide leer lassen.",
+    "variable": {
+      "name": "Kontaktperson, oder der Unternehmensname bei der allgemeinen E-Mail",
+      "company_name": "Unternehmensname",
+      "event_name": "Name der Kontaktparty",
+      "event_date": "Datum der Kontaktparty",
+      "registration_end": "Anmeldeschluss",
+      "finalization_deadline": "Frist zum Abschliessen der Buchung",
+      "nametags_deadline": "Frist für Namensschilder",
+      "booth_zone_name": "Gebuchte Standzone, sonst -",
+      "offer_deadline": "Frist eines offenen Angebots, sonst -",
+      "login_url": "Login-Link, persönlich für Kontaktpersonen"
+    },
+    "preview_company": "Vorschau für",
+    "preview_sample": "Beispieldaten",
+    "test_send": "Test an mich senden",
+    "test_send_success": "Test-E-Mail an Sie verschickt.",
+    "save": "Speichern",
+    "save_success": "E-Mail gespeichert.",
+    "send_now": "Jetzt senden",
+    "send_success": "Die E-Mail wird versendet.",
+    "schedule": "Planen",
+    "schedule_success": "E-Mail geplant.",
+    "delete": "Löschen",
+    "delete_success": "E-Mail gelöscht.",
+    "cancel": "Abbrechen",
+    "scheduled_for": "Geplant für {{date}}",
+    "scheduled_hint": "Änderungen gelten für die geplante E-Mail. Die Empfänger werden beim Versand bestimmt.",
+    "unschedule": "Planung aufheben",
+    "send_modal": {
+      "title": "E-Mail jetzt senden?",
+      "message": "Die E-Mail geht jetzt an {{count}} Unternehmen.",
+      "message_one": "Die E-Mail geht jetzt an 1 Unternehmen.",
+      "nobody": "Kein Unternehmen würde diese E-Mail erhalten.",
+      "confirm": "Jetzt senden"
+    },
+    "schedule_modal": {
+      "title": "E-Mail planen",
+      "label": "Datum und Uhrzeit (Zürcher Zeit)",
+      "hint": "Wird innerhalb einer Minute nach diesem Zeitpunkt an die dann passenden Unternehmen versendet.",
+      "past": "Bitte einen Zeitpunkt in der Zukunft wählen.",
+      "confirm": "Planen"
+    },
+    "delete_modal": {
+      "title": "E-Mail löschen?",
+      "message": "Den Entwurf {{name}} löschen?"
+    },
+    "retry": "Fehlgeschlagene erneut senden ({{count}})",
+    "retry_success": "Fehlgeschlagene E-Mails werden erneut gesendet.",
+    "duplicate": "Als neuen Entwurf kopieren",
+    "counts": {
+      "sent": "Gesendet",
+      "failed": "Fehlgeschlagen",
+      "skipped": "Übersprungen",
+      "pending": "Ausstehend"
+    },
+    "filter": {
+      "all": "Alle",
+      "failed": "Fehlgeschlagen",
+      "skipped": "Übersprungen"
+    },
+    "log": {
+      "status": "Status",
+      "time": "Zeit",
+      "note": "Hinweis",
+      "empty": "Keine Einträge."
+    }
+  },
   "industries": {
     "page_title": "Branchen",
     "page_subtitle": "Die Branchen, die Unternehmen in ihrem Kontaktparty-Profil auswählen können.",

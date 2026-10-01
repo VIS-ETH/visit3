@@ -15,6 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { configOptions } from "./utils/constants";
 import Home from "./pages/Home";
 import UserManagement from "./pages/UserManagement";
+import MailCampaigns from "./pages/MailCampaigns";
 import MailTemplates from "./pages/MailTemplates";
 import Industries from "./pages/admin/Industries";
 import BookingsOverview from "./pages/BookingsOverview";
@@ -165,6 +166,7 @@ function AppRoutes() {
             />
           </Route>
           <Route element={<PresidentRoute />}>
+            <Route path="/admin/mail-campaigns" element={<MailCampaigns />} />
             <Route path="/kp/:id/services/new" element={<KpServiceForm />} />
             <Route
               path="/kp/:id/services/:serviceId"

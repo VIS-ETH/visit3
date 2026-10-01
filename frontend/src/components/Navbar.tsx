@@ -15,6 +15,7 @@ import {
   IconHome2,
   IconLogout2,
   IconMail,
+  IconMailForward,
   IconReportMoney,
   IconSettings,
   IconUser,
@@ -160,6 +161,17 @@ const Navbar = () => {
               >
                 {t("nav.mail_templates")}
               </Button>
+              {user.is_kp_president ? (
+                <Button
+                  component={NavLink}
+                  to="/admin/mail-campaigns"
+                  leftSection={<IconMailForward />}
+                  variant="subtle"
+                  justify="flex-start"
+                >
+                  {t("nav.mail_campaigns")}
+                </Button>
+              ) : null}
               <Button
                 component={NavLink}
                 to="/admin/industries"
