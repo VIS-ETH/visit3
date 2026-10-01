@@ -262,6 +262,77 @@ describe("the company description editor", () => {
     );
   });
 
+  it("drops the empty paragraphs and spacing of pasted documents", async () => {
+    const { user, onChange } = renderEditor("<p></p>");
+
+    await user.click(content());
+    paste({
+      "text/html":
+        '<meta charset="utf-8"><b style="font-weight:normal;" id="docs-internal-guid-1"><p dir="ltr" style="line-height:1.38;margin-top:0pt;margin-bottom:0pt;"><span style="font-size:11pt;font-weight:700;">One</span></p><br><p dir="ltr"><span style="font-size:11pt;">Two</span></p><p><span>&nbsp;</span></p><p></p><p>Three</p></b>',
+      "text/plain": "One\n\nTwo\n\nThree",
+    });
+
+    await expectValue(
+      onChange,
+      "<p><strong>One</strong></p><p>Two</p><p>Three</p>",
+    );
+  });
+
+  it("nests the lists of Google Docs one level deep", async () => {
+    const { user, onChange } = renderEditor("<p></p>");
+
+    await user.click(content());
+    paste({
+      "text/html":
+        '<b style="font-weight:normal;" id="docs-internal-guid-2"><ul><li dir="ltr" aria-level="1"><p dir="ltr" role="presentation"><span>a</span></p></li><ul><li aria-level="2"><p role="presentation"><span>b</span></p></li><ul><li aria-level="3"><p role="presentation"><span>c</span></p></li></ul></ul><li aria-level="1"><p role="presentation"><span>d</span></p></li></ul></b>',
+      "text/plain": "a\nb\nc\nd",
+    });
+
+    await expectValue(
+      onChange,
+      "<ul><li><p>a</p><ul><li><p>b</p></li><li><p>c</p></li></ul></li><li><p>d</p></li></ul>",
+    );
+  });
+
+  it("turns the list paragraphs of Word into lists", async () => {
+    const { user, onChange } = renderEditor("<p></p>");
+
+    await user.click(content());
+    paste({
+      "text/html": [
+        "<html><body><!--StartFragment-->",
+        "<p class=MsoNormal>Intro<o:p></o:p></p>",
+        "<p class=MsoNormal><o:p>&nbsp;</o:p></p>",
+        "<p class=MsoListParagraphCxSpFirst style='text-indent:-18.0pt;mso-list:l0 level1 lfo1'><![if !supportLists]><span style='font-family:Symbol;mso-list:Ignore'>·<span style='font:7.0pt \"Times New Roman\"'>&nbsp;&nbsp;&nbsp;</span></span><![endif]>First<o:p></o:p></p>",
+        "<p class=MsoListParagraphCxSpMiddle style='mso-list:l0 level2 lfo1'><![if !supportLists]><span style='font-family:\"Courier New\";mso-list:Ignore'>o<span>&nbsp;&nbsp;</span></span><![endif]>Nested<o:p></o:p></p>",
+        "<p class=MsoListParagraphCxSpLast style='mso-list:l0 level1 lfo1'><![if !supportLists]><span style='mso-list:Ignore'>·<span>&nbsp;</span></span><![endif]>Second<o:p></o:p></p>",
+        "<p class=MsoListParagraph style='mso-list:l1 level1 lfo2'><![if !supportLists]><span style='mso-list:Ignore'>1.<span>&nbsp;</span></span><![endif]>Step<o:p></o:p></p>",
+        "<!--EndFragment--></body></html>",
+      ].join(""),
+      "text/plain": "Intro\n\n·First\no Nested\n·Second\n1. Step",
+    });
+
+    await expectValue(
+      onChange,
+      "<p>Intro</p><ul><li><p>First</p><ul><li><p>Nested</p></li></ul></li><li><p>Second</p></li></ul><ol><li><p>Step</p></li></ol>",
+    );
+  });
+
+  it("reads pasted plain text as paragraphs, lines and lists", async () => {
+    const { user, onChange } = renderEditor("<p></p>");
+
+    await user.click(content());
+    paste({
+      "text/plain":
+        "About us\nZurich office\n\n\n\nWe offer:\n• Internships\n  - in Zurich\n• Theses\n\n1) Apply\n2) Meet us",
+    });
+
+    await expectValue(
+      onChange,
+      "<p>About us<br>Zurich office</p><p>We offer:</p><ul><li><p>Internships</p><ul><li><p>in Zurich</p></li></ul></li><li><p>Theses</p></li></ul><ol><li><p>Apply</p></li><li><p>Meet us</p></li></ol>",
+    );
+  });
+
   it("reports an emptied editor as an empty value", async () => {
     const { user, onChange } = renderEditor("<p>Hello</p>");
 

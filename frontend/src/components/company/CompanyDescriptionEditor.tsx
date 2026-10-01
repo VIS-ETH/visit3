@@ -11,6 +11,7 @@ import { Strike } from "@tiptap/extension-strike";
 import { Text as TextNode } from "@tiptap/extension-text";
 import { Underline } from "@tiptap/extension-underline";
 import { UndoRedo } from "@tiptap/extensions";
+import { DOMParser as ProseMirrorParser } from "@tiptap/pm/model";
 import { useEditor, useEditorState, type Editor } from "@tiptap/react";
 import {
   memo,
@@ -20,6 +21,10 @@ import {
   type ReactNode,
 } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  cleanPastedHtml,
+  plainTextToDom,
+} from "../../utils/pasted-description";
 import {
   canIndent,
   canOutdent,
@@ -113,6 +118,12 @@ const CompanyDescriptionEditor = ({
         "aria-labelledby": labelId,
         "aria-describedby": hintId,
       },
+      transformPastedHTML: cleanPastedHtml,
+      clipboardTextParser: (text, context, _plain, view) =>
+        ProseMirrorParser.fromSchema(view.state.schema).parseSlice(
+          plainTextToDom(text),
+          { preserveWhitespace: true, context },
+        ),
     },
     onUpdate: ({ editor: updated }) => {
       onChangeRef.current(editorValue(updated));
