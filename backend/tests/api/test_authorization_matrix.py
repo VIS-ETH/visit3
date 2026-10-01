@@ -24,6 +24,7 @@ from app.models.kp_event import (
     KpEventServiceRequirementType,
     NameTag,
 )
+from app.models.mail import MailCampaign
 from app.models.user import User
 from app.models.venue import KpVenueLayout
 from app.repositories.company_repository import CompanyRepository
@@ -226,6 +227,21 @@ ROUTE_ACCESS: dict[str, Access] = {
     "DELETE /api/mail-templates/{key}": Access.STAFF,
     "POST /api/mail-templates/{key}/preview": Access.STAFF,
     "POST /api/mail-templates/{key}/test-send": Access.STAFF,
+    "GET /api/mail-campaigns": Access.PRESIDENT,
+    "POST /api/mail-campaigns": Access.PRESIDENT,
+    "GET /api/mail-campaigns/variables": Access.PRESIDENT,
+    "GET /api/mail-campaigns/companies": Access.PRESIDENT,
+    "POST /api/mail-campaigns/audience": Access.PRESIDENT,
+    "POST /api/mail-campaigns/render": Access.PRESIDENT,
+    "POST /api/mail-campaigns/test-send": Access.PRESIDENT,
+    "GET /api/mail-campaigns/{campaign_id}": Access.PRESIDENT,
+    "PUT /api/mail-campaigns/{campaign_id}": Access.PRESIDENT,
+    "DELETE /api/mail-campaigns/{campaign_id}": Access.PRESIDENT,
+    "POST /api/mail-campaigns/{campaign_id}/duplicate": Access.PRESIDENT,
+    "POST /api/mail-campaigns/{campaign_id}/send": Access.PRESIDENT,
+    "POST /api/mail-campaigns/{campaign_id}/schedule": Access.PRESIDENT,
+    "POST /api/mail-campaigns/{campaign_id}/unschedule": Access.PRESIDENT,
+    "POST /api/mail-campaigns/{campaign_id}/retry": Access.PRESIDENT,
 }
 
 
@@ -304,6 +320,13 @@ KP_ROUTE_SUBJECT: dict[str, KpSubject] = {
     "GET /api/kp/events/{event_id}/exports/registration-exceptions/download": KpSubject.BOOKINGS,
 }
 
+MAIL_CAMPAIGN_BODY: dict[str, Any] = {
+    "name": "Matrix campaign {persona}",
+    "event_id": "{event_id}",
+    "subject_de": "Betreff {persona}",
+    "body_de": "<p>Hallo {{{{ company_name }}}}</p>",
+}
+
 REQUEST_BODIES: dict[str, dict[str, Any]] = {
     "PATCH /api/user/me": {},
     "PATCH /api/users/{user_id}": {},
@@ -368,6 +391,17 @@ REQUEST_BODIES: dict[str, dict[str, Any]] = {
         "subject_en": "Subject {persona}",
         "body_de": "<p>Hallo</p>",
         "body_en": "<p>Hello</p>",
+    },
+    "POST /api/mail-campaigns": MAIL_CAMPAIGN_BODY,
+    "PUT /api/mail-campaigns/{campaign_id}": MAIL_CAMPAIGN_BODY,
+    "POST /api/mail-campaigns/audience": {
+        "event_id": "{event_id}",
+        "audience": {"segments": ["ALL"]},
+    },
+    "POST /api/mail-campaigns/render": MAIL_CAMPAIGN_BODY,
+    "POST /api/mail-campaigns/test-send": MAIL_CAMPAIGN_BODY,
+    "POST /api/mail-campaigns/{campaign_id}/schedule": {
+        "scheduled_at": "2099-01-01T09:00"
     },
 }
 
@@ -588,6 +622,12 @@ async def matrix_world(
     )
     catalogue_industry = Industry(name="Catalogue software")
     layout = KpVenueLayout(event_id=UUID(kp_setup.event_id), name="Matrix layout")
+    mail_campaign = MailCampaign(
+        name="Matrix campaign",
+        event_id=UUID(kp_setup.event_id),
+        subject_de="Betreff",
+        body_de="<p>Hallo</p>",
+    )
     spare_layout = KpVenueLayout(event_id=UUID(kp_setup.event_id), name="Spare layout")
     db_session.add_all(
         [
@@ -598,6 +638,7 @@ async def matrix_world(
             catalogue_industry,
             layout,
             spare_layout,
+            mail_campaign,
         ]
     )
     await db_session.commit()
@@ -628,6 +669,7 @@ async def matrix_world(
             "unassigned_user_id": str(unassigned_user.id),
             "token": INVITE_TOKEN,
             "key": MAIL_TEMPLATE_KEY,
+            "campaign_id": str(mail_campaign.id),
         },
         headers=matrix_headers,
     )

@@ -1,6 +1,7 @@
 import hashlib
 from base64 import b64decode
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Sequence
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
 from datetime import date, timedelta
 from email.header import decode_header, make_header
@@ -14,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
 from app.core import deps
+from app.core.config import get_settings
 from app.core.rate_limit import reset_rate_limiters
 from app.main import app as fastapi_app
 from app.models.kp_event import KpEvent
@@ -30,6 +32,12 @@ from app.services.mail_service import MailService
 from app.services.mail_template_service import MailTemplateService
 from app.services.notification_recipients import NotificationRecipients
 from app.services.storage_service import StorageService, StoredObject, UploadStream
+from tests.api.mail_campaign_helpers import (
+    KP_PRESIDENT_ROLE,
+    NEWCOMER_GENERAL,
+    CampaignWorld,
+    add_profile,
+)
 
 CSRF_HEADER = "X-CSRF-Token"
 DEFAULT_PASSWORD = "test-password-123"
@@ -163,10 +171,25 @@ def auth_service(
     )
 
 
+def shared_session_factory(
+    session: AsyncSession,
+) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
+    @asynccontextmanager
+    async def shared() -> AsyncIterator[AsyncSession]:
+        yield session
+
+    return shared
+
+
 @pytest.fixture
 def api_app(
-    db_session: AsyncSession, mail_stub: AsyncMock, storage_service: AsyncMock
+    db_session: AsyncSession,
+    mail_stub: AsyncMock,
+    storage_service: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[FastAPI]:
+    monkeypatch.setattr(get_settings(), "MAIL_CAMPAIGN_SEND_PAUSE_SECONDS", 0)
+
     async def override_db_session() -> AsyncIterator[AsyncSession]:
         yield db_session
 
@@ -180,6 +203,9 @@ def api_app(
     fastapi_app.dependency_overrides[deps.get_stub] = override_stub
     fastapi_app.dependency_overrides[deps.get_storage_service] = (
         override_storage_service
+    )
+    fastapi_app.dependency_overrides[deps.get_mail_campaign_session_factory] = lambda: (
+        shared_session_factory(db_session)
     )
     yield fastapi_app
     fastapi_app.dependency_overrides.clear()
@@ -358,3 +384,47 @@ def register_booking(
         )
 
     return _register_booking
+
+
+@pytest.fixture
+async def president_headers(
+    create_user: Callable[..., Awaitable[User]],
+    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
+    csrf_headers: dict[str, str],
+) -> dict[str, str]:
+    president = await create_user(
+        email="president@example.com",
+        is_staff=True,
+        is_company=False,
+        roles=(KP_PRESIDENT_ROLE,),
+    )
+    return {**await auth_headers(president), **csrf_headers}
+
+
+@pytest.fixture
+async def campaign_world(
+    db_session: AsyncSession,
+    create_user: Callable[..., Awaitable[User]],
+    company_user: User,
+    company_headers: dict[str, str],
+    kp_setup: KpSetup,
+    register_booking: Callable[..., Awaitable[Response]],
+    mail_stub: AsyncMock,
+) -> CampaignWorld:
+    registered = await register_booking(company_headers, kp_setup)
+    assert registered.status_code == 200
+    newcomer = await create_user(
+        email="member@newcomer.example", company_name="Newcomer AG"
+    )
+    silent = await create_user(email="member@silent.example", company_name="Silent AG")
+    assert newcomer.company_id is not None and silent.company_id is not None
+    await add_profile(db_session, newcomer.company_id, general_email=NEWCOMER_GENERAL)
+    assert company_user.company_id is not None
+    mail_stub.reset_mock()
+    return CampaignWorld(
+        event_id=kp_setup.event_id,
+        booth_zone_id=kp_setup.booth_zone_id,
+        acme_id=company_user.company_id,
+        newcomer_id=newcomer.company_id,
+        silent_id=silent.company_id,
+    )
