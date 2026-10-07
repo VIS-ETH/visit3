@@ -940,6 +940,43 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.session.rollback()
             raise e
 
+    async def list_pending_offers(self) -> Sequence[KpEventBooking]:
+        statement = self._booking_select().where(
+            col(KpEventBooking.status) == KpBookingStatus.OFFERED
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().all()
+
+    async def accept_offer(
+        self,
+        booking: KpEventBooking,
+        company_profile: KpCompanyProfile,
+        accepted_at: datetime,
+    ) -> KpEventBooking:
+        try:
+            snapshot_ids = select(col(KpBookingCompanyDetails.id)).where(
+                col(KpBookingCompanyDetails.booking_id) == booking.id
+            )
+            await self.hard_delete_where(
+                KpBookingCompanyDetailsIndustryLink,
+                col(KpBookingCompanyDetailsIndustryLink.booking_company_details_id).in_(
+                    snapshot_ids
+                ),
+            )
+            await self.hard_delete_where(
+                KpBookingCompanyDetails,
+                col(KpBookingCompanyDetails.booking_id) == booking.id,
+            )
+            booking.status = KpBookingStatus.REGISTERED
+            booking.status_changed_at = accepted_at
+            self.session.add(booking)
+            self._add_company_snapshot(booking.id, company_profile, accepted_at)
+            await self.session.commit()
+            return await self.get_booking_by_id(booking.id) or booking
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
     async def update_booking(
         self, booking: KpEventBooking, update_booking_input: UpdateBookingInput
     ) -> KpEventBooking:

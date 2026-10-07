@@ -62,7 +62,7 @@ const OfferBookingModal = ({
         data: {
           company_id: companyId,
           booth_zone_id: zoneId,
-          cancel_until: toKpIsoDate(deadline),
+          deadline: toKpIsoDate(deadline),
         },
       });
     } catch (error) {
@@ -114,7 +114,7 @@ const OfferBookingModal = ({
           disabled={isPending}
         />
         <TextInput
-          label={t("kp.manage.offer_cancel_until")}
+          label={t("kp.manage.offer_deadline")}
           placeholder={t("kp.dashboard.date_input_placeholder")}
           value={deadline}
           onChange={(event) => setDeadline(event.currentTarget.value)}

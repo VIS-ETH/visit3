@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import BookingsTab from "../../components/BookingsTab";
 import BookingOfferCard from "../../components/bookings/BookingOfferCard";
+import BookingStatusTimeline from "../../components/bookings/BookingStatusTimeline";
 import OfferBookingModal from "../../components/bookings/OfferBookingModal";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
 import { testEventId } from "../fixtures/kp-booking";
+import { KpBookingStatus } from "../../orval/generated/fastAPI.schemas";
 import {
   acmeBooking,
   staffBookings,
@@ -55,11 +57,12 @@ beforeEach(() => {
     http.patch(
       `${testBackendUrl}/api/kp/bookings/:bookingId/offer`,
       async ({ params, request }) => {
-        const body = (await request.json()) as { cancel_until: string };
+        const body = (await request.json()) as { deadline: string };
         deadlineRequests.push({ bookingId: String(params.bookingId), body });
         return HttpResponse.json({
           ...acmeBooking,
-          offer_cancel_until: body.cancel_until,
+          status: KpBookingStatus.OFFERED,
+          offer_deadline: body.deadline,
         });
       },
     ),
@@ -86,7 +89,7 @@ describe("the offer place form", () => {
     );
     await user.click(await screen.findByRole("option", { name: "Side hall" }));
     await user.type(
-      screen.getByRole("textbox", { name: "kp.manage.offer_cancel_until" }),
+      screen.getByRole("textbox", { name: "kp.manage.offer_deadline" }),
       "05.10.2026",
     );
     await user.click(
@@ -98,7 +101,7 @@ describe("the offer place form", () => {
         {
           company_id: companyId,
           booth_zone_id: testSideHallZone.id,
-          cancel_until: "2026-10-05",
+          deadline: "2026-10-05",
         },
       ]),
     );
@@ -109,8 +112,8 @@ describe("the offer place form", () => {
     server.use(
       http.post(`${testBackendUrl}/api/kp/events/:eventId/bookings/offer`, () =>
         HttpResponse.json(
-          { code: "error.company_profile_incomplete" },
-          { status: 422 },
+          { code: "error.kp_booth_zone_at_capacity" },
+          { status: 409 },
         ),
       ),
     );
@@ -132,7 +135,7 @@ describe("the offer place form", () => {
     );
     await user.click(await screen.findByRole("option", { name: "Main hall" }));
     await user.type(
-      screen.getByRole("textbox", { name: "kp.manage.offer_cancel_until" }),
+      screen.getByRole("textbox", { name: "kp.manage.offer_deadline" }),
       "05.10.2026",
     );
     await user.click(
@@ -140,7 +143,7 @@ describe("the offer place form", () => {
     );
 
     expect(
-      await screen.findByText("error.company_profile_incomplete"),
+      await screen.findByText("error.kp_booth_zone_at_capacity"),
     ).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -153,7 +156,7 @@ describe("the offer place form", () => {
     await user.type(
       await screen.findByRole(
         "textbox",
-        { name: "kp.manage.offer_cancel_until" },
+        { name: "kp.manage.offer_deadline" },
         SLOW_WAIT,
       ),
       "31.02.2026",
@@ -172,7 +175,11 @@ describe("offered bookings in the staff list", () => {
         HttpResponse.json(
           staffBookings.map((booking) =>
             booking.id === acmeBooking.id
-              ? { ...booking, offer_cancel_until: "2026-10-05" }
+              ? {
+                  ...booking,
+                  status: KpBookingStatus.OFFERED,
+                  offer_deadline: "2026-10-05",
+                }
               : booking,
           ),
         ),
@@ -180,11 +187,16 @@ describe("offered bookings in the staff list", () => {
     );
   });
 
-  it("marks only the offered booking", async () => {
+  it("marks only the offered booking as pending with its deadline", async () => {
     renderWithProviders(<BookingsTab eventId={testEventId} canOffer />);
 
     expect(
-      await screen.findAllByText("kp.manage.offer_badge", undefined, SLOW_WAIT),
+      await screen.findAllByText("kp.manage.offer_until", undefined, SLOW_WAIT),
+    ).toHaveLength(1);
+    expect(
+      within(screen.getByRole("table")).getAllByText(
+        "kp.booking.status.offered.label",
+      ),
     ).toHaveLength(1);
     expect(
       screen.getByRole("button", { name: "kp.manage.offer_button" }),
@@ -195,7 +207,7 @@ describe("offered bookings in the staff list", () => {
     renderWithProviders(<BookingsTab eventId={testEventId} />);
 
     expect(
-      await screen.findByText("kp.manage.offer_badge", undefined, SLOW_WAIT),
+      await screen.findByText("kp.manage.offer_until", undefined, SLOW_WAIT),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "kp.manage.offer_button" }),
@@ -204,10 +216,14 @@ describe("offered bookings in the staff list", () => {
 });
 
 describe("the offer card on the booking page", () => {
-  it("moves the cancellation deadline", async () => {
+  it("moves the confirmation deadline", async () => {
     const { user } = renderWithProviders(
       <BookingOfferCard
-        booking={{ ...acmeBooking, offer_cancel_until: "2026-10-05" }}
+        booking={{
+          ...acmeBooking,
+          status: KpBookingStatus.OFFERED,
+          offer_deadline: "2026-10-05",
+        }}
         eventId={testEventId}
         canEdit
       />,
@@ -215,7 +231,7 @@ describe("the offer card on the booking page", () => {
 
     const input = await screen.findByRole(
       "textbox",
-      { name: "kp.manage.offer_cancel_until" },
+      { name: "kp.manage.offer_deadline" },
       SLOW_WAIT,
     );
     expect(input).toHaveValue("05.10.2026");
@@ -229,7 +245,7 @@ describe("the offer card on the booking page", () => {
       expect(deadlineRequests).toEqual([
         {
           bookingId: acmeBooking.id,
-          body: { cancel_until: "2026-10-09" },
+          body: { deadline: "2026-10-09" },
         },
       ]),
     );
@@ -238,7 +254,11 @@ describe("the offer card on the booking page", () => {
   it("only shows the deadline to staff without the president role", async () => {
     renderWithProviders(
       <BookingOfferCard
-        booking={{ ...acmeBooking, offer_cancel_until: "2026-10-05" }}
+        booking={{
+          ...acmeBooking,
+          status: KpBookingStatus.OFFERED,
+          offer_deadline: "2026-10-05",
+        }}
         eventId={testEventId}
         canEdit={false}
       />,
@@ -249,6 +269,41 @@ describe("the offer card on the booking page", () => {
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "kp.manage.offer_save" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("the status history of an offered place", () => {
+  const offered = {
+    ...acmeBooking,
+    status: KpBookingStatus.OFFERED,
+    offer_deadline: "2026-10-05",
+    confirmed_at: null,
+  };
+
+  it("starts with the offer and keeps the registration open", () => {
+    renderWithProviders(<BookingStatusTimeline booking={offered} />);
+
+    expect(
+      screen.getByText("kp.manage.booking_timeline_offered"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText("kp.manage.booking_timeline_pending"),
+    ).toHaveLength(2);
+  });
+
+  it("ends an expired offer without a registration", () => {
+    renderWithProviders(
+      <BookingStatusTimeline
+        booking={{ ...offered, status: KpBookingStatus.EXPIRED }}
+      />,
+    );
+
+    expect(
+      screen.getByText("kp.manage.booking_timeline_expired"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("kp.manage.booking_timeline_registered"),
     ).not.toBeInTheDocument();
   });
 });

@@ -39,7 +39,7 @@ const BookingOfferCard = ({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [deadline, setDeadline] = useState(
-    formatKpIsoDateInput(booking.offer_cancel_until),
+    formatKpIsoDateInput(booking.offer_deadline),
   );
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const { mutateAsync: update, isPending } = useUpdateBookingOffer();
@@ -49,7 +49,7 @@ const BookingOfferCard = ({
     try {
       await update({
         bookingId: booking.id,
-        data: { cancel_until: toKpIsoDate(deadline) },
+        data: { deadline: toKpIsoDate(deadline) },
       });
     } catch (error) {
       setErrorCode(getApiErrorCode(error) ?? "error.internal");
@@ -72,7 +72,7 @@ const BookingOfferCard = ({
         <Title order={4}>{t("kp.manage.offer_title")}</Title>
         <Text size="sm" c="dimmed">
           {t("kp.manage.offer_state", {
-            date: formatKpDisplayDate(booking.offer_cancel_until ?? ""),
+            date: formatKpDisplayDate(booking.offer_deadline ?? ""),
           })}
         </Text>
         {errorCode ? (
@@ -83,7 +83,7 @@ const BookingOfferCard = ({
         {canEdit ? (
           <Group align="flex-end">
             <TextInput
-              label={t("kp.manage.offer_cancel_until")}
+              label={t("kp.manage.offer_deadline")}
               placeholder={t("kp.dashboard.date_input_placeholder")}
               value={deadline}
               onChange={(event) => setDeadline(event.currentTarget.value)}

@@ -3,7 +3,6 @@ import { screen } from "@testing-library/react";
 import { KpBookingCompletion } from "../../components/KpBookingCompletion";
 import { KpBookingStatus } from "../../orval/generated/fastAPI.schemas";
 import type { BookingResponse } from "../../orval/generated/fastAPI.schemas";
-import i18n from "../i18n";
 import { renderWithProviders } from "../render";
 import {
   testBooking,
@@ -277,57 +276,36 @@ describe("KpBookingCompletion", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("tells an offered place can be cancelled until its deadline", () => {
-    i18n.addResource(
-      "en",
-      "common",
-      "kp.booking.offer_notice",
-      "offered until {{date}}",
-    );
-    renderWithProviders(
-      <KpBookingCompletion
-        booking={{ ...completeBooking, offer_cancel_until: openDeadline }}
-        changeDeadline={openDeadline}
-      />,
-    );
-
-    expect(screen.getByText(/offered until .*2099/)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "kp.booking.cancel_action" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText("kp.booking.cancel_hint"),
-    ).not.toBeInTheDocument();
-  });
-
-  it("keeps a confirmed offered place cancellable until its deadline", () => {
+  it("tells the company that an expired offer released the place", () => {
     renderWithProviders(
       <KpBookingCompletion
         booking={{
           ...completeBooking,
-          status: KpBookingStatus.CONFIRMED,
-          offer_cancel_until: openDeadline,
+          status: KpBookingStatus.EXPIRED,
+          offer_deadline: passedDeadline,
         }}
         changeDeadline={openDeadline}
       />,
     );
 
+    expect(screen.getByText("kp.booking.expired_title")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "kp.booking.cancel_action" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "kp.booking.cancel_action" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("hides the offer line and the cancel action after the deadline", () => {
+  it("binds an accepted offer like any booking once VIS confirmed it", () => {
     renderWithProviders(
       <KpBookingCompletion
-        booking={{ ...completeBooking, offer_cancel_until: passedDeadline }}
+        booking={{
+          ...completeBooking,
+          status: KpBookingStatus.CONFIRMED,
+          offer_deadline: openDeadline,
+        }}
         changeDeadline={openDeadline}
       />,
     );
 
-    expect(
-      screen.queryByText(/kp.booking.offer_notice|offered until/),
-    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "kp.booking.cancel_action" }),
     ).not.toBeInTheDocument();

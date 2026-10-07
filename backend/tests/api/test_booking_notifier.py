@@ -31,6 +31,10 @@ EXPECTED_SUBJECTS = {
     " / VISIT: A spot in Main hall became available",
     "booking_offered": "VISIT: Platz für Kontaktparty angeboten"
     " / VISIT: A place at Kontaktparty offered to you",
+    "booking_offer_week_reminder": "VISIT: Angebot für Kontaktparty läuft in einer"
+    " Woche ab / VISIT: Your offer for Kontaktparty expires in one week",
+    "booking_offer_day_reminder": "VISIT: Angebot für Kontaktparty läuft morgen ab"
+    " / VISIT: Your offer for Kontaktparty expires tomorrow",
 }
 
 NOTIFICATIONS: dict[
@@ -49,6 +53,16 @@ NOTIFICATIONS: dict[
     "waitlist_promoted": lambda notifier, booking: notifier.waitlist_promoted(booking),
     "booking_offered": lambda notifier, booking: notifier.booking_offered(
         booking, OFFER_DEADLINE
+    ),
+    "booking_offer_week_reminder": (
+        lambda notifier, booking: notifier.booking_offer_week_reminder(
+            booking, OFFER_DEADLINE
+        )
+    ),
+    "booking_offer_day_reminder": (
+        lambda notifier, booking: notifier.booking_offer_day_reminder(
+            booking, OFFER_DEADLINE
+        )
     ),
 }
 

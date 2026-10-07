@@ -23,7 +23,7 @@ import NametagCard from "../components/booking/NametagCard";
 import WaitlistCard from "../components/booking/WaitlistCard";
 import ZoneSwitchCard from "../components/booking/ZoneSwitchCard";
 import { useGetKpById, useGetMyBooking } from "../orval/generated/kp/kp";
-import { isInactiveBooking } from "../utils/my-booking";
+import { isManageableBooking } from "../utils/my-booking";
 
 const KpBookingManageOverview = () => {
   const { t } = useTranslation();
@@ -75,7 +75,7 @@ const KpBookingManageOverview = () => {
     );
   }
 
-  if (isInactiveBooking(booking)) {
+  if (!isManageableBooking(booking)) {
     return <Navigate to={`/kp/${eventId}`} replace />;
   }
 

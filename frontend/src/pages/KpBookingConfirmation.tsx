@@ -17,7 +17,7 @@ import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
 import { useGetKpById, useGetMyBooking } from "../orval/generated/kp/kp";
 import { KpBookingRecap } from "../components/KpBookingRecap";
-import { isInactiveBooking } from "../utils/my-booking";
+import { isManageableBooking } from "../utils/my-booking";
 
 const KP_BOOKING_HELP_EMAIL = "info@kontaktparty.ch";
 
@@ -115,7 +115,7 @@ const KpBookingConfirmation = () => {
     );
   }
 
-  if (isInactiveBooking(booking)) {
+  if (!isManageableBooking(booking)) {
     return <Navigate to={`/kp/${eventId}`} replace />;
   }
 

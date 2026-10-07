@@ -257,6 +257,27 @@ async def test_the_next_active_booking_colours_the_banner(
     await service.preview_my_company_page(UpdateCompanyProfileInput())
 
     assert rendered_entry(pdf_service)["zone_color"] == "#112233"
+
+
+async def test_a_pending_offer_does_not_colour_the_banner(
+    prepared_repos, storage_service, pdf_service, company_user, company
+):
+    _, kp_repo = prepared_repos
+    kp_repo.list_bookings_for_company.return_value = [
+        make_booking(
+            company,
+            days_until_event=5,
+            status=KpBookingStatus.OFFERED,
+            booth_nr=2,
+            color="#bbbbbb",
+        ),
+        make_booking(company, days_until_event=30, booth_nr=12, color="#112233"),
+    ]
+    service = make_service(prepared_repos, storage_service, pdf_service, company_user)
+
+    await service.preview_my_company_page(UpdateCompanyProfileInput())
+
+    assert rendered_entry(pdf_service)["zone_color"] == "#112233"
     assert rendered_entry(pdf_service)["booth_number"] == "12"
 
 

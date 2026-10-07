@@ -13,6 +13,7 @@ from app.core.auth_context import (
 from app.core.config import get_settings
 from app.core.dates import local_today
 from app.core.exceptions import (
+    CompanyNotFound,
     CompanyProfileIncomplete,
     CompanyProfileUnconfirmed,
     KpBookingAlreadyExists,
@@ -40,8 +41,9 @@ from app.core.exceptions import (
     KpNameExists,
     KpNametagLimitReached,
     KpNametagsDeadlinePassed,
-    KpOfferCancelDeadlinePassed,
     KpOfferDeadlineInvalid,
+    KpOfferExpired,
+    KpOfferPending,
     KpRegistrationClosed,
     KpRequirementBookingServiceMismatch,
     KpRequirementFileUploadNotAllowed,
@@ -53,11 +55,16 @@ from app.core.exceptions import (
     KpServiceQuantityInvalid,
     KpServiceRequirementNotFound,
     KpServiceUnavailable,
+    KpTermsNotAccepted,
     KpWaitlistSameZone,
     KpWaitlistZoneHasCapacity,
     KpZoneRegistrationClosed,
 )
-from app.models.company import BOOKING_REQUIRED_PROFILE_FIELDS, KpCompanyProfile
+from app.models.company import (
+    BOOKING_REQUIRED_PROFILE_FIELDS,
+    Company,
+    KpCompanyProfile,
+)
 from app.models.kp_event import (
     UNLIMITED_TOTAL_QUANTITY,
     KpBookingStatus,
@@ -76,6 +83,7 @@ from app.models.kp_event import (
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
 from app.schemas.kp import (
+    AcceptOfferRequest,
     BookingAdditionalServiceChargeResponse,
     BookingAdditionResponse,
     BookingRequirementFileMapResponse,
@@ -115,7 +123,6 @@ from app.schemas.kp import (
     UpdateKpInput,
     UpdateServiceInput,
 )
-from app.schemas.pricing import PriceBreakdown
 from app.services.booking_completeness import booking_completeness
 from app.services.booking_notifier import (
     BookingNotifier,
@@ -126,10 +133,11 @@ from app.services.booking_summary import booking_summary
 from app.services.booth_zone_view import (
     booth_zone_response,
     booth_zones_with_availability,
+    free_spots,
     staff_booth_zone_response,
 )
 from app.services.download_urls import DownloadUrls
-from app.services.pricing import price_breakdown
+from app.services.pricing import booking_price
 from app.services.registration_exceptions import has_registration_exception
 from app.services.storage_service import StorageService, UploadKind, UploadStream
 from app.services.waitlist_promotion import promote_waitlist
@@ -146,24 +154,23 @@ REQUIREMENT_UPLOAD_KINDS = {
 BookingTransitions = dict[KpBookingStatus, frozenset[KpBookingStatus]]
 
 COMPANY_BOOKING_TRANSITIONS: BookingTransitions = {
+    KpBookingStatus.OFFERED: frozenset({KpBookingStatus.CANCELLED}),
     KpBookingStatus.REGISTERED: frozenset({KpBookingStatus.CANCELLED}),
     KpBookingStatus.CONFIRMED: frozenset(),
     KpBookingStatus.CANCELLED: frozenset(),
     KpBookingStatus.REJECTED: frozenset(),
-}
-
-OFFERED_BOOKING_TRANSITIONS: BookingTransitions = {
-    **COMPANY_BOOKING_TRANSITIONS,
-    KpBookingStatus.CONFIRMED: frozenset({KpBookingStatus.CANCELLED}),
+    KpBookingStatus.EXPIRED: frozenset(),
 }
 
 STAFF_BOOKING_TRANSITIONS: BookingTransitions = {
+    KpBookingStatus.OFFERED: frozenset({KpBookingStatus.REJECTED}),
     KpBookingStatus.REGISTERED: frozenset(
         {KpBookingStatus.CONFIRMED, KpBookingStatus.REJECTED}
     ),
     KpBookingStatus.CONFIRMED: frozenset({KpBookingStatus.REGISTERED}),
     KpBookingStatus.CANCELLED: frozenset(),
     KpBookingStatus.REJECTED: frozenset(),
+    KpBookingStatus.EXPIRED: frozenset(),
 }
 
 
@@ -796,11 +803,18 @@ class KpService:
                 f"{booking.event.finalization_deadline}"
             )
 
+    def _ensure_not_a_pending_offer(
+        self, booking: KpEventBooking, context: str
+    ) -> None:
+        if booking.status == KpBookingStatus.OFFERED:
+            raise KpOfferPending(f"{context}:offer_pending:{booking.id}")
+
     def _ensure_booking_editable_by_company(
         self, booking: KpEventBooking, context: str
     ) -> None:
         if not booking.is_active:
             raise KpBookingReadonly(f"{context}:readonly:{booking.id}:{booking.status}")
+        self._ensure_not_a_pending_offer(booking, context)
         self._ensure_finalization_deadline_open(booking, context)
 
     def _ensure_zone_unlocked(self, booking: KpEventBooking, context: str) -> None:
@@ -817,7 +831,7 @@ class KpService:
             if booth_zone_model is not None
             else None
         )
-        net_total = self._booking_net_total(booking)
+        net_total = booking.total_price
         missing_items = booking_completeness(booking)
         return BookingResponse(
             id=booking.id,
@@ -830,29 +844,15 @@ class KpService:
             status_changed_at=booking.status_changed_at,
             confirmed_at=booking.confirmed_at,
             rejection_reason=booking.rejection_reason,
-            offer_cancel_until=booking.offer_cancel_until,
+            offer_deadline=booking.offer_deadline,
             missing_items=missing_items,
             is_complete=not missing_items,
             booth_zone=booth_zone,
             services=services,
             additional_service_charges=additional_service_charges,
             net_total=net_total,
-            price=self._booking_price(booking, net_total),
+            price=booking_price(booking, booking.event.vat_rate_permille),
         )
-
-    def _booking_net_total(self, booking: KpEventBooking) -> int:
-        booth_zone = getattr(booking, "booth_zone", None)
-        base_price = booth_zone.base_price if booth_zone is not None else 0
-        return base_price + sum(
-            self._service_line_net(booking_service)
-            for booking_service in booking.services
-        )
-
-    def _service_line_net(self, booking_service: KpEventBookingService) -> int:
-        return booking_service.charged_quantity * booking_service.service.price
-
-    def _booking_price(self, booking: KpEventBooking, net_total: int) -> PriceBreakdown:
-        return price_breakdown(net_total, booking.event.vat_rate_permille)
 
     async def _build_booking_services(
         self, booking: KpEventBooking
@@ -869,7 +869,7 @@ class KpService:
                 included_quantity=booking_service.included_quantity,
                 charged_quantity=booking_service.charged_quantity,
                 unit_price=booking_service.service.price,
-                line_net=self._service_line_net(booking_service),
+                line_net=booking_service.line_net,
                 service=await self._build_service_response(booking_service.service),
             )
             for booking_service in booking.services
@@ -879,7 +879,7 @@ class KpService:
                 name=booking_service.service.name,
                 quantity=booking_service.quantity,
                 charged_quantity=booking_service.charged_quantity,
-                line_net=self._service_line_net(booking_service),
+                line_net=booking_service.line_net,
             )
             for booking_service in booking.services
             if booking_service.charged_quantity > 0
@@ -893,7 +893,7 @@ class KpService:
             booking
         )
         booth_zone = await self._build_staff_booth_zone_response(booking.booth_zone)
-        net_total = self._booking_net_total(booking)
+        net_total = booking.total_price
         missing_items = booking_completeness(booking)
         return BookingWithCompanyAndBoothZoneResponse(
             id=booking.id,
@@ -906,7 +906,7 @@ class KpService:
             status_changed_at=booking.status_changed_at,
             confirmed_at=booking.confirmed_at,
             rejection_reason=booking.rejection_reason,
-            offer_cancel_until=booking.offer_cancel_until,
+            offer_deadline=booking.offer_deadline,
             missing_items=missing_items,
             is_complete=not missing_items,
             company=booking.company,
@@ -914,7 +914,7 @@ class KpService:
             services=services,
             additional_service_charges=additional_service_charges,
             net_total=net_total,
-            price=self._booking_price(booking, net_total),
+            price=booking_price(booking, booking.event.vat_rate_permille),
             booked_services_count=booking.booked_services_count,
             booked_services_summary=booking.booked_services_summary,
             nametag_count=booking.nametag_count,
@@ -1021,17 +1021,17 @@ class KpService:
         return await self._build_booking_response(booking)
 
     def _ensure_offer_deadline(
-        self, event: KpEvent, cancel_until: date, context: str
+        self, event: KpEvent, deadline: date, context: str
     ) -> None:
-        if not local_today() <= cancel_until < event.event_date:
-            raise KpOfferDeadlineInvalid(f"{context}:{event.id}:{cancel_until}")
+        if not local_today() <= deadline < event.event_date:
+            raise KpOfferDeadlineInvalid(f"{context}:{event.id}:{deadline}")
 
     async def offer_booking(
         self, event_id: UUID, request: OfferBookingRequest
     ) -> BookingWithCompanyAndBoothZoneResponse:
         require_kp_president_user(self.current_user)
         event = await self._get_event(event_id)
-        self._ensure_offer_deadline(event, request.cancel_until, "offer_booking")
+        self._ensure_offer_deadline(event, request.deadline, "offer_booking")
         zone = await self.kp_repository.get_booth_zone_by_id(request.booth_zone_id)
         if zone is None:
             raise KpBoothZoneNotFound(
@@ -1041,7 +1041,9 @@ class KpService:
             raise KpBoothZoneEventMismatch(
                 f"offer_booking:zone_event_mismatch:{request.booth_zone_id}"
             )
-        profile = await self._confirmed_company_profile(request.company_id, True)
+        company = await self.kp_repository.lock_model_by_id(Company, request.company_id)
+        if company is None:
+            raise CompanyNotFound(f"offer_booking:company:{request.company_id}")
         await self.kp_repository.lock_model_by_id(KpEvent, event_id)
         existing = await self.kp_repository.get_company_active_booking_for_event(
             event_id, request.company_id
@@ -1058,13 +1060,14 @@ class KpService:
             company_id=request.company_id,
             booth_zone_id=zone.id,
             create_booking_input=CreateBookingInput(
-                offer_cancel_until=request.cancel_until
+                status=KpBookingStatus.OFFERED,
+                offer_deadline=request.deadline,
+                offer_made_on=local_today(),
             ),
             included_services=locked_zone.included_services,
-            company_profile=profile,
         )
         await notify_best_effort(
-            self.notifier.booking_offered(booking, request.cancel_until)
+            self.notifier.booking_offered(booking, request.deadline)
         )
         return await self._build_staff_booking_response(booking)
 
@@ -1073,15 +1076,43 @@ class KpService:
     ) -> BookingWithCompanyAndBoothZoneResponse:
         require_kp_president_user(self.current_user)
         booking = await self._get_booking(booking_id, lock=True)
-        if booking.offer_cancel_until is None:
+        if booking.status != KpBookingStatus.OFFERED:
             raise KpBookingNotOffered(f"update_booking_offer:not_offered:{booking_id}")
         self._ensure_offer_deadline(
-            booking.event, request.cancel_until, "update_booking_offer"
+            booking.event, request.deadline, "update_booking_offer"
         )
         updated = await self.kp_repository.update_booking(
-            booking, UpdateBookingInput(offer_cancel_until=request.cancel_until)
+            booking,
+            UpdateBookingInput(
+                offer_deadline=request.deadline,
+                offer_made_on=local_today(),
+                offer_week_reminder_sent_at=None,
+                offer_day_reminder_sent_at=None,
+            ),
         )
         return await self._build_staff_booking_response(updated)
+
+    async def accept_offer(
+        self, booking_id: UUID, request: AcceptOfferRequest
+    ) -> BookingResponse:
+        company_user = require_assigned_company_user(self.current_user)
+        booking = await self._get_owned_booking(
+            booking_id, company_user.company_id, "accept_offer", lock=True
+        )
+        if booking.status != KpBookingStatus.OFFERED:
+            raise KpBookingNotOffered(f"accept_offer:not_offered:{booking_id}")
+        if not booking.is_offer_open():
+            raise KpOfferExpired(f"accept_offer:expired:{booking_id}")
+        if not request.accept_terms:
+            raise KpTermsNotAccepted(f"accept_offer:terms:{booking_id}")
+        company_profile = await self._confirmed_company_profile(
+            company_user.company_id, request.confirm_profile
+        )
+        accepted = await self.kp_repository.accept_offer(
+            booking, company_profile, datetime.now(timezone.utc)
+        )
+        await notify_best_effort(self.notifier.booking_registered(accepted))
+        return await self._build_booking_response(accepted)
 
     async def add_booking_services(
         self,
@@ -1157,6 +1188,7 @@ class KpService:
         return booking_summary(
             event,
             await self.kp_repository.list_booth_zones(event_id),
+            await self.kp_repository.list_services(event_id),
             await self.kp_repository.list_bookings_for_event(event_id),
         )
 
@@ -1218,11 +1250,12 @@ class KpService:
         taken = await self.kp_repository.count_active_bookings_for_zone(
             zone.event_id, zone.id
         )
-        return max(zone.capacity - taken, 0)
+        return free_spots(zone.capacity, taken)
 
     def _ensure_nametags_editable(self, booking: KpEventBooking, context: str) -> None:
         if not booking.is_active:
             raise KpBookingReadonly(f"{context}:readonly:{booking.id}:{booking.status}")
+        self._ensure_not_a_pending_offer(booking, context)
         if booking.event.is_nametags_deadline_passed():
             raise KpNametagsDeadlinePassed(
                 f"{context}:deadline_passed:{booking.id}:"
@@ -1442,15 +1475,8 @@ class KpService:
         next_status = update_booking_input.status
         if booking.status == next_status:
             return await self._build_booking_response(booking)
-        transitions = COMPANY_BOOKING_TRANSITIONS
-        if booking.offer_cancel_until is not None:
-            if not booking.is_offer_cancellable():
-                raise KpOfferCancelDeadlinePassed(
-                    f"update_my_booking_status:offer_closed:{booking_id}"
-                )
-            transitions = OFFERED_BOOKING_TRANSITIONS
         ensure_booking_transition(
-            transitions,
+            COMPANY_BOOKING_TRANSITIONS,
             booking,
             next_status,
             "update_my_booking_status",

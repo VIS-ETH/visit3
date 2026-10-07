@@ -274,6 +274,18 @@ class UserRepository(BaseRepository[User]):
             await self.session.rollback()
             raise e
 
+    async def record_login(self, user_id: uuid.UUID) -> None:
+        try:
+            await self.update_where(
+                User,
+                col(User.id) == user_id,
+                last_login_at=datetime.now(timezone.utc),
+            )
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
     async def confirm_email(self, user: User):
         try:
             user.email_confirmed = True

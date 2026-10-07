@@ -20,7 +20,7 @@ from app.services.booking_completeness import (
     GENERAL_EMAIL_MISSING,
     booking_completeness,
 )
-from app.services.pricing import price_breakdown
+from app.services.pricing import booking_price
 from app.services.xlsx_service import CellValue, ColumnKind, XlsxColumn, XlsxSheet
 
 REQUIREMENT_PREFIX = "requirement:"
@@ -349,7 +349,7 @@ def _company_row(
     profile = booking.company.kp_profile
     contact = profile.kp_contact_user if profile is not None else None
     details = _details_cells(booking.company_details, labels)
-    prices = price_breakdown(booking.total_price, event.vat_rate_permille)
+    prices = booking_price(booking, event.vat_rate_permille)
     return [
         booking.company.name,
         details.get("brand"),

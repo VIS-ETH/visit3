@@ -247,16 +247,56 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
         body_de=(
             "<p>Hallo {{ name }},</p>"
             "<p>VIS hat {{ company_name }} für {{ event_name }} einen Platz in der"
-            " Standzone {{ booth_zone_name }} angeboten. Sie können ihn bis zum"
-            " {{ cancel_until }} kostenlos stornieren.</p>"
-            '<p><a href="{{ login_url }}">Buchung öffnen</a></p>'
+            " Standzone {{ booth_zone_name }} reserviert. Bitte bestätigen Sie die"
+            " Buchung bis zum {{ deadline }} verbindlich, sonst verfällt die"
+            " Reservierung. Sie können das Angebot auch ablehnen.</p>"
+            '<p><a href="{{ login_url }}">Angebot öffnen</a></p>'
         ),
         body_en=(
             "<p>Hello {{ name }},</p>"
-            "<p>VIS offered {{ company_name }} a place in booth zone"
-            " {{ booth_zone_name }} for {{ event_name }}. You can cancel it free of"
-            " charge until {{ cancel_until }}.</p>"
-            '<p><a href="{{ login_url }}">Open booking</a></p>'
+            "<p>VIS reserved a place in booth zone {{ booth_zone_name }} for"
+            " {{ company_name }} at {{ event_name }}. Please confirm the booking by"
+            " {{ deadline }}, otherwise the reservation expires. You can also"
+            " decline the offer.</p>"
+            '<p><a href="{{ login_url }}">Open offer</a></p>'
+        ),
+    ),
+    MailTemplateKey.BOOKING_OFFER_WEEK_REMINDER: MailTemplateTexts(
+        subject_de="VISIT: Angebot für {{ event_name }} läuft in einer Woche ab",
+        subject_en="VISIT: Your offer for {{ event_name }} expires in one week",
+        body_de=(
+            "<p>Hallo {{ name }},</p>"
+            "<p>der für {{ company_name }} reservierte Platz in der Standzone"
+            " {{ booth_zone_name }} für {{ event_name }} ist noch nicht bestätigt."
+            " Bitte bestätigen Sie die Buchung bis zum {{ deadline }}, sonst"
+            " verfällt die Reservierung.</p>"
+            '<p><a href="{{ login_url }}">Angebot öffnen</a></p>'
+        ),
+        body_en=(
+            "<p>Hello {{ name }},</p>"
+            "<p>the place reserved for {{ company_name }} in booth zone"
+            " {{ booth_zone_name }} at {{ event_name }} is not confirmed yet. Please"
+            " confirm the booking by {{ deadline }}, otherwise the reservation"
+            " expires.</p>"
+            '<p><a href="{{ login_url }}">Open offer</a></p>'
+        ),
+    ),
+    MailTemplateKey.BOOKING_OFFER_DAY_REMINDER: MailTemplateTexts(
+        subject_de="VISIT: Angebot für {{ event_name }} läuft morgen ab",
+        subject_en="VISIT: Your offer for {{ event_name }} expires tomorrow",
+        body_de=(
+            "<p>Hallo {{ name }},</p>"
+            "<p>der für {{ company_name }} reservierte Platz in der Standzone"
+            " {{ booth_zone_name }} für {{ event_name }} verfällt nach dem"
+            " {{ deadline }}. Bitte bestätigen Sie die Buchung bis dahin.</p>"
+            '<p><a href="{{ login_url }}">Angebot öffnen</a></p>'
+        ),
+        body_en=(
+            "<p>Hello {{ name }},</p>"
+            "<p>the place reserved for {{ company_name }} in booth zone"
+            " {{ booth_zone_name }} at {{ event_name }} expires after {{ deadline }}."
+            " Please confirm the booking by then.</p>"
+            '<p><a href="{{ login_url }}">Open offer</a></p>'
         ),
     ),
 }

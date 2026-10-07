@@ -1,6 +1,7 @@
 import type {
   CompanyListResult,
   IndustryResponse,
+  StaffUserResponse,
   UserResponse,
 } from "../../orval/generated/fastAPI.schemas";
 
@@ -26,7 +27,7 @@ export const staffUser: UserResponse = {
   is_admin: false,
 };
 
-export const memberUser: UserResponse = {
+export const memberUser: StaffUserResponse = {
   id: "33333333-3333-3333-3333-333333333333",
   email: "member@example.test",
   first_name: "Mem",
@@ -40,9 +41,11 @@ export const memberUser: UserResponse = {
   email_confirmed: false,
   company_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
   company: { id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", name: "Acme AG" },
+  created_at: "2026-03-14T09:30:00Z",
+  last_login_at: null,
 };
 
-export const orphanUser: UserResponse = {
+export const orphanUser: StaffUserResponse = {
   id: "44444444-4444-4444-4444-444444444444",
   email: "orphan@example.test",
   first_name: "Ora",
@@ -53,6 +56,8 @@ export const orphanUser: UserResponse = {
   is_kp_president: false,
   user_confirmed: true,
   email_confirmed: true,
+  created_at: "2025-11-02T08:00:00Z",
+  last_login_at: "2026-09-28T16:45:00Z",
 };
 
 export const acmeCompany: CompanyListResult = {

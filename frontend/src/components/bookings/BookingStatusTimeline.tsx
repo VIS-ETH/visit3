@@ -1,9 +1,5 @@
 import { Text, Timeline } from "@mantine/core";
-import {
-  IconCheck,
-  IconClock,
-  IconX,
-} from "@tabler/icons-react";
+import { IconCheck, IconClock, IconGift, IconX } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -27,19 +23,33 @@ const BookingStatusTimeline = ({
 }) => {
   const { t } = useTranslation();
   const isRejected = booking.status === KpBookingStatus.REJECTED;
+  const isExpired = booking.status === KpBookingStatus.EXPIRED;
 
-  const steps: TimelineStep[] = [
-    {
-      bullet: <IconClock size={12} />,
-      isDone: true,
-      key: "registered",
-      timestamp:
-        booking.status === KpBookingStatus.REGISTERED
-          ? booking.status_changed_at
-          : undefined,
-      title: t("kp.manage.booking_timeline_registered"),
-    },
-    isRejected
+  const offeredStep: TimelineStep = {
+    bullet: <IconGift size={12} />,
+    isDone: true,
+    key: "offered",
+    title: t("kp.manage.booking_timeline_offered"),
+  };
+  const registeredStep: TimelineStep = {
+    bullet: <IconClock size={12} />,
+    isDone: booking.status !== KpBookingStatus.OFFERED,
+    key: "registered",
+    timestamp:
+      booking.status === KpBookingStatus.REGISTERED
+        ? booking.status_changed_at
+        : undefined,
+    title: t("kp.manage.booking_timeline_registered"),
+  };
+  const closingStep: TimelineStep = isExpired
+    ? {
+        bullet: <IconX size={12} />,
+        isDone: true,
+        key: "expired",
+        timestamp: booking.status_changed_at,
+        title: t("kp.manage.booking_timeline_expired"),
+      }
+    : isRejected
       ? {
           bullet: <IconX size={12} />,
           isDone: true,
@@ -53,7 +63,12 @@ const BookingStatusTimeline = ({
           key: "confirmed",
           timestamp: booking.confirmed_at,
           title: t("kp.manage.booking_timeline_confirmed"),
-        },
+        };
+
+  const steps = [
+    ...(booking.offer_deadline ? [offeredStep] : []),
+    ...(isExpired ? [] : [registeredStep]),
+    closingStep,
   ];
 
   const doneCount = steps.filter((step) => step.isDone).length;
@@ -62,7 +77,7 @@ const BookingStatusTimeline = ({
     <Timeline
       active={doneCount - 1}
       bulletSize={22}
-      color={isRejected ? "red" : "blue"}
+      color={isRejected || isExpired ? "red" : "blue"}
       lineWidth={2}
     >
       {steps.map((step) => {

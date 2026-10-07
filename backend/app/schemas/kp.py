@@ -297,17 +297,23 @@ class ServiceResponse(BaseModel):
 
 class CreateBookingInput(BaseModel):
     status: KpBookingStatus = KpBookingStatus.REGISTERED
-    offer_cancel_until: date | None = None
+    offer_deadline: date | None = None
+    offer_made_on: date | None = None
 
 
 class OfferBookingRequest(BaseModel):
     company_id: UUID
     booth_zone_id: UUID
-    cancel_until: date
+    deadline: date
 
 
 class UpdateBookingOfferRequest(BaseModel):
-    cancel_until: date
+    deadline: date
+
+
+class AcceptOfferRequest(BaseModel):
+    confirm_profile: bool = False
+    accept_terms: bool = False
 
 
 class UpdateBookingInput(BaseModel):
@@ -319,7 +325,10 @@ class UpdateBookingInput(BaseModel):
     rejection_reason: str | None = None
     confirmed_at: datetime | None = None
     reminder_sent_at: datetime | None = None
-    offer_cancel_until: date | None = None
+    offer_deadline: date | None = None
+    offer_made_on: date | None = None
+    offer_week_reminder_sent_at: datetime | None = None
+    offer_day_reminder_sent_at: datetime | None = None
 
 
 class UpdateBookingStatusInput(BaseModel):
@@ -437,7 +446,7 @@ class BookingBase(BaseModel):
     status_changed_at: datetime | None = None
     confirmed_at: datetime | None = None
     rejection_reason: str | None = None
-    offer_cancel_until: date | None = None
+    offer_deadline: date | None = None
     missing_items: list[str] = Field(default_factory=lambda: [])
     is_complete: bool = True
 
@@ -498,6 +507,24 @@ class BookingZoneTotals(BookingTotals):
     booth_zone_id: UUID
     name: str
     color: str
+    base_price: int
+    capacity: int
+    occupied: int
+    free: int
+
+
+class BookingServiceTotals(BaseModel):
+    service_id: UUID
+    name: str
+    category: KpServiceCategory
+    unit_label: str | None
+    unit_price: int
+    booking_count: int
+    quantity: int
+    included_quantity: int
+    price: PriceBreakdown
+    max_total_quantity: int
+    remaining_total_quantity: int | None
 
 
 class BookingSummaryResponse(BaseModel):
@@ -505,9 +532,15 @@ class BookingSummaryResponse(BaseModel):
     vat_rate_percent: VatRatePercent
     total: BookingTotals
     by_status: list[BookingStatusTotals]
+    offered: BookingTotals
     by_zone: list[BookingZoneTotals]
+    by_service: list[BookingServiceTotals]
+    capacity: int
+    occupied: int
+    free: int
     cancelled_count: int
     rejected_count: int
+    expired_count: int
 
 
 class RequirementFileResponse(BaseModel):

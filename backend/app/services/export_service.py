@@ -31,6 +31,7 @@ from app.schemas.kp import (
     NametagExportTargetsResult,
 )
 from app.services.booking_completeness import booking_completeness
+from app.services.booth_zone_view import free_spots
 from app.services.company_workbook import (
     ExportLanguage,
     company_workbook_filename,
@@ -193,6 +194,12 @@ class ExportService:
     ) -> tuple[KpEvent, Sequence[KpEventBooking]]:
         event = await self._get_event_or_raise(event_id)
         return event, await self.kp_repository.list_bookings_for_event(event_id)
+
+    async def _list_participant_bookings(
+        self, event_id: UUID
+    ) -> tuple[KpEvent, Sequence[KpEventBooking]]:
+        event, bookings = await self._list_event_bookings(event_id)
+        return event, [booking for booking in bookings if booking.is_participant]
 
     async def _list_active_event_bookings(
         self, event_id: UUID
@@ -532,13 +539,11 @@ class ExportService:
 
     async def export_booked_services_csv(self, event_id: UUID) -> RenderedExport:
         require_staff_user(self.current_user)
-        event, bookings = await self._list_event_bookings(event_id)
+        event, bookings = await self._list_participant_bookings(event_id)
         rows: list[dict[str, object]] = []
         for booking in bookings:
             for booking_service in booking.services:
-                line_net = (
-                    booking_service.charged_quantity * booking_service.service.price
-                )
+                line_net = booking_service.line_net
                 rows.append(
                     {
                         "company": booking.company.name,
@@ -581,7 +586,7 @@ class ExportService:
         self, event_id: UUID, language: ExportLanguage
     ) -> RenderedExport:
         require_staff_user(self.current_user)
-        event, bookings = await self._list_event_bookings(event_id)
+        event, bookings = await self._list_participant_bookings(event_id)
         content = self.xlsx_service.render(
             company_workbook_sheets(event, bookings, language)
         )
@@ -592,7 +597,7 @@ class ExportService:
 
     async def export_service_requirements_csv(self, event_id: UUID) -> RenderedExport:
         require_staff_user(self.current_user)
-        event, bookings = await self._list_event_bookings(event_id)
+        event, bookings = await self._list_participant_bookings(event_id)
         rows: list[dict[str, object]] = []
         for booking in bookings:
             for booking_service in booking.services:
@@ -652,7 +657,7 @@ class ExportService:
                     "zone": zone.name,
                     "capacity": zone.capacity,
                     "booked_count": len(zone_bookings),
-                    "remaining_capacity": max(zone.capacity - len(zone_bookings), 0),
+                    "remaining_capacity": free_spots(zone.capacity, len(zone_bookings)),
                     "waitlist_demand": waitlist_demand,
                     "booth_size_m2": zone.booth_size,
                     "base_price": self._money(zone.base_price),

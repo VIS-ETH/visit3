@@ -12,7 +12,7 @@ from app.mail_templates.context import (
     MailContext,
 )
 from app.mail_templates.keys import MailTemplateKey
-from app.models.kp_event import KpEventBooking
+from app.models.kp_event import KpBookingStatus, KpEventBooking
 from app.models.user import User
 from app.services.auth_service import AuthService
 from app.services.mail_template_service import MailTemplateService
@@ -46,8 +46,16 @@ class BookingNotifier(Protocol):
     async def waitlist_promoted(self, booking: KpEventBooking) -> None:
         return None
 
-    async def booking_offered(
-        self, booking: KpEventBooking, cancel_until: date
+    async def booking_offered(self, booking: KpEventBooking, deadline: date) -> None:
+        return None
+
+    async def booking_offer_week_reminder(
+        self, booking: KpEventBooking, deadline: date
+    ) -> None:
+        return None
+
+    async def booking_offer_day_reminder(
+        self, booking: KpEventBooking, deadline: date
     ) -> None:
         return None
 
@@ -61,6 +69,8 @@ class SilentBookingNotifier(BookingNotifier):
 
 
 def booking_path(booking: KpEventBooking) -> str:
+    if booking.status == KpBookingStatus.OFFERED:
+        return f"/kp/{booking.event_id}"
     return f"/kp/{booking.event_id}/booking"
 
 
@@ -139,13 +149,30 @@ class MailBookingNotifier:
     async def waitlist_promoted(self, booking: KpEventBooking) -> None:
         await self._send_to_company(booking, MailTemplateKey.WAITLIST_PROMOTED)
 
-    async def booking_offered(
-        self, booking: KpEventBooking, cancel_until: date
+    async def _send_offer_mail(
+        self, booking: KpEventBooking, key: MailTemplateKey, deadline: date
     ) -> None:
         await self._send_to_company(
             booking,
-            MailTemplateKey.BOOKING_OFFERED,
+            key,
             lambda context: BookingOfferedContext(
-                **context.variables(), cancel_until=cancel_until.isoformat()
+                **context.variables(), deadline=deadline.isoformat()
             ),
+        )
+
+    async def booking_offered(self, booking: KpEventBooking, deadline: date) -> None:
+        await self._send_offer_mail(booking, MailTemplateKey.BOOKING_OFFERED, deadline)
+
+    async def booking_offer_week_reminder(
+        self, booking: KpEventBooking, deadline: date
+    ) -> None:
+        await self._send_offer_mail(
+            booking, MailTemplateKey.BOOKING_OFFER_WEEK_REMINDER, deadline
+        )
+
+    async def booking_offer_day_reminder(
+        self, booking: KpEventBooking, deadline: date
+    ) -> None:
+        await self._send_offer_mail(
+            booking, MailTemplateKey.BOOKING_OFFER_DAY_REMINDER, deadline
         )

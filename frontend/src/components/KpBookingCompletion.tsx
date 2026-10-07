@@ -25,11 +25,7 @@ import {
 } from "../orval/generated/kp/kp";
 import { profileFieldId } from "./company/company-profile-fields";
 import { formatKpDisplayDate, isDeadlinePassed } from "../utils/kp-utils";
-import {
-  canCompanyCancel,
-  isInactiveBooking,
-  isOfferCancellable,
-} from "../utils/my-booking";
+import { isInactiveBooking } from "../utils/my-booking";
 import {
   bookingRequirementElementId,
   COMPANY_PROFILE_PATH,
@@ -94,6 +90,18 @@ const BookingStatusNotice = ({ booking }: { booking: BookingResponse }) => {
     );
   }
 
+  if (booking.status === KpBookingStatus.EXPIRED) {
+    return (
+      <Alert
+        color="gray"
+        icon={<IconAlertCircle />}
+        title={t("kp.booking.expired_title")}
+      >
+        {t("kp.booking.expired_body")}
+      </Alert>
+    );
+  }
+
   if (booking.status === KpBookingStatus.CONFIRMED) {
     return (
       <Alert
@@ -125,7 +133,7 @@ export const KpBookingCompletion = ({
   const missingItems = booking.missing_items ?? [];
   const requirementNames = requirementNamesById(booking);
   const isInactive = isInactiveBooking(booking);
-  const canCancel = canCompanyCancel(booking);
+  const canCancel = booking.status === KpBookingStatus.REGISTERED;
 
   const missingItemLabel = (item: string) => {
     if (item.startsWith(REQUIREMENT_ITEM_PREFIX)) {
@@ -241,11 +249,7 @@ export const KpBookingCompletion = ({
       {canCancel ? (
         <Group justify="flex-end" gap="sm">
           <Text c="dimmed" size="sm">
-            {isOfferCancellable(booking)
-              ? t("kp.booking.offer_notice", {
-                  date: formatKpDisplayDate(booking.offer_cancel_until ?? ""),
-                })
-              : t("kp.booking.cancel_hint")}
+            {t("kp.booking.cancel_hint")}
           </Text>
           <Button
             color="red"

@@ -27,6 +27,7 @@ import { canSwitchBoothZone } from "../components/booking/booking-zone-access";
 import { KpBoothZoneColorSwatch } from "../components/KpBoothZoneColorSwatch";
 import { KpBookingStatusHelp } from "../components/KpBookingStatusHelp";
 import { KpBookingStatusBadge } from "../components/KpBookingStatusBadge";
+import OfferResponseCard from "../components/booking/OfferResponseCard";
 import { useGetKpById, useGetMyBooking } from "../orval/generated/kp/kp";
 import {
   EVENT_STATUS_COLORS,
@@ -34,7 +35,11 @@ import {
   getEventStatus,
   todayCalendarDate,
 } from "../utils/kp-utils";
-import { canStartNewBooking, isInactiveBooking } from "../utils/my-booking";
+import {
+  canStartNewBooking,
+  isInactiveBooking,
+  isPendingOffer,
+} from "../utils/my-booking";
 import { formatPrice } from "../utils/price-utils";
 
 const KpCompanyView = () => {
@@ -180,6 +185,8 @@ const KpCompanyView = () => {
             <Center py="md">
               <Loader />
             </Center>
+          ) : myBooking && isPendingOffer(myBooking) ? (
+            <OfferResponseCard event={event} booking={myBooking} />
           ) : myBooking ? (
             <Card withBorder radius="md" p="lg">
               <Group justify="space-between" align="center" mb="md">

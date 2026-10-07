@@ -10,6 +10,10 @@ from app.schemas.kp import (
 from app.services.download_urls import DownloadUrls
 
 
+def free_spots(capacity: int, taken: int) -> int:
+    return max(capacity - taken, 0)
+
+
 async def staff_booth_zone_response(
     zone: KpEventBoothZone, download_urls: DownloadUrls
 ) -> StaffBoothZoneResponse:

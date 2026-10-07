@@ -216,6 +216,7 @@ class AuthService:
             raise TokenInvalid(f"login_link:{link_use.user_id}")
 
         refresh_token = await self.create_refresh_token(user)
+        await self.user_repository.record_login(user.id)
         logger.info("Login link consumed for user: %s", user.id)
         return LoginLink(
             refresh_token=refresh_token,
@@ -304,7 +305,9 @@ class AuthService:
             logger.warning("Login failed: invalid credentials")
             raise InvalidCredentials(f"login:{username}")
         logger.info("User login successful: %s", user.id)
-        return await self.create_tokens(user)
+        tokens = await self.create_tokens(user)
+        await self.user_repository.record_login(user.id)
+        return tokens
 
     async def refresh_user(self, refresh_token: str) -> tuple[str, str]:
         if not refresh_token:
@@ -535,9 +538,11 @@ class AuthService:
         self, decoded_token: dict[str, Any], idp_refresh_token: str | None = None
     ) -> str:
         user = await self.map_keycloak_to_user(decoded_token)
-        return await self.token_repository.create_refresh_token(
+        refresh_token = await self.token_repository.create_refresh_token(
             user.id, idp_refresh_token=idp_refresh_token
         )
+        await self.user_repository.record_login(user.id)
+        return refresh_token
 
     async def map_keycloak_to_user(self, decoded_token: dict[str, Any]) -> User:
         settings = get_settings()
