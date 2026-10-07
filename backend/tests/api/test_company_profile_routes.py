@@ -205,6 +205,48 @@ async def test_the_description_is_stored_sanitised(
     )
 
 
+async def test_the_description_keeps_lists_one_level_deep(
+    client: AsyncClient, company_headers: dict[str, str]
+):
+    response = await client.put(
+        PROFILE,
+        json=company_profile_payload(
+            description=(
+                '<ul><li style="color:red">a<ol start="4"><li>b<ul><li>c</li></ul>'
+                "</li></ol></li></ul><p></p><p></p><p>d<br><br><br>e</p>"
+            )
+        ),
+        headers=company_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["description"] == (
+        "<ul><li><p>a</p><ol><li><p>b</p></li><li><p>c</p></li></ol></li></ul>"
+        "<p></p><p>d<br><br>e</p>"
+    )
+
+
+async def test_the_description_limit_counts_list_items_as_lines(
+    client: AsyncClient, company_headers: dict[str, str]
+):
+    items = "<li><p>xxxx</p></li>" * 500
+
+    accepted = await client.put(
+        PROFILE,
+        json=company_profile_payload(description=f"<ul>{items}</ul>"),
+        headers=company_headers,
+    )
+    rejected = await client.put(
+        PROFILE,
+        json=company_profile_payload(description=f"<ul>{items}<li>x</li></ul>"),
+        headers=company_headers,
+    )
+
+    assert accepted.status_code == 200
+    assert rejected.status_code == 422
+    assert rejected.json()["fieldErrors"][0]["code"] == "validation.too_long"
+
+
 async def test_a_description_of_empty_markup_is_missing(
     client: AsyncClient, company_headers: dict[str, str]
 ):

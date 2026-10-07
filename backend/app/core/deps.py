@@ -17,6 +17,7 @@ from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
 from app.repositories.industry_repository import IndustryRepository
 from app.repositories.kp_repository import KpRepository
+from app.repositories.mail_campaign_repository import MailCampaignRepository
 from app.repositories.mail_repository import MailTemplateRepository
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
@@ -32,6 +33,8 @@ from app.services.export_service import ExportService
 from app.services.industry_service import IndustryService
 from app.services.invite_service import InviteService
 from app.services.kp_service import KpService
+from app.services.mail_campaign_delivery import MailCampaignDelivery, SessionFactory
+from app.services.mail_campaign_service import MailCampaignService
 from app.services.mail_service import MailService
 from app.services.mail_template_admin_service import MailTemplateAdminService
 from app.services.mail_template_service import MailTemplateService
@@ -438,3 +441,43 @@ def get_event_banner_service(
 
 
 EventBannerServiceDep = Annotated[EventBannerService, Depends(get_event_banner_service)]
+
+
+def get_mail_campaign_session_factory() -> SessionFactory:
+    return SessionLocal
+
+
+MailCampaignSessionFactoryDep = Annotated[
+    SessionFactory, Depends(get_mail_campaign_session_factory)
+]
+
+
+async def get_mail_campaign_service(
+    session: DbSessionDep,
+    mail_service: MailServiceDep,
+    current_user: CurrentUserDep,
+) -> MailCampaignService:
+    return MailCampaignService(
+        MailCampaignRepository(session), mail_service, current_user
+    )
+
+
+MailCampaignServiceDep = Annotated[
+    MailCampaignService, Depends(get_mail_campaign_service)
+]
+
+
+async def get_mail_campaign_delivery(
+    session_factory: MailCampaignSessionFactoryDep,
+    mail_service: MailServiceDep,
+) -> MailCampaignDelivery:
+    return MailCampaignDelivery(
+        session_factory,
+        mail_service,
+        pause_seconds=get_settings().MAIL_CAMPAIGN_SEND_PAUSE_SECONDS,
+    )
+
+
+MailCampaignDeliveryDep = Annotated[
+    MailCampaignDelivery, Depends(get_mail_campaign_delivery)
+]

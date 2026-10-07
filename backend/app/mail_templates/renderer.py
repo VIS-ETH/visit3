@@ -1,4 +1,5 @@
-from collections.abc import Mapping
+import unicodedata
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from jinja2 import StrictUndefined, TemplateError, nodes
@@ -95,7 +96,11 @@ def render_fragment(
     return rendered
 
 
-def compose_document(body_de: str, body_en: str) -> str:
+def compose_sections(sections: Sequence[tuple[str, str]]) -> str:
+    divider = f'<hr style="{DIVIDER_STYLE}" />'
+    content = divider.join(
+        f'<div lang="{language}">{body}</div>' for language, body in sections
+    )
     return (
         "<!DOCTYPE html>"
         '<html lang="de">'
@@ -105,10 +110,21 @@ def compose_document(body_de: str, body_en: str) -> str:
         f'<body style="{BODY_STYLE}">'
         f'<div style="{CONTAINER_STYLE}">'
         f'<p style="{WORDMARK_STYLE}">{WORDMARK}</p>'
-        f'<div lang="de">{body_de}</div>'
-        f'<hr style="{DIVIDER_STYLE}" />'
-        f'<div lang="en">{body_en}</div>'
+        f"{content}"
         "</div></body></html>"
+    )
+
+
+def compose_document(body_de: str, body_en: str) -> str:
+    return compose_sections([("de", body_de), ("en", body_en)])
+
+
+def header_safe(text: str) -> str:
+    return " ".join(
+        "".join(
+            " " if unicodedata.category(character) == "Cc" else character
+            for character in text
+        ).split()
     )
 
 

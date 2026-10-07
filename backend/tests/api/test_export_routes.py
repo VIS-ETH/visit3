@@ -678,6 +678,32 @@ async def test_company_workbook_keeps_company_text_inert(
     assert sheet["AD2"].data_type == "s"
 
 
+async def test_company_workbook_writes_lists_as_plain_text(
+    client: AsyncClient, db_session: AsyncSession, export_world: ExportWorld
+):
+    snapshot = (
+        await db_session.execute(
+            select(KpBookingCompanyDetails).where(
+                col(KpBookingCompanyDetails.booking_id) == UUID(export_world.booking_a)
+            )
+        )
+    ).scalar_one()
+    snapshot.description = (
+        "<p>We offer:</p><ul><li><p>Internships</p><ul><li><p>Zurich</p></li>"
+        "</ul></li></ul><p></p><ol><li><p>Apply</p></li><li><p>Meet</p></li></ol>"
+    )
+    db_session.add(snapshot)
+    await db_session.commit()
+
+    sheet = open_workbook(await export(client, export_world, COMPANY_WORKBOOK))[
+        "Unternehmen"
+    ]
+
+    assert sheet["AD2"].value == (
+        "We offer:\n• Internships\n   – Zurich\n\n1. Apply\n2. Meet"
+    )
+
+
 async def test_company_workbook_lists_the_people_of_active_bookings(
     client: AsyncClient, export_world: ExportWorld
 ):

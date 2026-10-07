@@ -6,7 +6,11 @@ from shutil import copyfile
 import pytest
 import typst
 
-from app.core.rich_text import rich_text_blocks
+from app.core.rich_text import (
+    rich_text_blocks,
+    rich_text_length,
+    sanitize_rich_text,
+)
 from app.models.company import PROFILE_DESCRIPTION_MAX_LENGTH
 from app.services.export_service import NAMETAG_TEMPLATE_NAME
 from app.services.pdf_service import FONTS_DIR, TEMPLATES_DIR, PdfService
@@ -171,6 +175,99 @@ async def test_a_fully_bold_description_of_the_limit_reports_the_overflow():
     )
 
     assert rendered.metadata is True
+
+
+def items(*texts: str) -> str:
+    return "".join(f"<li><p>{text}</p></li>" for text in texts)
+
+
+STRUCTURED_DESCRIPTION = (
+    "<p><strong>Acme Robotics AG</strong> entwickelt autonome Inspektionsroboter "
+    "für Industrieanlagen, Tunnel und Kraftwerke in der ganzen Schweiz. Unsere "
+    "Teams in Zürich und Lausanne verbinden Mechatronik, Machine Learning und "
+    "Software Engineering zu Produkten, die täglich im Einsatz sind.</p>"
+    "<p><strong>Was wir bieten:</strong></p><ul>"
+    + items(
+        "Praktika von drei bis sechs Monaten in Hardware, Software oder Data "
+        "Science, mit echter Verantwortung ab dem ersten Tag",
+        "Bachelor- und Masterarbeiten in Kooperation mit der ETH Zürich und der "
+        "EPFL, betreut von erfahrenen Ingenieurinnen und Ingenieuren",
+        "Teilzeitstellen für Studierende mit flexiblen Arbeitszeiten",
+        "Einstiegsstellen in einem interdisziplinären Team mit flachen Hierarchien",
+    )
+    + "</ul><p><strong>Unsere Teams:</strong></p><ul><li><p>Robotik</p><ul>"
+    + items(
+        "Antriebe, Sensorik und Leistungselektronik für raue Umgebungen",
+        "Konstruktion und Prototyping in unserer eigenen Werkstatt",
+    )
+    + "</ul></li><li><p>Software</p><ol>"
+    + items(
+        "Perception, Lokalisierung und Navigation in Echtzeit",
+        "Cloud-Plattform für Inspektionsdaten und Berichte",
+    )
+    + "</ol></li></ul><p><strong>So bewirbst du dich:</strong></p><ol>"
+    + items(
+        "Online-Bewerbung mit Lebenslauf und Notenauszug über die Karriereseite",
+        "Kurzes Kennenlernen per Video mit dem Team, in dem du arbeiten wirst",
+        "Technisches Gespräch vor Ort mit einer kleinen praktischen Aufgabe",
+    )
+    + "</ol><p></p><p>Besuche uns am Stand und lerne unsere Roboter live kennen."
+    "<br>Kontakt: Personalabteilung, Technoparkstrasse 1, 8005 Zürich</p>"
+)
+
+
+async def render_description(html: str) -> object:
+    rendered = await PdfService().render_png(
+        template_name="company_page.typ",
+        data=company_page_entry(
+            description_blocks=rich_text_blocks(sanitize_rich_text(html)),
+            logo_path="logo.png",
+        ),
+        files={"logo.png": ONE_PIXEL_PNG},
+        metadata_label="overflow",
+    )
+    return rendered.metadata
+
+
+async def test_a_structured_description_with_lists_fits_the_company_page():
+    assert rich_text_length(sanitize_rich_text(STRUCTURED_DESCRIPTION)) > 1200
+
+    assert await render_description(STRUCTURED_DESCRIPTION) is False
+
+
+async def test_a_list_heavy_description_of_the_limit_reports_the_overflow():
+    entry = "Wir bieten Praktika"
+    count = (PROFILE_DESCRIPTION_MAX_LENGTH + 1) // (len(entry) + 1)
+    html = "<ul>" + items(*[entry] * count) + "</ul>"
+
+    assert rich_text_length(html) == PROFILE_DESCRIPTION_MAX_LENGTH - 1
+    assert await render_description(html) is True
+
+
+@pytest.mark.parametrize(
+    "html",
+    [
+        "<ul>" + items(*"x" * 1250) + "</ul>",
+        "<ol>" + "<li><p>x</p><ul><li><p>y</p></li></ul></li>" * 625 + "</ol>",
+        "<p>x</p><p></p>" * 834,
+        "<p>" + "x<br><br>" * 834 + "</p>",
+    ],
+)
+async def test_the_densest_descriptions_render_well_within_the_limit(html: str):
+    started = time.monotonic()
+
+    rendered = await PdfService().render_png(
+        template_name="company_page.typ",
+        data=company_page_entry(
+            description_blocks=rich_text_blocks(sanitize_rich_text(html))
+        ),
+        files={},
+        metadata_label="overflow",
+        timeout=10,
+    )
+
+    assert rendered.metadata is True
+    assert time.monotonic() - started < 3
 
 
 def endless_description() -> list[list[dict[str, object]]]:

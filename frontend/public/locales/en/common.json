@@ -128,6 +128,9 @@
     "session_load_failed": "Your session could not be loaded. Please try again.",
     "mail_template_not_found": "This email template does not exist.",
     "mail_template_invalid": "The email template uses a placeholder that is not available.",
+    "mail_campaign_not_found": "This mail no longer exists.",
+    "mail_campaign_locked": "This mail is already being sent and can no longer be changed.",
+    "mail_campaign_schedule_in_past": "Pick a time in the future.",
     "retry": "Try again",
     "identity_provider_unavailable": "The VIS login service cannot be reached right now. Please try again in a few minutes."
   },
@@ -208,6 +211,7 @@
     "kontaktparty": "Kontaktparty",
     "company_management": "Company management",
     "mail_templates": "Email templates",
+    "mail_campaigns": "Mails",
     "industries": "Industries",
     "bookings_overview": "Bookings overview",
     "logout": "Logout",

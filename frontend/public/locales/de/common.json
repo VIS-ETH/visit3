@@ -128,6 +128,9 @@
     "session_load_failed": "Ihre Sitzung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "mail_template_not_found": "Diese E-Mail-Vorlage existiert nicht.",
     "mail_template_invalid": "Die E-Mail-Vorlage verwendet einen Platzhalter, der nicht verfügbar ist.",
+    "mail_campaign_not_found": "Diese E-Mail existiert nicht mehr.",
+    "mail_campaign_locked": "Diese E-Mail wird bereits versendet und kann nicht mehr geändert werden.",
+    "mail_campaign_schedule_in_past": "Bitte einen Zeitpunkt in der Zukunft wählen.",
     "retry": "Erneut versuchen",
     "identity_provider_unavailable": "Der VIS-Anmeldedienst ist gerade nicht erreichbar. Bitte versuchen Sie es in ein paar Minuten erneut."
   },
@@ -208,6 +211,7 @@
     "kontaktparty": "Kontaktparty",
     "company_management": "Unternehmensverwaltung",
     "mail_templates": "E-Mail-Vorlagen",
+    "mail_campaigns": "E-Mails",
     "industries": "Branchen",
     "bookings_overview": "Buchungsübersicht",
     "logout": "Abmelden",

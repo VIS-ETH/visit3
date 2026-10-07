@@ -1,4 +1,5 @@
 import json
+from html import escape
 from pathlib import Path
 from shutil import copyfile
 from typing import Any
@@ -98,6 +99,69 @@ def test_paragraphs_and_line_breaks_are_kept(tmp_path: Path):
     assert serialized.count('"func": "par"') == 2
     assert serialized.count('"func": "linebreak"') == 1
     assert texts(rendered) == ["one", "two", "three"]
+
+
+MARKERS = {"•", "–"}
+
+
+def nodes(node: Any, func: str) -> list[dict[str, Any]]:
+    if isinstance(node, dict):
+        found = [node] if node.get("func") == func else []
+        return found + [
+            inner for value in node.values() for inner in nodes(value, func)
+        ]
+    if isinstance(node, list):
+        return [inner for value in node for inner in nodes(value, func)]
+    return []
+
+
+@pytest.mark.parametrize("hostile", HOSTILE_TEXTS)
+def test_list_items_are_never_evaluated_as_typst(tmp_path: Path, hostile: str):
+    lines = [line for line in hostile.split("\n") if line.strip()]
+    items = "".join(f"<li><p>{escape(line)}</p></li>" for line in lines)
+
+    rendered = describe(
+        tmp_path, f"<ul><li><p>x</p><ol>{items}</ol></li></ul><ol>{items}</ol>"
+    )
+
+    assert [text for text in texts(rendered) if text not in MARKERS] == [
+        "x",
+        *lines,
+        *lines,
+    ]
+
+
+def test_lists_render_with_their_markers_and_one_nesting_level(tmp_path: Path):
+    rendered = describe(
+        tmp_path,
+        "<ul><li><p>a</p><ul><li><p>b</p></li></ul><ol><li><p>c</p></li></ol></li>"
+        "</ul><ol><li><p>d</p><ol><li><p>e</p></li></ol></li></ol>",
+    )
+
+    bullets = nodes(rendered, "list")
+    numbers = nodes(rendered, "enum")
+    assert [texts(node["marker"]) for node in bullets] == [["•"], ["–"]]
+    assert [node["numbering"] for node in numbers] == ["a.", "1.", "a."]
+    assert [node["breakable"] for node in nodes(rendered, "block")] == [False, False]
+    assert [text for text in texts(rendered) if text not in MARKERS] == list("abcde")
+
+
+def test_list_items_keep_their_formatting_and_line_breaks(tmp_path: Path):
+    rendered = describe(
+        tmp_path, "<ol><li><p><strong>bold</strong><br><em>next</em></p></li></ol>"
+    )
+
+    assert "strong" in wrappers(rendered, "bold")
+    assert "emph" in wrappers(rendered, "next")
+    assert len(nodes(rendered, "linebreak")) == 1
+
+
+def test_a_blank_line_takes_the_height_of_one_empty_paragraph(tmp_path: Path):
+    rendered = describe(tmp_path, "<p>one</p><p></p><p>two</p>")
+
+    assert len(nodes(rendered, "par")) == 3
+    assert len(nodes(rendered, "hide")) == 1
+    assert [text for text in texts(rendered) if text != "x"] == ["one", "two"]
 
 
 SIDEBAR_PROBE = """

@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     NOTIFICATION_SENDER_EMAIL: EmailStr = Field(default="visit@vis.ethz.ch")
     VISIT_FRONTEND_SERVER_URL: str
     DEFAULT_NOTIFICATION_EMAIL: str = "kontaktparty@vis.ethz.ch"
+    MAIL_CAMPAIGN_SEND_PAUSE_SECONDS: float = Field(default=0.2, ge=0, le=10)
     SIP_AUTH_OIDC_ISSUER: str
     SIP_AUTH_OIDC_CLIENT_ID: str
     KEYCLOAK_CALLBACK: str

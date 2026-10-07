@@ -817,6 +817,36 @@ class MailTemplateInvalid(AppError):
         )
 
 
+class MailCampaignNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Mail campaign not found",
+            "error.mail_campaign_not_found",
+            identifier,
+            404,
+        )
+
+
+class MailCampaignLocked(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The mail campaign can no longer be changed in its current state",
+            "error.mail_campaign_locked",
+            identifier,
+            409,
+        )
+
+
+class MailCampaignScheduleInPast(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The mail campaign has to be scheduled in the future",
+            "error.mail_campaign_schedule_in_past",
+            identifier,
+            400,
+        )
+
+
 class KeycloakExchangeFailed(AppError):
     def __init__(self, identifier: str):
         super().__init__(

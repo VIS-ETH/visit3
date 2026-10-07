@@ -10,6 +10,12 @@
 #let neutral-banner = rgb("#4b5563")
 #let muted = rgb("#5f6368")
 #let white = rgb("#ffffff")
+#let paragraph-spacing = 0.9em
+#let list-item-spacing = 0.6em
+#let list-indent = 0.4em
+#let list-body-indent = 0.5em
+#let list-markers = ([•], [–])
+#let list-numbering = ("1.", "a.")
 
 #let field(entry, key) = {
   let current = entry.at(key, default: none)
@@ -93,17 +99,41 @@
   styled-run(item)
 }
 
-#let company-description(entry) = {
-  for paragraph in entry.at("description_blocks", default: ()) {
-    if paragraph.len() > 0 { par(paragraph.map(description-inline).join()) }
+#let description-inlines(inlines) = inlines.map(description-inline).join()
+
+#let description-list(group, level) = {
+  let items = group.at("items", default: ()).map(item => {
+    set par(spacing: list-item-spacing, justify: false)
+    description-inlines(item.at("inlines", default: ()))
+    for child in item.at("lists", default: ()) { description-list(child, level + 1) }
+  })
+  let body = if group.at("ordered", default: false) {
+    enum(numbering: list-numbering.at(calc.min(level, list-numbering.len() - 1)), ..items)
+  } else {
+    list(marker: list-markers.at(calc.min(level, list-markers.len() - 1)), ..items)
   }
+  if level == 0 { block(breakable: false, spacing: paragraph-spacing, body) } else { body }
+}
+
+#let description-block(part) = if type(part) == array {
+  if part.len() > 0 { par(description-inlines(part)) }
+} else if part.at("blank", default: false) {
+  par(hide[x])
+} else {
+  description-list(part, 0)
+}
+
+#let company-description(entry) = {
+  set list(tight: false, spacing: list-item-spacing, indent: list-indent, body-indent: list-body-indent)
+  set enum(tight: false, spacing: list-item-spacing, indent: list-indent, body-indent: list-body-indent)
+  for block in entry.at("description_blocks", default: ()) { description-block(block) }
 }
 
 #let company-body(entry) = {
   let brand = field(entry, "brand_name")
   let company = field(entry, "company")
   set text(font: "DejaVu Sans", size: body-size)
-  set par(justify: true, leading: 0.55em, spacing: 0.9em)
+  set par(justify: true, leading: 0.55em, spacing: paragraph-spacing)
   text(size: 16pt, weight: "bold", if brand == "" { company } else { brand })
   if brand != "" and brand != company {
     linebreak()
