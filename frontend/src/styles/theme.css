@@ -227,6 +227,13 @@ a {
   }
 }
 
+@media (min-width: 48em) {
+  .mantine-Table-td :is(.mantine-Badge-root, .mantine-Button-root) {
+    flex-shrink: 0;
+    min-width: max-content;
+  }
+}
+
 @media (max-width: 768px) {
   .auth-shell {
     min-height: calc(100dvh - 80px);
