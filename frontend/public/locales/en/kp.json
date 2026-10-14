@@ -332,8 +332,8 @@
     "bookings_overview": {
       "title": "Bookings overview",
       "event": "Kontaktparty",
-      "total": "Total incl. VAT",
-      "total_detail": "CHF {{net}} net · CHF {{vat}} VAT ({{rate}}%)",
+      "total": "Total incl. services and VAT",
+      "total_detail": "CHF {{base}} booths + CHF {{services}} services · CHF {{vat}} VAT ({{rate}}%)",
       "all": "All bookings",
       "bookings": "Bookings",
       "free": "Free",

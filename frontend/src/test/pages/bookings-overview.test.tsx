@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import enKp from "../../../public/locales/en/kp.json";
 import BookingsOverview from "../../pages/BookingsOverview";
 import {
   KpBookingStatus,
@@ -150,6 +151,32 @@ describe("the bookings overview", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Main hall")).toBeInTheDocument();
     expect(screen.getAllByText("4000.00").length).toBeGreaterThan(0);
+  });
+
+  it("splits the headline total into booths and services", async () => {
+    i18n.addResource(
+      "en",
+      "common",
+      "kp.bookings_overview.total",
+      enKp.kp.bookings_overview.total,
+    );
+    i18n.addResource(
+      "en",
+      "common",
+      "kp.bookings_overview.total_detail",
+      enKp.kp.bookings_overview.total_detail,
+    );
+    renderWithProviders(<BookingsOverview />);
+    await screen.findByText("CHF 4864.50", undefined, SLOW_WAIT);
+
+    expect(
+      screen.getByText("Total incl. services and VAT"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "CHF 4000.00 booths + CHF 500.00 services · CHF 364.50 VAT (8.1%)",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("loads the summary of another event when it is picked", async () => {

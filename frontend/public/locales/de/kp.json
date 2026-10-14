@@ -332,8 +332,8 @@
     "bookings_overview": {
       "title": "Buchungsübersicht",
       "event": "Kontaktparty",
-      "total": "Total inkl. MwSt.",
-      "total_detail": "CHF {{net}} netto · CHF {{vat}} MwSt. ({{rate}}%)",
+      "total": "Total inkl. Services und MwSt.",
+      "total_detail": "CHF {{base}} Stände + CHF {{services}} Services · CHF {{vat}} MwSt. ({{rate}}%)",
       "all": "Alle Buchungen",
       "bookings": "Buchungen",
       "free": "Frei",
