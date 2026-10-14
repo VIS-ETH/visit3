@@ -30,6 +30,16 @@
       "success_title": "Unternehmen aktualisiert",
       "success_message": "Unternehmensinformationen wurden erfolgreich aktualisiert.",
       "error_message": "Unternehmen konnte nicht aktualisiert werden"
+    },
+    "email_change": {
+      "button": "Ändern",
+      "title": "E-Mail-Adresse ändern",
+      "description": "Wir senden einen Bestätigungslink an die neue Adresse. Bis Sie sie bestätigen, melden Sie sich weiterhin mit {{email}} an.",
+      "email": "Neue E-Mail-Adresse",
+      "submit": "Bestätigungslink senden",
+      "sent_title": "Bestätigungslink gesendet",
+      "sent_message": "Öffnen Sie den Link, den wir an {{email}} gesendet haben, um die Änderung abzuschliessen.",
+      "pending": "Wartet auf Bestätigung von {{email}}"
     }
   },
   "impersonation": {
