@@ -93,6 +93,7 @@ ROUTE_ACCESS: dict[str, Access] = {
     "GET /api/user/me": Access.AUTHENTICATED,
     "GET /api/user/profile": Access.AUTHENTICATED,
     "PATCH /api/user/me": Access.AUTHENTICATED,
+    "POST /api/user/me/email": Access.COMPANY,
     "POST /api/user/logout": Access.AUTHENTICATED,
     "POST /api/user/send-confirmation-email": Access.AUTHENTICATED,
     "GET /api/user/companies": Access.STAFF,
@@ -329,6 +330,7 @@ MAIL_CAMPAIGN_BODY: dict[str, Any] = {
 
 REQUEST_BODIES: dict[str, dict[str, Any]] = {
     "PATCH /api/user/me": {},
+    "POST /api/user/me/email": {"email": "matrix-{persona}@example.com"},
     "PATCH /api/users/{user_id}": {},
     "POST /api/company/setup": {"name": "Matrix Holding {persona}"},
     "PATCH /api/company/me": {"name": "Matrix Holding {persona}"},

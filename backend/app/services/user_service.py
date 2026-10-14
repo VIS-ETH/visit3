@@ -3,7 +3,11 @@ from collections.abc import Sequence
 from typing import TypeVar
 from uuid import UUID
 
-from app.core.auth_context import require_admin_user, require_staff_user
+from app.core.auth_context import (
+    require_admin_user,
+    require_confirmed_company_user,
+    require_staff_user,
+)
 from app.core.exceptions import (
     CompanyNotFound,
     EmailUsed,
@@ -25,6 +29,7 @@ from app.repositories.company_repository import CompanyRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import (
+    EmailChangeInput,
     StaffUserResponse,
     UpdateCompanyUserInput,
     UpdateUserProfileInput,
@@ -84,6 +89,15 @@ class UserService:
         )
         logger.info("User profile updated: %s", self.current_user.id)
         return updated_user
+
+    async def request_own_email_change(self, change: EmailChangeInput) -> User:
+        user = require_confirmed_company_user(self.current_user).user
+        new_email = await self._available_email(
+            user, change.email, "request_own_email_change"
+        )
+        if new_email is not None:
+            await self._request_email_change(user, new_email)
+        return await self.user_repository.load_user_company(user)
 
     async def logout_user(self, refresh_token: str | None) -> None:
         if refresh_token:
@@ -183,9 +197,9 @@ class UserService:
             update, f"update_company_user:{user_id}"
         )
 
-        new_email = self._changed_email(user, normalized.email)
-        if new_email is not None and await self.user_repository.get_by_email(new_email):
-            raise EmailUsed(f"update_company_user:{new_email}")
+        new_email = await self._available_email(
+            user, normalized.email, "update_company_user"
+        )
         await self._check_company_reassignment(user, normalized)
         if new_email is not None:
             await self._request_email_change(user, new_email)
@@ -229,6 +243,14 @@ class UserService:
             return None
         normalized = normalize_email(email)
         return normalized if normalized != user.email else None
+
+    async def _available_email(
+        self, user: User, email: str | None, action: str
+    ) -> str | None:
+        new_email = self._changed_email(user, email)
+        if new_email is not None and await self.user_repository.get_by_email(new_email):
+            raise EmailUsed(f"{action}:{new_email}")
+        return new_email
 
     async def _request_email_change(self, user: User, new_email: str) -> None:
         await self.token_repository.revoke_email_change_tokens(user.id)
