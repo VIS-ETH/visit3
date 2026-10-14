@@ -242,6 +242,13 @@ const UserManagement = () => {
                                   {t("user_management.email_unconfirmed")}
                                 </Badge>
                               )}
+                              {item.pending_email ? (
+                                <Tooltip label={item.pending_email} withArrow>
+                                  <Badge color="blue" variant="light">
+                                    {t("user_management.email_change_pending")}
+                                  </Badge>
+                                </Tooltip>
+                              ) : null}
                             </Group>
                           </Table.Td>
                           <Table.Td>

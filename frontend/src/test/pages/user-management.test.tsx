@@ -301,6 +301,16 @@ describe("the user management page", () => {
     });
   });
 
+  it("marks a user whose new email address waits for its confirmation", async () => {
+    listItems = [{ ...memberUser, pending_email: "moved@example.com" }];
+    renderPage();
+    const row = await memberRow();
+
+    expect(
+      row.getByText("user_management.email_change_pending"),
+    ).toBeInTheDocument();
+  });
+
   it("hides the privilege switches and omits them for a non-admin staff user", async () => {
     const { user } = renderPage(staffUser);
     const row = await memberRow();

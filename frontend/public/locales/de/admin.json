@@ -59,6 +59,7 @@
     "confirmed": "Bestätigt",
     "unconfirmed": "Unbestätigt",
     "email_unconfirmed": "E-Mail unbestätigt",
+    "email_change_pending": "Neue E-Mail ausstehend",
     "confirm": "Benutzer bestätigen",
     "confirmed_notice": "Benutzer bestätigt.",
     "resend": "Bestätigungs-E-Mail erneut senden",

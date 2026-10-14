@@ -59,6 +59,7 @@
     "confirmed": "Confirmed",
     "unconfirmed": "Unconfirmed",
     "email_unconfirmed": "Email unconfirmed",
+    "email_change_pending": "New email pending",
     "confirm": "Confirm user",
     "confirmed_notice": "User confirmed.",
     "resend": "Resend confirmation email",
