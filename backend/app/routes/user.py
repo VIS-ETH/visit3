@@ -10,6 +10,7 @@ from app.core.rate_limit import user_rate_limit
 from app.models.user import User
 from app.schemas.user import (
     CompanyUserResponse,
+    EmailChangeRequest,
     UpdateCompanyUserRequest,
     UpdateUserProfileRequest,
     UserFilter,
@@ -51,6 +52,18 @@ async def update_user_profile(
     user_service: UserServiceDep, request: UpdateUserProfileRequest
 ) -> User:
     return await user_service.update_current_user_profile(request)
+
+
+@router.post(
+    "/me/email",
+    operation_id="requestEmailChange",
+    response_model=CompanyUserResponse,
+    dependencies=[user_rate_limit("request_email_change")],
+)
+async def request_email_change(
+    user_service: UserServiceDep, request: EmailChangeRequest
+) -> User:
+    return await user_service.request_own_email_change(request)
 
 
 @router.get(

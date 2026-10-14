@@ -238,6 +238,14 @@ async def test_an_admin_email_change_for_staff_uses_the_same_confirmation(
     assert mails_to(mail_stub, "new-staff@example.com")
 
 
+async def request_own_change(
+    client: AsyncClient, headers: dict[str, str], email: str = NEW_EMAIL
+) -> Response:
+    return await client.post(
+        "/api/user/me/email", json={"email": email}, headers=headers
+    )
+
+
 async def test_confirming_tells_the_old_address_that_the_email_changed(
     client: AsyncClient,
     csrf_headers: dict[str, str],
@@ -285,3 +293,81 @@ async def test_an_expired_change_link_is_rejected(
     assert valid.json() is False
     assert confirmed.status_code == 400
     assert (await stored(db_session, company_user)).email == company_user.email
+
+
+async def test_a_company_user_changes_the_own_email_after_confirming(
+    client: AsyncClient,
+    csrf_headers: dict[str, str],
+    company_user: User,
+    company_headers: dict[str, str],
+    mail_stub: AsyncMock,
+    db_session: AsyncSession,
+):
+    old_email = company_user.email
+
+    response = await request_own_change(client, company_headers, "Moved@Example.com")
+
+    assert response.status_code == 200
+    assert response.json()["email"] == old_email
+    assert response.json()["pending_email"] == NEW_EMAIL
+    assert mails_to(mail_stub, old_email)
+    assert (await stored(db_session, company_user)).email == old_email
+
+    await client.post(
+        f"/api/user/confirm-email/{confirm_token(mail_stub)}", headers=csrf_headers
+    )
+
+    assert (await stored(db_session, company_user)).email == NEW_EMAIL
+
+
+async def test_an_own_email_change_to_a_taken_address_is_rejected(
+    client: AsyncClient,
+    company_user: User,
+    company_headers: dict[str, str],
+    create_user: Callable[..., Awaitable[User]],
+    mail_stub: AsyncMock,
+    db_session: AsyncSession,
+):
+    await create_user(email="other@example.com")
+
+    response = await request_own_change(client, company_headers, "OTHER@example.com")
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "error.email_used"
+    assert (await stored(db_session, company_user)).pending_email is None
+    mail_stub.SendMail.assert_not_awaited()
+
+
+async def test_an_own_email_change_to_an_invalid_address_is_rejected(
+    client: AsyncClient,
+    company_headers: dict[str, str],
+    mail_stub: AsyncMock,
+):
+    response = await request_own_change(client, company_headers, "not-an-address")
+
+    assert response.status_code == 422
+    mail_stub.SendMail.assert_not_awaited()
+
+
+async def test_requesting_the_current_address_changes_nothing(
+    client: AsyncClient,
+    company_user: User,
+    company_headers: dict[str, str],
+    mail_stub: AsyncMock,
+):
+    response = await request_own_change(client, company_headers, company_user.email)
+
+    assert response.status_code == 200
+    assert response.json()["pending_email"] is None
+    mail_stub.SendMail.assert_not_awaited()
+
+
+async def test_staff_cannot_change_the_own_email_through_the_profile(
+    client: AsyncClient,
+    plain_staff_headers: dict[str, str],
+    mail_stub: AsyncMock,
+):
+    response = await request_own_change(client, plain_staff_headers)
+
+    assert response.status_code == 403
+    mail_stub.SendMail.assert_not_awaited()

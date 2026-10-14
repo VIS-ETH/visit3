@@ -96,6 +96,14 @@ class UpdateUserProfileRequest(UpdateUserProfileInput):
     pass
 
 
+class EmailChangeInput(BaseModel):
+    email: EmailStr
+
+
+class EmailChangeRequest(EmailChangeInput):
+    pass
+
+
 class UpdateCompanyUserInput(UserProfileFieldsInput):
     email: EmailStr | None = None
     company_id: UUID | None = None
