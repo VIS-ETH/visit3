@@ -10,6 +10,7 @@
 #let neutral-banner = rgb("#4b5563")
 #let muted = rgb("#5f6368")
 #let white = rgb("#ffffff")
+#let black = rgb("#000000")
 #let paragraph-spacing = 0.9em
 #let list-item-spacing = 0.6em
 #let list-indent = 0.4em
@@ -29,6 +30,25 @@
   } else { rgb(color) }
 }
 
+#let linear-channel(value) = {
+  let ratio = value / 100%
+  if ratio <= 0.04045 { ratio / 12.92 } else { calc.pow((ratio + 0.055) / 1.055, 2.4) }
+}
+
+#let luminance(color) = {
+  let (red, green, blue, ..) = rgb(color).components()
+  0.2126 * linear-channel(red) + 0.7152 * linear-channel(green) + 0.0722 * linear-channel(blue)
+}
+
+#let contrast(first, second) = {
+  let (darker, lighter) = (luminance(first), luminance(second)).sorted()
+  (lighter + 0.05) / (darker + 0.05)
+}
+
+#let sidebar-ink(fill) = if fill == none or contrast(white, fill) >= contrast(black, fill) {
+  white
+} else { black }
+
 #let page-background(entry) = {
   let background = field(entry, "background_path")
   if background == "" { none } else {
@@ -39,14 +59,13 @@
 #let sidebar-label(label) = text(
   size: 6.5pt,
   weight: "bold",
-  fill: white.transparentize(20%),
   upper(label),
 )
 
 #let sidebar-row(label, value) = stack(
   spacing: 1.4mm,
   sidebar-label(label),
-  text(size: sidebar-value-size, fill: white, value),
+  text(size: sidebar-value-size, value),
 )
 
 #let email-lines(address, width) = {
@@ -144,7 +163,8 @@
 }
 
 #let company-sidebar(entry) = {
-  set text(font: "DejaVu Sans")
+  let ink = sidebar-ink(banner-color(entry))
+  set text(font: "DejaVu Sans", fill: ink)
   set par(leading: 0.45em)
   let logo = field(entry, "logo_path")
   let booth = field(entry, "booth_number")
@@ -159,7 +179,7 @@
     ])
   }
   if booth != "" {
-    items.push(align(right, text(size: 16pt, weight: "bold", fill: white, booth)))
+    items.push(align(right, text(size: 16pt, weight: "bold", booth)))
   }
   if contact != "" {
     items.push(sidebar-row(
@@ -179,7 +199,7 @@
   if industries.len() > 0 {
     items.push(sidebar-row("Areas of activity", industries.join(", ")))
   }
-  items.push(line(length: 100%, stroke: 0.3mm + white))
+  items.push(line(length: 100%, stroke: 0.3mm + ink))
   items.push(sidebar-row(
     "Employees",
     grid(
