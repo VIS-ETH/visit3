@@ -1,13 +1,16 @@
 import re
 from collections.abc import Awaitable, Callable
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 
 import grpc
 import pytest
 from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col, update
 
-from app.models.user import User
+from app.core.utils import hash_str
+from app.models.user import EmailChangeToken, User
 from app.repositories.user_repository import UserRepository
 from tests.api.conftest import DEFAULT_PASSWORD, decoded_subject
 
@@ -233,3 +236,30 @@ async def test_an_admin_email_change_for_staff_uses_the_same_confirmation(
     assert response.json()["email"] == staff_user.email
     assert response.json()["pending_email"] == "new-staff@example.com"
     assert mails_to(mail_stub, "new-staff@example.com")
+
+
+async def test_an_expired_change_link_is_rejected(
+    client: AsyncClient,
+    csrf_headers: dict[str, str],
+    company_user: User,
+    plain_staff_headers: dict[str, str],
+    mail_stub: AsyncMock,
+    db_session: AsyncSession,
+):
+    await change_email(client, company_user, plain_staff_headers)
+    token = confirm_token(mail_stub)
+    await db_session.execute(
+        update(EmailChangeToken)
+        .where(col(EmailChangeToken.token) == hash_str(token))
+        .values(expires_at=datetime.now(timezone.utc) - timedelta(minutes=1))
+    )
+    await db_session.commit()
+
+    valid = await client.get(f"/api/user/confirm-email/{token}")
+    confirmed = await client.post(
+        f"/api/user/confirm-email/{token}", headers=csrf_headers
+    )
+
+    assert valid.json() is False
+    assert confirmed.status_code == 400
+    assert (await stored(db_session, company_user)).email == company_user.email
