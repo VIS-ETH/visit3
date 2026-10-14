@@ -30,6 +30,16 @@
       "success_title": "Company updated",
       "success_message": "Company information was updated successfully.",
       "error_message": "Failed to update company"
+    },
+    "email_change": {
+      "button": "Change",
+      "title": "Change email address",
+      "description": "We send a confirmation link to the new address. Until you confirm it, you keep logging in with {{email}}.",
+      "email": "New email address",
+      "submit": "Send confirmation link",
+      "sent_title": "Confirmation link sent",
+      "sent_message": "Open the link we sent to {{email}} to finish the change.",
+      "pending": "Waiting for confirmation of {{email}}"
     }
   },
   "impersonation": {

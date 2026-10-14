@@ -17,3 +17,10 @@ export const profileSchema = z
   );
 
 export type ProfileFormValues = z.infer<typeof profileSchema>;
+
+export const emailChangeSchema = z.object({
+  email: z
+    .email("validation.invalid_email")
+    .trim()
+    .min(1, "validation.required"),
+});

@@ -25,6 +25,7 @@ import { profileSchema } from "../schemas/profileSchema";
 import { useTranslatedForm } from "../utils/translator";
 import { useState } from "react";
 import { getDisplayName } from "../utils/display";
+import EmailChangeModal from "../components/EmailChangeModal";
 
 function normalizeProfileValue(value?: string | null) {
   const trimmed = value?.trim() ?? "";
@@ -66,6 +67,7 @@ const Profile = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [settingsOpened, setSettingsOpened] = useState(false);
+  const [emailChangeOpened, setEmailChangeOpened] = useState(false);
   const { data: user, isLoading, isError } = useGetUserProfile();
 
   const form = useTranslatedForm<typeof profileSchema>(profileSchema, {
@@ -211,6 +213,12 @@ const Profile = () => {
           </form>
         </Modal>
 
+        <EmailChangeModal
+          opened={emailChangeOpened}
+          onClose={() => setEmailChangeOpened(false)}
+          currentEmail={user.email}
+        />
+
         <Paper withBorder p="md" radius="md">
           <Stack gap="sm">
             <Text>
@@ -219,12 +227,30 @@ const Profile = () => {
               </Text>
               {getDisplayName(user.first_name, user.last_name)}
             </Text>
-            <Text>
-              <Text span fw={600}>
-                {t("profile.email")}:{" "}
-              </Text>
-              {user.email}
-            </Text>
+            <Group justify="space-between" align="flex-start" wrap="nowrap">
+              <Stack gap={2}>
+                <Text>
+                  <Text span fw={600}>
+                    {t("profile.email")}:{" "}
+                  </Text>
+                  {user.email}
+                </Text>
+                {user.pending_email ? (
+                  <Text size="sm" c="dimmed">
+                    {t("profile.email_change.pending", {
+                      email: user.pending_email,
+                    })}
+                  </Text>
+                ) : null}
+              </Stack>
+              <Button
+                size="xs"
+                variant="subtle"
+                onClick={() => setEmailChangeOpened(true)}
+              >
+                {t("profile.email_change.button")}
+              </Button>
+            </Group>
             <Text>
               <Text span fw={600}>
                 {t("profile.phone")}:{" "}
