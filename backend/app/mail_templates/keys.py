@@ -9,6 +9,7 @@ class MailTemplateKey(StrEnum):
     ACCOUNT_EXISTS = "account_exists"
     EMAIL_CHANGE_CONFIRM = "email_change_confirm"
     EMAIL_CHANGE_NOTICE = "email_change_notice"
+    EMAIL_CHANGED = "email_changed"
     COMPANY_INVITE = "company_invite"
     BOOKING_REGISTERED = "booking_registered"
     BOOKING_ACCEPTED = "booking_accepted"

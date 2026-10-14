@@ -149,6 +149,10 @@ SAMPLE_CONTEXTS: dict[MailTemplateKey, MailContext] = {
         name="Ada Lovelace",
         new_email="ada.new@example.com",
     ),
+    MailTemplateKey.EMAIL_CHANGED: EmailChangeNoticeContext(
+        name="Ada Lovelace",
+        new_email="ada.new@example.com",
+    ),
     MailTemplateKey.COMPANY_INVITE: CompanyInviteContext(
         company_name="Acme AG",
         invite_url=(

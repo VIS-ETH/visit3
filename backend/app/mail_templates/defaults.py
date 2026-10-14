@@ -132,6 +132,23 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
             "<p>If you did not ask for this, please contact VIS.</p>"
         ),
     ),
+    MailTemplateKey.EMAIL_CHANGED: MailTemplateTexts(
+        subject_de="VISIT: Ihre E-Mail-Adresse wurde geändert",
+        subject_en="VISIT: Your email address was changed",
+        body_de=(
+            "<p>Hallo {{ name }},</p>"
+            "<p>die E-Mail-Adresse Ihres VISIT-Kontos ist jetzt {{ new_email }}."
+            " Melden Sie sich ab sofort mit dieser Adresse an.</p>"
+            "<p>Wenn Sie das nicht veranlasst haben, melden Sie sich bitte beim"
+            " VIS.</p>"
+        ),
+        body_en=(
+            "<p>Hello {{ name }},</p>"
+            "<p>The email address of your VISIT account is now {{ new_email }}."
+            " From now on, log in with this address.</p>"
+            "<p>If you did not ask for this, please contact VIS.</p>"
+        ),
+    ),
     MailTemplateKey.COMPANY_INVITE: MailTemplateTexts(
         subject_de="VISIT: Einladung zu {{ company_name }}",
         subject_en="VISIT: Invitation to join {{ company_name }}",
