@@ -238,6 +238,28 @@ async def test_an_admin_email_change_for_staff_uses_the_same_confirmation(
     assert mails_to(mail_stub, "new-staff@example.com")
 
 
+async def test_confirming_tells_the_old_address_that_the_email_changed(
+    client: AsyncClient,
+    csrf_headers: dict[str, str],
+    company_user: User,
+    plain_staff_headers: dict[str, str],
+    mail_stub: AsyncMock,
+):
+    old_email = company_user.email
+    await change_email(client, company_user, plain_staff_headers)
+
+    await client.post(
+        f"/api/user/confirm-email/{confirm_token(mail_stub)}", headers=csrf_headers
+    )
+
+    notice = mails_to(mail_stub, old_email)[-1]
+    assert decoded_subject(notice) == (
+        "VISIT: Ihre E-Mail-Adresse wurde geändert"
+        " / VISIT: Your email address was changed"
+    )
+    assert NEW_EMAIL in str(notice)
+
+
 async def test_an_expired_change_link_is_rejected(
     client: AsyncClient,
     csrf_headers: dict[str, str],

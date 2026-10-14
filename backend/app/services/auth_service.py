@@ -29,6 +29,7 @@ from app.mail_templates.context import (
     AccountAwaitingConfirmationContext,
     AccountConfirmEmailContext,
     AccountExistsContext,
+    EmailChangeNoticeContext,
     PasswordResetContext,
 )
 from app.mail_templates.keys import MailTemplateKey
@@ -492,12 +493,21 @@ class AuthService:
             raise TokenInvalid("confirm_email:email_change_outdated")
         if await self.user_repository.get_by_email(change_token.new_email):
             raise EmailUsed(f"confirm_email:{change_token.new_email}")
+        old_email = user.email
         await self.user_repository.apply_email_change(user, change_token.new_email)
         await self.token_repository.revoke_email_change_tokens(user.id)
         await self.token_repository.revoke_all_refresh_tokens(user.id)
         await self.token_repository.revoke_reset_password_tokens(user.id)
         await self.token_repository.revoke_login_link_tokens(user.id)
         logger.info("Email change confirmed for user %s", user.id)
+        try:
+            await self.mail_template_service.send(
+                MailTemplateKey.EMAIL_CHANGED,
+                [old_email],
+                EmailChangeNoticeContext(name=user.display_name, new_email=user.email),
+            )
+        except MailUnavailable:
+            logger.exception("Email changed notice failed for %s", user.id)
         return True
 
     async def _apply_pending_invite(self, user: User) -> None:
