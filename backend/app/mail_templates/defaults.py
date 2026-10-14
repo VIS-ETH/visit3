@@ -99,15 +99,14 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
         subject_en="VISIT: Confirm your new email address",
         body_de=(
             "<p>Hallo {{ name }},</p>"
-            "<p>der VIS hat diese Adresse als neue E-Mail-Adresse für Ihr"
-            " VISIT-Konto eingetragen. Sie wird erst aktiv, wenn Sie sie"
-            " bestätigen.</p>"
+            "<p>Diese Adresse wurde als neue E-Mail-Adresse für Ihr VISIT-Konto"
+            " eingetragen. Sie wird erst aktiv, wenn Sie sie bestätigen.</p>"
             '<p><a href="{{ confirm_url }}">Neue E-Mail-Adresse bestätigen</a></p>'
             "<p>Wenn Sie das nicht erwartet haben, ignorieren Sie diese Nachricht.</p>"
         ),
         body_en=(
             "<p>Hello {{ name }},</p>"
-            "<p>VIS entered this address as the new email address of your VISIT"
+            "<p>This address was entered as the new email address of your VISIT"
             " account. It only becomes active once you confirm it.</p>"
             '<p><a href="{{ confirm_url }}">Confirm new email address</a></p>'
             "<p>If you did not expect this, ignore this message.</p>"
@@ -118,15 +117,15 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
         subject_en="VISIT: Your email address is being changed",
         body_de=(
             "<p>Hallo {{ name }},</p>"
-            "<p>der VIS hat für Ihr VISIT-Konto die neue E-Mail-Adresse"
-            " {{ new_email }} eingetragen. Bis sie dort bestätigt wird, bleibt diese"
-            " Adresse aktiv.</p>"
+            "<p>Für Ihr VISIT-Konto wurde die neue E-Mail-Adresse {{ new_email }}"
+            " eingetragen. Bis sie dort bestätigt wird, bleibt diese Adresse"
+            " aktiv.</p>"
             "<p>Wenn Sie das nicht veranlasst haben, melden Sie sich bitte beim"
             " VIS.</p>"
         ),
         body_en=(
             "<p>Hello {{ name }},</p>"
-            "<p>VIS entered {{ new_email }} as the new email address of your VISIT"
+            "<p>{{ new_email }} was entered as the new email address of your VISIT"
             " account. This address stays active until the new one is"
             " confirmed.</p>"
             "<p>If you did not ask for this, please contact VIS.</p>"
