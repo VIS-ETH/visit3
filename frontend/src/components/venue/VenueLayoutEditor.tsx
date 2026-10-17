@@ -285,7 +285,10 @@ const VenueLayoutEditor = ({
     });
   };
 
-  const handleCanvasPointerDown = (point: VenuePoint) => {
+  const handleCanvasPointerDown = (
+    point: VenuePoint,
+    boothZoneId: string | null = activeZoneId,
+  ) => {
     const target = normalise(point);
     if (tool === "rect") {
       if (!hasShapeCapacity) return;
@@ -298,7 +301,7 @@ const VenueLayoutEditor = ({
       return;
     }
     if (tool === "booth") {
-      if (activeZoneId === null || !hasBoothCapacity) return;
+      if (boothZoneId === null || !hasBoothCapacity) return;
       const key = nextDraftKey();
       commit({
         ...draft,
@@ -306,7 +309,7 @@ const VenueLayoutEditor = ({
           ...draft.booths,
           {
             key,
-            zoneId: activeZoneId,
+            zoneId: boothZoneId,
             boothNr: nextBoothNumber(draft.booths),
             x: target[0],
             y: target[1],
@@ -352,7 +355,10 @@ const VenueLayoutEditor = ({
     shape: VenueCanvasShape,
     point: VenuePoint,
   ) => {
-    if (tool !== "select") return;
+    if (tool !== "select") {
+      handleCanvasPointerDown(point, shape.zoneId);
+      return;
+    }
     selectShape(shape.key);
     const draftShape = draft.shapes.find(
       (candidate) => candidate.key === shape.key,
@@ -704,7 +710,9 @@ const VenueLayoutEditor = ({
           booths={canvasBooths}
           height={layout.height}
           onActivateBooth={(booth) => selectBooth(booth.key)}
-          onActivateShape={(shape) => selectShape(shape.key)}
+          onActivateShape={(shape) => {
+            if (tool === "select") selectShape(shape.key);
+          }}
           onCanvasDoubleClick={closePolygon}
           onCanvasPointerDown={handleCanvasPointerDown}
           onCanvasPointerMove={handleCanvasPointerMove}
