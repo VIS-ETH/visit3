@@ -30,7 +30,8 @@
       "add_empty": "No users without a company found",
       "added": "Member added.",
       "acknowledge": "Mark as seen",
-      "acknowledged": "Marked as seen."
+      "acknowledged": "Marked as seen.",
+      "open_in_user_management": "Open in user management"
     },
     "delete_modal": {
       "title": "Delete company",

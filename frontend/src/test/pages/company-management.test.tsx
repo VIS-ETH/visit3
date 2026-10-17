@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse, type DefaultBodyType } from "msw";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Route, Routes, useLocation, useParams } from "react-router";
 import { UserProvider } from "../../context/UserContext";
 import {
@@ -24,6 +24,12 @@ import {
 import { createToken } from "../jwt";
 import { testOpenEvent, testStaffBooking } from "../fixtures/kp-booking";
 import { renderWithProviders } from "../render";
+import { reloadAt } from "../../utils/navigation";
+
+vi.mock("../../utils/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/navigation")>()),
+  reloadAt: vi.fn(),
+}));
 import { server } from "../server";
 
 let listRequests: URL[] = [];
@@ -301,6 +307,59 @@ describe("the company management page", () => {
         { companyId: acmeCompany.id, userId: memberUser.id },
       ]);
     });
+  });
+
+  it("impersonates a member and remembers where it started", async () => {
+    const { user } = renderWithProviders(
+      <UserProvider user={adminUser} isLoading={false}>
+        <CompanyManagement />
+      </UserProvider>,
+      { route: "/company-management" },
+    );
+    const row = await acmeRow();
+    await user.click(
+      row.getByRole("button", { name: "company_management.view_users" }),
+    );
+    await screen.findByText(memberUser.email);
+
+    await user.click(
+      screen.getByRole("button", { name: "user_management.impersonate" }),
+    );
+
+    expect(reloadAt).toHaveBeenCalledWith("/");
+    expect(sessionStorage.getItem("impersonating_user_id")).toBe(memberUser.id);
+    expect(sessionStorage.getItem("impersonation_origin")).toBe(
+      "/company-management",
+    );
+  });
+
+  it("edits a member and links to the user management", async () => {
+    const { user } = renderPage(staffUser);
+    const row = await acmeRow();
+    await user.click(
+      row.getByRole("button", { name: "company_management.view_users" }),
+    );
+    await screen.findByText(memberUser.email);
+
+    expect(
+      screen.queryByRole("button", { name: "user_management.impersonate" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: "company_management.members.open_in_user_management",
+      }),
+    ).toHaveAttribute(
+      "href",
+      `/user-management?query=${encodeURIComponent(acmeCompany.name).replaceAll("%20", "+")}`,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "user_management.edit.title" }),
+    );
+
+    expect(
+      await screen.findByDisplayValue(memberUser.email),
+    ).toBeInTheDocument();
   });
 
   it("only offers users without a company when adding a member", async () => {

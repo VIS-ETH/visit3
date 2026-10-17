@@ -30,7 +30,8 @@
       "add_empty": "Keine Benutzer ohne Unternehmen gefunden",
       "added": "Mitglied hinzugefügt.",
       "acknowledge": "Als gesehen markieren",
-      "acknowledged": "Als gesehen markiert."
+      "acknowledged": "Als gesehen markiert.",
+      "open_in_user_management": "In Benutzerverwaltung öffnen"
     },
     "delete_modal": {
       "title": "Unternehmen löschen",

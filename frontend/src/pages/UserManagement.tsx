@@ -29,6 +29,7 @@ import {
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router";
 import { getImpersonatingUserId } from "../api/utils";
 import UserDeleteModal from "../components/admin/UserDeleteModal";
 import UserEditDrawer from "../components/admin/UserEditDrawer";
@@ -95,8 +96,9 @@ const UserManagement = () => {
   const { user: currentUser } = useCurrentUser();
   const isAdmin = currentUser?.is_admin ?? false;
   const { canImpersonate, impersonate } = useImpersonate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("query") ?? "");
   const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const [filter, setFilter] = useState<UserFilter>(UserFilter.all);
   const [page, setPage] = useState(1);
@@ -107,6 +109,19 @@ const UserManagement = () => {
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, filter]);
+
+  useEffect(() => {
+    const query = debouncedSearch.trim();
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (query) next.set("query", query);
+        else next.delete("query");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [debouncedSearch, setSearchParams]);
 
   const { data, isLoading, isError } = useListUsers(
     {

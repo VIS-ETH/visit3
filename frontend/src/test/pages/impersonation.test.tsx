@@ -60,12 +60,12 @@ beforeEach(() => {
 });
 
 describe("starting an impersonation", () => {
-  it("reloads as the user and remembers the user management", async () => {
+  it("reloads as the user and remembers the user management search", async () => {
     const { user } = renderWithProviders(
       <UserProvider user={adminUser} isLoading={false}>
         <UserManagement />
       </UserProvider>,
-      { route: "/user-management" },
+      { route: "/user-management?query=mem" },
     );
 
     await user.click(
@@ -76,7 +76,7 @@ describe("starting an impersonation", () => {
 
     expect(getImpersonatingUserId()).toBe(companyUser.id);
     expect(sessionStorage.getItem("impersonation_origin")).toBe(
-      "/user-management",
+      "/user-management?query=mem",
     );
     expect(reloadAt).toHaveBeenCalledWith("/");
   });

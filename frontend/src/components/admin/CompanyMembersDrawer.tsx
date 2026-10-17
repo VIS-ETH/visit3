@@ -1,6 +1,7 @@
 import {
   ActionIcon,
   Alert,
+  Anchor,
   Button,
   Drawer,
   Group,
@@ -9,14 +10,23 @@ import {
   Stack,
   Table,
   Text,
+  Tooltip,
 } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconAlertCircle, IconEyeCheck, IconTrash } from "@tabler/icons-react";
+import {
+  IconAlertCircle,
+  IconEyeCheck,
+  IconPencil,
+  IconTrash,
+  IconUserSearch,
+} from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 import { getApiErrorCode } from "../../api/errors";
+import { getImpersonatingUserId } from "../../api/utils";
 import {
   getGetCompanyUsersQueryKey,
   getSearchCompaniesQueryKey,
@@ -25,13 +35,19 @@ import {
   useGetCompanyUsers,
   useRemoveCompanyUser,
 } from "../../orval/generated/company/company";
-import { UserFilter } from "../../orval/generated/fastAPI.schemas";
+import {
+  UserFilter,
+  type UserResponse,
+} from "../../orval/generated/fastAPI.schemas";
 import {
   getListUsersQueryKey,
   useListUsers,
 } from "../../orval/generated/user/user";
 import { getDisplayName } from "../../utils/display";
 import BookingNewAdditionsBadge from "../bookings/BookingNewAdditionsBadge";
+import { useCurrentUser } from "../../context/useCurrentUser";
+import UserEditDrawer from "./UserEditDrawer";
+import { useImpersonate } from "./useImpersonate";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const CANDIDATE_PAGE_SIZE = 20;
@@ -51,6 +67,9 @@ const CompanyMembersDrawer = ({
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [candidateId, setCandidateId] = useState<string | null>(null);
   const [candidateSearch, setCandidateSearch] = useState("");
+  const [editedUser, setEditedUser] = useState<UserResponse | null>(null);
+  const { canImpersonate, impersonate } = useImpersonate();
+  const isAdmin = useCurrentUser().user?.is_admin ?? false;
   const [debouncedCandidateSearch] = useDebouncedValue(
     candidateSearch,
     SEARCH_DEBOUNCE_MS,
@@ -163,8 +182,26 @@ const CompanyMembersDrawer = ({
           </Alert>
         ) : null}
 
-        {hasNewMembers ? (
-          <Group justify="flex-end">
+        <UserEditDrawer
+          canEditPrivileges={isAdmin}
+          onClose={() => {
+            setEditedUser(null);
+            void refresh();
+          }}
+          user={editedUser}
+        />
+
+        <Group justify="space-between">
+          <Anchor
+            component={Link}
+            size="sm"
+            to={`/user-management?${new URLSearchParams({
+              query: company?.name ?? "",
+            }).toString()}`}
+          >
+            {t("company_management.members.open_in_user_management")}
+          </Anchor>
+          {hasNewMembers ? (
             <Button
               color="gray"
               leftSection={<IconEyeCheck size={16} />}
@@ -178,8 +215,8 @@ const CompanyMembersDrawer = ({
             >
               {t("company_management.members.acknowledge")}
             </Button>
-          </Group>
-        ) : null}
+          ) : null}
+        </Group>
 
         {isLoading ? (
           <Loader />
@@ -195,21 +232,49 @@ const CompanyMembersDrawer = ({
                         <BookingNewAdditionsBadge />
                       ) : null}
                     </Group>
+                    <Text c="dimmed" size="xs">
+                      {member.email}
+                    </Text>
                   </Table.Td>
-                  <Table.Td>{member.email}</Table.Td>
-                  <Table.Td w={60}>
-                    <ActionIcon
-                      aria-label={t("company_management.members.remove")}
-                      color="red"
-                      disabled={isRemoving}
-                      onClick={() => {
-                        setErrorCode(null);
-                        removeMember({ companyId, userId: member.id });
-                      }}
-                      variant="light"
-                    >
-                      <IconTrash size={16} />
-                    </ActionIcon>
+                  <Table.Td>
+                    <Group gap="xs" justify="flex-end" wrap="nowrap">
+                      {canImpersonate ? (
+                        <Tooltip label={t("user_management.impersonate")}>
+                          <ActionIcon
+                            aria-label={t("user_management.impersonate")}
+                            color="blue"
+                            disabled={getImpersonatingUserId() === member.id}
+                            onClick={() => impersonate(member)}
+                            variant="light"
+                          >
+                            <IconUserSearch size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                      ) : null}
+                      <Tooltip label={t("user_management.edit.title")}>
+                        <ActionIcon
+                          aria-label={t("user_management.edit.title")}
+                          onClick={() => setEditedUser(member)}
+                          variant="light"
+                        >
+                          <IconPencil size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label={t("company_management.members.remove")}>
+                        <ActionIcon
+                          aria-label={t("company_management.members.remove")}
+                          color="red"
+                          disabled={isRemoving}
+                          onClick={() => {
+                            setErrorCode(null);
+                            removeMember({ companyId, userId: member.id });
+                          }}
+                          variant="light"
+                        >
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
                   </Table.Td>
                 </Table.Tr>
               ))}

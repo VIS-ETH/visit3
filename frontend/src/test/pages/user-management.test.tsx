@@ -127,6 +127,22 @@ describe("the user management page", () => {
     expect(await screen.findByText(memberUser.email)).toBeInTheDocument();
   });
 
+  it("starts with the search from the link", async () => {
+    renderWithProviders(
+      <UserProvider user={adminUser} isLoading={false}>
+        <UserManagement />
+      </UserProvider>,
+      { route: "/user-management?query=Acme+AG" },
+    );
+
+    await waitFor(() => {
+      expect(lastListParams().query).toBe("Acme AG");
+    });
+    expect(
+      screen.getByPlaceholderText("user_management.search_placeholder"),
+    ).toHaveValue("Acme AG");
+  });
+
   it("sends the debounced search term as a query parameter", async () => {
     const { user } = renderPage();
     await screen.findByText(memberUser.email);
