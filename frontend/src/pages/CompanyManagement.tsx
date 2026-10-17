@@ -27,7 +27,7 @@ import {
   IconUsers,
   IconX,
 } from "@tabler/icons-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
@@ -35,6 +35,7 @@ import CompanyBookingActions from "../components/admin/CompanyBookingActions";
 import CompanyDeleteModal from "../components/admin/CompanyDeleteModal";
 import BookingNewAdditionsBadge from "../components/bookings/BookingNewAdditionsBadge";
 import CompanyMembersDrawer from "../components/admin/CompanyMembersDrawer";
+import SortableHeader from "../components/SortableHeader";
 import { useCurrentUser } from "../context/useCurrentUser";
 import {
   getSearchCompaniesQueryKey,
@@ -43,11 +44,13 @@ import {
 } from "../orval/generated/company/company";
 import type {
   CompanyListResult,
+  CompanySort,
   StaffBookingResponse,
 } from "../orval/generated/fastAPI.schemas";
 import { useListEventBookings, useListKps } from "../orval/generated/kp/kp";
 import { isActiveBookingStatus } from "../utils/booking-status";
 import { getEventStatus } from "../utils/kp-utils";
+import { useSort } from "../utils/sort";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const PAGE_SIZE = 25;
@@ -63,6 +66,10 @@ const CompanyManagement = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const [page, setPage] = useState(1);
+  const { sort, toggleSort } = useSort<CompanySort>(
+    { field: "name", direction: "asc" },
+    () => setPage(1),
+  );
   const [renamedId, setRenamedId] = useState<string | null>(null);
   const [renamedName, setRenamedName] = useState("");
   const [membersCompany, setMembersCompany] =
@@ -108,11 +115,16 @@ const CompanyManagement = () => {
     );
   };
 
-  const { data, isLoading, isError } = useSearchCompanies({
-    query: debouncedSearch.trim() || undefined,
-    page,
-    page_size: PAGE_SIZE,
-  });
+  const { data, isLoading, isError } = useSearchCompanies(
+    {
+      query: debouncedSearch.trim() || undefined,
+      page,
+      page_size: PAGE_SIZE,
+      sort: sort?.field,
+      direction: sort?.direction,
+    },
+    { query: { placeholderData: keepPreviousData } },
+  );
 
   const { mutate: rename, isPending: isRenaming } = useUpdateCompany({
     mutation: {
@@ -202,15 +214,24 @@ const CompanyManagement = () => {
                   <Table highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
-                        <Table.Th>
-                          {t("company_management.company_name")}
-                        </Table.Th>
-                        <Table.Th>
-                          {t("company_management.users_count")}
-                        </Table.Th>
-                        <Table.Th>
-                          {t("company_management.bookings_count")}
-                        </Table.Th>
+                        <SortableHeader
+                          field="name"
+                          label={t("company_management.company_name")}
+                          sort={sort}
+                          onSort={toggleSort}
+                        />
+                        <SortableHeader
+                          field="members"
+                          label={t("company_management.users_count")}
+                          sort={sort}
+                          onSort={toggleSort}
+                        />
+                        <SortableHeader
+                          field="bookings"
+                          label={t("company_management.bookings_count")}
+                          sort={sort}
+                          onSort={toggleSort}
+                        />
                         {bookingEvent ? (
                           <Table.Th>{bookingEvent.name}</Table.Th>
                         ) : null}

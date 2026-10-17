@@ -64,6 +64,12 @@ const dateFieldNames = [
   "eventDate",
 ] as const;
 
+const EVENT_STATUS_ORDER: EventStatus[] = [
+  "registration_open",
+  "upcoming",
+  "past",
+];
+
 const KpDashboard = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -143,12 +149,14 @@ const KpDashboard = () => {
   const columns: DataTableColumn<KpEventRow>[] = [
     {
       key: "name",
+      sortValue: (event) => event.name,
       header: t("kp.dashboard.name"),
       render: (event) => event.name,
       searchableValue: (event) => event.name,
     },
     {
       key: "registration-window",
+      sortValue: (event) => event.registration_open,
       header: t("kp.dashboard.registration_window"),
       render: (event) =>
         `${formatTableDate(event.registration_open)} - ${formatTableDate(event.registration_end)}`,
@@ -157,24 +165,28 @@ const KpDashboard = () => {
     },
     {
       key: "event-date",
+      sortValue: (event) => event.event_date,
       header: t("kp.dashboard.event_date"),
       render: (event) => formatTableDate(event.event_date),
       searchableValue: (event) => formatTableDate(event.event_date),
     },
     {
       key: "finalization-deadline",
+      sortValue: (event) => event.finalization_deadline,
       header: t("kp.dashboard.finalization_deadline"),
       render: (event) => formatTableDate(event.finalization_deadline),
       searchableValue: (event) => formatTableDate(event.finalization_deadline),
     },
     {
       key: "nametags-deadline",
+      sortValue: (event) => event.nametags_deadline,
       header: t("kp.dashboard.nametags_deadline"),
       render: (event) => formatTableDate(event.nametags_deadline),
       searchableValue: (event) => formatTableDate(event.nametags_deadline),
     },
     {
       key: "status",
+      sortValue: (event) => EVENT_STATUS_ORDER.indexOf(getEventStatus(event)),
       header: t("kp.dashboard.status_label"),
       render: (event) => {
         const status = getEventStatus(event);

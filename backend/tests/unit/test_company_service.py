@@ -18,6 +18,8 @@ from app.core.exceptions import (
 )
 from app.mail_templates.keys import MailTemplateKey
 from app.models.company import CompanyInvite
+from app.schemas.company import CompanySort
+from app.schemas.sorting import SortDirection
 from app.services.company_service import CompanyService
 
 
@@ -592,4 +594,6 @@ async def test_search_companies_reports_counts_and_paging(
     assert [
         (item.name, item.users_count, item.bookings_count) for item in result.items
     ] == [("Acme AG", 2, 1)]
-    company_repo.get_company_overviews.assert_awaited_once_with("acme", 10, 10)
+    company_repo.get_company_overviews.assert_awaited_once_with(
+        "acme", 10, 10, CompanySort.NAME, SortDirection.ASC
+    )

@@ -1,4 +1,10 @@
-import { Group, Table, Text, UnstyledButton } from "@mantine/core";
+import {
+  Group,
+  Table,
+  Text,
+  UnstyledButton,
+  type TableThProps,
+} from "@mantine/core";
 import {
   IconChevronDown,
   IconChevronUp,
@@ -7,7 +13,7 @@ import {
 import type { ReactNode } from "react";
 import type { SortState } from "../utils/sort";
 
-interface SortableHeaderProps<F extends string> {
+interface SortableHeaderProps<F extends string> extends TableThProps {
   field: F;
   label: ReactNode;
   sort: SortState<F> | null;
@@ -19,6 +25,7 @@ const SortableHeader = <F extends string>({
   label,
   sort,
   onSort,
+  ...thProps
 }: SortableHeaderProps<F>) => {
   const direction = sort?.field === field ? sort.direction : null;
   return (
@@ -30,6 +37,7 @@ const SortableHeader = <F extends string>({
             ? "ascending"
             : "descending"
       }
+      {...thProps}
     >
       <UnstyledButton onClick={() => onSort(field)}>
         <Group gap={4} wrap="nowrap">

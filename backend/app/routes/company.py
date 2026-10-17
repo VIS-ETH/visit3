@@ -25,6 +25,7 @@ from app.schemas.company import (
     CompanyProfileResponse,
     CompanyProfileResult,
     CompanyResponse,
+    CompanySort,
     CompanyWithUsersResponse,
     CompanyWithUsersResult,
     CreateInviteRequest,
@@ -36,6 +37,7 @@ from app.schemas.company import (
     UpdateCompanyProfileRequest,
     UpdateCompanyRequest,
 )
+from app.schemas.sorting import SortDirection
 from app.schemas.user import StaffUserResponse, UserResponse
 
 MAX_PAGE_SIZE = 100
@@ -324,8 +326,12 @@ async def search_companies(
     query: str | None = None,
     page: int = Query(default=1, ge=1, le=MAX_PAGE),
     page_size: int = Query(default=25, ge=1, le=MAX_PAGE_SIZE),
+    sort: CompanySort = CompanySort.NAME,
+    direction: SortDirection = SortDirection.ASC,
 ) -> CompanyPageResult:
-    return await company_service.search_companies(query, page, page_size)
+    return await company_service.search_companies(
+        query, page, page_size, sort, direction
+    )
 
 
 @companies_router.patch(

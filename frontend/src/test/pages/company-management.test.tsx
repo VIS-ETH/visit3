@@ -242,6 +242,27 @@ describe("the company management page", () => {
     });
   });
 
+  it("sorts by member count on the server", async () => {
+    const { user } = renderPage();
+    await screen.findByText(acmeCompany.name);
+
+    await user.click(
+      screen.getByRole("button", { name: "company_management.users_count" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "company_management.users_count" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        listRequests[listRequests.length - 1].searchParams.get("direction"),
+      ).toBe("desc");
+    });
+    expect(
+      listRequests[listRequests.length - 1].searchParams.get("sort"),
+    ).toBe("members");
+  });
+
   it("renames a company inline", async () => {
     const { user } = renderPage();
     const row = await acmeRow();

@@ -11,12 +11,15 @@ import {
 } from "@mantine/core";
 import { IconSearch } from "@tabler/icons-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { sortRows, useSort, type SortValue } from "../utils/sort";
+import SortableHeader from "./SortableHeader";
 
 export type DataTableColumn<T> = {
   key: string;
   header: ReactNode;
   render: (item: T) => ReactNode;
   searchableValue?: (item: T) => string;
+  sortValue?: (item: T) => SortValue;
   textAlign?: "left" | "center" | "right";
   width?: number | string;
 };
@@ -70,17 +73,24 @@ const DataTable = <T,>({
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(pageSizeOptions[0] ?? 10);
+  const { sort, toggleSort } = useSort<string>(null, () => setPage(1));
 
   const normalizedSearch = searchConfig ? search.trim().toLowerCase() : "";
   const filteredRows = useMemo(() => {
-    if (!normalizedSearch) return rows;
-
-    return rows.filter((row) =>
-      columns.some((column) =>
-        column.searchableValue?.(row).toLowerCase().includes(normalizedSearch),
-      ),
-    );
-  }, [columns, normalizedSearch, rows]);
+    const matching = normalizedSearch
+      ? rows.filter((row) =>
+          columns.some((column) =>
+            column.searchableValue
+              ?.(row)
+              .toLowerCase()
+              .includes(normalizedSearch),
+          ),
+        )
+      : rows;
+    return sortRows(matching, sort, (row, key) => [
+      columns.find((column) => column.key === key)?.sortValue?.(row),
+    ]);
+  }, [columns, normalizedSearch, rows, sort]);
 
   const shouldPaginate = Boolean(pagination);
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
@@ -153,15 +163,27 @@ const DataTable = <T,>({
             <Table highlightOnHover {...tableProps}>
               <Table.Thead>
                 <Table.Tr>
-                  {columns.map((column) => (
-                    <Table.Th
-                      key={column.key}
-                      ta={column.textAlign}
-                      w={column.width}
-                    >
-                      {column.header}
-                    </Table.Th>
-                  ))}
+                  {columns.map((column) =>
+                    column.sortValue ? (
+                      <SortableHeader
+                        key={column.key}
+                        field={column.key}
+                        label={column.header}
+                        sort={sort}
+                        onSort={toggleSort}
+                        ta={column.textAlign}
+                        w={column.width}
+                      />
+                    ) : (
+                      <Table.Th
+                        key={column.key}
+                        ta={column.textAlign}
+                        w={column.width}
+                      >
+                        {column.header}
+                      </Table.Th>
+                    ),
+                  )}
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>

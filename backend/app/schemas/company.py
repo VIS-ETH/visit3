@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -14,6 +15,12 @@ from app.schemas.industry import IndustryResult
 from app.schemas.text import PROFILE_TEXT_LIMITS, CompanyName
 
 MAX_ADDITIONAL_EMAILS = 10
+
+
+class CompanySort(StrEnum):
+    NAME = "name"
+    MEMBERS = "members"
+    BOOKINGS = "bookings"
 
 
 class CreateCompanyInput(BaseModel):

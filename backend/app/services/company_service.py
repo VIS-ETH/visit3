@@ -46,11 +46,13 @@ from app.schemas.company import (
     CompanyMemberResult,
     CompanyPageResult,
     CompanyProfileResult,
+    CompanySort,
     CompanyWithUsersResult,
     MyCompanyResult,
     UpdateCompanyProfileInput,
 )
 from app.schemas.industry import IndustryResult
+from app.schemas.sorting import SortDirection
 from app.services.invite_service import InviteService
 from app.services.mail_template_service import MailTemplateService
 from app.services.storage_service import StorageService, UploadKind, UploadStream
@@ -117,11 +119,18 @@ class CompanyService:
         return await self._company_overviews()
 
     async def search_companies(
-        self, query: str | None, page: int, page_size: int
+        self,
+        query: str | None,
+        page: int,
+        page_size: int,
+        sort: CompanySort = CompanySort.NAME,
+        direction: SortDirection = SortDirection.ASC,
     ) -> CompanyPageResult:
         require_staff_user(self.current_user)
         total = await self.company_repository.count_companies(query)
-        items = await self._company_overviews(query, (page - 1) * page_size, page_size)
+        items = await self._company_overviews(
+            query, (page - 1) * page_size, page_size, sort, direction
+        )
         return CompanyPageResult(
             items=list(items), total=total, page=page, page_size=page_size
         )
@@ -131,9 +140,11 @@ class CompanyService:
         query: str | None = None,
         offset: int | None = None,
         limit: int | None = None,
+        sort: CompanySort = CompanySort.NAME,
+        direction: SortDirection = SortDirection.ASC,
     ) -> Sequence[CompanyListResult]:
         companies = await self.company_repository.get_company_overviews(
-            query, offset, limit
+            query, offset, limit, sort, direction
         )
         return [
             CompanyListResult(

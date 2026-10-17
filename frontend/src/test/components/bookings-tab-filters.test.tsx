@@ -156,6 +156,29 @@ describe("the staff bookings table", () => {
     expect(companyOrder()).toEqual(["Beta GmbH", "Acme AG", "Zeta SA"]);
   });
 
+  it("sorts by booth number with unassigned booths last", async () => {
+    const { user } = renderWithProviders(<BookingsTab eventId={testEventId} />);
+
+    await screen.findByText("Beta GmbH", {}, { timeout: 5000 });
+    await user.click(screen.getByText("kp.manage.booking_booth_nr"));
+
+    expect(companyOrder()).toEqual(["Acme AG", "Zeta SA", "Beta GmbH"]);
+
+    await user.click(screen.getByText("kp.manage.booking_booth_nr"));
+
+    expect(companyOrder()).toEqual(["Zeta SA", "Acme AG", "Beta GmbH"]);
+  });
+
+  it("sorts by the waiting list", async () => {
+    const { user } = renderWithProviders(<BookingsTab eventId={testEventId} />);
+
+    await screen.findByText("Beta GmbH", {}, { timeout: 5000 });
+    await user.click(screen.getByText("kp.manage.booking_waitlist"));
+    await user.click(screen.getByText("kp.manage.booking_waitlist"));
+
+    expect(companyOrder()[0]).toBe("Beta GmbH");
+  });
+
   it("sorts by status along the booking lifecycle", async () => {
     const { user } = renderWithProviders(<BookingsTab eventId={testEventId} />);
 

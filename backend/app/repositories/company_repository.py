@@ -27,8 +27,9 @@ from app.models.kp_event import (
 )
 from app.models.storage import StoredFile
 from app.models.user import User
-from app.repositories.base import BaseRepository, rel
-from app.schemas.company import UpdateCompanyProfileInput
+from app.repositories.base import BaseRepository, ordered, rel
+from app.schemas.company import CompanySort, UpdateCompanyProfileInput
+from app.schemas.sorting import SortDirection
 
 
 class CompanyRepository(BaseRepository[Company]):
@@ -101,6 +102,8 @@ class CompanyRepository(BaseRepository[Company]):
         query: str | None = None,
         offset: int | None = None,
         limit: int | None = None,
+        sort: CompanySort = CompanySort.NAME,
+        direction: SortDirection = SortDirection.ASC,
     ) -> Sequence[tuple[UUID, str, int, int, int]]:
         users_count = (
             select(func.count(col(User.id)))
@@ -128,6 +131,11 @@ class CompanyRepository(BaseRepository[Company]):
             .correlate(Company)
             .scalar_subquery()
         )
+        sort_key = {
+            CompanySort.NAME: func.lower(col(Company.name)),
+            CompanySort.MEMBERS: users_count,
+            CompanySort.BOOKINGS: bookings_count,
+        }[sort]
         statement = (
             self._matching_companies(query)
             .with_only_columns(
@@ -137,7 +145,11 @@ class CompanyRepository(BaseRepository[Company]):
                 bookings_count,
                 new_members_count,
             )
-            .order_by(col(Company.name))
+            .order_by(
+                *ordered([sort_key], direction),
+                func.lower(col(Company.name)),
+                col(Company.id),
+            )
             .offset(offset)
             .limit(limit)
         )

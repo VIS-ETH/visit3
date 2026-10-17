@@ -63,6 +63,7 @@ const ServicesTab = ({ eventId }: { eventId: string }) => {
   const columns: DataTableColumn<ServiceRow>[] = [
     {
       key: "name",
+      sortValue: (service) => service.name,
       header: t("kp.manage.service_name"),
       render: (service) => (
         <Group gap="sm" wrap="nowrap">
@@ -79,18 +80,21 @@ const ServicesTab = ({ eventId }: { eventId: string }) => {
     },
     {
       key: "price",
+      sortValue: (service) => service.price,
       header: t("kp.manage.service_price"),
       render: (service) => (service.price / 100).toFixed(2),
       searchableValue: (service) => (service.price / 100).toFixed(2),
     },
     {
       key: "max-per-booking",
+      sortValue: (service) => service.max_quantity_per_booking,
       header: t("kp.manage.service_max_per_booking"),
       render: (service) => service.max_quantity_per_booking,
       searchableValue: (service) => String(service.max_quantity_per_booking),
     },
     {
       key: "requirements",
+      sortValue: (service) => service.requirements.length,
       header: t("kp.manage.service_requirements"),
       render: (service) => service.requirements.length,
       searchableValue: (service) => String(service.requirements.length),
@@ -99,6 +103,7 @@ const ServicesTab = ({ eventId }: { eventId: string }) => {
     },
     {
       key: "active",
+      sortValue: (service) => Number(service.is_active),
       header: t("kp.manage.service_active"),
       render: (service) => (
         <Switch

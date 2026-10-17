@@ -49,6 +49,42 @@ async def test_company_page_reports_members_and_bookings(
     ] == [("Acme AG", 1, 1), (OTHER_COMPANY_NAME, 1, 0)]
 
 
+@pytest.mark.parametrize(
+    ("sort", "direction", "expected"),
+    [
+        ("bookings", "desc", ["Acme AG", OTHER_COMPANY_NAME]),
+        ("bookings", "asc", [OTHER_COMPANY_NAME, "Acme AG"]),
+        ("name", "desc", [OTHER_COMPANY_NAME, "Acme AG"]),
+    ],
+)
+async def test_company_page_sorts_on_the_server(
+    client: AsyncClient,
+    company_user: User,
+    other_company_user: User,
+    company_headers: dict[str, str],
+    staff_headers: dict[str, str],
+    kp_setup: KpSetup,
+    register_booking: Callable[..., Awaitable[Response]],
+    sort: str,
+    direction: str,
+    expected: list[str],
+):
+    await register_booking(company_headers, kp_setup)
+
+    response = await client.get(
+        f"/api/companies?sort={sort}&direction={direction}&page_size=1",
+        headers=staff_headers,
+    )
+    second = await client.get(
+        f"/api/companies?sort={sort}&direction={direction}&page_size=1&page=2",
+        headers=staff_headers,
+    )
+
+    assert [
+        item["name"] for item in response.json()["items"] + second.json()["items"]
+    ] == expected
+
+
 async def test_company_page_is_paginated(
     client: AsyncClient,
     company_user: User,
