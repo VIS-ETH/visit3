@@ -29,12 +29,11 @@ import {
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
-import { resetQueriesForIdentityChange } from "../api/query-cache";
-import { getImpersonatingUserId, setImpersonation } from "../api/utils";
+import { getImpersonatingUserId } from "../api/utils";
 import UserDeleteModal from "../components/admin/UserDeleteModal";
 import UserEditDrawer from "../components/admin/UserEditDrawer";
 import UserFlagBadges from "../components/admin/UserFlagBadges";
+import { useImpersonate } from "../components/admin/useImpersonate";
 import { useCurrentUser } from "../context/useCurrentUser";
 import SortableHeader from "../components/SortableHeader";
 import {
@@ -92,10 +91,10 @@ const filterLabelKeys: Record<UserFilter, string> = {
 
 const UserManagement = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user: currentUser } = useCurrentUser();
   const isAdmin = currentUser?.is_admin ?? false;
+  const { canImpersonate, impersonate } = useImpersonate();
 
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
@@ -147,16 +146,6 @@ const UserManagement = () => {
         },
       },
     });
-
-  const impersonate = (target: UserResponse) => {
-    if (!isAdmin) return;
-    setImpersonation(
-      target.id,
-      getDisplayName(target.first_name, target.last_name, target.email),
-    );
-    resetQueriesForIdentityChange(queryClient);
-    navigate("/", { replace: true });
-  };
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -331,7 +320,7 @@ const UserManagement = () => {
                                   </ActionIcon>
                                 </Tooltip>
                               )}
-                              {isAdmin ? (
+                              {canImpersonate ? (
                                 <Tooltip
                                   label={t("user_management.impersonate")}
                                   withArrow
