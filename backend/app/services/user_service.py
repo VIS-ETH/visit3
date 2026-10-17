@@ -28,6 +28,7 @@ from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
+from app.schemas.sorting import SortDirection
 from app.schemas.user import (
     EmailChangeInput,
     StaffUserResponse,
@@ -36,6 +37,7 @@ from app.schemas.user import (
     UserFilter,
     UserPageResult,
     UserProfileFieldsInput,
+    UserSort,
 )
 from app.services.auth_service import AuthService, frontend_url
 from app.services.mail_template_service import MailTemplateService
@@ -106,12 +108,18 @@ class UserService:
             )
 
     async def list_users(
-        self, query: str | None, user_filter: UserFilter, page: int, page_size: int
+        self,
+        query: str | None,
+        user_filter: UserFilter,
+        page: int,
+        page_size: int,
+        sort: UserSort | None = None,
+        direction: SortDirection = SortDirection.ASC,
     ) -> UserPageResult:
         require_staff_user(self.current_user)
         total = await self.user_repository.count_users_matching(query, user_filter)
         users = await self.user_repository.search_users(
-            query, user_filter, (page - 1) * page_size, page_size
+            query, user_filter, (page - 1) * page_size, page_size, sort, direction
         )
         return UserPageResult(
             items=[StaffUserResponse.model_validate(user) for user in users],

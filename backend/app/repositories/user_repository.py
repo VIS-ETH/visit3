@@ -1,11 +1,13 @@
 import uuid
 from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql._typing import ColumnExpressionArgument
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.selectable import Select
 from sqlmodel import col, or_, select
@@ -14,8 +16,9 @@ from app.core.exceptions import EmailUsed
 from app.core.utils import normalize_email
 from app.models.company import Company, KpCompanyProfile
 from app.models.user import Role, User
-from app.repositories.base import BaseRepository, rel
-from app.schemas.user import UserFilter, UserProfileFieldsInput
+from app.repositories.base import BaseRepository, ordered, rel
+from app.schemas.sorting import SortDirection
+from app.schemas.user import UserFilter, UserProfileFieldsInput, UserSort
 
 
 def _filter_conditions(user_filter: UserFilter) -> list[ColumnElement[bool]]:
@@ -39,6 +42,39 @@ def _search_conditions(query: str | None) -> list[ColumnElement[bool]]:
             col(User.last_name).icontains(term, autoescape=True),
             col(Company.name).icontains(term, autoescape=True),
         )
+    ]
+
+
+def _sort_expressions(sort: UserSort) -> list[ColumnExpressionArgument[Any]]:
+    match sort:
+        case UserSort.EMAIL:
+            return [col(User.email)]
+        case UserSort.NAME:
+            return [
+                func.lower(func.coalesce(col(User.first_name), "")),
+                func.lower(func.coalesce(col(User.last_name), "")),
+            ]
+        case UserSort.COMPANY:
+            return [func.lower(col(Company.name))]
+        case UserSort.ROLE:
+            return [col(User.is_admin), col(User.is_staff), col(User.is_company)]
+        case UserSort.STATUS:
+            return [col(User.user_confirmed), col(User.email_confirmed)]
+        case UserSort.SIGNED_UP:
+            return [col(User.created_at)]
+        case UserSort.LAST_LOGIN:
+            return [col(User.last_login_at)]
+
+
+def _user_order(
+    sort: UserSort | None, direction: SortDirection
+) -> list[ColumnExpressionArgument[Any]]:
+    if sort is None:
+        return [col(User.user_confirmed), col(User.email), col(User.id)]
+    return [
+        *ordered(_sort_expressions(sort), direction),
+        col(User.email),
+        col(User.id),
     ]
 
 
@@ -132,13 +168,19 @@ class UserRepository(BaseRepository[User]):
         return result.scalar_one()
 
     async def search_users(
-        self, query: str | None, user_filter: UserFilter, offset: int, limit: int
+        self,
+        query: str | None,
+        user_filter: UserFilter,
+        offset: int,
+        limit: int,
+        sort: UserSort | None = None,
+        direction: SortDirection = SortDirection.ASC,
     ) -> Sequence[User]:
         statement = (
             self._searchable_users(query, user_filter)
             .options(selectinload(rel(User.company)))
             .execution_options(populate_existing=True)
-            .order_by(col(User.user_confirmed), col(User.email))
+            .order_by(*_user_order(sort, direction))
             .offset(offset)
             .limit(limit)
         )

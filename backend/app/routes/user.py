@@ -8,6 +8,7 @@ from fastapi import APIRouter, Cookie, Query, Response
 from app.core.deps import AuthServiceDep, CsrfDep, CurrentUserDep, UserServiceDep
 from app.core.rate_limit import user_rate_limit
 from app.models.user import User
+from app.schemas.sorting import SortDirection
 from app.schemas.user import (
     CompanyUserResponse,
     EmailChangeRequest,
@@ -17,6 +18,7 @@ from app.schemas.user import (
     UserPageResponse,
     UserPageResult,
     UserResponse,
+    UserSort,
 )
 
 logger = logging.getLogger(__name__)
@@ -141,8 +143,12 @@ async def list_users(
     filter: UserFilter = UserFilter.ALL,
     page: int = Query(default=1, ge=1, le=MAX_PAGE),
     page_size: int = Query(default=25, ge=1, le=MAX_PAGE_SIZE),
+    sort: UserSort | None = None,
+    direction: SortDirection = SortDirection.ASC,
 ) -> UserPageResult:
-    return await user_service.list_users(query, filter, page, page_size)
+    return await user_service.list_users(
+        query, filter, page, page_size, sort, direction
+    )
 
 
 @users_router.get(

@@ -1,9 +1,12 @@
 from collections.abc import Awaitable, Callable
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app.core.config import get_settings
 from app.models.user import User
@@ -66,6 +69,84 @@ async def test_user_list_is_paginated_with_unconfirmed_users_first(
     assert await emails(first) == ["pending@example.com", "zoe.pending@example.com"]
     assert await emails(second) == ["admin@example.com", OTHER_COMPANY_EMAIL]
     assert await emails(third) == ["company@example.com", "staff@example.com"]
+
+
+@pytest.mark.parametrize(
+    ("direction", "expected"),
+    [
+        (
+            "asc",
+            [
+                "company@example.com",
+                OTHER_COMPANY_EMAIL,
+                "admin@example.com",
+                "pending@example.com",
+                "staff@example.com",
+            ],
+        ),
+        (
+            "desc",
+            [
+                OTHER_COMPANY_EMAIL,
+                "company@example.com",
+                "admin@example.com",
+                "pending@example.com",
+                "staff@example.com",
+            ],
+        ),
+    ],
+)
+async def test_user_list_sorts_by_company_with_blanks_last(
+    client: AsyncClient,
+    population: list[User],
+    staff_headers: dict[str, str],
+    direction: str,
+    expected: list[str],
+):
+    response = await client.get(
+        f"/api/users?sort=company&direction={direction}", headers=staff_headers
+    )
+
+    assert response.status_code == 200
+    assert await emails(response) == expected
+
+
+async def test_user_list_sorts_by_signup_date_across_pages(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    population: list[User],
+    staff_headers: dict[str, str],
+):
+    users = (await db_session.execute(select(User))).scalars().all()
+    for index, user in enumerate(sorted(users, key=lambda user: user.email)):
+        user.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(
+            days=index
+        )
+    await db_session.commit()
+
+    first = await client.get(
+        "/api/users?sort=signed_up&direction=desc&page_size=3", headers=staff_headers
+    )
+    second = await client.get(
+        "/api/users?sort=signed_up&direction=desc&page_size=3&page=2",
+        headers=staff_headers,
+    )
+
+    assert await emails(first) + await emails(second) == [
+        "staff@example.com",
+        "pending@example.com",
+        "company@example.com",
+        OTHER_COMPANY_EMAIL,
+        "admin@example.com",
+    ]
+
+
+async def test_user_list_rejects_an_unknown_sort(
+    client: AsyncClient, staff_headers: dict[str, str]
+):
+    response = await client.get("/api/users?sort=password", headers=staff_headers)
+
+    assert response.status_code == 422
 
 
 async def test_user_list_rejects_an_oversized_page(

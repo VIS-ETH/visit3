@@ -26,7 +26,7 @@ import {
   IconTrash,
   IconUserSearch,
 } from "@tabler/icons-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
@@ -36,9 +36,11 @@ import UserDeleteModal from "../components/admin/UserDeleteModal";
 import UserEditDrawer from "../components/admin/UserEditDrawer";
 import UserFlagBadges from "../components/admin/UserFlagBadges";
 import { useCurrentUser } from "../context/useCurrentUser";
+import SortableHeader from "../components/SortableHeader";
 import {
   UserFilter,
   type UserResponse,
+  type UserSort,
 } from "../orval/generated/fastAPI.schemas";
 import {
   getListUsersQueryKey,
@@ -47,6 +49,7 @@ import {
   useResendUserConfirmationMail,
 } from "../orval/generated/user/user";
 import { getDisplayName } from "../utils/display";
+import { useSort } from "../utils/sort";
 import BookingNewAdditionsBadge from "../components/bookings/BookingNewAdditionsBadge";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -70,6 +73,16 @@ const formatTimestamp = (
   return format.format(parsed);
 };
 
+const SORT_COLUMNS: [UserSort, string][] = [
+  ["email", "user_management.email"],
+  ["name", "user_management.name"],
+  ["company", "user_management.company"],
+  ["role", "user_management.flags.header"],
+  ["status", "user_management.status"],
+  ["signed_up", "user_management.signed_up"],
+  ["last_login", "user_management.last_login"],
+];
+
 const filterLabelKeys: Record<UserFilter, string> = {
   [UserFilter.all]: "user_management.filters.all",
   [UserFilter.unconfirmed]: "user_management.filters.unconfirmed",
@@ -88,6 +101,7 @@ const UserManagement = () => {
   const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const [filter, setFilter] = useState<UserFilter>(UserFilter.all);
   const [page, setPage] = useState(1);
+  const { sort, toggleSort } = useSort<UserSort>(null, () => setPage(1));
   const [editedUser, setEditedUser] = useState<UserResponse | null>(null);
   const [deletedUser, setDeletedUser] = useState<UserResponse | null>(null);
 
@@ -95,12 +109,17 @@ const UserManagement = () => {
     setPage(1);
   }, [debouncedSearch, filter]);
 
-  const { data, isLoading, isError } = useListUsers({
-    query: debouncedSearch.trim() || undefined,
-    filter,
-    page,
-    page_size: PAGE_SIZE,
-  });
+  const { data, isLoading, isError } = useListUsers(
+    {
+      query: debouncedSearch.trim() || undefined,
+      filter,
+      page,
+      page_size: PAGE_SIZE,
+      sort: sort?.field,
+      direction: sort?.direction,
+    },
+    { query: { placeholderData: keepPreviousData } },
+  );
 
   const invalidateUsers = () =>
     queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
@@ -199,13 +218,15 @@ const UserManagement = () => {
                   <Table highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
-                        <Table.Th>{t("user_management.email")}</Table.Th>
-                        <Table.Th>{t("user_management.name")}</Table.Th>
-                        <Table.Th>{t("user_management.company")}</Table.Th>
-                        <Table.Th>{t("user_management.flags.header")}</Table.Th>
-                        <Table.Th>{t("user_management.status")}</Table.Th>
-                        <Table.Th>{t("user_management.signed_up")}</Table.Th>
-                        <Table.Th>{t("user_management.last_login")}</Table.Th>
+                        {SORT_COLUMNS.map(([field, labelKey]) => (
+                          <SortableHeader
+                            key={field}
+                            field={field}
+                            label={t(labelKey)}
+                            sort={sort}
+                            onSort={toggleSort}
+                          />
+                        ))}
                         <Table.Th>{t("user_management.actions")}</Table.Th>
                       </Table.Tr>
                     </Table.Thead>

@@ -170,6 +170,31 @@ describe("the user management page", () => {
     });
   });
 
+  it("sorts by signup date on the server and resets to the first page", async () => {
+    listTotal = 60;
+    const { user } = renderPage();
+    await screen.findByText(memberUser.email);
+    await user.click(screen.getByRole("button", { name: "3" }));
+    await waitFor(() => {
+      expect(lastListParams().page).toBe("3");
+    });
+
+    const signedUp = screen.getByRole("button", {
+      name: "user_management.signed_up",
+    });
+    await user.click(signedUp);
+    await user.click(signedUp);
+
+    await waitFor(() => {
+      expect(lastListRequest().searchParams.get("direction")).toBe("desc");
+    });
+    expect(lastListRequest().searchParams.get("sort")).toBe("signed_up");
+    expect(lastListParams().page).toBe("1");
+    expect(
+      screen.getByRole("columnheader", { name: "user_management.signed_up" }),
+    ).toHaveAttribute("aria-sort", "descending");
+  });
+
   it("shows when each user signed up and last logged in", async () => {
     renderPage();
     const member = await memberRow();

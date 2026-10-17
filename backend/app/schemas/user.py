@@ -58,6 +58,16 @@ class UserFilter(StrEnum):
     STAFF = "staff"
 
 
+class UserSort(StrEnum):
+    EMAIL = "email"
+    NAME = "name"
+    COMPANY = "company"
+    ROLE = "role"
+    STATUS = "status"
+    SIGNED_UP = "signed_up"
+    LAST_LOGIN = "last_login"
+
+
 class UserPageResult(BaseModel):
     items: list[StaffUserResponse]
     total: int

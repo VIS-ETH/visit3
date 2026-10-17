@@ -3,13 +3,15 @@ from datetime import datetime, timezone
 from typing import Any, Generic, TypeVar, cast
 from uuid import UUID
 
+from sqlalchemy import asc, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql._typing import ColumnExpressionArgument
-from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.sql.elements import ColumnElement, UnaryExpression
 from sqlmodel import SQLModel, col, select, update
 from sqlmodel import delete as sql_delete
 
 from app.models.base import AppBase, BaseEntity
+from app.schemas.sorting import SortDirection
 
 T = TypeVar("T", bound=SQLModel)
 ModelT = TypeVar("ModelT", bound=SQLModel)
@@ -17,6 +19,13 @@ ModelT = TypeVar("ModelT", bound=SQLModel)
 
 def rel(value: object) -> Any:
     return cast(Any, value)
+
+
+def ordered(
+    expressions: Sequence[ColumnExpressionArgument[Any]], direction: SortDirection
+) -> list[UnaryExpression[Any]]:
+    order = desc if direction is SortDirection.DESC else asc
+    return [order(expression).nulls_last() for expression in expressions]
 
 
 class BaseRepository(Generic[T]):
