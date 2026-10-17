@@ -37,6 +37,8 @@ import BookingRowActions, {
   type BookingRowActionKind,
 } from "./bookings/BookingRowActions";
 import BoothNumberCell from "./bookings/BoothNumberCell";
+import ServiceFilterSelect from "./bookings/ServiceFilterSelect";
+import { bookedAnyService } from "./bookings/service-filter";
 import { formatBookingTimestamp } from "./bookings/booking-format";
 import { useBookingActions } from "./bookings/useBookingActions";
 import {
@@ -109,6 +111,7 @@ const BookingsTab = ({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUSES);
   const [incompleteOnly, setIncompleteOnly] = useState(false);
+  const [serviceFilter, setServiceFilter] = useState<string[]>([]);
   const [sortField, setSortField] = useState<SortField>("company");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -120,6 +123,13 @@ const BookingsTab = ({
   const [page, setPage] = useState(1);
 
   const rows = useMemo(() => bookings ?? [], [bookings]);
+  const bookedServices = useMemo(
+    () =>
+      rows.flatMap((booking) =>
+        (booking.services ?? []).map((entry) => entry.service),
+      ),
+    [rows],
+  );
   const visibleRows = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     const filtered = rows.filter((booking) => {
@@ -133,7 +143,7 @@ const BookingsTab = ({
         return false;
       }
       if (incompleteOnly && booking.is_complete !== false) return false;
-      return true;
+      return bookedAnyService(booking.services ?? [], serviceFilter);
     });
 
     const factor = sortDirection === "asc" ? 1 : -1;
@@ -153,7 +163,15 @@ const BookingsTab = ({
       }
       return factor * left.company.name.localeCompare(right.company.name);
     });
-  }, [incompleteOnly, rows, search, sortDirection, sortField, statusFilter]);
+  }, [
+    incompleteOnly,
+    rows,
+    search,
+    serviceFilter,
+    sortDirection,
+    sortField,
+    statusFilter,
+  ]);
 
   const pageCount = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -307,6 +325,19 @@ const BookingsTab = ({
             value={statusFilter}
             w={200}
           />
+          {bookedServices.length > 0 ? (
+            <ServiceFilterSelect
+              label={t("kp.manage.bookings_filter_services")}
+              onChange={(value) => {
+                setPage(1);
+                setServiceFilter(value);
+              }}
+              placeholder={t("kp.manage.bookings_filter_services_all")}
+              services={bookedServices}
+              value={serviceFilter}
+              w={280}
+            />
+          ) : null}
           <Checkbox
             checked={incompleteOnly}
             label={t("kp.manage.bookings_filter_incomplete")}

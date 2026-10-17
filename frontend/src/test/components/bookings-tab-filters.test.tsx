@@ -7,7 +7,12 @@ import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
 import { testEventId } from "../fixtures/kp-booking";
-import { staffBookings, testSideHallZoneId } from "../fixtures/staff-bookings";
+import { KpServiceCategory } from "../../orval/generated/fastAPI.schemas";
+import {
+  acmeBooking,
+  staffBookings,
+  testSideHallZoneId,
+} from "../fixtures/staff-bookings";
 
 const companyOrder = () =>
   screen.getAllByRole("link").map((link) => link.textContent);
@@ -53,6 +58,51 @@ describe("the staff bookings table", () => {
     );
 
     expect(companyOrder()).toEqual(["Zeta SA"]);
+  });
+
+  it("filters by booked service or service category", async () => {
+    const barTable = {
+      ...acmeBooking.services![0],
+      id: "bar-table-booking-service",
+      service_id: "bar-table",
+      service: {
+        ...acmeBooking.services![0].service,
+        id: "bar-table",
+        name: "Bar table",
+        category: KpServiceCategory.BOOTH_ELEMENT,
+      },
+    };
+    server.use(
+      http.get(`${testBackendUrl}/api/kp/events/:eventId/bookings`, () =>
+        HttpResponse.json(
+          staffBookings.map((booking) =>
+            booking.company.name === "Zeta SA"
+              ? { ...booking, services: [...booking.services!, barTable] }
+              : booking,
+          ),
+        ),
+      ),
+    );
+    const { user } = renderWithProviders(<BookingsTab eventId={testEventId} />);
+
+    await screen.findByText("Beta GmbH", {}, { timeout: 5000 });
+    const [filter] = screen
+      .getAllByLabelText("kp.manage.bookings_filter_services")
+      .filter((element) => (element as HTMLInputElement).type !== "hidden");
+    await user.click(filter);
+    await user.click(
+      await screen.findByRole("option", {
+        name: "kp.manage.service_filter_any_booth_element",
+      }),
+    );
+
+    expect(companyOrder()).toEqual(["Zeta SA"]);
+
+    await user.click(
+      await screen.findByRole("option", { name: "Booth package" }),
+    );
+
+    expect(companyOrder()).toEqual(["Acme AG", "Beta GmbH", "Zeta SA"]);
   });
 
   it("filters down to the incomplete bookings", async () => {
