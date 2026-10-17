@@ -625,6 +625,8 @@
       "bookings_filter_status": "Status",
       "bookings_filter_status_all": "Alle Status",
       "bookings_filter_incomplete": "Nur unvollständige",
+      "bookings_filter_zones": "Standzonen",
+      "bookings_filter_zones_all": "Alle Zonen",
       "bookings_filter_services": "Gebuchte Services",
       "bookings_filter_services_all": "Alle",
       "service_filter_any_service": "Beliebiger Service",

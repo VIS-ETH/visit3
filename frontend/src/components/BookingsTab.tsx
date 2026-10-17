@@ -5,6 +5,7 @@ import {
   Checkbox,
   Group,
   Loader,
+  MultiSelect,
   Pagination,
   Paper,
   Select,
@@ -108,6 +109,7 @@ const BookingsTab = ({
   const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUSES);
   const [incompleteOnly, setIncompleteOnly] = useState(false);
   const [serviceFilter, setServiceFilter] = useState<string[]>([]);
+  const [zoneFilter, setZoneFilter] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const { sort, toggleSort } = useSort<SortField>(
     { field: "company", direction: "asc" },
@@ -121,6 +123,20 @@ const BookingsTab = ({
   const [isExporting, setIsExporting] = useState(false);
 
   const rows = useMemo(() => bookings ?? [], [bookings]);
+  const zoneOptions = useMemo(
+    () =>
+      [
+        ...new Map(
+          rows.map((booking) => [booking.booth_zone_id, booking.booth_zone]),
+        ).values(),
+      ]
+        .sort(
+          (left, right) =>
+            left.order - right.order || left.name.localeCompare(right.name),
+        )
+        .map((zone) => ({ value: zone.id, label: zone.name })),
+    [rows],
+  );
   const bookedServices = useMemo(
     () =>
       rows.flatMap((booking) =>
@@ -141,6 +157,9 @@ const BookingsTab = ({
         return false;
       }
       if (incompleteOnly && booking.is_complete !== false) return false;
+      if (zoneFilter.length > 0 && !zoneFilter.includes(booking.booth_zone_id)) {
+        return false;
+      }
       return bookedAnyService(booking.services ?? [], serviceFilter);
     });
 
@@ -148,7 +167,15 @@ const BookingsTab = ({
       ...SORT_VALUES[field](booking),
       booking.company.name,
     ]);
-  }, [incompleteOnly, rows, search, serviceFilter, sort, statusFilter]);
+  }, [
+    incompleteOnly,
+    rows,
+    search,
+    serviceFilter,
+    sort,
+    statusFilter,
+    zoneFilter,
+  ]);
 
   const pageCount = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -292,6 +319,21 @@ const BookingsTab = ({
             value={statusFilter}
             w={200}
           />
+          {zoneOptions.length > 0 ? (
+            <MultiSelect
+              clearable
+              searchable
+              data={zoneOptions}
+              label={t("kp.manage.bookings_filter_zones")}
+              onChange={(value) => {
+                setPage(1);
+                setZoneFilter(value);
+              }}
+              placeholder={t("kp.manage.bookings_filter_zones_all")}
+              value={zoneFilter}
+              w={220}
+            />
+          ) : null}
           {bookedServices.length > 0 ? (
             <ServiceFilterSelect
               label={t("kp.manage.bookings_filter_services")}

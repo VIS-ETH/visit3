@@ -105,6 +105,19 @@ describe("the staff bookings table", () => {
     expect(companyOrder()).toEqual(["Acme AG", "Beta GmbH", "Zeta SA"]);
   });
 
+  it("filters by booth zone", async () => {
+    const { user } = renderWithProviders(<BookingsTab eventId={testEventId} />);
+
+    await screen.findByText("Beta GmbH", {}, { timeout: 5000 });
+    const [filter] = screen
+      .getAllByLabelText("kp.manage.bookings_filter_zones")
+      .filter((element) => (element as HTMLInputElement).type !== "hidden");
+    await user.click(filter);
+    await user.click(await screen.findByRole("option", { name: "Main hall" }));
+
+    expect(companyOrder()).toEqual(["Acme AG", "Zeta SA"]);
+  });
+
   it("filters down to the incomplete bookings", async () => {
     const { user } = renderWithProviders(<BookingsTab eventId={testEventId} />);
 
@@ -203,8 +216,9 @@ describe("the staff bookings table", () => {
       ),
     ).toBe(true);
     expect(companyOrder()).toEqual(["Acme AG", "Beta GmbH", "Zeta SA"]);
-    expect(screen.getAllByText("Main hall")).toHaveLength(2);
-    expect(screen.getByText("Side hall")).toBeInTheDocument();
+    const table = within(screen.getByRole("table"));
+    expect(table.getAllByText("Main hall")).toHaveLength(2);
+    expect(table.getByText("Side hall")).toBeInTheDocument();
   });
 
   it("explains what is missing on an incomplete booking", async () => {
