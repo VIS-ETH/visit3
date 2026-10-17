@@ -206,6 +206,13 @@ describe("the mail campaigns page", () => {
       "CONFIRMED",
     ]);
 
+    expect(lastAudience().audience.all_accounts).toBe(false);
+    await user.click(screen.getByRole("switch", { name: /^To all accounts/ }));
+
+    await waitFor(() => {
+      expect(lastAudience().audience.all_accounts).toBe(true);
+    }, TIMEOUT);
+
     await user.click(multiSelect("Booth zones"));
     await user.click(await screen.findByRole("option", { name: "Main hall" }));
     await user.click(multiSelect("Always include"));
@@ -235,7 +242,7 @@ describe("the mail campaigns page", () => {
     const dialog = await screen.findByRole("dialog", {}, TIMEOUT);
     expect(
       await within(dialog).findByText(
-        "The mail goes out now to 2 companies.",
+        "The mail goes out now to 2 recipients.",
         {},
         TIMEOUT,
       ),
@@ -268,7 +275,7 @@ describe("the mail campaigns page", () => {
     await user.click(screen.getByRole("button", { name: "Send now" }));
     const dialog = await screen.findByRole("dialog", {}, TIMEOUT);
     await within(dialog).findByText(
-      "The mail goes out now to 2 companies.",
+      "The mail goes out now to 2 recipients.",
       {},
       TIMEOUT,
     );

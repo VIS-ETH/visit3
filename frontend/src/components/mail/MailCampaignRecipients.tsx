@@ -61,7 +61,9 @@ const MailCampaignRecipients = ({
               </Table.Thead>
               <Table.Tbody>
                 {audience.recipients.map((recipient) => (
-                  <Table.Tr key={recipient.company_id}>
+                  <Table.Tr
+                    key={`${recipient.company_id}-${recipient.email ?? ""}`}
+                  >
                     <Table.Td>
                       <Group gap={6} wrap="nowrap">
                         <Text size="sm">{recipient.company_name}</Text>
@@ -95,7 +97,9 @@ const MailCampaignRecipients = ({
                           size="sm"
                           variant="light"
                           color={
-                            recipient.source === "CONTACT" ? "green" : "blue"
+                            recipient.source === "GENERAL_EMAIL"
+                              ? "blue"
+                              : "green"
                           }
                         >
                           {t(`mail_campaigns.source.${recipient.source}`)}

@@ -13,6 +13,7 @@ export const mailCampaignSchema = z
     boothZoneIds: z.array(z.string()),
     includeCompanyIds: z.array(z.string()),
     excludeCompanyIds: z.array(z.string()),
+    allAccounts: z.boolean(),
   })
   .superRefine((values, context) => {
     const hasSubject = values.subjectEn.trim().length > 0;

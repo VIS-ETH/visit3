@@ -46,6 +46,7 @@ class AudienceCompany:
     name: str
     contact: AudienceContact | None
     general_email: str | None
+    accounts: Sequence[AudienceContact] = ()
 
 
 @dataclass(frozen=True)
@@ -87,6 +88,7 @@ class PlannedRecipient:
     company: AudienceCompany
     email: str | None
     source: MailCampaignRecipientSource | None
+    person: AudienceContact | None
     skip_reason: MailCampaignSkipReason | None
     manually_included: bool
 
@@ -107,6 +109,21 @@ def recipient_address(
     if company.general_email and company.general_email.strip():
         return company.general_email.strip(), MailCampaignRecipientSource.GENERAL_EMAIL
     return None, None
+
+
+def company_addresses(
+    company: AudienceCompany, all_accounts: bool
+) -> list[
+    tuple[str | None, MailCampaignRecipientSource | None, AudienceContact | None]
+]:
+    if all_accounts and company.accounts:
+        return [
+            (account.email, MailCampaignRecipientSource.ACCOUNT, account)
+            for account in company.accounts
+        ]
+    email, source = recipient_address(company)
+    person = company.contact if source == MailCampaignRecipientSource.CONTACT else None
+    return [(email, source, person)]
 
 
 def _booking_matches(segment: MailCampaignSegment, booking: AudienceBooking) -> bool:
@@ -171,23 +188,24 @@ def plan_recipients(
     seen: set[str] = set()
     planned: list[PlannedRecipient] = []
     for company, manually_included in selected:
-        email, source = recipient_address(company)
-        skip_reason = None
-        if email is None:
-            skip_reason = MailCampaignSkipReason.NO_ADDRESS
-        elif normalize_email(email) in seen:
-            skip_reason = MailCampaignSkipReason.DUPLICATE_ADDRESS
-        else:
-            seen.add(normalize_email(email))
-        planned.append(
-            PlannedRecipient(
-                company=company,
-                email=email,
-                source=source,
-                skip_reason=skip_reason,
-                manually_included=manually_included,
+        for email, source, person in company_addresses(company, audience.all_accounts):
+            skip_reason = None
+            if email is None:
+                skip_reason = MailCampaignSkipReason.NO_ADDRESS
+            elif normalize_email(email) in seen:
+                skip_reason = MailCampaignSkipReason.DUPLICATE_ADDRESS
+            else:
+                seen.add(normalize_email(email))
+            planned.append(
+                PlannedRecipient(
+                    company=company,
+                    email=email,
+                    source=source,
+                    person=person,
+                    skip_reason=skip_reason,
+                    manually_included=manually_included,
+                )
             )
-        )
     return planned
 
 
@@ -203,7 +221,7 @@ def login_path(event_id: UUID, bookings: Sequence[AudienceBooking]) -> str:
 def campaign_context(
     data: AudienceData,
     company: AudienceCompany,
-    source: MailCampaignRecipientSource | None,
+    person: AudienceContact | None,
     login_url: str,
 ) -> MailCampaignContext:
     bookings = data.active_bookings().get(company.id, [])
@@ -214,15 +232,9 @@ def campaign_context(
         if booking.status == KpBookingStatus.OFFERED
         and booking.offer_deadline is not None
     )
-    contact = company.contact
-    name = (
-        contact.name
-        if contact is not None and source == MailCampaignRecipientSource.CONTACT
-        else company.name
-    )
     event = data.event
     return MailCampaignContext(
-        name=name,
+        name=person.name if person is not None else company.name,
         company_name=company.name,
         event_name=event.name,
         event_date=event.event_date.isoformat(),

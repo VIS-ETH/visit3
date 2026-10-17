@@ -64,6 +64,7 @@ class MailCampaignAudience(BaseModel):
     exclude_company_ids: Annotated[list[UUID], AfterValidator(_unique)] = Field(
         default_factory=list[UUID], max_length=MAX_AUDIENCE_COMPANIES
     )
+    all_accounts: bool = False
 
     @model_validator(mode="after")
     def validate_manual_lists(self) -> Self:

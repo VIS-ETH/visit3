@@ -128,12 +128,16 @@ const MailCampaignEditor = ({
     placeholderData: keepPreviousData,
   });
   const audience = values.eventId ? audienceQuery.data : undefined;
-  const sampleOptions = (audience?.recipients ?? [])
-    .filter((recipient) => recipient.email && !recipient.skip_reason)
-    .map((recipient) => ({
-      value: recipient.company_id,
-      label: recipient.company_name,
-    }));
+  const sampleOptions = [
+    ...new Map(
+      (audience?.recipients ?? [])
+        .filter((recipient) => recipient.email && !recipient.skip_reason)
+        .map((recipient) => [
+          recipient.company_id,
+          { value: recipient.company_id, label: recipient.company_name },
+        ]),
+    ).values(),
+  ];
   const activeSample = sampleOptions.some(
     (option) => option.value === sampleCompanyId,
   )

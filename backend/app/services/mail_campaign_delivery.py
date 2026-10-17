@@ -25,6 +25,7 @@ from app.schemas.mail_campaign import MailCampaignAudience
 from app.services.auth_service import LOGIN_LINK_PATH, frontend_url, safe_target_path
 from app.services.mail_campaign_audience import (
     AudienceCompany,
+    AudienceContact,
     AudienceData,
     campaign_context,
     login_path,
@@ -61,10 +62,7 @@ def planned_rows(
             company_name=planned.company.name,
             email=planned.email,
             source=planned.source,
-            contact_user_id=planned.company.contact.user_id
-            if planned.company.contact is not None
-            and planned.source == MailCampaignRecipientSource.CONTACT
-            else None,
+            contact_user_id=planned.person.user_id if planned.person else None,
             status=MailCampaignRecipientStatus.SKIPPED
             if planned.skip_reason
             else MailCampaignRecipientStatus.PENDING,
@@ -165,31 +163,37 @@ class MailCampaignDelivery:
             general_email=None,
         )
 
-    def _source(
+    def _person(
         self, recipient: MailCampaignRecipient, company: AudienceCompany
-    ) -> MailCampaignRecipientSource | None:
-        if recipient.source != MailCampaignRecipientSource.CONTACT:
-            return MailCampaignRecipientSource.GENERAL_EMAIL
-        if company.contact is None or company.contact.user_id != (
-            recipient.contact_user_id
-        ):
-            return None
-        return MailCampaignRecipientSource.CONTACT
+    ) -> AudienceContact | None:
+        match recipient.source:
+            case MailCampaignRecipientSource.CONTACT:
+                people = [company.contact] if company.contact else []
+            case MailCampaignRecipientSource.ACCOUNT:
+                people = list(company.accounts)
+            case _:
+                people = []
+        return next(
+            (
+                person
+                for person in people
+                if person.user_id == recipient.contact_user_id
+            ),
+            None,
+        )
 
     async def _login_url(
         self,
         session: AsyncSession,
         recipient: MailCampaignRecipient,
         data: AudienceData,
-        source: MailCampaignRecipientSource | None,
+        person: AudienceContact | None,
     ) -> str:
-        if source != MailCampaignRecipientSource.CONTACT or (
-            recipient.contact_user_id is None
-        ):
+        if person is None:
             return frontend_url(PLAIN_LOGIN_PATH)
         bookings = data.active_bookings().get(recipient.company_id, [])
         token = await TokenRepository(session).create_login_link_token(
-            recipient.contact_user_id,
+            person.user_id,
             safe_target_path(login_path(data.event.id, bookings)),
         )
         return frontend_url(f"{LOGIN_LINK_PATH}/{token}")
@@ -203,9 +207,9 @@ class MailCampaignDelivery:
         identifier: str,
     ) -> MailCampaignFailure | None:
         company = self._company(recipient, data)
-        source = self._source(recipient, company)
-        login_url = await self._login_url(session, recipient, data, source)
-        context = campaign_context(data, company, source, login_url)
+        person = self._person(recipient, company)
+        login_url = await self._login_url(session, recipient, data, person)
+        context = campaign_context(data, company, person, login_url)
         try:
             rendered = await asyncio.to_thread(
                 render_campaign_mail, texts, context, identifier

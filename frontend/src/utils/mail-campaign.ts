@@ -50,6 +50,7 @@ export function emptyMailCampaignValues(
     boothZoneIds: [],
     includeCompanyIds: [],
     excludeCompanyIds: [],
+    allAccounts: false,
   };
 }
 
@@ -67,6 +68,7 @@ export function mailCampaignValues(
     boothZoneIds: campaign.audience.booth_zone_ids ?? [],
     includeCompanyIds: campaign.audience.include_company_ids ?? [],
     excludeCompanyIds: campaign.audience.exclude_company_ids ?? [],
+    allAccounts: campaign.audience.all_accounts ?? false,
   };
 }
 
@@ -80,6 +82,7 @@ export function toMailCampaignAudienceRequest(
       booth_zone_ids: values.boothZoneIds,
       include_company_ids: values.includeCompanyIds,
       exclude_company_ids: values.excludeCompanyIds,
+      all_accounts: values.allAccounts,
     },
   };
 }

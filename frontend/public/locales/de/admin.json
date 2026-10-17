@@ -203,6 +203,8 @@
     "audience": {
       "segments": "Senden an",
       "segments_hint": "Registriert umfasst auch bestätigte Buchungen. Ein offenes Angebot zählt nicht als registriert.",
+      "all_accounts": "An alle Konten",
+      "all_accounts_hint": "Jedes bestätigte Konto der Unternehmen statt nur der Kontaktperson. Ohne Konto geht die E-Mail an die allgemeine E-Mail.",
       "zones": "Standzonen",
       "zones_hint": "Nur Buchungen in diesen Zonen. Leer lassen für alle Zonen.",
       "zones_placeholder": "Alle Zonen",
@@ -225,7 +227,8 @@
     },
     "source": {
       "CONTACT": "Kontaktperson",
-      "GENERAL_EMAIL": "Allgemeine E-Mail"
+      "GENERAL_EMAIL": "Allgemeine E-Mail",
+      "ACCOUNT": "Konto"
     },
     "failure": {
       "DELIVERY_FAILED": "Vom E-Mail-Dienst abgelehnt",
@@ -237,7 +240,7 @@
     "english_hint": "Ohne englischen Text wird die E-Mail nur auf Deutsch versendet.",
     "english_incomplete": "Bitte englischen Betreff und Text beide ausfüllen oder beide leer lassen.",
     "variable": {
-      "name": "Kontaktperson, oder der Unternehmensname bei der allgemeinen E-Mail",
+      "name": "Name der Person, oder der Unternehmensname bei der allgemeinen E-Mail",
       "company_name": "Unternehmensname",
       "event_name": "Name der Kontaktparty",
       "event_date": "Datum der Kontaktparty",
@@ -246,7 +249,7 @@
       "nametags_deadline": "Frist für Namensschilder",
       "booth_zone_name": "Gebuchte Standzone, sonst -",
       "offer_deadline": "Frist eines offenen Angebots, sonst -",
-      "login_url": "Login-Link, persönlich für Kontaktpersonen"
+      "login_url": "Login-Link, persönlich ausser bei der allgemeinen E-Mail"
     },
     "preview_company": "Vorschau für",
     "preview_sample": "Beispieldaten",
@@ -266,8 +269,8 @@
     "unschedule": "Planung aufheben",
     "send_modal": {
       "title": "E-Mail jetzt senden?",
-      "message": "Die E-Mail geht jetzt an {{count}} Unternehmen.",
-      "message_one": "Die E-Mail geht jetzt an 1 Unternehmen.",
+      "message": "Die E-Mail geht jetzt an {{count}} Empfänger.",
+      "message_one": "Die E-Mail geht jetzt an 1 Empfänger.",
       "nobody": "Kein Unternehmen würde diese E-Mail erhalten.",
       "confirm": "Jetzt senden"
     },

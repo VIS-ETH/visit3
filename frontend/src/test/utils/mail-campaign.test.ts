@@ -45,6 +45,7 @@ describe("the campaign request", () => {
         boothZoneIds: ["zone-1"],
         includeCompanyIds: ["company-1"],
         excludeCompanyIds: ["company-2"],
+        allAccounts: true,
       }),
     ).toEqual({
       name: "Reminder",
@@ -58,6 +59,7 @@ describe("the campaign request", () => {
         booth_zone_ids: ["zone-1"],
         include_company_ids: ["company-1"],
         exclude_company_ids: ["company-2"],
+        all_accounts: true,
       },
     });
   });

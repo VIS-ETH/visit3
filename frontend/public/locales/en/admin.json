@@ -203,6 +203,8 @@
     "audience": {
       "segments": "Send to",
       "segments_hint": "Registered includes confirmed bookings. A pending offer does not count as registered.",
+      "all_accounts": "To all accounts",
+      "all_accounts_hint": "Every confirmed account of the companies instead of only the contact person. Without an account the mail goes to the general email.",
       "zones": "Booth zones",
       "zones_hint": "Only bookings in these zones. Leave empty for all zones.",
       "zones_placeholder": "All zones",
@@ -225,7 +227,8 @@
     },
     "source": {
       "CONTACT": "Contact person",
-      "GENERAL_EMAIL": "General email"
+      "GENERAL_EMAIL": "General email",
+      "ACCOUNT": "Account"
     },
     "failure": {
       "DELIVERY_FAILED": "Rejected by the mail service",
@@ -237,7 +240,7 @@
     "english_hint": "Without English text the mail is sent in German only.",
     "english_incomplete": "Fill in both the English subject and body, or neither.",
     "variable": {
-      "name": "Contact person, or the company name when the general email is used",
+      "name": "Name of the person, or the company name when the general email is used",
       "company_name": "Company name",
       "event_name": "Name of the Kontaktparty",
       "event_date": "Date of the Kontaktparty",
@@ -246,7 +249,7 @@
       "nametags_deadline": "Deadline for name tags",
       "booth_zone_name": "Booked booth zone, otherwise -",
       "offer_deadline": "Deadline of an open offer, otherwise -",
-      "login_url": "Login link, personal for contact persons"
+      "login_url": "Login link, personal unless sent to the general email"
     },
     "preview_company": "Preview for",
     "preview_sample": "Sample data",
@@ -266,8 +269,8 @@
     "unschedule": "Cancel schedule",
     "send_modal": {
       "title": "Send mail now?",
-      "message": "The mail goes out now to {{count}} companies.",
-      "message_one": "The mail goes out now to 1 company.",
+      "message": "The mail goes out now to {{count}} recipients.",
+      "message_one": "The mail goes out now to 1 recipient.",
       "nobody": "No company would receive this mail.",
       "confirm": "Send now"
     },

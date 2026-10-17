@@ -1,4 +1,4 @@
-import { Chip, Group, MultiSelect, Stack, Text } from "@mantine/core";
+import { Chip, Group, MultiSelect, Stack, Switch, Text } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useTranslation } from "react-i18next";
 import { MailCampaignSegment } from "../../orval/generated/fastAPI.schemas";
@@ -58,6 +58,12 @@ const MailCampaignAudienceBuilder = ({
           </Group>
         </Chip.Group>
       </div>
+      <Switch
+        label={t("mail_campaigns.audience.all_accounts")}
+        description={t("mail_campaigns.audience.all_accounts_hint")}
+        disabled={disabled}
+        {...form.getInputProps("allAccounts", { type: "checkbox" })}
+      />
       <MultiSelect
         label={t("mail_campaigns.audience.zones")}
         description={t("mail_campaigns.audience.zones_hint")}

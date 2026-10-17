@@ -53,6 +53,7 @@ class MailCampaignRecipientStatus(StrEnum):
 class MailCampaignRecipientSource(StrEnum):
     CONTACT = "CONTACT"
     GENERAL_EMAIL = "GENERAL_EMAIL"
+    ACCOUNT = "ACCOUNT"
 
 
 class MailCampaignSkipReason(StrEnum):
@@ -106,7 +107,8 @@ class MailCampaignRecipient(BaseEntity, table=True):
         UniqueConstraint(
             "campaign_id",
             "company_id",
-            name="uq_mailcampaignrecipient_campaign_id_company_id",
+            "contact_user_id",
+            name="uq_mailcampaignrecipient_campaign_company_user",
         ),
     )
 

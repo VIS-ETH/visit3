@@ -20,10 +20,12 @@ from app.models.mail import (
     MailCampaignRecipientStatus,
     MailCampaignStatus,
 )
+from app.models.user import User
 from app.repositories.base import BaseRepository, rel
 from app.services.mail_campaign_audience import (
     AudienceBooking,
     AudienceCompany,
+    AudienceContact,
     AudienceData,
     AudienceEvent,
     eligible_contact,
@@ -359,6 +361,18 @@ class MailCampaignRepository(BaseRepository[MailCampaign]):
             .execution_options(populate_existing=True)
         )
         companies = (await self.session.execute(companies_statement)).scalars().all()
+        accounts_statement = (
+            select(User)
+            .where(col(User.company_id).is_not(None))
+            .order_by(col(User.email))
+            .execution_options(populate_existing=True)
+        )
+        accounts: defaultdict[UUID, list[AudienceContact]] = defaultdict(list)
+        for user in (await self.session.execute(accounts_statement)).scalars():
+            if user.company_id is not None and (
+                account := eligible_contact(user, user.company_id)
+            ):
+                accounts[user.company_id].append(account)
         bookings_statement = include_deleted_for(
             select(KpEventBooking)
             .where(col(KpEventBooking.event_id) == event.id)
@@ -380,11 +394,16 @@ class MailCampaignRepository(BaseRepository[MailCampaign]):
                 finalization_deadline=event.finalization_deadline,
                 nametags_deadline=event.nametags_deadline,
             ),
-            companies=[self._audience_company(company) for company in companies],
+            companies=[
+                self._audience_company(company, accounts[company.id])
+                for company in companies
+            ],
             bookings=[self._audience_booking(booking) for booking in bookings],
         )
 
-    def _audience_company(self, company: Company) -> AudienceCompany:
+    def _audience_company(
+        self, company: Company, accounts: Sequence[AudienceContact]
+    ) -> AudienceCompany:
         profile = company.kp_profile
         return AudienceCompany(
             id=company.id,
@@ -393,6 +412,7 @@ class MailCampaignRepository(BaseRepository[MailCampaign]):
                 profile.kp_contact_user if profile is not None else None, company.id
             ),
             general_email=profile.general_email if profile is not None else None,
+            accounts=accounts,
         )
 
     def _audience_booking(self, booking: KpEventBooking) -> AudienceBooking:

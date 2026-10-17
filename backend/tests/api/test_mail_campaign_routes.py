@@ -273,6 +273,45 @@ async def test_contacts_get_a_login_link_and_general_addresses_the_login_page(
     )
 
 
+async def test_all_accounts_mails_every_confirmed_account_personally(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    create_user: Callable[..., Awaitable[User]],
+    president_headers: dict[str, str],
+    campaign_world: CampaignWorld,
+    mail_stub: AsyncMock,
+):
+    for email, confirmed in (("ada@acme.example", True), ("eve@acme.example", False)):
+        colleague = await create_user(
+            email=email, first_name=email[:3].title(), email_confirmed=confirmed
+        )
+        colleague.company_id = campaign_world.acme_id
+        db_session.add(colleague)
+    await db_session.commit()
+    created = await create_campaign(
+        client,
+        president_headers,
+        campaign_world,
+        audience={"segments": ["ALL"], "all_accounts": True},
+    )
+
+    campaign = await send(client, president_headers, created["id"])
+
+    assert sent_addresses(mail_stub) == [
+        "ada@acme.example",
+        ACME_CONTACT,
+        "member@newcomer.example",
+        "member@silent.example",
+    ]
+    assert {entry["source"] for entry in campaign["recipients"]} == {"ACCOUNT"}
+    texts = {
+        recipients_of(message)[0]: message.plain_text
+        for message in sent_messages(mail_stub)
+    }
+    assert "Hallo Ada User" in texts["ada@acme.example"]
+    assert all("/auth/link/" in text for text in texts.values())
+
+
 async def test_a_german_only_campaign_sends_a_german_subject(
     client: AsyncClient,
     president_headers: dict[str, str],

@@ -240,6 +240,72 @@ def test_addresses_are_deduplicated_case_insensitively():
     ]
 
 
+def account(email: str, name: str) -> AudienceContact:
+    return AudienceContact(user_id=uuid4(), email=email, name=name)
+
+
+def test_all_accounts_reaches_every_account_of_each_company():
+    ada = account("ada@team.example", "Ada")
+    bob = account("bob@team.example", "Bob")
+    team = AudienceCompany(
+        id=uuid4(),
+        name="Team",
+        contact=ada,
+        general_email="info@team.example",
+        accounts=[ada, bob],
+    )
+    lonely = company("Lonely", contact=False)
+    data = AudienceData(event=EVENT, companies=[team, lonely], bookings=[])
+    audience = MailCampaignAudience(
+        segments=[MailCampaignSegment.ALL], all_accounts=True
+    )
+
+    planned = plan_recipients(audience, data)
+
+    assert [(entry.email, entry.source, entry.person) for entry in planned] == [
+        ("info@lonely.example", MailCampaignRecipientSource.GENERAL_EMAIL, None),
+        ("ada@team.example", MailCampaignRecipientSource.ACCOUNT, ada),
+        ("bob@team.example", MailCampaignRecipientSource.ACCOUNT, bob),
+    ]
+
+
+def test_accounts_are_deduplicated_against_other_companies():
+    shared = account("shared@example.com", "Shared")
+    first = AudienceCompany(
+        id=uuid4(), name="Alpha", contact=None, general_email=None, accounts=[shared]
+    )
+    second = AudienceCompany(
+        id=uuid4(), name="Beta", contact=None, general_email="Shared@example.com"
+    )
+    data = AudienceData(event=EVENT, companies=[first, second], bookings=[])
+    audience = MailCampaignAudience(
+        segments=[MailCampaignSegment.ALL], all_accounts=True
+    )
+
+    planned = plan_recipients(audience, data)
+
+    assert [entry.skip_reason for entry in planned] == [
+        None,
+        MailCampaignSkipReason.DUPLICATE_ADDRESS,
+    ]
+
+
+def test_the_contact_person_is_the_default_reach():
+    ada = account("ada@team.example", "Ada")
+    team = AudienceCompany(
+        id=uuid4(),
+        name="Team",
+        contact=ada,
+        general_email=None,
+        accounts=[ada, account("bob@team.example", "Bob")],
+    )
+    data = AudienceData(event=EVENT, companies=[team], bookings=[])
+
+    [planned] = plan_recipients(segments(MailCampaignSegment.ALL), data)
+
+    assert (planned.email, planned.person) == ("ada@team.example", ada)
+
+
 def contact_user(company_id: UUID | None, **overrides: object) -> User:
     values: dict[str, object] = {
         "email": "ada@example.com",
@@ -280,9 +346,7 @@ def test_unusable_contacts_fall_back(overrides: dict[str, object]):
 
 
 def test_the_context_carries_the_booking_details():
-    context = campaign_context(
-        DATA, OFFERED, MailCampaignRecipientSource.CONTACT, "https://visit.test/x"
-    )
+    context = campaign_context(DATA, OFFERED, OFFERED.contact, "https://visit.test/x")
 
     assert context.name == "Offered Contact"
     assert context.company_name == "Offered"
@@ -293,9 +357,7 @@ def test_the_context_carries_the_booking_details():
 
 
 def test_the_context_greets_the_company_when_the_general_email_is_used():
-    context = campaign_context(
-        DATA, NEWCOMER, MailCampaignRecipientSource.GENERAL_EMAIL, "u"
-    )
+    context = campaign_context(DATA, NEWCOMER, None, "u")
 
     assert context.name == "Newcomer"
     assert context.booth_zone_name == "-"

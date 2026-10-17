@@ -51,7 +51,6 @@ from app.services.mail_campaign_audience import (
     AudienceData,
     campaign_context,
     plan_recipients,
-    recipient_address,
 )
 from app.services.mail_campaign_delivery import (
     LEASE,
@@ -290,9 +289,8 @@ class MailCampaignService:
         if company is None:
             context = MAIL_CAMPAIGN_SAMPLE_CONTEXT
         else:
-            _, source = recipient_address(company)
             context = campaign_context(
-                data, company, source, frontend_url(PLAIN_LOGIN_PATH)
+                data, company, company.contact, frontend_url(PLAIN_LOGIN_PATH)
             )
         return await asyncio.to_thread(
             render_campaign_mail,
