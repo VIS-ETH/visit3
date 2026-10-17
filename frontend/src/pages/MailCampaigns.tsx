@@ -11,6 +11,7 @@ import {
 import { IconAlertCircle } from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router";
 import BackButton from "../components/BackButton";
 import MailCampaignEditor from "../components/mail/MailCampaignEditor";
 import MailCampaignList from "../components/mail/MailCampaignList";
@@ -46,7 +47,11 @@ const MailCampaigns = () => {
     },
   });
   const { data: events } = useListKps();
-  const [selected, setSelected] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const companyId = searchParams.get("company");
+  const [selected, setSelected] = useState<string | null>(
+    companyId ? NEW_CAMPAIGN : null,
+  );
 
   const activeId =
     selected === NEW_CAMPAIGN ? null : (selected ?? campaigns?.[0]?.id ?? null);
@@ -62,7 +67,10 @@ const MailCampaigns = () => {
       },
     },
   );
-  const defaultEventId = events?.[0]?.id ?? null;
+  const defaultEventId =
+    events?.find((event) => event.id === searchParams.get("event"))?.id ??
+    events?.[0]?.id ??
+    null;
   const showCampaign = (next: MailCampaignResponse) => setSelected(next.id);
 
   const loading = (
@@ -82,6 +90,7 @@ const MailCampaigns = () => {
           campaign={null}
           events={events}
           defaultEventId={defaultEventId}
+          companyId={companyId}
           onSaved={showCampaign}
           onDeleted={() => setSelected(null)}
         />

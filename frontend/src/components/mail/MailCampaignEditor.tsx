@@ -82,6 +82,7 @@ interface MailCampaignEditorProps {
   campaign: MailCampaignResponse | null;
   events: KpResponse[];
   defaultEventId: string | null;
+  companyId?: string | null;
   onSaved: (campaign: MailCampaignResponse) => void;
   onDeleted: () => void;
 }
@@ -90,6 +91,7 @@ const MailCampaignEditor = ({
   campaign,
   events,
   defaultEventId,
+  companyId = null,
   onSaved,
   onDeleted,
 }: MailCampaignEditorProps) => {
@@ -98,7 +100,7 @@ const MailCampaignEditor = ({
   const form = useTranslatedForm(mailCampaignSchema, {
     initialValues: campaign
       ? mailCampaignValues(campaign)
-      : emptyMailCampaignValues(defaultEventId),
+      : emptyMailCampaignValues(defaultEventId, companyId),
   });
   const values = form.values;
   const [action, setAction] = useState<ConfirmAction | null>(null);

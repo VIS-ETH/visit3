@@ -271,6 +271,23 @@ def test_all_accounts_reaches_every_account_of_each_company():
     ]
 
 
+def test_additional_emails_join_or_replace_a_missing_primary_address():
+    listed = replace(company("Listed"), additional_emails=["team@listed.example"])
+    bare = replace(
+        company("Bare", contact=False, general=False),
+        additional_emails=["team@bare.example"],
+    )
+    data = AudienceData(event=EVENT, companies=[listed, bare], bookings=[])
+
+    planned = plan_recipients(segments(MailCampaignSegment.ALL), data)
+
+    assert [(entry.email, entry.source, entry.skip_reason) for entry in planned] == [
+        ("team@bare.example", MailCampaignRecipientSource.ADDITIONAL_EMAIL, None),
+        ("contact@listed.example", MailCampaignRecipientSource.CONTACT, None),
+        ("team@listed.example", MailCampaignRecipientSource.ADDITIONAL_EMAIL, None),
+    ]
+
+
 def test_accounts_are_deduplicated_against_other_companies():
     shared = account("shared@example.com", "Shared")
     first = AudienceCompany(

@@ -156,7 +156,8 @@ beforeEach(() => {
   );
 });
 
-const renderPage = () => renderWithProviders(<MailCampaigns />);
+const renderPage = (route = "/") =>
+  renderWithProviders(<MailCampaigns />, { route });
 
 const fillContent = async (user: ReturnType<typeof renderPage>["user"]) => {
   await user.type(
@@ -278,6 +279,17 @@ describe("the mail campaigns page", () => {
     expect(body.value).toBe(
       '{% if "Strom" in services %}Hallo{% endif %}{% if booth_elements %}<p></p>{% endif %}',
     );
+  });
+
+  it("starts a mail to one company from the company management", async () => {
+    renderPage("/?company=company-beta");
+
+    await waitFor(() => {
+      expect(lastAudience().audience).toMatchObject({
+        segments: [],
+        include_company_ids: ["company-beta"],
+      });
+    }, TIMEOUT);
   });
 
   it("asks for confirmation with the recipient count before sending", async () => {

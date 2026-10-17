@@ -16,6 +16,7 @@
     "renamed": "Unternehmen umbenannt.",
     "view_users": "Mitglieder",
     "edit_profile": "Unternehmensprofil bearbeiten",
+    "send_mail": "E-Mail senden",
     "delete": "Unternehmen löschen",
     "profile_title": "Unternehmensprofil",
     "members": {
@@ -226,12 +227,13 @@
     },
     "skip": {
       "NO_ADDRESS": "Keine Kontaktperson und keine allgemeine E-Mail",
-      "DUPLICATE_ADDRESS": "Gleiche Adresse wie ein anderes Unternehmen"
+      "DUPLICATE_ADDRESS": "Adresse ist schon dabei"
     },
     "source": {
       "CONTACT": "Kontaktperson",
       "GENERAL_EMAIL": "Allgemeine E-Mail",
-      "ACCOUNT": "Konto"
+      "ACCOUNT": "Konto",
+      "ADDITIONAL_EMAIL": "Weitere E-Mail"
     },
     "failure": {
       "DELIVERY_FAILED": "Vom E-Mail-Dienst abgelehnt",

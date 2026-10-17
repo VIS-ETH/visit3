@@ -54,6 +54,7 @@ class MailCampaignRecipientSource(StrEnum):
     CONTACT = "CONTACT"
     GENERAL_EMAIL = "GENERAL_EMAIL"
     ACCOUNT = "ACCOUNT"
+    ADDITIONAL_EMAIL = "ADDITIONAL_EMAIL"
 
 
 class MailCampaignSkipReason(StrEnum):

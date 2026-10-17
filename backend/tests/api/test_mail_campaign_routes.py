@@ -10,7 +10,12 @@ from sqlmodel import func, select
 from app.models.auth_tokens import LoginLinkToken
 from app.models.kp_event import KpBookingStatus
 from app.models.user import User
-from tests.api.conftest import KpSetup, decoded_subject
+from tests.api.conftest import (
+    KpSetup,
+    company_profile_payload,
+    decoded_subject,
+    first_member_id,
+)
 from tests.api.mail_campaign_helpers import (
     ACME_CONTACT,
     NEWCOMER_GENERAL,
@@ -350,6 +355,58 @@ async def test_booked_services_select_recipients_and_paragraphs(
     }
     assert "Strom: Electricity" in texts[ACME_CONTACT]
     assert "Strom" not in texts[NEWCOMER_GENERAL]
+
+
+async def test_additional_profile_emails_receive_campaigns_too(
+    client: AsyncClient,
+    company_headers: dict[str, str],
+    president_headers: dict[str, str],
+    campaign_world: CampaignWorld,
+    mail_stub: AsyncMock,
+):
+    saved = await client.put(
+        "/api/company/me/profile",
+        json=company_profile_payload(
+            kp_contact_user_id=await first_member_id(client, company_headers),
+            additional_emails=[
+                " Team@Acme.example ",
+                "team@acme.example",
+                ACME_CONTACT,
+            ],
+        ),
+        headers=company_headers,
+    )
+    assert saved.json()["additional_emails"] == ["team@acme.example", ACME_CONTACT]
+    created = await create_campaign(
+        client, president_headers, campaign_world, audience={"segments": ["REGISTERED"]}
+    )
+
+    campaign = await send(client, president_headers, created["id"])
+
+    assert sent_addresses(mail_stub) == [ACME_CONTACT, "team@acme.example"]
+    assert sorted(
+        (entry["source"], entry["email"], str(entry["skip_reason"]))
+        for entry in campaign["recipients"]
+    ) == [
+        ("ADDITIONAL_EMAIL", ACME_CONTACT, "DUPLICATE_ADDRESS"),
+        ("ADDITIONAL_EMAIL", "team@acme.example", "None"),
+        ("CONTACT", ACME_CONTACT, "None"),
+    ]
+
+
+async def test_invalid_additional_emails_are_rejected(
+    client: AsyncClient, company_headers: dict[str, str]
+):
+    response = await client.put(
+        "/api/company/me/profile",
+        json=company_profile_payload(
+            kp_contact_user_id=await first_member_id(client, company_headers),
+            additional_emails=["not-an-email"],
+        ),
+        headers=company_headers,
+    )
+
+    assert response.status_code == 422
 
 
 async def test_a_german_only_campaign_sends_a_german_subject(

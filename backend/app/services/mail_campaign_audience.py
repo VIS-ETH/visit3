@@ -48,6 +48,7 @@ class AudienceCompany:
     contact: AudienceContact | None
     general_email: str | None
     accounts: Sequence[AudienceContact] = ()
+    additional_emails: Sequence[str] = ()
 
 
 @dataclass(frozen=True)
@@ -120,19 +121,27 @@ def recipient_address(
     return None, None
 
 
-def company_addresses(
-    company: AudienceCompany, all_accounts: bool
-) -> list[
-    tuple[str | None, MailCampaignRecipientSource | None, AudienceContact | None]
-]:
+Address = tuple[str | None, MailCampaignRecipientSource | None, AudienceContact | None]
+
+
+def company_addresses(company: AudienceCompany, all_accounts: bool) -> list[Address]:
+    primary: list[Address]
     if all_accounts and company.accounts:
-        return [
+        primary = [
             (account.email, MailCampaignRecipientSource.ACCOUNT, account)
             for account in company.accounts
         ]
-    email, source = recipient_address(company)
-    person = company.contact if source == MailCampaignRecipientSource.CONTACT else None
-    return [(email, source, person)]
+    else:
+        email, source = recipient_address(company)
+        person = (
+            company.contact if source == MailCampaignRecipientSource.CONTACT else None
+        )
+        primary = [(email, source, person)] if email else []
+    additional: list[Address] = [
+        (email, MailCampaignRecipientSource.ADDITIONAL_EMAIL, None)
+        for email in company.additional_emails
+    ]
+    return primary + additional or [(None, None, None)]
 
 
 def _booking_matches(segment: MailCampaignSegment, booking: AudienceBooking) -> bool:

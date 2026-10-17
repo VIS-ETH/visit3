@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import EmailStr, field_validator
 from pydantic_core import PydanticCustomError
-from sqlalchemy import Column, DateTime, Text
+from sqlalchemy import JSON, Column, DateTime, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field, Relationship
@@ -108,6 +108,10 @@ class KpCompanyProfile(BaseEntity, table=True):
     general_email: EmailStr | None = Field(default=None)
     general_phone: str | None = Field(default=None)
     student_contact_email: EmailStr | None = Field(default=None)
+    additional_emails: list[str] = Field(
+        default_factory=list,
+        sa_column=Column(JSON, nullable=False, server_default="[]"),
+    )
     places_of_work: str = Field(default="")
 
     employee_count_switzerland: int | None = Field(default=None, ge=0)

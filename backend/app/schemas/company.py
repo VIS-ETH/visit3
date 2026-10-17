@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.core.utils import normalize_email
 from app.models.company import (
     PROFILE_DESCRIPTION_MARKUP_MAX_LENGTH,
     KpCompanyLanguage,
@@ -11,6 +12,8 @@ from app.models.company import (
 )
 from app.schemas.industry import IndustryResult
 from app.schemas.text import PROFILE_TEXT_LIMITS, CompanyName
+
+MAX_ADDITIONAL_EMAILS = 10
 
 
 class CreateCompanyInput(BaseModel):
@@ -38,6 +41,9 @@ class CompanyProfileFields(BaseModel):
     general_email: EmailStr | None = None
     general_phone: str | None = None
     student_contact_email: EmailStr | None = None
+    additional_emails: list[EmailStr] = Field(
+        default_factory=lambda: [], max_length=MAX_ADDITIONAL_EMAILS
+    )
     places_of_work: str = ""
     employee_count_switzerland: int | None = Field(default=None, ge=0)
     employee_count_worldwide: int | None = Field(default=None, ge=0)
@@ -59,6 +65,11 @@ class CompanyProfileFields(BaseModel):
     @classmethod
     def validate_description(cls, value: str) -> str:
         return sanitize_description(value)
+
+    @field_validator("additional_emails")
+    @classmethod
+    def normalize_additional_emails(cls, value: list[str]) -> list[str]:
+        return list(dict.fromkeys(normalize_email(email) for email in value))
 
 
 class UpdateCompanyProfileInput(CompanyProfileFields):

@@ -403,6 +403,7 @@ class CompanyService:
             general_email=profile.general_email,
             general_phone=profile.general_phone,
             student_contact_email=profile.student_contact_email,
+            additional_emails=profile.additional_emails,
             places_of_work=profile.places_of_work,
             employee_count_switzerland=profile.employee_count_switzerland,
             employee_count_worldwide=profile.employee_count_worldwide,

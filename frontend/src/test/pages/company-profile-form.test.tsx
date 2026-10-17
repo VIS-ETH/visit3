@@ -449,6 +449,10 @@ describe("Company profile form", () => {
     );
     await user.clear(brandName);
     await user.paste("Examplify Group");
+    const [additionalEmails] = screen
+      .getAllByLabelText(labelOf("company_profile_form.additional_emails"))
+      .filter((element) => (element as HTMLInputElement).type !== "hidden");
+    await user.type(additionalEmails, "team@example.com{enter}");
     await user.click(
       screen.getByRole("button", { name: "company_profile_form.save" }),
     );
@@ -481,6 +485,7 @@ describe("Company profile form", () => {
       billing_vat_number: "CHE-123.456.789",
       billing_email: "billing@example.com",
       student_contact_email: null,
+      additional_emails: ["team@example.com"],
     });
   });
 

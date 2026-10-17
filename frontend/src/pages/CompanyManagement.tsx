@@ -20,6 +20,7 @@ import {
   IconAlertCircle,
   IconCheck,
   IconId,
+  IconMail,
   IconPencil,
   IconSearch,
   IconTrash,
@@ -57,6 +58,7 @@ const CompanyManagement = () => {
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
   const isAdmin = user?.is_admin ?? false;
+  const canMail = user?.is_kp_president ?? false;
 
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
@@ -91,6 +93,12 @@ const CompanyManagement = () => {
       .filter((booking) => isActiveBookingStatus(booking.status))
       .map((booking) => [booking.company_id, booking]),
   );
+
+  const mailCompany = (companyId: string) => {
+    const params = new URLSearchParams({ company: companyId });
+    if (bookingEvent) params.set("event", bookingEvent.id);
+    void navigate(`/admin/mail-campaigns?${params.toString()}`);
+  };
 
   const bookingActionsFor = (companyId: string) => {
     const booking = activeBookingByCompanyId.get(companyId);
@@ -310,6 +318,22 @@ const CompanyManagement = () => {
                                   <IconId size={16} />
                                 </ActionIcon>
                               </Tooltip>
+                              {canMail ? (
+                                <Tooltip
+                                  label={t("company_management.send_mail")}
+                                  withArrow
+                                >
+                                  <ActionIcon
+                                    aria-label={t(
+                                      "company_management.send_mail",
+                                    )}
+                                    onClick={() => mailCompany(company.id)}
+                                    variant="light"
+                                  >
+                                    <IconMail size={16} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              ) : null}
                               {isAdmin ? (
                                 <Tooltip
                                   label={t("company_management.delete")}

@@ -424,6 +424,7 @@ class MailCampaignRepository(BaseRepository[MailCampaign]):
             ),
             general_email=profile.general_email if profile is not None else None,
             accounts=accounts,
+            additional_emails=profile.additional_emails if profile is not None else (),
         )
 
     def _audience_booking(self, booking: KpEventBooking) -> AudienceBooking:

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse, type DefaultBodyType } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
-import { Route, Routes, useParams } from "react-router";
+import { Route, Routes, useLocation, useParams } from "react-router";
 import { UserProvider } from "../../context/UserContext";
 import {
   KpBookingStatus,
@@ -48,6 +48,11 @@ let bookingActions: string[] = [];
 const BookingRouteProbe = () => {
   const { id, bookingId } = useParams();
   return <p>{`${id}/${bookingId}`}</p>;
+};
+
+const LocationProbe = () => {
+  const location = useLocation();
+  return <p>{`${location.pathname}${location.search}`}</p>;
 };
 
 const acmeBooking = (status: KpBookingStatus): StaffBookingResponse => ({
@@ -552,6 +557,43 @@ describe("confirming bookings from the company management", () => {
     await waitFor(() => expect(listRequests.length).toBeGreaterThan(0));
     expect(
       row.queryByRole("button", { name: "kp.manage.booking_action_accept" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("mailing a company", () => {
+  it("opens a new mail for the company and the shown event", async () => {
+    latestEvent = testOpenEvent;
+    const { user } = renderWithProviders(
+      <UserProvider
+        user={{ ...staffUser, is_kp_president: true }}
+        isLoading={false}
+      >
+        <Routes>
+          <Route path="/" element={<CompanyManagement />} />
+          <Route path="/admin/mail-campaigns" element={<LocationProbe />} />
+        </Routes>
+      </UserProvider>,
+    );
+    const row = await acmeRow();
+
+    await user.click(
+      row.getByRole("button", { name: "company_management.send_mail" }),
+    );
+
+    expect(
+      await screen.findByText(
+        `/admin/mail-campaigns?company=${acmeCompany.id}&event=${testOpenEvent.id}`,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the mail action from staff without the organiser role", async () => {
+    renderPage(staffUser);
+    const row = await acmeRow();
+
+    expect(
+      row.queryByRole("button", { name: "company_management.send_mail" }),
     ).not.toBeInTheDocument();
   });
 });

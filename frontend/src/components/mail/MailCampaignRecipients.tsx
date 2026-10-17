@@ -97,9 +97,10 @@ const MailCampaignRecipients = ({
                           size="sm"
                           variant="light"
                           color={
-                            recipient.source === "GENERAL_EMAIL"
-                              ? "blue"
-                              : "green"
+                            recipient.source === "CONTACT" ||
+                            recipient.source === "ACCOUNT"
+                              ? "green"
+                              : "blue"
                           }
                         >
                           {t(`mail_campaigns.source.${recipient.source}`)}

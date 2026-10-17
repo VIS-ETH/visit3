@@ -43,6 +43,7 @@ export const MAIL_CAMPAIGN_STATUS_COLORS: Record<MailCampaignStatus, string> = {
 
 export function emptyMailCampaignValues(
   eventId: string | null,
+  companyId: string | null = null,
 ): MailCampaignFormValues {
   return {
     name: "",
@@ -51,9 +52,9 @@ export function emptyMailCampaignValues(
     bodyDe: "",
     subjectEn: "",
     bodyEn: "",
-    segments: [MailCampaignSegment.NOT_REGISTERED],
+    segments: companyId ? [] : [MailCampaignSegment.NOT_REGISTERED],
     boothZoneIds: [],
-    includeCompanyIds: [],
+    includeCompanyIds: companyId ? [companyId] : [],
     excludeCompanyIds: [],
     bookedServices: [],
     allAccounts: false,

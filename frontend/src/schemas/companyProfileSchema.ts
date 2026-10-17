@@ -58,6 +58,12 @@ export const companyProfileSchema = z.object({
       (value) => isBlank(value) || z.email().safeParse(value).success,
       "validation.invalid_email",
     ),
+  additional_emails: z
+    .array(z.string())
+    .refine(
+      (values) => values.every((value) => z.email().safeParse(value).success),
+      "validation.invalid_email",
+    ),
   places_of_work: z.string().trim(),
   employee_count_switzerland: employeeCount,
   employee_count_worldwide: employeeCount,
@@ -93,6 +99,7 @@ export const emptyCompanyProfileFormValues: CompanyProfileFormValues = {
   general_email: "",
   general_phone: "",
   student_contact_email: "",
+  additional_emails: [],
   places_of_work: "",
   employee_count_switzerland: "",
   employee_count_worldwide: "",
@@ -122,6 +129,7 @@ export const toCompanyProfileFormValues = (
   general_email: profile.general_email ?? "",
   general_phone: profile.general_phone ?? "",
   student_contact_email: profile.student_contact_email ?? "",
+  additional_emails: profile.additional_emails ?? [],
   places_of_work: profile.places_of_work ?? "",
   employee_count_switzerland: profile.employee_count_switzerland ?? "",
   employee_count_worldwide: profile.employee_count_worldwide ?? "",
@@ -155,6 +163,7 @@ export const toCompanyProfileRequest = (
   general_email: trimmedOrNull(values.general_email),
   general_phone: trimmedOrNull(values.general_phone),
   student_contact_email: trimmedOrNull(values.student_contact_email),
+  additional_emails: values.additional_emails,
   places_of_work: values.places_of_work.trim(),
   employee_count_switzerland: countOrNull(values.employee_count_switzerland),
   employee_count_worldwide: countOrNull(values.employee_count_worldwide),

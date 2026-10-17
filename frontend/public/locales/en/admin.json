@@ -16,6 +16,7 @@
     "renamed": "Company renamed.",
     "view_users": "Members",
     "edit_profile": "Edit company profile",
+    "send_mail": "Send mail",
     "delete": "Delete company",
     "profile_title": "Company profile",
     "members": {
@@ -226,12 +227,13 @@
     },
     "skip": {
       "NO_ADDRESS": "No contact person or general email",
-      "DUPLICATE_ADDRESS": "Same address as another company"
+      "DUPLICATE_ADDRESS": "Address already included"
     },
     "source": {
       "CONTACT": "Contact person",
       "GENERAL_EMAIL": "General email",
-      "ACCOUNT": "Account"
+      "ACCOUNT": "Account",
+      "ADDITIONAL_EMAIL": "Additional email"
     },
     "failure": {
       "DELIVERY_FAILED": "Rejected by the mail service",
