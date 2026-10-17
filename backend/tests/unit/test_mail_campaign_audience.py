@@ -1,9 +1,10 @@
+from dataclasses import replace
 from datetime import date, datetime, timezone
 from uuid import UUID, uuid4
 
 import pytest
 
-from app.models.kp_event import KpBookingStatus
+from app.models.kp_event import KpBookingStatus, KpServiceCategory
 from app.models.mail import (
     MailCampaignRecipientSource,
     MailCampaignSegment,
@@ -17,6 +18,7 @@ from app.services.mail_campaign_audience import (
     AudienceContact,
     AudienceData,
     AudienceEvent,
+    AudienceService,
     campaign_context,
     eligible_contact,
     plan_recipients,
@@ -354,6 +356,67 @@ def test_the_context_carries_the_booking_details():
     assert context.offer_deadline == "2026-09-20"
     assert context.registration_end == "2026-09-15"
     assert context.login_url == "https://visit.test/x"
+
+
+POWER = AudienceService(id=uuid4(), name="Strom", category=KpServiceCategory.SERVICE)
+TABLE = AudienceService(
+    id=uuid4(), name="Stehtisch", category=KpServiceCategory.BOOTH_ELEMENT
+)
+SERVICE_DATA = AudienceData(
+    event=EVENT,
+    companies=[NEWCOMER, REGISTERED, CONFIRMED, OFFERED, CANCELLED],
+    bookings=[
+        replace(booking(REGISTERED, KpBookingStatus.REGISTERED), services=[POWER]),
+        replace(booking(CONFIRMED, KpBookingStatus.CONFIRMED), services=[POWER, TABLE]),
+        replace(booking(OFFERED, KpBookingStatus.OFFERED), services=[TABLE]),
+        replace(booking(CANCELLED, KpBookingStatus.CANCELLED), services=[POWER]),
+    ],
+)
+
+
+@pytest.mark.parametrize(
+    ("filters", "expected"),
+    [
+        ({"service_ids": [POWER.id]}, ["Confirmed", "Registered"]),
+        (
+            {"service_categories": [KpServiceCategory.BOOTH_ELEMENT]},
+            ["Confirmed", "Offered"],
+        ),
+        (
+            {
+                "service_ids": [POWER.id],
+                "service_categories": [KpServiceCategory.BOOTH_ELEMENT],
+            },
+            ["Confirmed", "Offered", "Registered"],
+        ),
+    ],
+)
+def test_service_filters_select_companies_with_an_active_booking_of_them(
+    filters: dict[str, list[object]], expected: list[str]
+):
+    audience = MailCampaignAudience.model_validate(
+        {"segments": [MailCampaignSegment.ALL], **filters}
+    )
+
+    assert names(audience, SERVICE_DATA) == expected
+
+
+def test_service_filters_combine_with_the_segments():
+    audience = MailCampaignAudience(
+        segments=[MailCampaignSegment.REGISTERED, MailCampaignSegment.NOT_REGISTERED],
+        service_categories=[KpServiceCategory.BOOTH_ELEMENT],
+    )
+
+    assert names(audience, SERVICE_DATA) == ["Cancelled", "Confirmed", "Newcomer"]
+
+
+def test_the_context_lists_the_booked_services_by_category():
+    context = campaign_context(SERVICE_DATA, CONFIRMED, None, "u")
+    newcomer = campaign_context(SERVICE_DATA, NEWCOMER, None, "u")
+
+    assert (context.services, context.booth_elements) == ("Strom", "Stehtisch")
+    assert "Strom" in context.services
+    assert (newcomer.services, bool(newcomer.services)) == ("-", False)
 
 
 def test_the_context_greets_the_company_when_the_general_email_is_used():

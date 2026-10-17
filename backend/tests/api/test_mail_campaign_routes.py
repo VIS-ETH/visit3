@@ -10,7 +10,7 @@ from sqlmodel import func, select
 from app.models.auth_tokens import LoginLinkToken
 from app.models.kp_event import KpBookingStatus
 from app.models.user import User
-from tests.api.conftest import decoded_subject
+from tests.api.conftest import KpSetup, decoded_subject
 from tests.api.mail_campaign_helpers import (
     ACME_CONTACT,
     NEWCOMER_GENERAL,
@@ -310,6 +310,46 @@ async def test_all_accounts_mails_every_confirmed_account_personally(
     }
     assert "Hallo Ada User" in texts["ada@acme.example"]
     assert all("/auth/link/" in text for text in texts.values())
+
+
+async def test_booked_services_select_recipients_and_paragraphs(
+    client: AsyncClient,
+    president_headers: dict[str, str],
+    kp_setup: KpSetup,
+    campaign_world: CampaignWorld,
+    mail_stub: AsyncMock,
+):
+    response = await client.post(
+        f"{BASE}/audience",
+        json={
+            "event_id": campaign_world.event_id,
+            "audience": {"segments": ["ALL"], "service_ids": [kp_setup.service_id]},
+        },
+        headers=president_headers,
+    )
+    assert [entry["company_name"] for entry in response.json()["recipients"]] == [
+        "Acme AG"
+    ]
+    created = await create_campaign(
+        client,
+        president_headers,
+        campaign_world,
+        body_de=(
+            "<p>Hallo</p>"
+            '{% if "Electricity" in services %}<p>Strom: {{ services }}</p>{% endif %}'
+        ),
+        subject_en="",
+        body_en="",
+    )
+
+    await send(client, president_headers, created["id"])
+
+    texts = {
+        recipients_of(message)[0]: message.plain_text
+        for message in sent_messages(mail_stub)
+    }
+    assert "Strom: Electricity" in texts[ACME_CONTACT]
+    assert "Strom" not in texts[NEWCOMER_GENERAL]
 
 
 async def test_a_german_only_campaign_sends_a_german_subject(

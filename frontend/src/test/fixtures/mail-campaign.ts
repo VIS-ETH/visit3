@@ -5,6 +5,7 @@ import type {
   MailCampaignCompanyResponse,
   MailCampaignResponse,
   MailPreviewResponse,
+  ServiceResponse,
 } from "../../orval/generated/fastAPI.schemas";
 
 export const testCampaignEvent: KpResponse = {
@@ -33,6 +34,31 @@ export const testCampaignZone: BoothZoneResponse = {
   registration_open: true,
   included_services: [],
 };
+
+const campaignService = (
+  id: string,
+  name: string,
+  category: ServiceResponse["category"],
+): ServiceResponse => ({
+  id,
+  event_id: testCampaignEvent.id,
+  name,
+  description: name,
+  category,
+  unit_label: null,
+  confirmation_description: null,
+  order: 1,
+  price: 1000,
+  max_quantity_per_booking: 1,
+  max_total_quantity: 0,
+  is_active: true,
+  requirements: [],
+});
+
+export const testCampaignServices: ServiceResponse[] = [
+  campaignService("service-power", "Strom", "SERVICE"),
+  campaignService("service-table", "Stehtisch", "BOOTH_ELEMENT"),
+];
 
 export const testCampaignCompanies: MailCampaignCompanyResponse[] = [
   { id: "company-acme", name: "Acme AG" },

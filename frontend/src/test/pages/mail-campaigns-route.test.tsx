@@ -62,6 +62,9 @@ beforeEach(() => {
     http.get(`${testBackendUrl}/api/kp/events/:eventId/booth-zones`, () =>
       HttpResponse.json([]),
     ),
+    http.get(`${testBackendUrl}/api/kp/events/:eventId/services`, () =>
+      HttpResponse.json([]),
+    ),
     http.get(`${testBackendUrl}/api/mail-templates`, () =>
       HttpResponse.json([]),
     ),

@@ -1,4 +1,9 @@
 import {
+  isServiceCategory,
+  type FilterService,
+} from "../components/bookings/service-filter";
+import {
+  KpServiceCategory,
   MailCampaignSegment,
   MailCampaignStatus,
   type MailCampaignAudienceRequest,
@@ -50,6 +55,7 @@ export function emptyMailCampaignValues(
     boothZoneIds: [],
     includeCompanyIds: [],
     excludeCompanyIds: [],
+    bookedServices: [],
     allAccounts: false,
   };
 }
@@ -68,6 +74,10 @@ export function mailCampaignValues(
     boothZoneIds: campaign.audience.booth_zone_ids ?? [],
     includeCompanyIds: campaign.audience.include_company_ids ?? [],
     excludeCompanyIds: campaign.audience.exclude_company_ids ?? [],
+    bookedServices: [
+      ...(campaign.audience.service_categories ?? []),
+      ...(campaign.audience.service_ids ?? []),
+    ],
     allAccounts: campaign.audience.all_accounts ?? false,
   };
 }
@@ -82,8 +92,32 @@ export function toMailCampaignAudienceRequest(
       booth_zone_ids: values.boothZoneIds,
       include_company_ids: values.includeCompanyIds,
       exclude_company_ids: values.excludeCompanyIds,
+      service_ids: values.bookedServices.filter(
+        (value) => !isServiceCategory(value),
+      ),
+      service_categories: values.bookedServices.filter(isServiceCategory),
       all_accounts: values.allAccounts,
     },
+  };
+}
+
+const SERVICE_VARIABLES: Record<KpServiceCategory, string> = {
+  SERVICE: "services",
+  BOOTH_ELEMENT: "booth_elements",
+};
+
+export function serviceCondition(target: KpServiceCategory | FilterService) {
+  return typeof target === "string"
+    ? SERVICE_VARIABLES[target]
+    : `${JSON.stringify(target.name)} in ${SERVICE_VARIABLES[target.category]}`;
+}
+
+export function conditionalParagraph(condition: string, selected: string) {
+  const opening = `{% if ${condition} %}`;
+  const snippet = `${opening}${selected || "<p></p>"}{% endif %}`;
+  return {
+    snippet,
+    caret: selected ? snippet.length : opening.length + "<p>".length,
   };
 }
 

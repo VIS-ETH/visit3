@@ -5,11 +5,12 @@ from datetime import date
 from uuid import UUID
 
 from app.core.utils import normalize_email
-from app.mail_templates.context import MailCampaignContext
+from app.mail_templates.context import MailCampaignContext, NameList
 from app.models.kp_event import (
     BOOKED_STATUSES,
     INACTIVE_BOOKING_STATUSES,
     KpBookingStatus,
+    KpServiceCategory,
 )
 from app.models.mail import (
     MailCampaignRecipientSource,
@@ -50,6 +51,13 @@ class AudienceCompany:
 
 
 @dataclass(frozen=True)
+class AudienceService:
+    id: UUID
+    name: str
+    category: KpServiceCategory
+
+
+@dataclass(frozen=True)
 class AudienceBooking:
     id: UUID
     company_id: UUID
@@ -58,6 +66,7 @@ class AudienceBooking:
     booth_zone_name: str
     offer_deadline: date | None
     waitlisted: bool
+    services: Sequence[AudienceService] = ()
 
     @property
     def is_active(self) -> bool:
@@ -142,20 +151,37 @@ def _booking_matches(segment: MailCampaignSegment, booking: AudienceBooking) -> 
             return False
 
 
+def _booking_in_filters(
+    audience: MailCampaignAudience, booking: AudienceBooking
+) -> bool:
+    zones = audience.booth_zone_ids
+    if zones and booking.booth_zone_id not in zones:
+        return False
+    if not audience.service_ids and not audience.service_categories:
+        return True
+    return any(
+        service.id in audience.service_ids
+        or service.category in audience.service_categories
+        for service in booking.services
+    )
+
+
 def company_matches(
     audience: MailCampaignAudience, bookings: Sequence[AudienceBooking]
 ) -> bool:
-    zones = set(audience.booth_zone_ids)
+    narrowed = bool(
+        audience.booth_zone_ids or audience.service_ids or audience.service_categories
+    )
     for segment in audience.segments:
         if segment == MailCampaignSegment.NOT_REGISTERED:
             if not bookings:
                 return True
             continue
-        if segment == MailCampaignSegment.ALL and not zones:
+        if segment == MailCampaignSegment.ALL and not narrowed:
             return True
         if any(
             _booking_matches(segment, booking)
-            and (not zones or booking.booth_zone_id in zones)
+            and _booking_in_filters(audience, booking)
             for booking in bookings
         ):
             return True
@@ -218,6 +244,14 @@ def login_path(event_id: UUID, bookings: Sequence[AudienceBooking]) -> str:
     return f"/kp/{event_id}/booking"
 
 
+def _names(
+    services: Sequence[AudienceService], category: KpServiceCategory
+) -> NameList:
+    return NameList(
+        service.name for service in services if service.category == category
+    )
+
+
 def campaign_context(
     data: AudienceData,
     company: AudienceCompany,
@@ -231,6 +265,10 @@ def campaign_context(
         for booking in bookings
         if booking.status == KpBookingStatus.OFFERED
         and booking.offer_deadline is not None
+    )
+    booked = sorted(
+        (service for booking in bookings for service in booking.services),
+        key=lambda service: service.name.casefold(),
     )
     event = data.event
     return MailCampaignContext(
@@ -246,4 +284,6 @@ def campaign_context(
         if offer_deadlines
         else NOT_AVAILABLE,
         login_url=login_url,
+        services=_names(booked, KpServiceCategory.SERVICE),
+        booth_elements=_names(booked, KpServiceCategory.BOOTH_ELEMENT),
     )

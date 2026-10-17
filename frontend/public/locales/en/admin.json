@@ -208,6 +208,9 @@
       "zones": "Booth zones",
       "zones_hint": "Only bookings in these zones. Leave empty for all zones.",
       "zones_placeholder": "All zones",
+      "services": "Booked services",
+      "services_hint": "Only bookings with at least one of them. Leave empty for all.",
+      "services_placeholder": "All services",
       "include": "Always include",
       "exclude": "Never include",
       "company_placeholder": "Pick companies"
@@ -249,7 +252,13 @@
       "nametags_deadline": "Deadline for name tags",
       "booth_zone_name": "Booked booth zone, otherwise -",
       "offer_deadline": "Deadline of an open offer, otherwise -",
+      "services": "Booked services, otherwise -",
+      "booth_elements": "Booked booth elements, otherwise -",
       "login_url": "Login link, personal unless sent to the general email"
+    },
+    "condition": {
+      "button": "Paragraph only for…",
+      "hint": "Inserts a paragraph only companies that booked the chosen item receive. Selected text gets wrapped."
     },
     "preview_company": "Preview for",
     "preview_sample": "Sample data",

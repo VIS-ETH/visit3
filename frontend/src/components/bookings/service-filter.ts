@@ -27,6 +27,9 @@ export const SERVICE_CATEGORY_LABEL_KEYS: Record<
   },
 };
 
+export const isServiceCategory = (value: string): value is KpServiceCategory =>
+  Object.values(KpServiceCategory).some((category) => category === value);
+
 export function servicesByCategory(services: FilterService[]) {
   const unique = [
     ...new Map(services.map((service) => [service.id, service])).values(),

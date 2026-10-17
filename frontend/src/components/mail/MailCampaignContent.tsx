@@ -1,6 +1,7 @@
 import {
   Button,
   Group,
+  Menu,
   Stack,
   Tabs,
   Text,
@@ -9,10 +10,15 @@ import {
   Tooltip,
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
-import { IconAlertCircle } from "@tabler/icons-react";
-import { useRef, useState, type FocusEvent } from "react";
+import { IconAlertCircle, IconPlus } from "@tabler/icons-react";
+import { Fragment, useRef, useState, type FocusEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { useListServices } from "../../orval/generated/kp/kp";
 import type { MailCampaignFormValues } from "../../schemas/mailCampaignSchema";
+import {
+  conditionalParagraph,
+  serviceCondition,
+} from "../../utils/mail-campaign";
 import {
   insertIntoSelection,
   mailTemplateFields,
@@ -21,6 +27,10 @@ import {
   type MailTemplateField,
   type MailTemplateLanguage,
 } from "../../utils/mail-template";
+import {
+  SERVICE_CATEGORY_LABEL_KEYS,
+  servicesByCategory,
+} from "../bookings/service-filter";
 
 const BODY_ROWS = 12;
 
@@ -43,6 +53,11 @@ const MailCampaignContent = ({
   const fieldElements = useRef<
     Partial<Record<MailTemplateField, FieldElement>>
   >({});
+  const { eventId } = form.values;
+  const { data: services } = useListServices(eventId, {
+    query: { enabled: eventId.length > 0 },
+  });
+  const serviceGroups = servicesByCategory(services ?? []);
 
   const hasErrors = (tab: MailTemplateLanguage) => {
     const fields = mailTemplateFields(tab);
@@ -69,15 +84,17 @@ const MailCampaignContent = ({
     };
   };
 
-  const insertVariable = (variable: string) => {
+  const insert = (
+    build: (selected: string) => { snippet: string; caret: number },
+  ) => {
     const field = focusedField;
     const element = fieldElements.current[field];
     const value = form.getValues()[field];
     const start = element?.selectionStart ?? value.length;
     const end = element?.selectionEnd ?? value.length;
-    const snippet = mailVariableSnippet(variable);
+    const { snippet, caret: offset } = build(value.slice(start, end));
     form.setFieldValue(field, insertIntoSelection(value, snippet, start, end));
-    const caret = start + snippet.length;
+    const caret = start + offset;
     window.setTimeout(() => {
       const target = fieldElements.current[field];
       if (!target) return;
@@ -85,6 +102,15 @@ const MailCampaignContent = ({
       target.setSelectionRange(caret, caret);
     }, 0);
   };
+
+  const insertVariable = (variable: string) =>
+    insert(() => {
+      const snippet = mailVariableSnippet(variable);
+      return { snippet, caret: snippet.length };
+    });
+
+  const insertCondition = (condition: string) =>
+    insert((selected) => conditionalParagraph(condition, selected));
 
   const handleLanguageChange = (value: string | null) => {
     const next = MAIL_TEMPLATE_LANGUAGES.find(
@@ -167,7 +193,53 @@ const MailCampaignContent = ({
               </Button>
             </Tooltip>
           ))}
+          {serviceGroups.length > 0 ? (
+            <Menu position="bottom-start" shadow="md" withinPortal>
+              <Menu.Target>
+                <Button
+                  size="compact-xs"
+                  variant="default"
+                  radius="xl"
+                  leftSection={<IconPlus size={12} />}
+                  disabled={disabled}
+                >
+                  {t("mail_campaigns.condition.button")}
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                {serviceGroups.map((group) => (
+                  <Fragment key={group.category}>
+                    <Menu.Label>
+                      {t(SERVICE_CATEGORY_LABEL_KEYS[group.category].group)}
+                    </Menu.Label>
+                    <Menu.Item
+                      onClick={() =>
+                        insertCondition(serviceCondition(group.category))
+                      }
+                    >
+                      {t(SERVICE_CATEGORY_LABEL_KEYS[group.category].any)}
+                    </Menu.Item>
+                    {group.services.map((service) => (
+                      <Menu.Item
+                        key={service.id}
+                        onClick={() =>
+                          insertCondition(serviceCondition(service))
+                        }
+                      >
+                        {service.name}
+                      </Menu.Item>
+                    ))}
+                  </Fragment>
+                ))}
+              </Menu.Dropdown>
+            </Menu>
+          ) : null}
         </Group>
+        {serviceGroups.length > 0 ? (
+          <Text c="dimmed" size="xs" mt={6}>
+            {t("mail_campaigns.condition.hint")}
+          </Text>
+        ) : null}
       </div>
     </Stack>
   );

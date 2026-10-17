@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  conditionalParagraph,
   isFutureZurichInput,
   nextFullHourInput,
+  serviceCondition,
   toMailCampaignRequest,
   zurichDateTimeInput,
 } from "../../utils/mail-campaign";
@@ -45,6 +47,7 @@ describe("the campaign request", () => {
         boothZoneIds: ["zone-1"],
         includeCompanyIds: ["company-1"],
         excludeCompanyIds: ["company-2"],
+        bookedServices: ["BOOTH_ELEMENT", "service-1"],
         allAccounts: true,
       }),
     ).toEqual({
@@ -59,8 +62,31 @@ describe("the campaign request", () => {
         booth_zone_ids: ["zone-1"],
         include_company_ids: ["company-1"],
         exclude_company_ids: ["company-2"],
+        service_ids: ["service-1"],
+        service_categories: ["BOOTH_ELEMENT"],
         all_accounts: true,
       },
     });
+  });
+});
+
+describe("the service paragraphs", () => {
+  it("quotes service names for the condition", () => {
+    expect(
+      serviceCondition({
+        id: "service-1",
+        name: 'Tisch "XL"',
+        category: "BOOTH_ELEMENT",
+        order: 1,
+      }),
+    ).toBe('"Tisch \\"XL\\"" in booth_elements');
+    expect(serviceCondition("SERVICE")).toBe("services");
+  });
+
+  it("puts the caret into an empty paragraph", () => {
+    const { snippet, caret } = conditionalParagraph("services", "");
+
+    expect(snippet).toBe("{% if services %}<p></p>{% endif %}");
+    expect(snippet.slice(0, caret)).toBe("{% if services %}<p>");
   });
 });

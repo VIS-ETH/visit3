@@ -1,6 +1,23 @@
+from collections.abc import Iterable
 from dataclasses import dataclass, fields
 
 from app.mail_templates.keys import MailTemplateKey
+
+
+class NameList(str):
+    names: tuple[str, ...]
+
+    def __new__(cls, names: Iterable[str]) -> "NameList":
+        unique = tuple(dict.fromkeys(names))
+        value = super().__new__(cls, ", ".join(unique) or "-")
+        value.names = unique
+        return value
+
+    def __contains__(self, name: object) -> bool:
+        return name in self.names
+
+    def __bool__(self) -> bool:
+        return bool(self.names)
 
 
 @dataclass(frozen=True)
@@ -103,6 +120,8 @@ class MailCampaignContext(MailContext):
     booth_zone_name: str
     offer_deadline: str
     login_url: str
+    services: str
+    booth_elements: str
 
 
 MAIL_CAMPAIGN_SAMPLE_CONTEXT = MailCampaignContext(
@@ -116,6 +135,8 @@ MAIL_CAMPAIGN_SAMPLE_CONTEXT = MailCampaignContext(
     booth_zone_name="Haupthalle",
     offer_deadline="2026-09-20",
     login_url="https://visit.vis.ethz.ch/login",
+    services=NameList(["Strom"]),
+    booth_elements=NameList(["Stehtisch"]),
 )
 
 

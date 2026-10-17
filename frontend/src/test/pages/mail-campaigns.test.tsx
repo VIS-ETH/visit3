@@ -18,6 +18,7 @@ import {
   testCampaignCompanies,
   testCampaignEvent,
   testCampaignPreview,
+  testCampaignServices,
   testCampaignZone,
   testDraftCampaign,
   testFailedCampaign,
@@ -86,6 +87,9 @@ beforeEach(() => {
     http.get(api("/kp/list"), () => HttpResponse.json([testCampaignEvent])),
     http.get(api("/kp/events/:eventId/booth-zones"), () =>
       HttpResponse.json([testCampaignZone]),
+    ),
+    http.get(api("/kp/events/:eventId/services"), () =>
+      HttpResponse.json(testCampaignServices),
     ),
     http.get(api("/mail-campaigns"), () =>
       HttpResponse.json(campaigns.map(summary)),
@@ -218,11 +222,21 @@ describe("the mail campaigns page", () => {
     await user.click(multiSelect("Always include"));
     await user.click(await screen.findByRole("option", { name: "Acme AG" }));
 
+    await user.click(multiSelect("Booked services"));
+    await user.click(
+      await screen.findByRole("option", {
+        name: "kp.manage.service_filter_any_booth_element",
+      }),
+    );
+    await user.click(await screen.findByRole("option", { name: "Strom" }));
+
     await waitFor(() => {
       expect(lastAudience().audience).toMatchObject({
         booth_zone_ids: [testCampaignZone.id],
         include_company_ids: ["company-acme"],
         exclude_company_ids: [],
+        service_ids: ["service-power"],
+        service_categories: ["BOOTH_ELEMENT"],
       });
     }, TIMEOUT);
 
@@ -230,6 +244,39 @@ describe("the mail campaigns page", () => {
     const options = await screen.findAllByRole("option");
     expect(options.map((option) => option.textContent)).not.toContain(
       "Acme AG",
+    );
+  });
+
+  it("wraps text in a paragraph only for companies with a service", async () => {
+    const { user } = renderPage();
+    await fillContent(user);
+    const body = screen.getByLabelText<HTMLTextAreaElement>(
+      "mail_templates.body",
+    );
+    body.setSelectionRange(0, body.value.length);
+
+    await user.click(
+      await screen.findByRole(
+        "button",
+        { name: "Paragraph only for…" },
+        TIMEOUT,
+      ),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: "Strom" }));
+
+    expect(body.value).toBe('{% if "Strom" in services %}Hallo{% endif %}');
+
+    await user.click(
+      screen.getByRole("button", { name: "Paragraph only for…" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", {
+        name: "kp.manage.service_filter_any_booth_element",
+      }),
+    );
+
+    expect(body.value).toBe(
+      '{% if "Strom" in services %}Hallo{% endif %}{% if booth_elements %}<p></p>{% endif %}',
     );
   });
 

@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from app.core.exceptions import MailTemplateInvalid
 from app.mail_templates.campaign import render_campaign_mail, validate_campaign_texts
-from app.mail_templates.context import MAIL_CAMPAIGN_SAMPLE_CONTEXT
+from app.mail_templates.context import MAIL_CAMPAIGN_SAMPLE_CONTEXT, NameList
 from app.mail_templates.texts import MailTemplateTexts
 from app.schemas.mail_campaign import MailCampaignTextsInput
 
@@ -73,9 +73,48 @@ def test_unknown_variables_are_rejected_with_their_field():
     assert error.value.details == {"field": "body_en", "variable": "password"}
 
 
+CONDITIONAL = replace(
+    GERMAN_ONLY,
+    body_de=(
+        '{% if "Strom" in services %}<p>Strom: {{ services }}</p>{% endif %}'
+        "{% if booth_elements %}<p>Elemente: {{ booth_elements }}</p>{% endif %}"
+        "{% if not booth_elements %}<p>Keine Elemente {{ booth_elements }}</p>"
+        "{% endif %}"
+    ),
+)
+
+
+def test_paragraphs_can_depend_on_booked_services_and_categories():
+    context = replace(
+        MAIL_CAMPAIGN_SAMPLE_CONTEXT,
+        services=NameList(["Starkstrom", "Strom"]),
+        booth_elements=NameList(["Stehtisch", "Stehtisch"]),
+    )
+
+    rendered = render_campaign_mail(CONDITIONAL, context, IDENTIFIER)
+
+    assert "Strom: Starkstrom, Strom" in rendered.text
+    assert "Elemente: Stehtisch" in rendered.text
+    assert "Keine Elemente" not in rendered.text
+
+
+def test_service_conditions_match_exact_names_only():
+    context = replace(
+        MAIL_CAMPAIGN_SAMPLE_CONTEXT,
+        services=NameList(["Starkstrom"]),
+        booth_elements=NameList([]),
+    )
+
+    rendered = render_campaign_mail(CONDITIONAL, context, IDENTIFIER)
+
+    assert "Strom:" not in rendered.text
+    assert "Keine Elemente -" in rendered.text
+
+
 @pytest.mark.parametrize(
     "source",
     [
+        "{{ services.names }}",
         "{{ name.__class__.__mro__ }}",
         "{% for item in name %}{{ item }}{% endfor %}",
         "{{ name | attr('upper') }}",

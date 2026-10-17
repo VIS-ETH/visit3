@@ -208,6 +208,9 @@
       "zones": "Standzonen",
       "zones_hint": "Nur Buchungen in diesen Zonen. Leer lassen für alle Zonen.",
       "zones_placeholder": "Alle Zonen",
+      "services": "Gebuchte Services",
+      "services_hint": "Nur Buchungen mit mindestens einem davon. Leer lassen für alle.",
+      "services_placeholder": "Alle Services",
       "include": "Immer einschliessen",
       "exclude": "Nie einschliessen",
       "company_placeholder": "Unternehmen auswählen"
@@ -249,7 +252,13 @@
       "nametags_deadline": "Frist für Namensschilder",
       "booth_zone_name": "Gebuchte Standzone, sonst -",
       "offer_deadline": "Frist eines offenen Angebots, sonst -",
+      "services": "Gebuchte Services, sonst -",
+      "booth_elements": "Gebuchte Standelemente, sonst -",
       "login_url": "Login-Link, persönlich ausser bei der allgemeinen E-Mail"
+    },
+    "condition": {
+      "button": "Absatz nur für…",
+      "hint": "Fügt einen Absatz ein, den nur Unternehmen erhalten, die das Gewählte gebucht haben. Markierter Text wird eingeschlossen."
     },
     "preview_company": "Vorschau für",
     "preview_sample": "Beispieldaten",

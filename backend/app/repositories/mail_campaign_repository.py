@@ -12,7 +12,13 @@ from sqlmodel import col, select, update
 
 from app.core.deleted_filter import include_deleted_for
 from app.models.company import Company, KpCompanyProfile
-from app.models.kp_event import KpEvent, KpEventBooking, KpEventBoothZone
+from app.models.kp_event import (
+    KpEvent,
+    KpEventBooking,
+    KpEventBookingService,
+    KpEventBoothZone,
+    KpEventService,
+)
 from app.models.mail import (
     MailCampaign,
     MailCampaignFailure,
@@ -28,6 +34,7 @@ from app.services.mail_campaign_audience import (
     AudienceContact,
     AudienceData,
     AudienceEvent,
+    AudienceService,
     eligible_contact,
 )
 
@@ -379,9 +386,13 @@ class MailCampaignRepository(BaseRepository[MailCampaign]):
             .options(
                 selectinload(rel(KpEventBooking.booth_zone)),
                 selectinload(rel(KpEventBooking.upgrade_waitlist_entries)),
+                selectinload(rel(KpEventBooking.services)).selectinload(
+                    rel(KpEventBookingService.service)
+                ),
             )
             .execution_options(populate_existing=True),
             KpEventBoothZone,
+            KpEventService,
         )
         bookings = (await self.session.execute(bookings_statement)).scalars().all()
         await self.end_read_transaction()
@@ -427,4 +438,13 @@ class MailCampaignRepository(BaseRepository[MailCampaign]):
             waitlisted=any(
                 entry.deleted_at is None for entry in booking.upgrade_waitlist_entries
             ),
+            services=[
+                AudienceService(
+                    id=entry.service.id,
+                    name=entry.service.name,
+                    category=entry.service.category,
+                )
+                for entry in booking.services
+                if entry.deleted_at is None
+            ],
         )

@@ -7,6 +7,7 @@ from pydantic import AfterValidator, BaseModel, BeforeValidator, Field, model_va
 from app.core.utils import reject_control_characters, strip_text
 from app.mail_templates.renderer import MAX_TEMPLATE_CHARACTERS
 from app.mail_templates.texts import MailTemplateTexts
+from app.models.kp_event import KpServiceCategory
 from app.models.mail import (
     MailCampaignFailure,
     MailCampaignRecipientSource,
@@ -20,6 +21,7 @@ from app.schemas.mail import MAX_SUBJECT_CHARACTERS
 MAX_CAMPAIGN_NAME_CHARACTERS = 200
 MAX_AUDIENCE_ZONES = 100
 MAX_AUDIENCE_COMPANIES = 2000
+MAX_AUDIENCE_SERVICES = 200
 
 
 def _strip(value: object) -> object:
@@ -63,6 +65,14 @@ class MailCampaignAudience(BaseModel):
     )
     exclude_company_ids: Annotated[list[UUID], AfterValidator(_unique)] = Field(
         default_factory=list[UUID], max_length=MAX_AUDIENCE_COMPANIES
+    )
+    service_ids: Annotated[list[UUID], AfterValidator(_unique)] = Field(
+        default_factory=list[UUID], max_length=MAX_AUDIENCE_SERVICES
+    )
+    service_categories: Annotated[list[KpServiceCategory], AfterValidator(_unique)] = (
+        Field(
+            default_factory=list[KpServiceCategory], max_length=len(KpServiceCategory)
+        )
     )
     all_accounts: bool = False
 

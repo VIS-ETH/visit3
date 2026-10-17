@@ -2,9 +2,13 @@ import { Chip, Group, MultiSelect, Stack, Switch, Text } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useTranslation } from "react-i18next";
 import { MailCampaignSegment } from "../../orval/generated/fastAPI.schemas";
-import { useListBoothZones } from "../../orval/generated/kp/kp";
+import {
+  useListBoothZones,
+  useListServices,
+} from "../../orval/generated/kp/kp";
 import { useListMailCampaignCompanies } from "../../orval/generated/mail-campaigns/mail-campaigns";
 import type { MailCampaignFormValues } from "../../schemas/mailCampaignSchema";
+import ServiceFilterSelect from "../bookings/ServiceFilterSelect";
 import { MAIL_CAMPAIGN_SEGMENTS } from "../../utils/mail-campaign";
 
 interface MailCampaignAudienceBuilderProps {
@@ -22,6 +26,9 @@ const MailCampaignAudienceBuilder = ({
   const { t } = useTranslation();
   const { eventId, includeCompanyIds, excludeCompanyIds } = form.values;
   const { data: zones } = useListBoothZones(eventId, {
+    query: { enabled: eventId.length > 0 },
+  });
+  const { data: services } = useListServices(eventId, {
     query: { enabled: eventId.length > 0 },
   });
   const { data: companies } = useListMailCampaignCompanies();
@@ -76,6 +83,14 @@ const MailCampaignAudienceBuilder = ({
         searchable
         disabled={disabled || !eventId}
         {...form.getInputProps("boothZoneIds")}
+      />
+      <ServiceFilterSelect
+        label={t("mail_campaigns.audience.services")}
+        description={t("mail_campaigns.audience.services_hint")}
+        placeholder={t("mail_campaigns.audience.services_placeholder")}
+        services={services ?? []}
+        disabled={disabled || !eventId}
+        {...form.getInputProps("bookedServices")}
       />
       <MultiSelect
         label={t("mail_campaigns.audience.include")}
