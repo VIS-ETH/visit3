@@ -36,6 +36,12 @@ let companyTotal = 2;
 let companyMembers: StaffUserResponse[] = [];
 let deleteResponse: () => HttpResponse<DefaultBodyType>;
 let latestEvent: KpResponse | null = null;
+const olderEvent: KpResponse = {
+  ...testOpenEvent,
+  id: "event-older",
+  name: "Kontaktparty 2000",
+  event_date: "2000-01-02",
+};
 let eventBookings: StaffBookingResponse[] = [];
 let bookingActions: string[] = [];
 
@@ -104,8 +110,10 @@ beforeEach(() => {
         return HttpResponse.json({ id: params.companyId, name: "Renamed AG" });
       },
     ),
-    http.get(`${testBackendUrl}/api/kp/latest`, () =>
-      HttpResponse.json(latestEvent),
+    http.get(`${testBackendUrl}/api/kp/list`, () =>
+      HttpResponse.json(
+        latestEvent ? [latestEvent, olderEvent] : [olderEvent],
+      ),
     ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId/bookings`, () =>
       HttpResponse.json(eventBookings),
@@ -499,6 +507,40 @@ describe("confirming bookings from the company management", () => {
     expect(
       row.queryByText("kp.booking.status.registered.label"),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows the bookings of another picked Kontaktparty", async () => {
+    latestEvent = testOpenEvent;
+    eventBookings = [];
+    server.use(
+      http.get(
+        `${testBackendUrl}/api/kp/events/:eventId/bookings`,
+        ({ params }) =>
+          HttpResponse.json(
+            params.eventId === olderEvent.id
+              ? [acmeBooking(KpBookingStatus.CONFIRMED)]
+              : [],
+          ),
+      ),
+    );
+    const { user } = renderPage(staffUser);
+    const row = await acmeRow();
+
+    await user.click(
+      await screen.findByRole("combobox", {
+        name: "kp.bookings_overview.event",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("option", { name: olderEvent.name }),
+    );
+
+    expect(
+      await row.findByText("kp.booking.status.confirmed.label"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: olderEvent.name }),
+    ).toBeInTheDocument();
   });
 
   it("ignores bookings of an event that is already over", async () => {

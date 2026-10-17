@@ -6,6 +6,7 @@ import {
   Loader,
   Pagination,
   Paper,
+  Select,
   Stack,
   Table,
   Text,
@@ -43,7 +44,7 @@ import type {
   CompanyListResult,
   StaffBookingResponse,
 } from "../orval/generated/fastAPI.schemas";
-import { useGetLatestKp, useListEventBookings } from "../orval/generated/kp/kp";
+import { useListEventBookings, useListKps } from "../orval/generated/kp/kp";
 import { isActiveBookingStatus } from "../utils/booking-status";
 import { getEventStatus } from "../utils/kp-utils";
 
@@ -71,9 +72,17 @@ const CompanyManagement = () => {
     setPage(1);
   }, [debouncedSearch]);
 
-  const { data: latestKp } = useGetLatestKp();
+  const { data: events, isLoading: isLoadingEvents } = useListKps();
+  const [pickedEventId, setPickedEventId] = useState<string | null>(null);
+  const latestEvent = events?.at(0);
+  const upcomingEvent =
+    latestEvent && getEventStatus(latestEvent) !== "past"
+      ? latestEvent
+      : null;
   const bookingEvent =
-    latestKp && getEventStatus(latestKp) !== "past" ? latestKp : null;
+    events?.find((event) => event.id === pickedEventId) ??
+    upcomingEvent ??
+    null;
   const { data: eventBookings } = useListEventBookings(bookingEvent?.id ?? "", {
     query: { enabled: bookingEvent !== null },
   });
@@ -138,13 +147,28 @@ const CompanyManagement = () => {
           onClose={() => setDeletedCompany(null)}
         />
 
-        <TextInput
-          leftSection={<IconSearch size={16} />}
-          maw={360}
-          onChange={(event) => setSearch(event.currentTarget.value)}
-          placeholder={t("company_management.search_placeholder")}
-          value={search}
-        />
+        <Group justify="space-between" align="flex-end">
+          <TextInput
+            flex={1}
+            leftSection={<IconSearch size={16} />}
+            maw={360}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+            placeholder={t("company_management.search_placeholder")}
+            value={search}
+          />
+          <Select
+            label={t("kp.bookings_overview.event")}
+            data={(events ?? []).map((event) => ({
+              value: event.id,
+              label: event.name,
+            }))}
+            value={bookingEvent?.id ?? null}
+            onChange={setPickedEventId}
+            allowDeselect={false}
+            disabled={isLoadingEvents}
+            w={{ base: "100%", sm: 280 }}
+          />
+        </Group>
 
         {isError ? (
           <Alert
