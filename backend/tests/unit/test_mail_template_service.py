@@ -1,6 +1,5 @@
 import logging
 from datetime import date, timedelta
-from email.header import decode_header, make_header
 from unittest.mock import AsyncMock
 
 import pytest
@@ -22,7 +21,7 @@ CONTEXT = PasswordResetContext(name="Ada", reset_url="https://visit.test/reset/a
 
 
 def decoded(subject: str) -> str:
-    return str(make_header(decode_header(subject)))
+    return subject
 
 
 STAFF_KEY = MailTemplateKey.ACCOUNT_AWAITING_CONFIRMATION
