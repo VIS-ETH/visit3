@@ -15,44 +15,136 @@ option go_package = "servis/sip/notifications";
 // - The "mail-header:<header>" roles determine whether a client is allowed to send mails with the extra header <header>.
 // This allows VSETH to manage one central Mail client, and handle permission management for sender addresses.
 service MailService {
+
   // SendMail sends a mail immediately, better for robust error handling.
   // This RPC may take a solid while, as SMTP and the servers behind it might be quite slow.
   // Not recommended for bursty applications due to potential rate limits!
   // Note that these ratelimits might be triggered by other applications at the same time, so maybe implement retry behavior.
   rpc SendMail(Mail) returns (MailResponse);
+
   // QueueMail puts a mail in the queue, useful for bursts and automatic retries.
   // It is however less robust for catching errors!
   // The status of a mail cannot be reviewed after this, any errors must be handled by an administrator.
   // We strongly recommend setting up alerts based on exposed Prometheus / OTEL metrics to monitor the queue.
   rpc QueueMail(Mail) returns (QueueResponse);
+
+  // SendDryRun does not send a mail, but exists for verification reasons.
+  // It takes the same arguments than other "send" RPC functions, yet it does not
+  // actually send an email directly. Instead, it loads the mail, fills in default
+  // values, and performs permission management. This is especially useful as the
+  // API reserves filling in sender address and name, and applications might want
+  // to check before sending.
+  rpc SendDryRun(Mail) returns (Mail);
 }
 
 message Mail {
+  // Sender name and address. Might be overriden before sending, as
+  // not all backends support arbitrary mail sending (e.g. Microsoft
+  // Graph API etc.)
+  // Default behavior is implementation-dependent, but should be stable.
   optional MailAddress from = 1;
+
   repeated MailAddress reply_to = 2;
   repeated MailAddress to = 3;
   repeated MailAddress cc = 4;
   repeated MailAddress bcc = 5;
-  // Must be explicitly allowed for user
-  repeated ExtraHeader extra_header = 6;
+
+  // Extra headers for the mail, must be explicitly allowed for user by
+  // roles in access tokens. Any headers set by the implementation can be
+  // override by extra_headers, but must be explicitly granted by token roles.
+  // Empty values are ignored and for "default" headers mean explicit removal.
+  repeated ExtraHeader extra_headers = 6;
+  // Will be escaped automatically for mail messages
   string subject = 7;
+
+  // Defaults to text/plain for plain_text, multipart/mixed for multipart,
+  // application/octet-stream for raw_body. Validated against the chosen body.
+  optional string content_type = 8;
+
+  // Contains available variants for the body of the mail itself.
+  // The charset is adjusted and necessary escapes for mail messages are done automatically.
+  // Transfer encoding is negotiated with destination server based on available extensions.
+  // Here, body explicitly means without headers!
   oneof body_oneof {
-    string plain_text = 8;
-    MimeBody multipart_body = 9;
+    // Simplest of use cases, do not bother with anything fancy!
+    // content_type must be text/*
+    string plain_text = 9;
+
+    // Cover most common use case of mails: html and/or plain_text with attachments
+    SimpleMail simple_mail = 10;
+
+    // Content is split into multiple parts. content_type must be multipart/*
+    MimeBody multipart_body = 11;
+
+    // Raw bytes to send. content_type can be anything:) chaos
+    bytes raw_body = 12;
   }
 }
 
-message MultiPart {
-  string content_type = 1;
-  string content = 2;
+// Cover most common use-cases:
+// - One of plain_text or html must be set.
+// - If plain_text and html are set, the mail text content is sent as multipart/alternative.
+//   Otherwise, the mail is sent as text/plain or text/html, depending on which is set.
+// - If attachments are set, the mail is sent as multipart/mixed, which includes the
+//   mail text content as the first part, and the attachments as subsequent parts.
+message SimpleMail {
+  optional string plain_text = 1;
+  optional string html = 2;
+  repeated Attachment attachments = 3;
+}
+
+message Attachment {
+  // Will be sanitized
+  string filename = 1;
+  // Defaults to a guess from filename, else application/octet-stream.
+  // May include parameters (e.g. "text/calendar; method=REQUEST").
+  optional string content_type = 2;
+  // Raw bytes of the content. To be encoded by base64 or other means (whatever is
+  // more efficient).
+  bytes content = 3;
+  // Without angle brackets, e.g. "logo.png"; rendered as <logo.png> and
+  // referenced from html as cid:logo.png.
+  optional string content_id = 4;
+
+  enum Disposition {
+    // Inline if content_id is set, else attachment.
+    DISPOSITION_AUTO = 0;
+    DISPOSITION_ATTACHMENT = 1;
+    DISPOSITION_INLINE = 2;
+  }
+  Disposition disposition = 5;
+}
+
+message MimePart {
+  // content_type for the part
+  // Defaults to text/plain for plain_text, multipart/mixed for multipart,
+  // application/octet-stream for raw_body. Validated against the chosen body.
+  optional string content_type = 1;
+
+  // Any extra headers to include in this part.
+  repeated ExtraHeader headers = 2;
+
+  oneof content_oneof {
+    // Using string content requires usage of a text/* content type. escapes are done automatically,
+    // charsets in the content-type headers are adjusted automatically too.
+    string content = 3;
+    // The content is pure bytes here, and will be transformed and escaped for mails automatically.
+    // content_type can be anything:) chaos.
+    bytes content_bytes = 4;
+
+    // Can be recursive. content_type must be multipart/*
+    MimeBody nested = 5;
+  }
 }
 
 message MimeBody {
-  repeated MultiPart parts = 1;
+  // List of parts in the body.
+  repeated MimePart parts = 1;
 }
 
 message ExtraHeader {
   string key = 1;
+  // will be escaped for mail-headers automatically
   string value = 2;
 }
 
@@ -64,6 +156,7 @@ message MailAddress {
   }
 
   // Parsed version of "John Doe <john.doe@example.com>"
+  // will be escaped for mail-headers automatically.
   message Address {
     string name = 1;
     string address = 2;
