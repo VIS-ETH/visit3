@@ -4,7 +4,6 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Sequen
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
 from datetime import date, timedelta
-from email.header import decode_header, make_header
 from unittest.mock import AsyncMock
 from uuid import UUID
 
@@ -108,7 +107,7 @@ def clear_rate_limits() -> Iterator[None]:
 
 
 def decoded_subject(message: object) -> str:
-    return str(make_header(decode_header(getattr(message, "subject"))))
+    return message.subject
 
 
 @pytest.fixture

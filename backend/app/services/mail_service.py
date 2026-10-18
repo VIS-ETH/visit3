@@ -1,6 +1,5 @@
 import logging
 from collections.abc import Sequence
-from email.header import Header
 from typing import Any, cast
 
 import grpc
@@ -13,13 +12,6 @@ logger = logging.getLogger(__name__)
 
 SENDER_FIELD_NAME_IS_A_PYTHON_KEYWORD = "from"
 SENDER_NAME = "VISIT MAIL SERVICE"
-
-
-def encode_header_text(text: str) -> str:
-    single_line = " ".join(text.splitlines())
-    if single_line.isascii():
-        return single_line
-    return Header(single_line, "utf-8").encode()
 
 
 class MailDeliveryFailed(RuntimeError):
@@ -68,7 +60,7 @@ class MailService:
             return None
 
         mail = mail_pb.Mail()
-        mail.subject = encode_header_text(subject)
+        mail.subject = subject
         mail.to.extend(
             [
                 mail_pb.MailAddress(
