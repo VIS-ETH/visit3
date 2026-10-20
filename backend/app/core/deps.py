@@ -115,6 +115,8 @@ async def get_current_user(
         target = await user_repo.get_by_id(target_uuid)
         if target is None:
             raise NotAllowed(f"impersonate:user_not_found:{impersonate_id}")
+        if target.is_admin and target.id != user.id:
+            raise NotAllowed(f"impersonate:target_is_admin:{target.id}")
         await user_repo.load_user_roles(target)
         logger.info("Admin %s impersonating: %s", user.id, target.id)
         return target

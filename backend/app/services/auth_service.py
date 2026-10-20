@@ -436,10 +436,14 @@ class AuthService:
                 reset_token.user_id
             )
             await self.token_repository.revoke_login_link_tokens(reset_token.user_id)
+            await self.token_repository.revoke_email_change_tokens(reset_token.user_id)
+            user = await self.user_repository.get_by_id(reset_token.user_id)
+            if user is not None and user.pending_email is not None:
+                await self.user_repository.set_pending_email(user, None)
             logger.info("Password reset successful")
             return True
         except Exception as e:
-            logger.error("Password reset failed: %r", e)
+            logger.error("Password reset failed: %s", e.__class__.__name__)
             raise e
 
     async def validate_reset_token(self, token: str) -> bool:

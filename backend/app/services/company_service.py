@@ -2,7 +2,6 @@ import logging
 import secrets
 from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from urllib.parse import quote
 from uuid import UUID, uuid4
 
@@ -28,7 +27,7 @@ from app.core.exceptions import (
     UserLastCompanyMember,
     UserNotFound,
 )
-from app.core.utils import normalize_email
+from app.core.utils import bounded_filename, normalize_email, safe_suffix
 from app.mail_templates.context import (
     CompanyAwaitingConfirmationContext,
     CompanyConfirmedContext,
@@ -223,6 +222,8 @@ class CompanyService:
             raise UserNotFound(f"remove_company_user:{user_id}")
         if user.company_id != company.id:
             raise CompanyUserNotFound(f"remove_company_user:{company_id}:{user_id}")
+        if user.is_admin or user.is_staff:
+            require_admin_user(self.current_user)
         if await self.company_repository.is_last_member_of_booked_company(company.id):
             raise UserLastCompanyMember(f"remove_company_user:{company_id}")
 
@@ -247,6 +248,8 @@ class CompanyService:
             raise NotAllowed(f"add_company_user:not_a_company_user:{user_id}")
         if user.company_id is not None:
             raise UserAlreadyInCompany(f"add_company_user:{company_id}:{user_id}")
+        if user.is_admin or user.is_staff:
+            require_admin_user(self.current_user)
 
         joined = await self.company_repository.assign_user(user, company.id)
         logger.info(
@@ -405,7 +408,13 @@ class CompanyService:
                 company_user.company_id,
             )
             raise CompanyNotFound(f"update_company_name:{company_user.company_id}")
-        return await self._rename_company(company, name)
+        previous_name = company.name
+        was_confirmed = company.confirmed_at is not None
+        renamed = await self._rename_company(company, name)
+        if was_confirmed and renamed.name != previous_name:
+            renamed = await self.company_repository.unconfirm_company(renamed)
+            await self._notify_company_awaiting_confirmation(renamed)
+        return renamed
 
     async def update_company(self, company_id: UUID, name: str) -> Company:
         require_staff_user(self.current_user)
@@ -650,7 +659,7 @@ class CompanyService:
             allowed_mime_types=LOGO_MIME_TYPES,
         )
         old_stored_file = profile.logo_stored_file
-        suffix = Path(filename).suffix
+        suffix = safe_suffix(filename)
         storage_key = f"company/{profile.company_id}/logo/{uuid4()}{suffix}"
         stored_object = await self.storage_service.upload_bytes(
             key=storage_key,
@@ -661,7 +670,7 @@ class CompanyService:
         try:
             stored_file = await self.company_repository.upsert_stored_file(
                 storage_key=stored_object.key,
-                original_filename=filename,
+                original_filename=bounded_filename(filename),
                 mime_type=stored_object.mime_type,
                 size_bytes=stored_object.size_bytes,
                 sha256=stored_object.sha256,

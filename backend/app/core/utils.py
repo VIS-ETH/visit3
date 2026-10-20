@@ -1,6 +1,8 @@
 import hashlib
 import json
+import re
 import unicodedata
+from pathlib import Path
 from typing import Any, Protocol, TypeVar, cast, overload
 
 import phonenumbers
@@ -97,3 +99,16 @@ def load_json(target_type: type[T], value: str) -> T:
         raise TypeError(
             f"Target type {target_type.__name__} does not support model validation"
         )
+
+
+MAX_FILENAME_LENGTH = 255
+_SAFE_SUFFIX = re.compile(r"\.[A-Za-z0-9]{1,10}")
+
+
+def safe_suffix(filename: str) -> str:
+    suffix = Path(filename).suffix
+    return suffix.lower() if _SAFE_SUFFIX.fullmatch(suffix) else ""
+
+
+def bounded_filename(filename: str) -> str:
+    return filename[-MAX_FILENAME_LENGTH:]

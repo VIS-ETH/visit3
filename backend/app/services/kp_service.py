@@ -1,6 +1,5 @@
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, timezone
-from pathlib import Path
 from typing import Optional
 from uuid import UUID, uuid4
 
@@ -63,6 +62,7 @@ from app.core.exceptions import (
     KpWaitlistZoneHasCapacity,
     KpZoneRegistrationClosed,
 )
+from app.core.utils import bounded_filename, safe_suffix
 from app.models.company import (
     BOOKING_REQUIRED_PROFILE_FIELDS,
     Company,
@@ -464,7 +464,7 @@ class KpService:
         )
         old_stored_file = zone.layout_stored_file
         storage_key = (
-            f"kp/booth-zones/{booth_zone_id}/layout/{uuid4()}{Path(filename).suffix}"
+            f"kp/booth-zones/{booth_zone_id}/layout/{uuid4()}{safe_suffix(filename)}"
         )
         stored_object = await self.storage_service.upload_bytes(
             key=storage_key,
@@ -475,7 +475,7 @@ class KpService:
         try:
             stored_file = await self.kp_repository.upsert_stored_file(
                 storage_key=stored_object.key,
-                original_filename=filename,
+                original_filename=bounded_filename(filename),
                 mime_type=stored_object.mime_type,
                 size_bytes=stored_object.size_bytes,
                 sha256=stored_object.sha256,
@@ -725,7 +725,9 @@ class KpService:
         for exclusion in await self.kp_repository.list_service_exclusions(
             list(included_ids)
         ):
-            if exclusion.excluded_service_id in included_ids:
+            if exclusion.excluded_service_id in included_ids or (
+                service_id is not None and exclusion.excluded_service_id == service_id
+            ):
                 raise KpServiceRelationInvalid(
                     f"{context}:contents_excluded:{exclusion.service_id}"
                 )
@@ -784,7 +786,7 @@ class KpService:
         old_storage_key = (
             old_stored_file.storage_key if old_stored_file is not None else None
         )
-        suffix = Path(filename).suffix
+        suffix = safe_suffix(filename)
         storage_key = f"kp/services/{service_id}/image/{uuid4()}{suffix}"
         stored_object = await self.storage_service.upload_bytes(
             key=storage_key,
@@ -795,7 +797,7 @@ class KpService:
         try:
             stored_file = await self.kp_repository.upsert_stored_file(
                 storage_key=stored_object.key,
-                original_filename=filename,
+                original_filename=bounded_filename(filename),
                 mime_type=stored_object.mime_type,
                 size_bytes=stored_object.size_bytes,
                 sha256=stored_object.sha256,
@@ -2011,7 +2013,7 @@ class KpService:
         mime_type = self._validate_requirement_upload(
             kind, filename, content, content_type, error_context=error_context
         )
-        suffix = Path(filename).suffix
+        suffix = safe_suffix(filename)
         storage_key = f"kp/booking-services/{booking_service.id}/requirements/{requirement.id}/{uuid4()}{suffix}"
         existing_file = await self.kp_repository.get_requirement_file(
             booking_service.id, requirement.id
@@ -2029,7 +2031,7 @@ class KpService:
         try:
             stored_file = await self.kp_repository.upsert_stored_file(
                 storage_key=stored_object.key,
-                original_filename=filename,
+                original_filename=bounded_filename(filename),
                 mime_type=stored_object.mime_type,
                 size_bytes=stored_object.size_bytes,
                 sha256=stored_object.sha256,

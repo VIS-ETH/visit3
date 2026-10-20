@@ -79,6 +79,10 @@ class User(BaseEntity, table=True):
     )
 
     @property
+    def has_password(self) -> bool:
+        return self.password is not None
+
+    @property
     def display_name(self) -> str:
         parts = [part for part in (self.first_name, self.last_name) if part]
         return " ".join(parts) if parts else self.email

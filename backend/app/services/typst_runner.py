@@ -16,6 +16,7 @@ WORKER_MODULES = ["typst", "app.services.typst_worker"]
 MEGABYTE = 1024 * 1024
 JOIN_GRACE_SECONDS = 1
 MAX_JOBS_PER_WORKER = 200
+MAX_PENDING_PER_SLOT = 2
 
 
 class TypstRenderAborted(Exception):
@@ -80,6 +81,8 @@ class TypstRunner:
         self._slots: queue.Queue[_Worker | None] = queue.Queue()
         for _ in range(max_parallel):
             self._slots.put(None)
+        self._max_pending = max_parallel * MAX_PENDING_PER_SLOT
+        self._pending = 0
 
     async def run(
         self,
@@ -87,7 +90,13 @@ class TypstRunner:
         arguments: tuple[Any, ...],
         timeout: float,
     ) -> Any:
-        return await asyncio.to_thread(self._run, function, arguments, timeout)
+        if self._pending >= self._max_pending:
+            raise TypstRenderAborted("busy")
+        self._pending += 1
+        try:
+            return await asyncio.to_thread(self._run, function, arguments, timeout)
+        finally:
+            self._pending -= 1
 
     def _run(
         self,

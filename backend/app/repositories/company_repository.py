@@ -478,6 +478,17 @@ class CompanyRepository(BaseRepository[Company]):
             await self.session.rollback()
             raise e
 
+    async def unconfirm_company(self, company: Company) -> Company:
+        try:
+            company.confirmed_at = None
+            self.session.add(company)
+            await self.session.commit()
+            await self.session.refresh(company)
+            return company
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
     async def acknowledge_new_members(self, company: Company) -> None:
         try:
             await self.update_where(

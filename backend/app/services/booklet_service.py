@@ -20,6 +20,7 @@ from app.core.exceptions import (
 )
 from app.core.images import image_within_limits
 from app.core.rich_text import rich_text_blocks
+from app.core.utils import bounded_filename
 from app.models.company import Company, KpCompanyLanguage
 from app.models.industry import Industry
 from app.models.kp_event import KpEvent, KpEventBooking
@@ -279,7 +280,7 @@ class BookletService:
         try:
             stored_file = await self.kp_repository.upsert_stored_file(
                 storage_key=stored_object.key,
-                original_filename=filename,
+                original_filename=bounded_filename(filename),
                 mime_type=stored_object.mime_type,
                 size_bytes=stored_object.size_bytes,
                 sha256=stored_object.sha256,

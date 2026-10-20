@@ -1,6 +1,5 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from pathlib import Path
 from uuid import UUID, uuid4
 
 from app.core.auth_context import require_kp_president_user
@@ -13,6 +12,7 @@ from app.core.exceptions import (
     KpVenueLayoutNotFound,
     KpVenueOutOfBounds,
 )
+from app.core.utils import bounded_filename, safe_suffix
 from app.models.kp_event import KpEvent, KpEventBoothZone
 from app.models.user import User
 from app.models.venue import (
@@ -289,7 +289,7 @@ class VenueService:
         )
         old_stored_file = layout.background_stored_file
         storage_key = (
-            f"kp/venue-layouts/{layout_id}/background/{uuid4()}{Path(filename).suffix}"
+            f"kp/venue-layouts/{layout_id}/background/{uuid4()}{safe_suffix(filename)}"
         )
         stored_object = await self.storage_service.upload_bytes(
             key=storage_key,
@@ -300,7 +300,7 @@ class VenueService:
         try:
             stored_file = await self.kp_repository.upsert_stored_file(
                 storage_key=stored_object.key,
-                original_filename=filename,
+                original_filename=bounded_filename(filename),
                 mime_type=stored_object.mime_type,
                 size_bytes=stored_object.size_bytes,
                 sha256=stored_object.sha256,

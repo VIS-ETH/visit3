@@ -16,6 +16,13 @@ def text(length: int) -> str:
     return "a" * length
 
 
+def field_value(field: str, length: int) -> str:
+    if field == "website":
+        prefix = "https://example.com/"
+        return prefix + text(length - len(prefix))
+    return text(length)
+
+
 @pytest.mark.parametrize(("field", "limit"), sorted(PROFILE_TEXT_LIMITS.items()))
 async def test_profile_text_fields_accept_their_limit_and_reject_more(
     company_headers: dict[str, str],
@@ -23,9 +30,11 @@ async def test_profile_text_fields_accept_their_limit_and_reject_more(
     field: str,
     limit: int,
 ):
-    at_limit = await complete_company_profile(company_headers, **{field: text(limit)})
+    at_limit = await complete_company_profile(
+        company_headers, **{field: field_value(field, limit)}
+    )
     over_limit = await complete_company_profile(
-        company_headers, **{field: text(limit + 1)}
+        company_headers, **{field: field_value(field, limit + 1)}
     )
 
     assert at_limit.status_code == 200

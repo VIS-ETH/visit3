@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from app.core.utils import normalize_email
+from app.core.utils import normalize_email, normalize_http_url
 from app.models.company import (
     PROFILE_DESCRIPTION_MARKUP_MAX_LENGTH,
     KpCompanyLanguage,
@@ -113,6 +113,11 @@ class UpdateCompanyProfileInput(CompanyProfileFields):
     @classmethod
     def validate_billing_country(cls, value: str) -> str:
         return normalize_country_code(value)
+
+    @field_validator("website")
+    @classmethod
+    def validate_website(cls, value: str | None) -> str | None:
+        return normalize_http_url(value)
 
 
 class UpdateCompanyProfileRequest(UpdateCompanyProfileInput):

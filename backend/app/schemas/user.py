@@ -21,6 +21,7 @@ class CompanyUserResponse(BaseModel):
     last_name: str | None = None
     phone_number: str | None = None
     email_confirmed: bool
+    has_password: bool = False
     pending_email: str | None = None
     company: CompanyResponse | None = None
 
@@ -38,6 +39,7 @@ class UserResponse(BaseModel):
     is_company: bool
     is_kp_president: bool
     email_confirmed: bool
+    has_password: bool = False
     company_id: UUID | None = None
     company: CompanyResponse | None = None
 
@@ -106,6 +108,7 @@ class UpdateUserProfileRequest(UpdateUserProfileInput):
 
 class EmailChangeInput(BaseModel):
     email: EmailStr
+    current_password: str | None = Field(default=None, max_length=1024)
 
 
 class EmailChangeRequest(EmailChangeInput):

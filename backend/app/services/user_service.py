@@ -11,6 +11,7 @@ from app.core.auth_context import (
 from app.core.exceptions import (
     CompanyNotFound,
     EmailUsed,
+    InvalidCredentials,
     MailUnavailable,
     NotAllowed,
     PhoneNumberInvalid,
@@ -94,6 +95,13 @@ class UserService:
 
     async def request_own_email_change(self, change: EmailChangeInput) -> User:
         user = require_confirmed_company_user(self.current_user).user
+        if user.password is not None and not (
+            change.current_password
+            and await self.auth_service.verify_and_update_password(
+                user, change.current_password
+            )
+        ):
+            raise InvalidCredentials(f"request_own_email_change:{user.id}")
         new_email = await self._available_email(
             user, change.email, "request_own_email_change"
         )
