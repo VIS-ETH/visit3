@@ -92,6 +92,11 @@ def make_company_profile() -> Callable[..., KpCompanyProfile]:
 def kp_repo(make_company_profile: Callable[..., KpCompanyProfile]) -> AsyncMock:
     repo = AsyncMock(spec=KpRepository)
     repo.get_company_profile.return_value = make_company_profile()
+    repo.package_inclusion_quantities.return_value = {}
+    repo.zone_inclusion_portion.return_value = {}
+    repo.list_service_inclusions.return_value = []
+    repo.list_service_exclusions.return_value = []
+    repo.list_containing_services.return_value = []
     return repo
 
 

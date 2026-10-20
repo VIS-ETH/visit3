@@ -32,6 +32,8 @@ from app.models.kp_event import (
     KpEventNametagBackground,
     KpEventRegistrationException,
     KpEventService,
+    KpEventServiceExclusion,
+    KpEventServiceInclusion,
     KpEventServiceRequirement,
     NameTag,
 )
@@ -98,6 +100,8 @@ SQLITE_TABLES = [
     KpEventBoothZone.__table__,
     KpEventService.__table__,
     KpEventBoothZoneServiceLink.__table__,
+    KpEventServiceInclusion.__table__,
+    KpEventServiceExclusion.__table__,
     KpEventServiceRequirement.__table__,
     KpEventBooking.__table__,
     KpEventBookingService.__table__,

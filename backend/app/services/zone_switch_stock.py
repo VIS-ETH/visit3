@@ -14,6 +14,16 @@ async def service_exceeding_stock(
         included_service.service_id: included_service.included_quantity
         for included_service in zone.included_services
     }
+    package_quantities = await kp_repository.package_inclusion_quantities(
+        {
+            booking_service.service_id: booking_service.quantity
+            for booking_service in booking.services
+        }
+    )
+    for service_id, quantity in package_quantities.items():
+        included_quantities[service_id] = (
+            included_quantities.get(service_id, 0) + quantity
+        )
     for booking_service in booking.services:
         included_quantity = included_quantities.get(booking_service.service_id, 0)
         additional_charged = (

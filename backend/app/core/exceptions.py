@@ -534,6 +534,26 @@ class KpIncludedServiceDuplicate(AppError):
         )
 
 
+class KpServiceRelationInvalid(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP service cannot contain or exclude this service",
+            "error.kp_service_relation_invalid",
+            identifier,
+            400,
+        )
+
+
+class KpServicesExcluded(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "These KP services cannot be booked together",
+            "error.kp_services_excluded",
+            identifier,
+            400,
+        )
+
+
 class KpIncludedExceedsMax(AppError):
     def __init__(self, identifier: str):
         super().__init__(
