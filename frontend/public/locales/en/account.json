@@ -39,7 +39,8 @@
       "submit": "Send confirmation link",
       "sent_title": "Confirmation link sent",
       "sent_message": "Open the link we sent to {{email}} to finish the change.",
-      "pending": "Waiting for confirmation of {{email}}"
+      "pending": "Waiting for confirmation of {{email}}",
+      "current_password": "Current password"
     }
   },
   "impersonation": {

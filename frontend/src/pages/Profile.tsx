@@ -217,6 +217,7 @@ const Profile = () => {
           opened={emailChangeOpened}
           onClose={() => setEmailChangeOpened(false)}
           currentEmail={user.email}
+          needsPassword={user.has_password ?? false}
         />
 
         <Paper withBorder p="md" radius="md">

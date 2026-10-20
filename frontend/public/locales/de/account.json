@@ -39,7 +39,8 @@
       "submit": "Bestätigungslink senden",
       "sent_title": "Bestätigungslink gesendet",
       "sent_message": "Öffnen Sie den Link, den wir an {{email}} gesendet haben, um die Änderung abzuschliessen.",
-      "pending": "Wartet auf Bestätigung von {{email}}"
+      "pending": "Wartet auf Bestätigung von {{email}}",
+      "current_password": "Aktuelles Passwort"
     }
   },
   "impersonation": {

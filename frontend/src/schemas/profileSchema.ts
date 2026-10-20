@@ -23,4 +23,5 @@ export const emailChangeSchema = z.object({
     .email("validation.invalid_email")
     .trim()
     .min(1, "validation.required"),
+  currentPassword: z.string(),
 });

@@ -71,6 +71,28 @@ describe("Profile email change", () => {
     ).toBeInTheDocument();
   });
 
+  it("asks a password account for its current password", async () => {
+    profile = { ...storedProfile, has_password: true } as typeof profile;
+    const { user, input } = await openDialog();
+
+    await user.type(input, NEW_EMAIL);
+    const submit = screen.getByRole("button", {
+      name: "profile.email_change.submit",
+    });
+    expect(submit).toBeDisabled();
+    await user.type(
+      screen.getByLabelText("profile.email_change.current_password"),
+      "secret-password",
+    );
+    await user.click(submit);
+
+    await waitFor(() => {
+      expect(changeBodies).toEqual([
+        { email: NEW_EMAIL, current_password: "secret-password" },
+      ]);
+    });
+  });
+
   it("shows a change that still waits for its confirmation", async () => {
     profile = { ...storedProfile, pending_email: NEW_EMAIL };
 

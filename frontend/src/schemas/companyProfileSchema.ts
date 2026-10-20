@@ -7,6 +7,9 @@ import type {
 import { richTextLength } from "../utils/rich-text";
 import { zPhone } from "./utils";
 
+const isHttpUrl = (value: string) =>
+  URL.canParse(value) && ["http:", "https:"].includes(new URL(value).protocol);
+
 export const PROFILE_DESCRIPTION_MAX_LENGTH = 2500;
 
 const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
@@ -36,7 +39,7 @@ export const companyProfileSchema = z.object({
     .string()
     .trim()
     .refine(
-      (value) => isBlank(value) || URL.canParse(value),
+      (value) => isBlank(value) || isHttpUrl(value),
       "validation.invalid_url",
     ),
   brand_name: z.string().trim(),
