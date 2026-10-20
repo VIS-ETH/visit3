@@ -22,8 +22,6 @@ from app.schemas.user import UserFilter, UserProfileFieldsInput, UserSort
 
 
 def _filter_conditions(user_filter: UserFilter) -> list[ColumnElement[bool]]:
-    if user_filter is UserFilter.UNCONFIRMED:
-        return [col(User.user_confirmed).is_(False)]
     if user_filter is UserFilter.COMPANY:
         return [col(User.is_company).is_(True)]
     if user_filter is UserFilter.STAFF:
@@ -59,7 +57,7 @@ def _sort_expressions(sort: UserSort) -> list[ColumnExpressionArgument[Any]]:
         case UserSort.ROLE:
             return [col(User.is_admin), col(User.is_staff), col(User.is_company)]
         case UserSort.STATUS:
-            return [col(User.user_confirmed), col(User.email_confirmed)]
+            return [col(User.email_confirmed)]
         case UserSort.SIGNED_UP:
             return [col(User.created_at)]
         case UserSort.LAST_LOGIN:
@@ -70,7 +68,7 @@ def _user_order(
     sort: UserSort | None, direction: SortDirection
 ) -> list[ColumnExpressionArgument[Any]]:
     if sort is None:
-        return [col(User.user_confirmed), col(User.email), col(User.id)]
+        return [col(User.email), col(User.id)]
     return [
         *ordered(_sort_expressions(sort), direction),
         col(User.email),
@@ -187,26 +185,6 @@ class UserRepository(BaseRepository[User]):
         result = await self.session.execute(statement)
         return result.scalars().all()
 
-    async def get_unconfirmed_users(self) -> Sequence[User]:
-        statement = (
-            select(User)
-            .where(col(User.user_confirmed) == False)
-            .options(selectinload(rel(User.company)))
-        )
-        result = await self.session.execute(statement)
-        return result.scalars().all()
-
-    async def confirm_user(self, user: User):
-        try:
-            user.user_confirmed = True
-            self.session.add(user)
-            await self.session.commit()
-            await self.session.refresh(user)
-            return user
-        except Exception as e:
-            await self.session.rollback()
-            raise e
-
     async def purge_unconfirmed_accounts(self, max_age: timedelta) -> int:
         cutoff = datetime.now(timezone.utc) - max_age
         statement = select(User).where(
@@ -280,7 +258,6 @@ class UserRepository(BaseRepository[User]):
             db_user.last_name = keycloak_user.last_name
             db_user.is_staff = keycloak_user.is_staff
             db_user.is_admin = keycloak_user.is_admin
-            db_user.user_confirmed = keycloak_user.user_confirmed
             db_user.email_confirmed = keycloak_user.email_confirmed
 
             await self.load_user_roles(db_user)

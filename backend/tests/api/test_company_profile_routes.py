@@ -28,8 +28,8 @@ async def unconfirmed_company_user(
 ) -> User:
     return await create_user(
         email="unconfirmed@example.com",
-        user_confirmed=False,
         company_name="Pending AG",
+        company_confirmed=False,
     )
 
 
@@ -477,7 +477,7 @@ async def test_staff_profile_of_an_unknown_company_is_not_found(
     assert response.json()["code"] == "error.company_not_found"
 
 
-async def test_unconfirmed_user_may_edit_the_profile(
+async def test_unconfirmed_company_may_edit_the_profile(
     client: AsyncClient, unconfirmed_headers: dict[str, str]
 ):
     written = await client.put(
@@ -491,7 +491,7 @@ async def test_unconfirmed_user_may_edit_the_profile(
     assert read.json()["billing_city"] == "Winterthur"
 
 
-async def test_unconfirmed_user_may_not_register_a_booking(
+async def test_unconfirmed_company_may_not_register_a_booking(
     client: AsyncClient,
     unconfirmed_headers: dict[str, str],
     kp_setup,
@@ -507,4 +507,4 @@ async def test_unconfirmed_user_may_not_register_a_booking(
     )
 
     assert response.status_code == 403
-    assert response.json()["code"] == "error.not_confirmed"
+    assert response.json()["code"] == "error.company_not_confirmed"

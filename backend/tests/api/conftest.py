@@ -239,16 +239,19 @@ def create_user(
         is_staff: bool = False,
         is_admin: bool = False,
         is_company: bool = True,
-        user_confirmed: bool = True,
         email_confirmed: bool = True,
         company_name: str | None = None,
+        company_confirmed: bool = True,
         roles: Sequence[str] = (),
     ) -> User:
+        company_repository = CompanyRepository(db_session)
         company = (
-            await CompanyRepository(db_session).create_company(company_name)
+            await company_repository.create_company(company_name)
             if company_name is not None
             else None
         )
+        if company is not None and company_confirmed:
+            await company_repository.confirm_company(company)
         role_repository = RoleRepository(db_session)
         user_roles = [await role_repository.get_or_create(name) for name in roles]
         user = User(
@@ -260,7 +263,6 @@ def create_user(
             is_staff=is_staff,
             is_admin=is_admin,
             is_company=is_company,
-            user_confirmed=user_confirmed,
             email_confirmed=email_confirmed,
             company_id=company.id if company is not None else None,
         )

@@ -26,7 +26,6 @@ from app.core.exceptions import (
 from app.core.security import decode_token
 from app.core.utils import normalize_phone_number, strip_text
 from app.mail_templates.context import (
-    AccountAwaitingConfirmationContext,
     AccountConfirmEmailContext,
     AccountExistsContext,
     EmailChangeNoticeContext,
@@ -48,7 +47,6 @@ ACCESS_TOKEN_EXPIRE = timedelta(minutes=15)
 MIN_PASSWORD_LENGTH = 8
 UNKNOWN_NAME = "Unknown"
 LOGIN_LINK_PATH = "/auth/link"
-STAFF_ACCOUNT_REVIEW_PATH = "/user-management"
 
 
 @dataclass(frozen=True)
@@ -469,18 +467,6 @@ class AuthService:
         await self.token_repository.revoke_confirm_email_tokens(user.id)
         await self._apply_pending_invite(user)
         logger.info("Email confirmed for user: %s", user.id)
-        if not user.user_confirmed:
-            try:
-                await self.mail_template_service.send_to_staff_notification(
-                    MailTemplateKey.ACCOUNT_AWAITING_CONFIRMATION,
-                    AccountAwaitingConfirmationContext(
-                        name=user.display_name,
-                        email=user.email,
-                        admin_url=frontend_url(STAFF_ACCOUNT_REVIEW_PATH),
-                    ),
-                )
-            except MailUnavailable:
-                logger.exception("Staff notification failed for %s", user.id)
         return True
 
     async def _confirm_email_change(self, token: str) -> bool:
@@ -593,7 +579,6 @@ class AuthService:
         keycloak_user = User(
             email=email,
             sub=sub,
-            user_confirmed=True,
             email_confirmed=True,
             is_admin=admin or bootstrap_admin,
             is_staff=staff or bootstrap_admin,

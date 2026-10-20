@@ -13,6 +13,7 @@ from app.core.auth_context import (
 from app.core.config import get_settings
 from app.core.dates import local_today
 from app.core.exceptions import (
+    CompanyNotConfirmed,
     CompanyNotFound,
     CompanyProfileIncomplete,
     CompanyProfileUnconfirmed,
@@ -934,6 +935,13 @@ class KpService:
             ],
         )
 
+    async def _ensure_company_confirmed(self, company_id: UUID) -> None:
+        company = await self.kp_repository.get_company(company_id)
+        if company is None:
+            raise CompanyNotFound(f"register_booking:{company_id}")
+        if company.confirmed_at is None:
+            raise CompanyNotConfirmed(f"register_booking:{company_id}")
+
     async def _confirmed_company_profile(
         self, company_id: UUID, confirm_profile: bool
     ) -> KpCompanyProfile:
@@ -963,6 +971,7 @@ class KpService:
         company_user = require_assigned_company_user(self.current_user)
         event = await self._get_event(event_id)
         await self._ensure_registration_open(event, company_user.company_id)
+        await self._ensure_company_confirmed(company_user.company_id)
         company_profile = await self._confirmed_company_profile(
             company_user.company_id, confirm_profile
         )

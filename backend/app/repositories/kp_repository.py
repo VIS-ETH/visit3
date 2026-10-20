@@ -831,6 +831,9 @@ class KpRepository(BaseRepository[KpEvent]):
         result = await self.session.execute(statement)
         return result.scalar_one()
 
+    async def get_company(self, company_id: UUID) -> Optional[Company]:
+        return await self.session.get(Company, company_id)
+
     async def get_company_profile(self, company_id: UUID) -> Optional[KpCompanyProfile]:
         statement = (
             select(KpCompanyProfile)

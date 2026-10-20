@@ -879,10 +879,13 @@ class EmailNotConfirmed(AppError):
         )
 
 
-class UserNotConfirmed(AppError):
+class CompanyNotConfirmed(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "User is not confirmed by an admin", "error.not_confirmed", identifier, 403
+            "Company is not confirmed by VIS yet",
+            "error.company_not_confirmed",
+            identifier,
+            403,
         )
 
 

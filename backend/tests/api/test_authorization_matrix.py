@@ -57,6 +57,7 @@ class Persona(StrEnum):
 class Access(StrEnum):
     AUTHENTICATED = "authenticated"
     COMPANY = "company"
+    BOOKING_COMPANY = "booking-company"
     COMPANY_PROFILE = "company-profile"
     UNASSIGNED_COMPANY = "unassigned-company"
     STAFF = "staff"
@@ -99,10 +100,8 @@ ROUTE_ACCESS: dict[str, Access] = {
     "GET /api/user/companies": Access.STAFF,
     "GET /api/user/admins": Access.STAFF,
     "GET /api/user/staff": Access.STAFF,
-    "GET /api/user/unconfirmed": Access.STAFF,
     "GET /api/users": Access.STAFF,
     "GET /api/users/{user_id}": Access.STAFF,
-    "POST /api/users/{user_id}/confirm": Access.STAFF,
     "POST /api/users/{user_id}/resend-confirmation": Access.STAFF,
     "PATCH /api/users/{user_id}": Access.STAFF,
     "DELETE /api/users/{user_id}": Access.STAFF,
@@ -130,6 +129,7 @@ ROUTE_ACCESS: dict[str, Access] = {
     "GET /api/companies": Access.STAFF,
     "PATCH /api/companies/{company_id}": Access.STAFF,
     "POST /api/companies/{company_id}/members": Access.STAFF,
+    "POST /api/companies/{company_id}/confirm": Access.STAFF,
     "POST /api/companies/{company_id}/members/acknowledge": Access.STAFF,
     "DELETE /api/companies/{company_id}/members/{user_id}": Access.STAFF,
     "GET /api/industries": Access.AUTHENTICATED,
@@ -171,16 +171,16 @@ ROUTE_ACCESS: dict[str, Access] = {
     "GET /api/kp/events/{event_id}/booth-zones/available": Access.COMPANY,
     "GET /api/kp/events/{event_id}/services/available": Access.COMPANY,
     "GET /api/kp/events/{event_id}/my-booking": Access.COMPANY,
-    "POST /api/kp/events/{event_id}/bookings/register": Access.COMPANY,
-    "POST /api/kp/bookings/{booking_id}/services": Access.COMPANY,
-    "GET /api/kp/bookings/{booking_id}/upgrade-waitlist": Access.COMPANY,
-    "PUT /api/kp/bookings/{booking_id}/upgrade-waitlist": Access.COMPANY,
-    "POST /api/kp/bookings/{booking_id}/switch-zone": Access.COMPANY,
-    "GET /api/kp/bookings/{booking_id}/nametags": Access.COMPANY,
-    "PUT /api/kp/bookings/{booking_id}/nametags": Access.COMPANY,
+    "POST /api/kp/events/{event_id}/bookings/register": Access.BOOKING_COMPANY,
+    "POST /api/kp/bookings/{booking_id}/services": Access.BOOKING_COMPANY,
+    "GET /api/kp/bookings/{booking_id}/upgrade-waitlist": Access.BOOKING_COMPANY,
+    "PUT /api/kp/bookings/{booking_id}/upgrade-waitlist": Access.BOOKING_COMPANY,
+    "POST /api/kp/bookings/{booking_id}/switch-zone": Access.BOOKING_COMPANY,
+    "GET /api/kp/bookings/{booking_id}/nametags": Access.BOOKING_COMPANY,
+    "PUT /api/kp/bookings/{booking_id}/nametags": Access.BOOKING_COMPANY,
     "GET /api/kp/staff/bookings/{booking_id}/nametags": Access.STAFF,
     "GET /api/kp/staff/bookings/{booking_id}/upgrade-waitlist": Access.STAFF,
-    "PATCH /api/kp/bookings/{booking_id}/status": Access.COMPANY,
+    "PATCH /api/kp/bookings/{booking_id}/status": Access.BOOKING_COMPANY,
     "GET /api/kp/events/{event_id}/bookings": Access.STAFF,
     "GET /api/kp/events/{event_id}/bookings/summary": Access.STAFF,
     "GET /api/kp/events/{event_id}/bookings/{booking_id}": Access.STAFF,
@@ -193,13 +193,13 @@ ROUTE_ACCESS: dict[str, Access] = {
     "DELETE /api/kp/bookings/{booking_id}": Access.STAFF,
     "POST /api/kp/events/{event_id}/bookings/offer": Access.PRESIDENT,
     "PATCH /api/kp/bookings/{booking_id}/offer": Access.PRESIDENT,
-    "POST /api/kp/bookings/{booking_id}/accept-offer": Access.COMPANY,
-    "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.COMPANY,
-    "POST /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.COMPANY,
-    "DELETE /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.COMPANY,
-    "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file/download": Access.COMPANY,
-    "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/text": Access.COMPANY,
-    "PUT /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/text": Access.COMPANY,
+    "POST /api/kp/bookings/{booking_id}/accept-offer": Access.BOOKING_COMPANY,
+    "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.BOOKING_COMPANY,
+    "POST /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.BOOKING_COMPANY,
+    "DELETE /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.BOOKING_COMPANY,
+    "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file/download": Access.BOOKING_COMPANY,
+    "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/text": Access.BOOKING_COMPANY,
+    "PUT /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/text": Access.BOOKING_COMPANY,
     "GET /api/kp/staff/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.STAFF,
     "GET /api/kp/staff/booking-services/{booking_service_id}/requirements/{requirement_id}/file/download": Access.STAFF,
     "GET /api/kp/staff/events/{event_id}/bookings/{booking_id}/requirement-files": Access.STAFF,
@@ -483,7 +483,8 @@ STAFF_PERSONAS = {Persona.STAFF, Persona.PRESIDENT, Persona.ADMIN}
 
 EXPECTATIONS: dict[Access, dict[Persona, Expected]] = {
     Access.AUTHENTICATED: _expectations(AUTHENTICATED_PERSONAS),
-    Access.COMPANY: _expectations({Persona.COMPANY}),
+    Access.COMPANY: _expectations({Persona.COMPANY, Persona.UNCONFIRMED}),
+    Access.BOOKING_COMPANY: _expectations({Persona.COMPANY}),
     Access.COMPANY_PROFILE: _expectations({Persona.COMPANY, Persona.UNCONFIRMED}),
     Access.UNASSIGNED_COMPANY: _expectations(set()),
     Access.STAFF: _expectations(STAFF_PERSONAS),
@@ -541,8 +542,8 @@ async def unconfirmed_user(create_user: Callable[..., Awaitable[User]]) -> User:
     return await create_user(
         email="unconfirmed@example.com",
         password=None,
-        user_confirmed=False,
         company_name="Unconfirmed AG",
+        company_confirmed=False,
     )
 
 

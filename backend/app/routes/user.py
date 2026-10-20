@@ -121,17 +121,6 @@ async def validate_confirm_email_token(
     return await auth_service.validate_confirm_email_token(token)
 
 
-@router.get(
-    "/unconfirmed",
-    operation_id="getUnconfirmedUsers",
-    response_model=list[CompanyUserResponse],
-)
-async def get_unconfirmed_users(
-    user_service: UserServiceDep,
-) -> Sequence[User]:
-    return await user_service.get_unconfirmed_users()
-
-
 @users_router.get(
     "",
     operation_id="listUsers",
@@ -158,15 +147,6 @@ async def list_users(
 )
 async def get_user(user_service: UserServiceDep, user_id: UUID) -> User:
     return await user_service.get_user(user_id)
-
-
-@users_router.post(
-    "/{user_id}/confirm",
-    operation_id="confirmUser",
-    response_model=UserResponse,
-)
-async def confirm_user(user_service: UserServiceDep, user_id: UUID) -> User:
-    return await user_service.confirm_user(user_id)
 
 
 @users_router.post(

@@ -37,19 +37,6 @@ class AccountConfirmEmailContext(MailContext):
 
 
 @dataclass(frozen=True)
-class AccountConfirmedContext(MailContext):
-    name: str
-    login_url: str
-
-
-@dataclass(frozen=True)
-class AccountAwaitingConfirmationContext(MailContext):
-    name: str
-    email: str
-    admin_url: str
-
-
-@dataclass(frozen=True)
 class PasswordResetContext(MailContext):
     name: str
     reset_url: str
@@ -77,6 +64,21 @@ class EmailChangeNoticeContext(MailContext):
 class CompanyInviteContext(MailContext):
     company_name: str
     invite_url: str
+
+
+@dataclass(frozen=True)
+class CompanyConfirmedContext(MailContext):
+    name: str
+    company_name: str
+    login_url: str
+
+
+@dataclass(frozen=True)
+class CompanyAwaitingConfirmationContext(MailContext):
+    company_name: str
+    name: str
+    email: str
+    admin_url: str
 
 
 @dataclass(frozen=True)
@@ -145,15 +147,6 @@ SAMPLE_CONTEXTS: dict[MailTemplateKey, MailContext] = {
         name="Ada Lovelace",
         confirm_url="https://visit.vis.ethz.ch/confirm-email/sample-token",
     ),
-    MailTemplateKey.ACCOUNT_CONFIRMED: AccountConfirmedContext(
-        name="Ada Lovelace",
-        login_url="https://visit.vis.ethz.ch/auth/link/sample-token",
-    ),
-    MailTemplateKey.ACCOUNT_AWAITING_CONFIRMATION: AccountAwaitingConfirmationContext(
-        name="Ada Lovelace",
-        email="ada@example.com",
-        admin_url="https://visit.vis.ethz.ch/user-management",
-    ),
     MailTemplateKey.PASSWORD_RESET: PasswordResetContext(
         name="Ada Lovelace",
         reset_url="https://visit.vis.ethz.ch/reset/sample-token",
@@ -180,6 +173,17 @@ SAMPLE_CONTEXTS: dict[MailTemplateKey, MailContext] = {
             "https://visit.vis.ethz.ch/company/join/sample-token"
             "?email=ada%40example.com"
         ),
+    ),
+    MailTemplateKey.COMPANY_CONFIRMED: CompanyConfirmedContext(
+        name="Ada Lovelace",
+        company_name="Acme AG",
+        login_url="https://visit.vis.ethz.ch/auth/link/sample-token",
+    ),
+    MailTemplateKey.COMPANY_AWAITING_CONFIRMATION: CompanyAwaitingConfirmationContext(
+        company_name="Acme AG",
+        name="Ada Lovelace",
+        email="ada@example.com",
+        admin_url="https://visit.vis.ethz.ch/company-management",
     ),
     MailTemplateKey.BOOKING_REGISTERED: BookingContext(
         name="Ada Lovelace",

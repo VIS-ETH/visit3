@@ -9,18 +9,18 @@ from app.models.user import User
 from tests.api.conftest import KpSetup, move_event_into_the_past
 
 IMPERSONATE_HEADER = "X-Impersonate-User-Id"
-UNCONFIRMED_EMAIL = "pending@example.com"
+PENDING_COMPANY_NAME = "Pending AG"
 OTHER_COMPANY_NAME = "Beta GmbH"
 OTHER_COMPANY_EMAIL = "beta@example.com"
 
 
 @pytest.fixture
-async def unconfirmed_user(create_user: Callable[..., Awaitable[User]]) -> User:
+async def pending_company_user(create_user: Callable[..., Awaitable[User]]) -> User:
     return await create_user(
-        email=UNCONFIRMED_EMAIL,
+        email="pending@example.com",
         password=None,
-        company_name="Pending AG",
-        user_confirmed=False,
+        company_name=PENDING_COMPANY_NAME,
+        company_confirmed=False,
     )
 
 
@@ -40,28 +40,33 @@ async def company_members(
     return [user["email"] for user in response.json()]
 
 
-async def test_unconfirmed_users_are_listed_until_they_are_confirmed(
-    client: AsyncClient, unconfirmed_user: User, staff_headers: dict[str, str]
+async def test_staff_confirms_a_pending_company(
+    client: AsyncClient,
+    pending_company_user: User,
+    staff_headers: dict[str, str],
 ):
-    pending = await client.get("/api/user/unconfirmed", headers=staff_headers)
-    confirmed = await client.post(
-        f"/api/users/{unconfirmed_user.id}/confirm", headers=staff_headers
+    company_id = pending_company_user.company_id
+    pending = await client.get(
+        "/api/companies", params={"query": PENDING_COMPANY_NAME}, headers=staff_headers
     )
-    remaining = await client.get("/api/user/unconfirmed", headers=staff_headers)
+    confirmed = await client.post(
+        f"/api/companies/{company_id}/confirm", headers=staff_headers
+    )
 
-    assert [user["email"] for user in pending.json()] == [UNCONFIRMED_EMAIL]
+    assert [item["confirmed_at"] for item in pending.json()["items"]] == [None]
     assert confirmed.status_code == 200
-    assert confirmed.json()["user_confirmed"] is True
-    assert remaining.json() == []
+    assert confirmed.json()["confirmed_at"] is not None
 
 
-async def test_confirming_an_unknown_user_is_not_found(
+async def test_confirming_an_unknown_company_is_not_found(
     client: AsyncClient, staff_headers: dict[str, str]
 ):
-    response = await client.post(f"/api/users/{uuid4()}/confirm", headers=staff_headers)
+    response = await client.post(
+        f"/api/companies/{uuid4()}/confirm", headers=staff_headers
+    )
 
     assert response.status_code == 404
-    assert response.json()["code"] == "error.user_not_found"
+    assert response.json()["code"] == "error.company_not_found"
 
 
 async def test_admin_updates_a_company_user(

@@ -51,7 +51,6 @@ async def make_local_user(user_repository, company_repository, email: str) -> Us
             password=LOCAL_PASSWORD_HASH,
             is_company=True,
             company_id=company.id,
-            user_confirmed=True,
             email_confirmed=True,
         )
     )
@@ -129,7 +128,6 @@ async def test_keycloak_first_login_creates_staff_user(
     assert user.is_staff is True
     assert user.is_company is False
     assert user.company_id is None
-    assert user.user_confirmed is True
     assert user.email_confirmed is True
     loaded = await user_repository.load_user_roles(user)
     assert [role.name for role in loaded.roles] == ["vis-active"]

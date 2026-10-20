@@ -36,7 +36,6 @@ async def population(
         password=None,
         first_name="Grace",
         last_name="Hopper",
-        user_confirmed=False,
     )
     other = await create_user(
         email=OTHER_COMPANY_EMAIL, password=None, company_name=OTHER_COMPANY_NAME
@@ -48,15 +47,13 @@ async def emails(response: Response) -> list[str]:
     return [item["email"] for item in response.json()["items"]]
 
 
-async def test_user_list_is_paginated_with_unconfirmed_users_first(
+async def test_user_list_is_paginated_by_email(
     client: AsyncClient,
     population: list[User],
     create_user: Callable[..., Awaitable[User]],
     staff_headers: dict[str, str],
 ):
-    await create_user(
-        email="zoe.pending@example.com", password=None, user_confirmed=False
-    )
+    await create_user(email="zoe.pending@example.com", password=None)
 
     first = await client.get("/api/users?page=1&page_size=2", headers=staff_headers)
     second = await client.get("/api/users?page=2&page_size=2", headers=staff_headers)
@@ -66,9 +63,9 @@ async def test_user_list_is_paginated_with_unconfirmed_users_first(
     assert first.json()["total"] == 6
     assert first.json()["page"] == 1
     assert first.json()["page_size"] == 2
-    assert await emails(first) == ["pending@example.com", "zoe.pending@example.com"]
-    assert await emails(second) == ["admin@example.com", OTHER_COMPANY_EMAIL]
-    assert await emails(third) == ["company@example.com", "staff@example.com"]
+    assert await emails(first) == ["admin@example.com", OTHER_COMPANY_EMAIL]
+    assert await emails(second) == ["company@example.com", "pending@example.com"]
+    assert await emails(third) == ["staff@example.com", "zoe.pending@example.com"]
 
 
 @pytest.mark.parametrize(
@@ -161,13 +158,12 @@ async def test_user_list_rejects_an_oversized_page(
 @pytest.mark.parametrize(
     ("user_filter", "expected"),
     [
-        ("unconfirmed", ["pending@example.com"]),
         (
             "company",
             [
-                "pending@example.com",
                 OTHER_COMPANY_EMAIL,
                 "company@example.com",
+                "pending@example.com",
             ],
         ),
         ("staff", ["admin@example.com", "staff@example.com"]),
@@ -292,25 +288,6 @@ async def test_staff_resend_is_rate_limited(
     assert accepted == [200] * limit
     assert blocked.status_code == 429
     assert blocked.json()["code"] == "error.rate_limited"
-
-
-async def test_staff_confirms_a_user_through_the_patch_route(
-    client: AsyncClient,
-    create_user: Callable[..., Awaitable[User]],
-    non_admin_staff_headers: dict[str, str],
-):
-    user = await create_user(
-        email="pending@example.com", password=None, user_confirmed=False
-    )
-
-    response = await client.patch(
-        f"/api/users/{user.id}",
-        json={"user_confirmed": True},
-        headers=non_admin_staff_headers,
-    )
-
-    assert response.status_code == 200
-    assert response.json()["user_confirmed"] is True
 
 
 async def test_staff_reassigns_a_user_to_another_company(

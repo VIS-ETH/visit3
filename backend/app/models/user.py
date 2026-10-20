@@ -47,7 +47,6 @@ class User(BaseEntity, table=True):
     is_admin: bool = False
     is_company: bool = False
 
-    user_confirmed: bool = False
     email_confirmed: bool = False
 
     pending_invite_token: str | None = Field(default=None)

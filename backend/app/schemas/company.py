@@ -177,7 +177,6 @@ class InviteInfoResponse(InviteInfoResult):
 
 
 class CompanyAssignedUserResult(CompanyMemberResult):
-    user_confirmed: bool
     email_confirmed: bool
 
 
@@ -195,6 +194,7 @@ class CompanyResponse(CompanyBase):
 
 
 class MyCompanyResult(CompanyBase):
+    confirmed_at: datetime | None
     profile_complete: bool
     profile_bookable: bool
     missing_profile_fields: list[str]
@@ -205,6 +205,7 @@ class MyCompanyResponse(MyCompanyResult):
 
 
 class CompanyListResult(CompanyBase):
+    confirmed_at: datetime | None
     users_count: int
     bookings_count: int
     new_members_count: int = 0
@@ -226,6 +227,7 @@ class CompanyPageResponse(CompanyPageResult):
 
 
 class CompanyWithUsersResult(CompanyBase):
+    confirmed_at: datetime | None
     users: list[CompanyAssignedUserResult]
 
 

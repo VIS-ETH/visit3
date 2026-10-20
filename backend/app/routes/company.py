@@ -361,6 +361,18 @@ async def add_company_member(
 
 
 @companies_router.post(
+    "/{company_id}/confirm",
+    operation_id="confirmCompany",
+    response_model=CompanyWithUsersResponse,
+)
+async def confirm_company(
+    company_service: CompanyServiceDep,
+    company_id: UUID,
+) -> CompanyWithUsersResult:
+    return await company_service.confirm_company(company_id)
+
+
+@companies_router.post(
     "/{company_id}/members/acknowledge",
     operation_id="acknowledgeCompanyNewMembers",
     response_model=list[StaffUserResponse],

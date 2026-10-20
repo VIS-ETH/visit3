@@ -104,7 +104,7 @@ class CompanyRepository(BaseRepository[Company]):
         limit: int | None = None,
         sort: CompanySort = CompanySort.NAME,
         direction: SortDirection = SortDirection.ASC,
-    ) -> Sequence[tuple[UUID, str, int, int, int]]:
+    ) -> Sequence[tuple[UUID, str, datetime | None, int, int, int]]:
         users_count = (
             select(func.count(col(User.id)))
             .where(col(User.company_id) == col(Company.id), self._not_deleted(User))
@@ -141,6 +141,7 @@ class CompanyRepository(BaseRepository[Company]):
             .with_only_columns(
                 col(Company.id),
                 col(Company.name),
+                col(Company.confirmed_at),
                 users_count,
                 bookings_count,
                 new_members_count,
@@ -155,8 +156,10 @@ class CompanyRepository(BaseRepository[Company]):
         )
         result = await self.session.execute(statement)
         return [
-            (company_id, name, users, bookings, new_members)
-            for company_id, name, users, bookings, new_members in result.all()
+            (company_id, name, confirmed_at, users, bookings, new_members)
+            for company_id, name, confirmed_at, users, bookings, new_members in (
+                result.all()
+            )
         ]
 
     async def get_user_by_email(self, email: str) -> Optional[User]:
@@ -443,13 +446,26 @@ class CompanyRepository(BaseRepository[Company]):
         result = await self.session.execute(statement)
         return result.scalar_one_or_none() or user
 
-    async def assign_user(self, user: User, company_id: UUID) -> User:
+    async def assign_user(
+        self, user: User, company_id: UUID, mark_new: bool = True
+    ) -> User:
         try:
             user.company_id = company_id
-            user.new_in_company_since = datetime.now(timezone.utc)
+            user.new_in_company_since = datetime.now(timezone.utc) if mark_new else None
             self.session.add(user)
             await self.session.commit()
             return await self._load_user_company(user)
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def confirm_company(self, company: Company) -> Company:
+        try:
+            company.confirmed_at = datetime.now(timezone.utc)
+            self.session.add(company)
+            await self.session.commit()
+            await self.session.refresh(company)
+            return company
         except Exception as e:
             await self.session.rollback()
             raise e

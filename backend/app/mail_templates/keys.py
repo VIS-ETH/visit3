@@ -3,14 +3,14 @@ from enum import StrEnum
 
 class MailTemplateKey(StrEnum):
     ACCOUNT_CONFIRM_EMAIL = "account_confirm_email"
-    ACCOUNT_CONFIRMED = "account_confirmed"
-    ACCOUNT_AWAITING_CONFIRMATION = "account_awaiting_confirmation"
     PASSWORD_RESET = "password_reset"
     ACCOUNT_EXISTS = "account_exists"
     EMAIL_CHANGE_CONFIRM = "email_change_confirm"
     EMAIL_CHANGE_NOTICE = "email_change_notice"
     EMAIL_CHANGED = "email_changed"
     COMPANY_INVITE = "company_invite"
+    COMPANY_CONFIRMED = "company_confirmed"
+    COMPANY_AWAITING_CONFIRMATION = "company_awaiting_confirmation"
     BOOKING_REGISTERED = "booking_registered"
     BOOKING_ACCEPTED = "booking_accepted"
     BOOKING_REJECTED = "booking_rejected"

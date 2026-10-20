@@ -29,7 +29,11 @@ from app.core.exceptions import (
     UserNotFound,
 )
 from app.core.utils import normalize_email
-from app.mail_templates.context import CompanyInviteContext
+from app.mail_templates.context import (
+    CompanyAwaitingConfirmationContext,
+    CompanyConfirmedContext,
+    CompanyInviteContext,
+)
 from app.mail_templates.keys import MailTemplateKey
 from app.models.company import (
     BOOKING_DEFERRED_PROFILE_FIELDS,
@@ -60,6 +64,7 @@ from app.services.storage_service import StorageService, UploadKind, UploadStrea
 logger = logging.getLogger(__name__)
 
 INVITE_EXPIRE = timedelta(days=7)
+STAFF_COMPANY_REVIEW_PATH = "/company-management"
 LOGO_CONTEXT = "company_profile_logo"
 LOGO_MIME_TYPES = {"image/png", "image/jpeg", "image/webp"}
 
@@ -150,6 +155,7 @@ class CompanyService:
             CompanyListResult(
                 id=company_id,
                 name=name,
+                confirmed_at=confirmed_at,
                 users_count=users_count,
                 bookings_count=bookings_count,
                 new_members_count=new_members_count,
@@ -157,6 +163,7 @@ class CompanyService:
             for (
                 company_id,
                 name,
+                confirmed_at,
                 users_count,
                 bookings_count,
                 new_members_count,
@@ -167,6 +174,7 @@ class CompanyService:
         return CompanyWithUsersResult(
             id=company.id,
             name=company.name,
+            confirmed_at=company.confirmed_at,
             users=[
                 CompanyAssignedUserResult(
                     id=user.id,
@@ -174,7 +182,6 @@ class CompanyService:
                     first_name=user.first_name,
                     last_name=user.last_name,
                     phone_number=user.phone_number,
-                    user_confirmed=user.user_confirmed,
                     email_confirmed=user.email_confirmed,
                 )
                 for user in company.users
@@ -247,11 +254,7 @@ class CompanyService:
         return joined
 
     async def setup_company(self, name: str) -> Company:
-        if not (
-            self.current_user.email_confirmed
-            and self.current_user.user_confirmed
-            and self.current_user.is_company
-        ):
+        if not (self.current_user.email_confirmed and self.current_user.is_company):
             raise NotAllowed(f"setup_company:not_confirmed:{self.current_user.id}")
         if self.current_user.company_id:
             raise NotAllowed(f"setup_company:already_in_company:{self.current_user.id}")
@@ -262,13 +265,62 @@ class CompanyService:
         if existing:
             raise CompanyNameTaken(f"setup_company:name_taken:{normalized}")
         company = await self.company_repository.create_company(normalized)
-        await self.company_repository.assign_user(self.current_user, company.id)
+        await self.company_repository.assign_user(
+            self.current_user, company.id, mark_new=False
+        )
         logger.info(
             "Company created and joined: %s -> %s",
             self.current_user.id,
             company.id,
         )
+        await self._notify_company_awaiting_confirmation(company)
         return company
+
+    async def _notify_company_awaiting_confirmation(self, company: Company) -> None:
+        try:
+            await self.mail_template_service.send_to_staff_notification(
+                MailTemplateKey.COMPANY_AWAITING_CONFIRMATION,
+                CompanyAwaitingConfirmationContext(
+                    company_name=company.name,
+                    name=self.current_user.display_name,
+                    email=self.current_user.email,
+                    admin_url=(
+                        f"{get_settings().VISIT_FRONTEND_SERVER_URL}"
+                        f"{STAFF_COMPANY_REVIEW_PATH}"
+                    ),
+                ),
+            )
+        except MailUnavailable:
+            logger.exception("Staff notification failed for company %s", company.id)
+
+    async def confirm_company(self, company_id: UUID) -> CompanyWithUsersResult:
+        require_staff_user(self.current_user)
+        company = await self.company_repository.get_by_id(company_id)
+        if not company:
+            raise CompanyNotFound(f"confirm_company:{company_id}")
+        if company.confirmed_at is None:
+            confirmed = await self.company_repository.confirm_company(company)
+            await self._send_company_confirmed(confirmed)
+            logger.info(
+                "Company confirmed by staff %s: %s", self.current_user.id, company.id
+            )
+        return await self.get_company_with_users(company_id)
+
+    async def _send_company_confirmed(self, company: Company) -> None:
+        login_url = f"{get_settings().VISIT_FRONTEND_SERVER_URL}/"
+        for user in await self.company_repository.get_users(company):
+            try:
+                await self.mail_template_service.send(
+                    MailTemplateKey.COMPANY_CONFIRMED,
+                    [user.email],
+                    CompanyConfirmedContext(
+                        name=user.display_name,
+                        company_name=company.name,
+                        login_url=login_url,
+                    ),
+                )
+            except Exception:
+                logger.exception("Company confirmed mail failed for %s", user.id)
 
     async def get_my_members(self) -> Sequence[User]:
         company_user = require_assigned_company_user(self.current_user)
@@ -386,6 +438,7 @@ class CompanyService:
         return MyCompanyResult(
             id=company.id,
             name=company.name,
+            confirmed_at=company.confirmed_at,
             profile_complete=not missing,
             profile_bookable=all(
                 name in BOOKING_DEFERRED_PROFILE_FIELDS for name in missing

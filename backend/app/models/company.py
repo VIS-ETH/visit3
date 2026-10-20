@@ -82,6 +82,9 @@ class Company(BaseEntity, table=True):
     __table_args__ = (unique_among_active_index("ix_company_name", "name"),)
 
     name: str
+    confirmed_at: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
 
     users: list["User"] = Relationship(back_populates="company")
     invites: list["CompanyInvite"] = Relationship(back_populates="company")
