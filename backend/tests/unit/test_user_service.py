@@ -10,7 +10,6 @@ from app.core.exceptions import (
     NotAllowed,
     PhoneNumberInvalid,
     UserLastCompanyMember,
-    UserNotFound,
 )
 from app.schemas.user import UpdateCompanyUserInput, UpdateUserProfileInput
 from app.services.auth_service import AuthService
@@ -100,37 +99,6 @@ async def test_logout_user_without_token_is_noop(user_service):
     await user_service.service.logout_user(None)
 
     user_service.token_repo.revoke_refresh_token.assert_not_awaited()
-
-
-async def test_confirm_user_rejects_non_staff_user(user_service):
-    with pytest.raises(NotAllowed):
-        await user_service.service.confirm_user(uuid4())
-
-    user_service.user_repo.get_by_id.assert_not_awaited()
-
-
-async def test_confirm_user_raises_when_target_missing(
-    user_repo,
-    token_repo,
-    company_repo,
-    auth_service,
-    mail_template_service,
-    staff_user,
-):
-    service = UserService(
-        user_repo,
-        token_repo,
-        company_repo,
-        auth_service,
-        mail_template_service,
-        staff_user,
-    )
-    user_repo.get_by_id.return_value = None
-
-    with pytest.raises(UserNotFound):
-        await service.confirm_user(uuid4())
-
-    user_repo.confirm_user.assert_not_awaited()
 
 
 async def test_update_company_user_rejects_email_of_another_user(
@@ -319,35 +287,6 @@ async def test_update_company_user_rejects_flag_changes_by_plain_staff(
         )
 
     user_repo.update_user.assert_not_awaited()
-
-
-async def test_update_company_user_lets_staff_confirm_a_user(
-    user_repo,
-    token_repo,
-    company_repo,
-    auth_service,
-    mail_template_service,
-    staff_user,
-    make_user,
-):
-    target = make_user(email="target@example.com", user_confirmed=False)
-    service = UserService(
-        user_repo,
-        token_repo,
-        company_repo,
-        auth_service,
-        mail_template_service,
-        staff_user,
-    )
-    user_repo.get_by_id.return_value = target
-    user_repo.update_user.return_value = target
-
-    await service.update_company_user(
-        target.id, UpdateCompanyUserInput(user_confirmed=True)
-    )
-
-    passed_update = user_repo.update_user.await_args.args[1]
-    assert passed_update.model_dump(exclude_unset=True) == {"user_confirmed": True}
 
 
 async def test_update_company_user_rejects_an_unknown_company(

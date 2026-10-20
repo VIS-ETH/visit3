@@ -2,16 +2,16 @@ import { Alert, AppShell, Button } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { Outlet } from "react-router";
 import { useTranslation } from "react-i18next";
-import { useQueryClient } from "@tanstack/react-query";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import { readSessionBool, setSessionBool } from "../utils/session-storage";
 import {
   clearImpersonation,
   getImpersonatingDisplayName,
+  getImpersonationOrigin,
   isImpersonating,
 } from "../api/utils";
-import { resetQueriesForIdentityChange } from "../api/query-cache";
+import { getSafeInternalPath, reloadAt } from "../utils/navigation";
 
 interface RootLayoutProps {
   navbarHidden: boolean;
@@ -27,7 +27,6 @@ const defaultNavbarOpen = () => {
 
 const RootLayout = ({ navbarHidden }: RootLayoutProps) => {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const [navbarOpened, setNavbarOpened] = useState<boolean>(() =>
     readSessionBool(NAVBAR_OPEN_KEY, defaultNavbarOpen()),
   );
@@ -52,8 +51,9 @@ const RootLayout = ({ navbarHidden }: RootLayoutProps) => {
   }, []);
 
   const handleStopImpersonating = () => {
+    const origin = getSafeInternalPath(getImpersonationOrigin()) ?? "/";
     clearImpersonation();
-    resetQueriesForIdentityChange(queryClient);
+    reloadAt(origin);
   };
 
   return (

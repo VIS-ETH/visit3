@@ -24,9 +24,18 @@ async def unconfirmed_company_user(
 ) -> User:
     return await create_user(
         email="pending@example.com",
-        company_name="Pending AG",
-        user_confirmed=False,
         email_confirmed=False,
+    )
+
+
+@pytest.fixture
+async def pending_company_user(
+    create_user: Callable[..., Awaitable[User]],
+) -> User:
+    return await create_user(
+        email="pending@example.com",
+        company_name="Pending AG",
+        company_confirmed=False,
     )
 
 
@@ -112,7 +121,7 @@ async def test_company_invite_sends_the_invite_mail(
     )
 
 
-async def test_email_confirmation_notifies_the_staff_address(
+async def test_email_confirmation_notifies_nobody(
     client: AsyncClient,
     csrf_headers: dict[str, str],
     auth_service: AuthService,
@@ -126,97 +135,60 @@ async def test_email_confirmation_notifies_the_staff_address(
     )
 
     assert response.status_code == 200
+    mail_stub.SendMail.assert_not_awaited()
+
+
+async def test_company_setup_notifies_the_staff_address(
+    client: AsyncClient,
+    create_user: Callable[..., Awaitable[User]],
+    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
+    csrf_headers: dict[str, str],
+    mail_stub: AsyncMock,
+):
+    founder = await create_user(email="founder@example.com")
+
+    response = await client.post(
+        "/api/company/setup",
+        json={"name": "Neu AG"},
+        headers={**await auth_headers(founder), **csrf_headers},
+    )
+
+    assert response.status_code == 200
     message = sent_message(mail_stub)
     assert recipients(message) == ["kontaktparty@vis.ethz.ch"]
     assert decoded_subject(message) == (
-        "VISIT: Neues Konto wartet auf Freigabe / VISIT: New account awaiting approval"
+        "VISIT: Neues Unternehmen Neu AG wartet auf Freigabe"
+        " / VISIT: New company Neu AG awaiting approval"
     )
+    assert "founder@example.com" in getattr(message, "plain_text")
 
 
-async def test_staff_confirmation_sends_the_account_confirmed_mail(
+async def test_staff_confirmation_sends_the_company_confirmed_mail(
     client: AsyncClient,
     staff_headers: dict[str, str],
-    unconfirmed_company_user: User,
+    pending_company_user: User,
     mail_stub: AsyncMock,
 ):
     response = await client.post(
-        f"/api/users/{unconfirmed_company_user.id}/confirm", headers=staff_headers
+        f"/api/companies/{pending_company_user.company_id}/confirm",
+        headers=staff_headers,
     )
 
     assert response.status_code == 200
     message = sent_message(mail_stub)
-    assert recipients(message) == [unconfirmed_company_user.email]
+    assert recipients(message) == [pending_company_user.email]
     assert decoded_subject(message) == (
-        "VISIT: Konto freigeschaltet / VISIT: Account activated"
+        "VISIT: Pending AG freigeschaltet / VISIT: Pending AG approved"
     )
-    assert "/auth/link/" in getattr(message, "plain_text")
 
 
-async def test_staff_confirmation_of_a_staff_user_sends_nothing(
+async def test_confirming_a_company_twice_sends_the_mail_once(
     client: AsyncClient,
     staff_headers: dict[str, str],
-    create_user: Callable[..., Awaitable[User]],
+    pending_company_user: User,
     mail_stub: AsyncMock,
 ):
-    colleague = await create_user(
-        email="colleague@example.com",
-        is_staff=True,
-        is_company=False,
-        user_confirmed=False,
-    )
-
-    response = await client.post(
-        f"/api/users/{colleague.id}/confirm", headers=staff_headers
-    )
-
-    assert response.status_code == 200
-    mail_stub.SendMail.assert_not_awaited()
-
-
-async def test_confirming_through_the_user_editor_sends_the_account_confirmed_mail(
-    client: AsyncClient,
-    staff_headers: dict[str, str],
-    unconfirmed_company_user: User,
-    mail_stub: AsyncMock,
-):
-    response = await client.patch(
-        f"/api/users/{unconfirmed_company_user.id}",
-        json={"user_confirmed": True},
-        headers=staff_headers,
-    )
-
-    assert response.status_code == 200
-    assert response.json()["user_confirmed"] is True
-    message = sent_message(mail_stub)
-    assert recipients(message) == [unconfirmed_company_user.email]
-    assert getattr(message, "subject") == (
-        "VISIT: Konto freigeschaltet / VISIT: Account activated"
-    )
-
-
-async def test_editing_a_confirmed_user_sends_no_account_confirmed_mail(
-    client: AsyncClient,
-    staff_headers: dict[str, str],
-    company_user: User,
-    mail_stub: AsyncMock,
-):
-    response = await client.patch(
-        f"/api/users/{company_user.id}",
-        json={"user_confirmed": True, "first_name": "Renamed"},
-        headers=staff_headers,
-    )
-
-    assert response.status_code == 200
-    mail_stub.SendMail.assert_not_awaited()
-
-
-async def test_confirming_twice_sends_the_mail_once(
-    client: AsyncClient,
-    staff_headers: dict[str, str],
-    unconfirmed_company_user: User,
-    mail_stub: AsyncMock,
-):
-    confirm_url = f"/api/users/{unconfirmed_company_user.id}/confirm"
+    confirm_url = f"/api/companies/{pending_company_user.company_id}/confirm"
 
     await client.post(confirm_url, headers=staff_headers)
     await client.post(confirm_url, headers=staff_headers)
@@ -224,26 +196,24 @@ async def test_confirming_twice_sends_the_mail_once(
     mail_stub.SendMail.assert_awaited_once()
 
 
-async def test_a_failed_account_confirmed_mail_keeps_the_confirmation(
+async def test_a_failed_company_confirmed_mail_keeps_the_confirmation(
     client: AsyncClient,
     staff_headers: dict[str, str],
-    unconfirmed_company_user: User,
+    pending_company_user: User,
     mail_stub: AsyncMock,
     caplog: pytest.LogCaptureFixture,
 ):
     mail_stub.SendMail.side_effect = RuntimeError("notifications api down")
 
     response = await client.post(
-        f"/api/users/{unconfirmed_company_user.id}/confirm", headers=staff_headers
-    )
-    user = await client.get(
-        f"/api/users/{unconfirmed_company_user.id}", headers=staff_headers
+        f"/api/companies/{pending_company_user.company_id}/confirm",
+        headers=staff_headers,
     )
 
     assert response.status_code == 200
-    assert user.json()["user_confirmed"] is True
+    assert response.json()["confirmed_at"] is not None
     assert any(
         record.levelname == "ERROR"
-        and str(unconfirmed_company_user.id) in record.getMessage()
+        and str(pending_company_user.id) in record.getMessage()
         for record in caplog.records
     )

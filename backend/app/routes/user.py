@@ -8,6 +8,7 @@ from fastapi import APIRouter, Cookie, Query, Response
 from app.core.deps import AuthServiceDep, CsrfDep, CurrentUserDep, UserServiceDep
 from app.core.rate_limit import user_rate_limit
 from app.models.user import User
+from app.schemas.sorting import SortDirection
 from app.schemas.user import (
     CompanyUserResponse,
     EmailChangeRequest,
@@ -17,6 +18,7 @@ from app.schemas.user import (
     UserPageResponse,
     UserPageResult,
     UserResponse,
+    UserSort,
 )
 
 logger = logging.getLogger(__name__)
@@ -119,17 +121,6 @@ async def validate_confirm_email_token(
     return await auth_service.validate_confirm_email_token(token)
 
 
-@router.get(
-    "/unconfirmed",
-    operation_id="getUnconfirmedUsers",
-    response_model=list[CompanyUserResponse],
-)
-async def get_unconfirmed_users(
-    user_service: UserServiceDep,
-) -> Sequence[User]:
-    return await user_service.get_unconfirmed_users()
-
-
 @users_router.get(
     "",
     operation_id="listUsers",
@@ -141,8 +132,12 @@ async def list_users(
     filter: UserFilter = UserFilter.ALL,
     page: int = Query(default=1, ge=1, le=MAX_PAGE),
     page_size: int = Query(default=25, ge=1, le=MAX_PAGE_SIZE),
+    sort: UserSort | None = None,
+    direction: SortDirection = SortDirection.ASC,
 ) -> UserPageResult:
-    return await user_service.list_users(query, filter, page, page_size)
+    return await user_service.list_users(
+        query, filter, page, page_size, sort, direction
+    )
 
 
 @users_router.get(
@@ -152,15 +147,6 @@ async def list_users(
 )
 async def get_user(user_service: UserServiceDep, user_id: UUID) -> User:
     return await user_service.get_user(user_id)
-
-
-@users_router.post(
-    "/{user_id}/confirm",
-    operation_id="confirmUser",
-    response_model=UserResponse,
-)
-async def confirm_user(user_service: UserServiceDep, user_id: UUID) -> User:
-    return await user_service.confirm_user(user_id)
 
 
 @users_router.post(

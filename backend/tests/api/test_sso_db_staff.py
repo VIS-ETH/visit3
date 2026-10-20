@@ -43,7 +43,6 @@ async def stored_user(
         is_staff=is_staff,
         is_admin=is_admin,
         is_company=is_company,
-        user_confirmed=True,
         email_confirmed=True,
     )
     roles = [await RoleRepository(db_session).get_or_create("vis-active")]
@@ -95,7 +94,7 @@ async def test_an_unknown_member_logs_in_without_any_rights(
     assert refresh_token
     assert rights(user) == NO_RIGHTS
     assert user.roles == []
-    assert (user.user_confirmed, user.email_confirmed) == (True, True)
+    assert user.email_confirmed is True
     assert (user.first_name, user.last_name) == ("Grace", "Hopper")
 
 
@@ -131,7 +130,7 @@ async def test_an_unconfirmed_local_account_is_replaced(
     create_user: Callable[..., Awaitable[User]],
     db_session: AsyncSession,
 ):
-    local = await create_user(email=EMAIL, email_confirmed=False, user_confirmed=False)
+    local = await create_user(email=EMAIL, email_confirmed=False)
 
     await auth_service.login_keycloak_user(claims(), "kc-refresh-1")
 

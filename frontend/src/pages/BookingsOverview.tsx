@@ -252,7 +252,8 @@ const BookingsOverview = () => {
               </Title>
               <Text size="sm" c="dimmed">
                 {t("kp.bookings_overview.total_detail", {
-                  net: formatPrice(summary.total.price.net),
+                  base: formatPrice(summary.total.base),
+                  services: formatPrice(summary.total.services),
                   vat: formatPrice(summary.total.price.vat),
                   rate: summary.vat_rate_percent,
                 })}

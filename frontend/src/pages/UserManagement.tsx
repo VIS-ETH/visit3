@@ -19,34 +19,34 @@ import { useDebouncedValue } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
   IconAlertCircle,
-  IconCheck,
   IconMailForward,
   IconPencil,
   IconSearch,
   IconTrash,
   IconUserSearch,
 } from "@tabler/icons-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
-import { resetQueriesForIdentityChange } from "../api/query-cache";
-import { getImpersonatingUserId, setImpersonation } from "../api/utils";
+import { useSearchParams } from "react-router";
+import { getImpersonatingUserId } from "../api/utils";
 import UserDeleteModal from "../components/admin/UserDeleteModal";
 import UserEditDrawer from "../components/admin/UserEditDrawer";
 import UserFlagBadges from "../components/admin/UserFlagBadges";
+import { useImpersonate } from "../components/admin/useImpersonate";
 import { useCurrentUser } from "../context/useCurrentUser";
+import SortableHeader from "../components/SortableHeader";
 import {
   UserFilter,
   type UserResponse,
+  type UserSort,
 } from "../orval/generated/fastAPI.schemas";
 import {
-  getListUsersQueryKey,
-  useConfirmUser,
   useListUsers,
   useResendUserConfirmationMail,
 } from "../orval/generated/user/user";
 import { getDisplayName } from "../utils/display";
+import { useSort } from "../utils/sort";
 import BookingNewAdditionsBadge from "../components/bookings/BookingNewAdditionsBadge";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -70,24 +70,41 @@ const formatTimestamp = (
   return format.format(parsed);
 };
 
+const SORT_COLUMNS: [UserSort, string][] = [
+  ["email", "user_management.email"],
+  ["name", "user_management.name"],
+  ["company", "user_management.company"],
+  ["role", "user_management.flags.header"],
+  ["status", "user_management.status"],
+  ["signed_up", "user_management.signed_up"],
+  ["last_login", "user_management.last_login"],
+];
+
 const filterLabelKeys: Record<UserFilter, string> = {
   [UserFilter.all]: "user_management.filters.all",
-  [UserFilter.unconfirmed]: "user_management.filters.unconfirmed",
   [UserFilter.company]: "user_management.filters.company",
   [UserFilter.staff]: "user_management.filters.staff",
+  [UserFilter.new]: "user_management.filters.new",
 };
+
+const isUserFilter = (value: string | null): value is UserFilter =>
+  value !== null && value in filterLabelKeys;
 
 const UserManagement = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { user: currentUser } = useCurrentUser();
   const isAdmin = currentUser?.is_admin ?? false;
+  const { canImpersonate, impersonate } = useImpersonate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("query") ?? "");
   const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
-  const [filter, setFilter] = useState<UserFilter>(UserFilter.all);
+  const [filter, setFilter] = useState<UserFilter>(() => {
+    const initial = searchParams.get("filter");
+    return isUserFilter(initial) ? initial : UserFilter.all;
+  });
   const [page, setPage] = useState(1);
+  const { sort, toggleSort } = useSort<UserSort>(null, () => setPage(1));
   const [editedUser, setEditedUser] = useState<UserResponse | null>(null);
   const [deletedUser, setDeletedUser] = useState<UserResponse | null>(null);
 
@@ -95,27 +112,32 @@ const UserManagement = () => {
     setPage(1);
   }, [debouncedSearch, filter]);
 
-  const { data, isLoading, isError } = useListUsers({
-    query: debouncedSearch.trim() || undefined,
-    filter,
-    page,
-    page_size: PAGE_SIZE,
-  });
-
-  const invalidateUsers = () =>
-    queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
-
-  const { mutate: confirmUser, isPending: isConfirming } = useConfirmUser({
-    mutation: {
-      onSuccess: async () => {
-        await invalidateUsers();
-        notifications.show({
-          color: "green",
-          message: t("user_management.confirmed_notice"),
-        });
+  useEffect(() => {
+    const query = debouncedSearch.trim();
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (query) next.set("query", query);
+        else next.delete("query");
+        if (filter === UserFilter.all) next.delete("filter");
+        else next.set("filter", filter);
+        return next;
       },
+      { replace: true },
+    );
+  }, [debouncedSearch, filter, setSearchParams]);
+
+  const { data, isLoading, isError } = useListUsers(
+    {
+      query: debouncedSearch.trim() || undefined,
+      filter,
+      page,
+      page_size: PAGE_SIZE,
+      sort: sort?.field,
+      direction: sort?.direction,
     },
-  });
+    { query: { placeholderData: keepPreviousData } },
+  );
 
   const { mutate: resendConfirmation, isPending: isResending } =
     useResendUserConfirmationMail({
@@ -128,16 +150,6 @@ const UserManagement = () => {
         },
       },
     });
-
-  const impersonate = (target: UserResponse) => {
-    if (!isAdmin) return;
-    setImpersonation(
-      target.id,
-      getDisplayName(target.first_name, target.last_name, target.email),
-    );
-    resetQueriesForIdentityChange(queryClient);
-    navigate("/", { replace: true });
-  };
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -199,13 +211,15 @@ const UserManagement = () => {
                   <Table highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
-                        <Table.Th>{t("user_management.email")}</Table.Th>
-                        <Table.Th>{t("user_management.name")}</Table.Th>
-                        <Table.Th>{t("user_management.company")}</Table.Th>
-                        <Table.Th>{t("user_management.flags.header")}</Table.Th>
-                        <Table.Th>{t("user_management.status")}</Table.Th>
-                        <Table.Th>{t("user_management.signed_up")}</Table.Th>
-                        <Table.Th>{t("user_management.last_login")}</Table.Th>
+                        {SORT_COLUMNS.map(([field, labelKey]) => (
+                          <SortableHeader
+                            key={field}
+                            field={field}
+                            label={t(labelKey)}
+                            sort={sort}
+                            onSort={toggleSort}
+                          />
+                        ))}
                         <Table.Th>{t("user_management.actions")}</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -229,15 +243,11 @@ const UserManagement = () => {
                           </Table.Td>
                           <Table.Td>
                             <Group gap="xs" wrap="wrap">
-                              <Badge
-                                color={item.user_confirmed ? "green" : "yellow"}
-                                variant="light"
-                              >
-                                {item.user_confirmed
-                                  ? t("user_management.confirmed")
-                                  : t("user_management.unconfirmed")}
-                              </Badge>
-                              {item.email_confirmed ? null : (
+                              {item.email_confirmed ? (
+                                <Badge color="green" variant="light">
+                                  {t("user_management.confirmed")}
+                                </Badge>
+                              ) : (
                                 <Badge color="orange" variant="light">
                                   {t("user_management.email_unconfirmed")}
                                 </Badge>
@@ -275,24 +285,6 @@ const UserManagement = () => {
                           </Table.Td>
                           <Table.Td>
                             <Group gap="xs" wrap="nowrap">
-                              {item.user_confirmed ? null : (
-                                <Tooltip
-                                  label={t("user_management.confirm")}
-                                  withArrow
-                                >
-                                  <ActionIcon
-                                    aria-label={t("user_management.confirm")}
-                                    color="green"
-                                    disabled={isConfirming}
-                                    onClick={() =>
-                                      confirmUser({ userId: item.id })
-                                    }
-                                    variant="light"
-                                  >
-                                    <IconCheck size={16} />
-                                  </ActionIcon>
-                                </Tooltip>
-                              )}
                               {item.email_confirmed ? null : (
                                 <Tooltip
                                   label={t("user_management.resend")}
@@ -310,7 +302,7 @@ const UserManagement = () => {
                                   </ActionIcon>
                                 </Tooltip>
                               )}
-                              {isAdmin ? (
+                              {canImpersonate ? (
                                 <Tooltip
                                   label={t("user_management.impersonate")}
                                   withArrow

@@ -80,7 +80,6 @@ const parseBlobErrorResponse = async (
 
 const ERROR_CODE_REDIRECTS: Record<string, string> = {
   "error.email_not_confirmed": "/unconfirmed-email",
-  "error.not_confirmed": "/unconfirmed-user",
 };
 
 const CSRF_ERROR_CODE = "csrf.validation_failed";

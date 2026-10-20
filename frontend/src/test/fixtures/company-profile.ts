@@ -13,6 +13,7 @@ import { SLOW_WAIT } from "../timeouts";
 export const testCompany: MyCompanyResponse = {
   id: "99999999-9999-9999-9999-999999999999",
   name: "Acme AG",
+  confirmed_at: "2026-01-01T00:00:00Z",
   profile_complete: true,
   profile_bookable: true,
   missing_profile_fields: [],

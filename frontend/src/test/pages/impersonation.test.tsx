@@ -1,28 +1,21 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import UserManagement from "../../pages/UserManagement";
 import RootLayout from "../../pages/root";
 import { UserProvider } from "../../context/UserContext";
-import {
-  getGetAllStaffQueryKey,
-  useGetCurrentUser,
-} from "../../orval/generated/user/user";
 import type { UserResponse } from "../../orval/generated/fastAPI.schemas";
-import { setImpersonation } from "../../api/utils";
+import { getImpersonatingUserId, setImpersonation } from "../../api/utils";
+import { reloadAt } from "../../utils/navigation";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
-import { QueryClient } from "@tanstack/react-query";
 import { renderWithProviders } from "../render";
 
-const createCachingQueryClient = () =>
-  new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, gcTime: 60_000 },
-      mutations: { retry: false },
-    },
-  });
+vi.mock("../../utils/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/navigation")>()),
+  reloadAt: vi.fn(),
+}));
 
 const adminUser: UserResponse = {
   id: "admin-1",
@@ -31,7 +24,6 @@ const adminUser: UserResponse = {
   is_admin: true,
   is_company: false,
   is_kp_president: true,
-  user_confirmed: true,
   email_confirmed: true,
 };
 
@@ -44,28 +36,16 @@ const companyUser = {
   is_admin: false,
   is_company: true,
   is_kp_president: false,
-  user_confirmed: true,
   email_confirmed: true,
 };
 
-const CurrentUserProbe = () => {
-  useGetCurrentUser();
-  return null;
-};
-
-let meRequests = 0;
-
 beforeEach(() => {
-  meRequests = 0;
+  vi.mocked(reloadAt).mockClear();
   localStorage.setItem("token", createToken(3600));
   server.use(
     http.get(`${testBackendUrl}/api/csrftoken`, () =>
       HttpResponse.json({ token: "csrf-1" }),
     ),
-    http.get(`${testBackendUrl}/api/user/me`, () => {
-      meRequests += 1;
-      return HttpResponse.json(adminUser);
-    }),
     http.get(`${testBackendUrl}/api/users`, () =>
       HttpResponse.json({
         items: [companyUser],
@@ -77,22 +57,14 @@ beforeEach(() => {
   );
 });
 
-describe("impersonation cache reset", () => {
-  it("drops other cached identities when impersonation starts", async () => {
-    const queryClient = createCachingQueryClient();
-    queryClient.setQueryData(getGetAllStaffQueryKey(), [companyUser]);
-
+describe("starting an impersonation", () => {
+  it("reloads as the user and remembers the user management search", async () => {
     const { user } = renderWithProviders(
       <UserProvider user={adminUser} isLoading={false}>
-        <CurrentUserProbe />
         <UserManagement />
       </UserProvider>,
-      { queryClient },
+      { route: "/user-management?query=mem" },
     );
-
-    await waitFor(() => {
-      expect(meRequests).toBe(1);
-    });
 
     await user.click(
       await screen.findByRole("button", {
@@ -100,36 +72,37 @@ describe("impersonation cache reset", () => {
       }),
     );
 
-    await waitFor(() => {
-      expect(meRequests).toBe(2);
-    });
-    expect(queryClient.getQueryData(getGetAllStaffQueryKey())).toBeUndefined();
+    expect(getImpersonatingUserId()).toBe(companyUser.id);
+    expect(sessionStorage.getItem("impersonation_origin")).toBe(
+      "/user-management?query=mem",
+    );
+    expect(reloadAt).toHaveBeenCalledWith("/");
   });
+});
 
-  it("drops other cached identities when impersonation stops", async () => {
-    setImpersonation(companyUser.id, "Mem Ber");
-    const queryClient = createCachingQueryClient();
-    queryClient.setQueryData(getGetAllStaffQueryKey(), [companyUser]);
-
+describe("stopping an impersonation", () => {
+  it.each([
+    ["/company-management?page=2", "/company-management?page=2"],
+    ["//evil.example/phish", "/"],
+    ["https://evil.example/phish", "/"],
+    [undefined, "/"],
+  ])("returns from %s to %s", async (origin, expected) => {
+    setImpersonation(companyUser.id, "Mem Ber", origin);
     const { user } = renderWithProviders(
       <UserProvider user={adminUser} isLoading={false}>
-        <CurrentUserProbe />
         <RootLayout navbarHidden={false} />
       </UserProvider>,
-      { queryClient },
+      { route: "/company" },
     );
-
-    await waitFor(() => {
-      expect(meRequests).toBe(1);
-    });
 
     await user.click(
-      screen.getByRole("button", { name: "impersonation.stop" }),
+      await screen.findByRole("button", { name: "impersonation.stop" }),
     );
 
     await waitFor(() => {
-      expect(meRequests).toBe(2);
+      expect(reloadAt).toHaveBeenCalledWith(expected);
     });
-    expect(queryClient.getQueryData(getGetAllStaffQueryKey())).toBeUndefined();
+    expect(getImpersonatingUserId()).toBeNull();
+    expect(sessionStorage.getItem("impersonation_origin")).toBeNull();
   });
 });

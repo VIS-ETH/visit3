@@ -27,3 +27,22 @@ export const getApiErrorStatus = (error: unknown): number | undefined => {
   if (!isAxiosError(error)) return undefined;
   return error.response?.status;
 };
+
+export const getApiFieldErrors = (
+  error: unknown,
+): { field: string; code: string }[] => {
+  if (!isAxiosError(error)) return [];
+
+  const data: unknown = error.response?.data;
+  if (typeof data !== "object" || data === null) return [];
+
+  const { fieldErrors } = data as { fieldErrors?: unknown };
+  if (!Array.isArray(fieldErrors)) return [];
+  return fieldErrors.flatMap((entry: unknown) => {
+    if (typeof entry !== "object" || entry === null) return [];
+    const { field, code } = entry as { field?: unknown; code?: unknown };
+    return typeof field === "string" && typeof code === "string"
+      ? [{ field, code }]
+      : [];
+  });
+};

@@ -39,7 +39,8 @@
       "submit": "Send confirmation link",
       "sent_title": "Confirmation link sent",
       "sent_message": "Open the link we sent to {{email}} to finish the change.",
-      "pending": "Waiting for confirmation of {{email}}"
+      "pending": "Waiting for confirmation of {{email}}",
+      "current_password": "Current password"
     }
   },
   "impersonation": {
@@ -74,8 +75,8 @@
     "profile_complete_hint": "All mandatory information for the Kontaktparty is filled in.",
     "profile_incomplete_hint": "{{missing}} mandatory fields are still missing.",
     "profile_link": "Edit profile",
-    "unconfirmed_title": "Account not confirmed yet",
-    "members_unconfirmed": "Members become visible once your account is confirmed.",
+    "unconfirmed_title": "Company not confirmed yet",
+    "unconfirmed_description": "The Kontaktparty organisers still need to approve your company. You can already complete the profile and invite colleagues; registering for the Kontaktparty becomes possible once the company is approved.",
     "settings_button": "Settings",
     "settings_title": "Edit company",
     "name_label": "Company name",
@@ -92,7 +93,7 @@
   },
   "company_profile_form": {
     "title": "Company profile",
-    "subtitle": "This information is used for the Kontaktparty catalogue and for invoicing.",
+    "subtitle": "This information is used for the Kontaktparty catalogue and for invoicing. You can save at any time, even before everything is filled in.",
     "load_error": "The company profile could not be loaded.",
     "complete": "Profile complete",
     "incomplete": "Profile incomplete",
@@ -124,6 +125,13 @@
     "editor_italic": "Italic",
     "editor_underline": "Underline",
     "editor_strike": "Strikethrough",
+    "editor_bullet_list": "Bullet list",
+    "editor_ordered_list": "Numbered list",
+    "editor_indent": "Indent list item",
+    "editor_outdent": "Outdent list item",
+    "editor_undo": "Undo",
+    "editor_redo": "Redo",
+    "editor_hint": "Enter starts a new paragraph, Shift+Enter a new line. Type “- ” or “1. ” to start a list, Tab nests an item one level deeper.",
     "description_counter": "{{current}} of {{max}} characters",
     "website": "Website",
     "website_placeholder": "https://example.com",
@@ -152,6 +160,9 @@
     "student_contact_email": "Email for students",
     "student_contact_email_hint": "Shown in the booklet so students can contact you.",
     "student_contact_email_placeholder": "jobs@company.ch",
+    "additional_emails": "Additional email addresses",
+    "additional_emails_hint": "Receive mails from VIS in addition to the contact person. Not shown in the booklet.",
+    "additional_emails_placeholder": "Type an address and press Enter",
     "general_phone": "General phone",
     "billing_company_name": "Billing company name",
     "billing_street": "Street",
@@ -165,6 +176,8 @@
     "errors": {
       "country": "Please select a country."
     },
-    "no_match": "No matches"
+    "no_match": "No matches",
+    "draft_restored_title": "Unsaved changes restored",
+    "draft_restored": "Your last changes were not saved yet. They were kept in this browser and restored here. Save to keep them or discard them."
   }
 }

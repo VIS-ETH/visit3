@@ -20,7 +20,6 @@ export const adminUserSchema = z.object({
     .trim()
     .min(1, "validation.required"),
   company_id: z.string(),
-  user_confirmed: z.boolean(),
   is_staff: z.boolean(),
   is_admin: z.boolean(),
 });
@@ -33,7 +32,6 @@ export const emptyAdminUserFormValues: AdminUserFormValues = {
   phone_number: "",
   email: "",
   company_id: "",
-  user_confirmed: false,
   is_staff: false,
   is_admin: false,
 };
@@ -46,7 +44,6 @@ export const toAdminUserFormValues = (
   phone_number: user.phone_number ?? "",
   email: user.email,
   company_id: user.company_id ?? "",
-  user_confirmed: user.user_confirmed,
   is_staff: user.is_staff,
   is_admin: user.is_admin,
 });
@@ -60,7 +57,6 @@ export const toAdminUserRequest = (
   phone_number: values.phone_number.trim() || null,
   email: values.email.trim(),
   company_id: values.company_id || null,
-  user_confirmed: values.user_confirmed,
   ...(includePrivileges
     ? { is_staff: values.is_staff, is_admin: values.is_admin }
     : {}),

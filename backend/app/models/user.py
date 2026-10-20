@@ -47,7 +47,6 @@ class User(BaseEntity, table=True):
     is_admin: bool = False
     is_company: bool = False
 
-    user_confirmed: bool = False
     email_confirmed: bool = False
 
     pending_invite_token: str | None = Field(default=None)
@@ -66,12 +65,22 @@ class User(BaseEntity, table=True):
     last_login_at: datetime | None = Field(
         default=None, nullable=True, sa_type=TIMESTAMPTZ
     )
+    previous_login_at: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
+    changes_seen_at: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
     company: Company = Relationship(
         back_populates="users", sa_relationship_kwargs={"lazy": "noload"}
     )
     kp_company_profiles: list["KpCompanyProfile"] = Relationship(
         back_populates="kp_contact_user"
     )
+
+    @property
+    def has_password(self) -> bool:
+        return self.password is not None
 
     @property
     def display_name(self) -> str:

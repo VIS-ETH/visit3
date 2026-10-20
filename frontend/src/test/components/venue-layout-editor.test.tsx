@@ -181,6 +181,27 @@ describe("the venue layout editor", () => {
     ).toBeInTheDocument();
   });
 
+  it("places a booth on top of a drawn zone", async () => {
+    const { user } = renderEditor();
+    await drawRectangle(user);
+
+    await user.click(
+      screen.getByRole("radio", { name: "kp.venue.tool_booth" }),
+    );
+    pointerAt(
+      screen.getByRole("button", { name: testMainZone.name }),
+      "pointerDown",
+      200,
+      200,
+    );
+
+    expect(
+      screen.getByRole("button", {
+        name: `kp.venue.booth_marker 1 ${testMainZone.name}`,
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("renames the selected booth", async () => {
     const { user } = renderEditor();
 

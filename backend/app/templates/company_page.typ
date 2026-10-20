@@ -2,14 +2,22 @@
 #let page-height = 210mm
 #let sidebar-width = 50mm
 #let content-padding = 8mm
+#let content-padding-bottom = 5mm
 #let sidebar-padding = 6mm
 #let logo-height = 22mm
-#let body-size = 8pt
+#let body-size = 7.5pt
 #let sidebar-value-size = 7.5pt
 #let sidebar-inner-width = sidebar-width - 2 * sidebar-padding
 #let neutral-banner = rgb("#4b5563")
 #let muted = rgb("#5f6368")
 #let white = rgb("#ffffff")
+#let black = rgb("#000000")
+#let paragraph-spacing = 1.25em
+#let list-item-spacing = 0.7em
+#let list-indent = 0.4em
+#let list-body-indent = 0.5em
+#let list-markers = ([•], [–])
+#let list-numbering = ("1.", "a.")
 
 #let field(entry, key) = {
   let current = entry.at(key, default: none)
@@ -23,6 +31,25 @@
   } else { rgb(color) }
 }
 
+#let linear-channel(value) = {
+  let ratio = value / 100%
+  if ratio <= 0.04045 { ratio / 12.92 } else { calc.pow((ratio + 0.055) / 1.055, 2.4) }
+}
+
+#let luminance(color) = {
+  let (red, green, blue, ..) = rgb(color).components()
+  0.2126 * linear-channel(red) + 0.7152 * linear-channel(green) + 0.0722 * linear-channel(blue)
+}
+
+#let contrast(first, second) = {
+  let (darker, lighter) = (luminance(first), luminance(second)).sorted()
+  (lighter + 0.05) / (darker + 0.05)
+}
+
+#let sidebar-ink(fill) = if fill == none or contrast(white, fill) >= contrast(black, fill) {
+  white
+} else { black }
+
 #let page-background(entry) = {
   let background = field(entry, "background_path")
   if background == "" { none } else {
@@ -33,14 +60,13 @@
 #let sidebar-label(label) = text(
   size: 6.5pt,
   weight: "bold",
-  fill: white.transparentize(20%),
   upper(label),
 )
 
 #let sidebar-row(label, value) = stack(
   spacing: 1.4mm,
   sidebar-label(label),
-  text(size: sidebar-value-size, fill: white, value),
+  text(size: sidebar-value-size, value),
 )
 
 #let email-lines(address, width) = {
@@ -93,28 +119,53 @@
   styled-run(item)
 }
 
-#let company-description(entry) = {
-  for paragraph in entry.at("description_blocks", default: ()) {
-    if paragraph.len() > 0 { par(paragraph.map(description-inline).join()) }
+#let description-inlines(inlines) = inlines.map(description-inline).join()
+
+#let description-list(group, level) = {
+  let items = group.at("items", default: ()).map(item => {
+    set par(spacing: list-item-spacing, justify: false)
+    description-inlines(item.at("inlines", default: ()))
+    for child in item.at("lists", default: ()) { description-list(child, level + 1) }
+  })
+  let body = if group.at("ordered", default: false) {
+    enum(numbering: list-numbering.at(calc.min(level, list-numbering.len() - 1)), ..items)
+  } else {
+    list(marker: list-markers.at(calc.min(level, list-markers.len() - 1)), ..items)
   }
+  if level == 0 { block(breakable: false, spacing: paragraph-spacing, body) } else { body }
+}
+
+#let description-block(part) = if type(part) == array {
+  if part.len() > 0 { par(description-inlines(part)) }
+} else if part.at("blank", default: false) {
+  par(hide[x])
+} else {
+  description-list(part, 0)
+}
+
+#let company-description(entry) = {
+  set list(tight: false, spacing: list-item-spacing, indent: list-indent, body-indent: list-body-indent)
+  set enum(tight: false, spacing: list-item-spacing, indent: list-indent, body-indent: list-body-indent)
+  for block in entry.at("description_blocks", default: ()) { description-block(block) }
 }
 
 #let company-body(entry) = {
   let brand = field(entry, "brand_name")
   let company = field(entry, "company")
-  set text(font: "DejaVu Sans", size: body-size)
-  set par(justify: true, leading: 0.55em, spacing: 0.9em)
-  text(size: 16pt, weight: "bold", if brand == "" { company } else { brand })
+  set text(font: "Source Sans 3", size: body-size)
+  set par(justify: true, leading: 0.7em, spacing: paragraph-spacing)
+  text(size: 15pt, weight: "bold", if brand == "" { company } else { brand })
   if brand != "" and brand != company {
     linebreak()
     text(size: 9pt, fill: muted, company)
   }
-  v(4mm)
+  v(3mm)
   company-description(entry)
 }
 
 #let company-sidebar(entry) = {
-  set text(font: "DejaVu Sans")
+  let ink = sidebar-ink(banner-color(entry))
+  set text(font: "Source Sans 3", fill: ink)
   set par(leading: 0.45em)
   let logo = field(entry, "logo_path")
   let booth = field(entry, "booth_number")
@@ -129,7 +180,7 @@
     ])
   }
   if booth != "" {
-    items.push(align(right, text(size: 16pt, weight: "bold", fill: white, booth)))
+    items.push(align(right, text(size: 16pt, weight: "bold", booth)))
   }
   if contact != "" {
     items.push(sidebar-row(
@@ -149,7 +200,7 @@
   if industries.len() > 0 {
     items.push(sidebar-row("Areas of activity", industries.join(", ")))
   }
-  items.push(line(length: 100%, stroke: 0.3mm + white))
+  items.push(line(length: 100%, stroke: 0.3mm + ink))
   items.push(sidebar-row(
     "Employees",
     grid(
@@ -172,7 +223,7 @@
 }
 
 #let body-width = page-width - sidebar-width - 2 * content-padding
-#let body-height = page-height - 2 * content-padding
+#let body-height = page-height - content-padding - content-padding-bottom
 #let sidebar-inner-height = page-height - 2 * sidebar-padding
 
 #let company-page-overflows(entry) = {
@@ -185,7 +236,13 @@
   #grid(
     columns: (1fr, sidebar-width),
     rows: page-height,
-    block(width: 100%, height: 100%, inset: content-padding, clip: true, company-body(entry)),
+    block(
+      width: 100%,
+      height: 100%,
+      inset: (x: content-padding, top: content-padding, bottom: content-padding-bottom),
+      clip: true,
+      company-body(entry),
+    ),
     block(
       width: 100%,
       height: 100%,

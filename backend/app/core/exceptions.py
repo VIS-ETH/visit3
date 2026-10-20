@@ -534,6 +534,26 @@ class KpIncludedServiceDuplicate(AppError):
         )
 
 
+class KpServiceRelationInvalid(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "KP service cannot contain or exclude this service",
+            "error.kp_service_relation_invalid",
+            identifier,
+            400,
+        )
+
+
+class KpServicesExcluded(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "These KP services cannot be booked together",
+            "error.kp_services_excluded",
+            identifier,
+            400,
+        )
+
+
 class KpIncludedExceedsMax(AppError):
     def __init__(self, identifier: str):
         super().__init__(
@@ -817,6 +837,36 @@ class MailTemplateInvalid(AppError):
         )
 
 
+class MailCampaignNotFound(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "Mail campaign not found",
+            "error.mail_campaign_not_found",
+            identifier,
+            404,
+        )
+
+
+class MailCampaignLocked(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The mail campaign can no longer be changed in its current state",
+            "error.mail_campaign_locked",
+            identifier,
+            409,
+        )
+
+
+class MailCampaignScheduleInPast(AppError):
+    def __init__(self, identifier: str):
+        super().__init__(
+            "The mail campaign has to be scheduled in the future",
+            "error.mail_campaign_schedule_in_past",
+            identifier,
+            400,
+        )
+
+
 class KeycloakExchangeFailed(AppError):
     def __init__(self, identifier: str):
         super().__init__(
@@ -849,10 +899,13 @@ class EmailNotConfirmed(AppError):
         )
 
 
-class UserNotConfirmed(AppError):
+class CompanyNotConfirmed(AppError):
     def __init__(self, identifier: str):
         super().__init__(
-            "User is not confirmed by an admin", "error.not_confirmed", identifier, 403
+            "Company is not confirmed by VIS yet",
+            "error.company_not_confirmed",
+            identifier,
+            403,
         )
 
 

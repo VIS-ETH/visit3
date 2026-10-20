@@ -1,8 +1,10 @@
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.core.utils import normalize_email, normalize_http_url
 from app.models.company import (
     PROFILE_DESCRIPTION_MARKUP_MAX_LENGTH,
     KpCompanyLanguage,
@@ -11,6 +13,14 @@ from app.models.company import (
 )
 from app.schemas.industry import IndustryResult
 from app.schemas.text import PROFILE_TEXT_LIMITS, CompanyName
+
+MAX_ADDITIONAL_EMAILS = 10
+
+
+class CompanySort(StrEnum):
+    NAME = "name"
+    MEMBERS = "members"
+    BOOKINGS = "bookings"
 
 
 class CreateCompanyInput(BaseModel):
@@ -38,6 +48,9 @@ class CompanyProfileFields(BaseModel):
     general_email: EmailStr | None = None
     general_phone: str | None = None
     student_contact_email: EmailStr | None = None
+    additional_emails: list[EmailStr] = Field(
+        default_factory=lambda: [], max_length=MAX_ADDITIONAL_EMAILS
+    )
     places_of_work: str = ""
     employee_count_switzerland: int | None = Field(default=None, ge=0)
     employee_count_worldwide: int | None = Field(default=None, ge=0)
@@ -59,6 +72,11 @@ class CompanyProfileFields(BaseModel):
     @classmethod
     def validate_description(cls, value: str) -> str:
         return sanitize_description(value)
+
+    @field_validator("additional_emails")
+    @classmethod
+    def normalize_additional_emails(cls, value: list[str]) -> list[str]:
+        return list(dict.fromkeys(normalize_email(email) for email in value))
 
 
 class UpdateCompanyProfileInput(CompanyProfileFields):
@@ -95,6 +113,11 @@ class UpdateCompanyProfileInput(CompanyProfileFields):
     @classmethod
     def validate_billing_country(cls, value: str) -> str:
         return normalize_country_code(value)
+
+    @field_validator("website")
+    @classmethod
+    def validate_website(cls, value: str | None) -> str | None:
+        return normalize_http_url(value)
 
 
 class UpdateCompanyProfileRequest(UpdateCompanyProfileInput):
@@ -159,7 +182,6 @@ class InviteInfoResponse(InviteInfoResult):
 
 
 class CompanyAssignedUserResult(CompanyMemberResult):
-    user_confirmed: bool
     email_confirmed: bool
 
 
@@ -177,6 +199,7 @@ class CompanyResponse(CompanyBase):
 
 
 class MyCompanyResult(CompanyBase):
+    confirmed_at: datetime | None
     profile_complete: bool
     profile_bookable: bool
     missing_profile_fields: list[str]
@@ -187,6 +210,7 @@ class MyCompanyResponse(MyCompanyResult):
 
 
 class CompanyListResult(CompanyBase):
+    confirmed_at: datetime | None
     users_count: int
     bookings_count: int
     new_members_count: int = 0
@@ -208,6 +232,7 @@ class CompanyPageResponse(CompanyPageResult):
 
 
 class CompanyWithUsersResult(CompanyBase):
+    confirmed_at: datetime | None
     users: list[CompanyAssignedUserResult]
 
 

@@ -16,7 +16,6 @@ const storedProfile = {
   first_name: "Mem",
   last_name: "Ber",
   phone_number: "+41791234567",
-  user_confirmed: true,
   email_confirmed: true,
   pending_email: null as string | null,
 };
@@ -70,6 +69,28 @@ describe("Profile email change", () => {
     expect(
       await screen.findByText("profile.email_change.pending"),
     ).toBeInTheDocument();
+  });
+
+  it("asks a password account for its current password", async () => {
+    profile = { ...storedProfile, has_password: true } as typeof profile;
+    const { user, input } = await openDialog();
+
+    await user.type(input, NEW_EMAIL);
+    const submit = screen.getByRole("button", {
+      name: "profile.email_change.submit",
+    });
+    expect(submit).toBeDisabled();
+    await user.type(
+      screen.getByLabelText("profile.email_change.current_password"),
+      "secret-password",
+    );
+    await user.click(submit);
+
+    await waitFor(() => {
+      expect(changeBodies).toEqual([
+        { email: NEW_EMAIL, current_password: "secret-password" },
+      ]);
+    });
   });
 
   it("shows a change that still waits for its confirmation", async () => {

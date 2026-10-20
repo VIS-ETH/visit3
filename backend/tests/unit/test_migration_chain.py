@@ -20,6 +20,12 @@ DELETES_ALLOWED_IN_UPGRADES: dict[str, str] = {
         "an edited offer mail still promises free cancellation instead of"
         " asking for a binding confirmation"
     ),
+    "DELETE FROM mailtemplate WHERE key = 'account_confirmed'": (
+        "staff confirm companies instead of accounts, so the account mail left"
+    ),
+    "DELETE FROM mailtemplate WHERE key = 'account_awaiting_confirmation'": (
+        "staff confirm companies instead of accounts, so the account mail left"
+    ),
 }
 FORBIDDEN_RAW_DDL = (
     "CREATE TABLE",

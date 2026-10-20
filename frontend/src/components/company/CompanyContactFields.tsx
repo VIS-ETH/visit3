@@ -1,4 +1,4 @@
-import { SimpleGrid, Stack, TextInput } from "@mantine/core";
+import { SimpleGrid, Stack, TagsInput, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { UserResponse } from "../../orval/generated/fastAPI.schemas";
 import { getDisplayName } from "../../utils/display";
@@ -73,6 +73,17 @@ const CompanyContactFields = ({
           {...form.getInputProps("student_contact_email")}
         />
       </SimpleGrid>
+      <TagsInput
+        id={profileFieldId("additional_emails")}
+        label={t("company_profile_form.additional_emails")}
+        description={t("company_profile_form.additional_emails_hint")}
+        placeholder={t("company_profile_form.additional_emails_placeholder")}
+        maxTags={10}
+        clearable
+        splitChars={[",", " ", ";"]}
+        disabled={disabled}
+        {...form.getInputProps("additional_emails")}
+      />
     </Stack>
   );
 };

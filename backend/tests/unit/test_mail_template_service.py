@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.mail_templates.context import (
-    AccountAwaitingConfirmationContext,
+    CompanyAwaitingConfirmationContext,
     PasswordResetContext,
 )
 from app.mail_templates.defaults import MAIL_TEMPLATE_DEFAULTS
@@ -24,9 +24,12 @@ def decoded(subject: str) -> str:
     return subject
 
 
-STAFF_KEY = MailTemplateKey.ACCOUNT_AWAITING_CONFIRMATION
-STAFF_CONTEXT = AccountAwaitingConfirmationContext(
-    name="Ada", email="ada@example.com", admin_url="https://visit.test/admin"
+STAFF_KEY = MailTemplateKey.COMPANY_AWAITING_CONFIRMATION
+STAFF_CONTEXT = CompanyAwaitingConfirmationContext(
+    company_name="Acme AG",
+    name="Ada",
+    email="ada@example.com",
+    admin_url="https://visit.test/admin",
 )
 
 

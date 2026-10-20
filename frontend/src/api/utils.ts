@@ -126,15 +126,25 @@ export const getImpersonatingDisplayName = () =>
 
 export const isImpersonating = () => !!getImpersonatingUserId();
 
-export const setImpersonation = (userId: string, displayName: string) => {
+export const getImpersonationOrigin = () =>
+  sessionStorage.getItem("impersonation_origin");
+
+export const setImpersonation = (
+  userId: string,
+  displayName: string,
+  origin?: string,
+) => {
   sessionStorage.setItem("impersonating_user_id", userId);
   sessionStorage.setItem("impersonating_display_name", displayName);
+  if (origin) sessionStorage.setItem("impersonation_origin", origin);
+  else sessionStorage.removeItem("impersonation_origin");
   window.dispatchEvent(new Event("impersonation-changed"));
 };
 
 export const clearImpersonation = () => {
   sessionStorage.removeItem("impersonating_user_id");
   sessionStorage.removeItem("impersonating_display_name");
+  sessionStorage.removeItem("impersonation_origin");
   window.dispatchEvent(new Event("impersonation-changed"));
 };
 

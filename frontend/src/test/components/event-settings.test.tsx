@@ -17,7 +17,6 @@ const presidentUser: UserResponse = {
   is_admin: false,
   is_company: false,
   is_kp_president: true,
-  user_confirmed: true,
   email_confirmed: true,
 };
 

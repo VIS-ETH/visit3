@@ -425,6 +425,31 @@ class KpEventService(BaseEntity, table=True):
         back_populates="service",
         sa_relationship_kwargs={"order_by": "KpEventServiceRequirement.order"},
     )
+    included_services: list["KpEventServiceInclusion"] = Relationship(
+        sa_relationship_kwargs={
+            "foreign_keys": "[KpEventServiceInclusion.service_id]",
+            "viewonly": True,
+            "lazy": "selectin",
+        }
+    )
+    excluded_services: list["KpEventServiceExclusion"] = Relationship(
+        sa_relationship_kwargs={
+            "foreign_keys": "[KpEventServiceExclusion.service_id]",
+            "viewonly": True,
+            "lazy": "selectin",
+        }
+    )
+
+
+class KpEventServiceInclusion(BaseLink, table=True):
+    service_id: UUID = Field(foreign_key="kpeventservice.id", primary_key=True)
+    included_service_id: UUID = Field(foreign_key="kpeventservice.id", primary_key=True)
+    included_quantity: int = Field(default=1, ge=1, le=MAX_SERVICE_QUANTITY)
+
+
+class KpEventServiceExclusion(BaseLink, table=True):
+    service_id: UUID = Field(foreign_key="kpeventservice.id", primary_key=True)
+    excluded_service_id: UUID = Field(foreign_key="kpeventservice.id", primary_key=True)
 
 
 class KpEventBookingService(BaseEntity, table=True):

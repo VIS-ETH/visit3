@@ -11,6 +11,7 @@ from app.core.auth_context import (
 from app.core.exceptions import (
     CompanyNotFound,
     EmailUsed,
+    InvalidCredentials,
     MailUnavailable,
     NotAllowed,
     PhoneNumberInvalid,
@@ -19,7 +20,6 @@ from app.core.exceptions import (
 )
 from app.core.utils import normalize_email, normalize_phone_number
 from app.mail_templates.context import (
-    AccountConfirmedContext,
     EmailChangeConfirmContext,
     EmailChangeNoticeContext,
 )
@@ -28,6 +28,7 @@ from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
 from app.repositories.token_repository import TokenRepository
 from app.repositories.user_repository import UserRepository
+from app.schemas.sorting import SortDirection
 from app.schemas.user import (
     EmailChangeInput,
     StaffUserResponse,
@@ -36,8 +37,10 @@ from app.schemas.user import (
     UserFilter,
     UserPageResult,
     UserProfileFieldsInput,
+    UserSort,
 )
 from app.services.auth_service import AuthService, frontend_url
+from app.services.change_service import changes_since
 from app.services.mail_template_service import MailTemplateService
 
 logger = logging.getLogger(__name__)
@@ -92,6 +95,13 @@ class UserService:
 
     async def request_own_email_change(self, change: EmailChangeInput) -> User:
         user = require_confirmed_company_user(self.current_user).user
+        if user.password is not None and not (
+            change.current_password
+            and await self.auth_service.verify_and_update_password(
+                user, change.current_password
+            )
+        ):
+            raise InvalidCredentials(f"request_own_email_change:{user.id}")
         new_email = await self._available_email(
             user, change.email, "request_own_email_change"
         )
@@ -106,12 +116,27 @@ class UserService:
             )
 
     async def list_users(
-        self, query: str | None, user_filter: UserFilter, page: int, page_size: int
+        self,
+        query: str | None,
+        user_filter: UserFilter,
+        page: int,
+        page_size: int,
+        sort: UserSort | None = None,
+        direction: SortDirection = SortDirection.ASC,
     ) -> UserPageResult:
         require_staff_user(self.current_user)
-        total = await self.user_repository.count_users_matching(query, user_filter)
+        since = changes_since(self.current_user)
+        total = await self.user_repository.count_users_matching(
+            query, user_filter, since
+        )
         users = await self.user_repository.search_users(
-            query, user_filter, (page - 1) * page_size, page_size
+            query,
+            user_filter,
+            (page - 1) * page_size,
+            page_size,
+            sort,
+            direction,
+            since,
         )
         return UserPageResult(
             items=[StaffUserResponse.model_validate(user) for user in users],
@@ -126,37 +151,6 @@ class UserService:
         if not user:
             raise UserNotFound(f"get_user:{user_id}")
         return await self.user_repository.load_user_company(user)
-
-    async def get_unconfirmed_users(self) -> Sequence[User]:
-        require_staff_user(self.current_user)
-        return await self.user_repository.get_unconfirmed_users()
-
-    async def confirm_user(self, user_id: UUID) -> User:
-        require_staff_user(self.current_user)
-        user = await self.user_repository.get_by_id(user_id)
-        if not user:
-            logger.warning("Confirm user failed - user not found: %s", user_id)
-            raise UserNotFound(f"confirm_user:{user_id}")
-
-        was_confirmed = user.user_confirmed
-        result = await self.user_repository.confirm_user(user)
-        if not was_confirmed:
-            await self._send_account_confirmed(result)
-        logger.info("User confirmed by staff %s: %s", self.current_user.id, user.id)
-        return result
-
-    async def _send_account_confirmed(self, user: User) -> None:
-        if not user.is_company:
-            return
-        try:
-            login_url = await self.auth_service.create_login_link(user, "/")
-            await self.mail_template_service.send(
-                MailTemplateKey.ACCOUNT_CONFIRMED,
-                [user.email],
-                AccountConfirmedContext(name=user.display_name, login_url=login_url),
-            )
-        except Exception:
-            logger.exception("Account confirmed mail failed for %s", user.id)
 
     async def get_company_users(self) -> Sequence[User]:
         require_staff_user(self.current_user)
@@ -207,13 +201,10 @@ class UserService:
             normalized.model_dump(exclude_unset=True, exclude={"email"})
         )
 
-        was_confirmed = user.user_confirmed
         previous_company_id = user.company_id
         updated_user = await self.user_repository.update_user(user, normalized)
         if updated_user.company_id != previous_company_id:
             await self.company_repository.revoke_open_invites_by(updated_user.id)
-        if updated_user.user_confirmed and not was_confirmed:
-            await self._send_account_confirmed(updated_user)
         return updated_user
 
     async def _check_company_reassignment(

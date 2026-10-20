@@ -27,8 +27,10 @@ from app.models.kp_event import (
 )
 from app.models.storage import StoredFile
 from app.models.user import User
-from app.repositories.base import BaseRepository, rel
-from app.schemas.company import UpdateCompanyProfileInput
+from app.repositories.base import BaseRepository, ordered, rel
+from app.repositories.change_repository import company_changed_since
+from app.schemas.company import CompanySort, UpdateCompanyProfileInput
+from app.schemas.sorting import SortDirection
 
 
 class CompanyRepository(BaseRepository[Company]):
@@ -82,15 +84,21 @@ class CompanyRepository(BaseRepository[Company]):
         result = await self.session.execute(statement)
         return result.scalar_one()
 
-    def _matching_companies(self, query: str | None) -> Select[tuple[Company]]:
+    def _matching_companies(
+        self, query: str | None, changed_since: datetime | None = None
+    ) -> Select[tuple[Company]]:
         term = (query or "").strip()
         conditions = (
             [col(Company.name).icontains(term, autoescape=True)] if term else []
         )
+        if changed_since is not None:
+            conditions.append(company_changed_since(changed_since))
         return select(Company).where(self._not_deleted(Company), *conditions)
 
-    async def count_companies(self, query: str | None) -> int:
-        statement = self._matching_companies(query).with_only_columns(
+    async def count_companies(
+        self, query: str | None, changed_since: datetime | None = None
+    ) -> int:
+        statement = self._matching_companies(query, changed_since).with_only_columns(
             func.count(col(Company.id))
         )
         result = await self.session.execute(statement)
@@ -101,7 +109,10 @@ class CompanyRepository(BaseRepository[Company]):
         query: str | None = None,
         offset: int | None = None,
         limit: int | None = None,
-    ) -> Sequence[tuple[UUID, str, int, int, int]]:
+        sort: CompanySort = CompanySort.NAME,
+        direction: SortDirection = SortDirection.ASC,
+        changed_since: datetime | None = None,
+    ) -> Sequence[tuple[UUID, str, datetime | None, int, int, int]]:
         users_count = (
             select(func.count(col(User.id)))
             .where(col(User.company_id) == col(Company.id), self._not_deleted(User))
@@ -128,23 +139,35 @@ class CompanyRepository(BaseRepository[Company]):
             .correlate(Company)
             .scalar_subquery()
         )
+        sort_key = {
+            CompanySort.NAME: func.lower(col(Company.name)),
+            CompanySort.MEMBERS: users_count,
+            CompanySort.BOOKINGS: bookings_count,
+        }[sort]
         statement = (
-            self._matching_companies(query)
+            self._matching_companies(query, changed_since)
             .with_only_columns(
                 col(Company.id),
                 col(Company.name),
+                col(Company.confirmed_at),
                 users_count,
                 bookings_count,
                 new_members_count,
             )
-            .order_by(col(Company.name))
+            .order_by(
+                *ordered([sort_key], direction),
+                func.lower(col(Company.name)),
+                col(Company.id),
+            )
             .offset(offset)
             .limit(limit)
         )
         result = await self.session.execute(statement)
         return [
-            (company_id, name, users, bookings, new_members)
-            for company_id, name, users, bookings, new_members in result.all()
+            (company_id, name, confirmed_at, users, bookings, new_members)
+            for company_id, name, confirmed_at, users, bookings, new_members in (
+                result.all()
+            )
         ]
 
     async def get_user_by_email(self, email: str) -> Optional[User]:
@@ -431,13 +454,37 @@ class CompanyRepository(BaseRepository[Company]):
         result = await self.session.execute(statement)
         return result.scalar_one_or_none() or user
 
-    async def assign_user(self, user: User, company_id: UUID) -> User:
+    async def assign_user(
+        self, user: User, company_id: UUID, mark_new: bool = True
+    ) -> User:
         try:
             user.company_id = company_id
-            user.new_in_company_since = datetime.now(timezone.utc)
+            user.new_in_company_since = datetime.now(timezone.utc) if mark_new else None
             self.session.add(user)
             await self.session.commit()
             return await self._load_user_company(user)
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def confirm_company(self, company: Company) -> Company:
+        try:
+            company.confirmed_at = datetime.now(timezone.utc)
+            self.session.add(company)
+            await self.session.commit()
+            await self.session.refresh(company)
+            return company
+        except Exception as e:
+            await self.session.rollback()
+            raise e
+
+    async def unconfirm_company(self, company: Company) -> Company:
+        try:
+            company.confirmed_at = None
+            self.session.add(company)
+            await self.session.commit()
+            await self.session.refresh(company)
+            return company
         except Exception as e:
             await self.session.rollback()
             raise e

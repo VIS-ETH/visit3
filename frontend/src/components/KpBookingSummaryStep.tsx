@@ -33,6 +33,7 @@ import {
 import {
   chargedServiceQuantity,
   includedQuantitiesByServiceId,
+  withPackageInclusions,
   serviceLineLabel,
 } from "../utils/kp-service-quantity";
 import { activeBooking } from "../utils/my-booking";
@@ -98,8 +99,10 @@ const KpBookingSummaryStep = ({
   const serviceById = new Map(
     (services ?? []).map((service) => [service.id, service]),
   );
-  const includedQuantities = includedQuantitiesByServiceId(
-    draftZone?.included_services ?? [],
+  const includedQuantities = withPackageInclusions(
+    includedQuantitiesByServiceId(draftZone?.included_services ?? []),
+    services ?? [],
+    draftServices,
   );
   const lineForDraftService = (item: DraftBookingService) => {
     const service = serviceById.get(item.serviceId);

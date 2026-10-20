@@ -1,7 +1,7 @@
 import pytest
 
 from app.core.exceptions import MailTemplateInvalid
-from app.mail_templates.context import AccountConfirmedContext
+from app.mail_templates.context import CompanyConfirmedContext
 from app.mail_templates.plain_text import html_to_plain_text
 from app.mail_templates.renderer import (
     MAX_OUTPUT_CHARACTERS,
@@ -10,7 +10,9 @@ from app.mail_templates.renderer import (
 )
 from app.mail_templates.texts import MailTemplateTexts
 
-CONTEXT = AccountConfirmedContext(name="Ada", login_url="https://visit.test/link/abc")
+CONTEXT = CompanyConfirmedContext(
+    name="Ada", company_name="Acme AG", login_url="https://visit.test/link/abc"
+)
 
 
 def texts(**overrides: str) -> MailTemplateTexts:
@@ -48,7 +50,11 @@ def test_document_wraps_both_parts_with_a_divider_and_the_wordmark():
 def test_values_are_html_escaped():
     rendered = render_mail(
         texts(),
-        AccountConfirmedContext(name="<script>x</script>", login_url="https://a.test"),
+        CompanyConfirmedContext(
+            name="<script>x</script>",
+            company_name="Acme AG",
+            login_url="https://a.test",
+        ),
         "test",
     )
 

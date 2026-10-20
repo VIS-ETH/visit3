@@ -23,7 +23,6 @@ import { server } from "../server";
 
 let listRequests: URL[] = [];
 let patchBodies: unknown[] = [];
-let confirmedIds: string[] = [];
 let resendIds: string[] = [];
 let deletedIds: string[] = [];
 let listItems: StaffUserResponse[] = [];
@@ -45,7 +44,6 @@ const lastListParams = () => {
 beforeEach(() => {
   listRequests = [];
   patchBodies = [];
-  confirmedIds = [];
   resendIds = [];
   deletedIds = [];
   listItems = [memberUser, orphanUser];
@@ -77,10 +75,6 @@ beforeEach(() => {
     ),
     http.patch(`${testBackendUrl}/api/users/:userId`, async ({ request }) => {
       patchBodies.push(await request.json());
-      return HttpResponse.json(memberUser);
-    }),
-    http.post(`${testBackendUrl}/api/users/:userId/confirm`, ({ params }) => {
-      confirmedIds.push(String(params.userId));
       return HttpResponse.json(memberUser);
     }),
     http.post(
@@ -127,6 +121,22 @@ describe("the user management page", () => {
     expect(await screen.findByText(memberUser.email)).toBeInTheDocument();
   });
 
+  it("starts with the search from the link", async () => {
+    renderWithProviders(
+      <UserProvider user={adminUser} isLoading={false}>
+        <UserManagement />
+      </UserProvider>,
+      { route: "/user-management?query=Acme+AG" },
+    );
+
+    await waitFor(() => {
+      expect(lastListParams().query).toBe("Acme AG");
+    });
+    expect(
+      screen.getByPlaceholderText("user_management.search_placeholder"),
+    ).toHaveValue("Acme AG");
+  });
+
   it("sends the debounced search term as a query parameter", async () => {
     const { user } = renderPage();
     await screen.findByText(memberUser.email);
@@ -170,6 +180,31 @@ describe("the user management page", () => {
     });
   });
 
+  it("sorts by signup date on the server and resets to the first page", async () => {
+    listTotal = 60;
+    const { user } = renderPage();
+    await screen.findByText(memberUser.email);
+    await user.click(screen.getByRole("button", { name: "3" }));
+    await waitFor(() => {
+      expect(lastListParams().page).toBe("3");
+    });
+
+    const signedUp = screen.getByRole("button", {
+      name: "user_management.signed_up",
+    });
+    await user.click(signedUp);
+    await user.click(signedUp);
+
+    await waitFor(() => {
+      expect(lastListRequest().searchParams.get("direction")).toBe("desc");
+    });
+    expect(lastListRequest().searchParams.get("sort")).toBe("signed_up");
+    expect(lastListParams().page).toBe("1");
+    expect(
+      screen.getByRole("columnheader", { name: "user_management.signed_up" }),
+    ).toHaveAttribute("aria-sort", "descending");
+  });
+
   it("shows when each user signed up and last logged in", async () => {
     renderPage();
     const member = await memberRow();
@@ -198,19 +233,6 @@ describe("the user management page", () => {
     ).toBeInTheDocument();
   });
 
-  it("confirms a user", async () => {
-    const { user } = renderPage();
-    const row = await memberRow();
-
-    await user.click(
-      row.getByRole("button", { name: "user_management.confirm" }),
-    );
-
-    await waitFor(() => {
-      expect(confirmedIds).toEqual([memberUser.id]);
-    });
-  });
-
   it("resends the confirmation mail", async () => {
     const { user } = renderPage();
     const row = await memberRow();
@@ -224,14 +246,11 @@ describe("the user management page", () => {
     });
   });
 
-  it("hides the confirm and resend actions for a confirmed user", async () => {
+  it("hides the resend action for a confirmed user", async () => {
     renderPage();
     const cell = await screen.findByText(orphanUser.email);
     const row = within(cell.closest("tr") as HTMLElement);
 
-    expect(
-      row.queryByRole("button", { name: "user_management.confirm" }),
-    ).not.toBeInTheDocument();
     expect(
       row.queryByRole("button", { name: "user_management.resend" }),
     ).not.toBeInTheDocument();
@@ -263,7 +282,6 @@ describe("the user management page", () => {
       phone_number: memberUser.phone_number,
       email: memberUser.email,
       company_id: memberUser.company_id,
-      user_confirmed: false,
       is_staff: true,
       is_admin: false,
     });

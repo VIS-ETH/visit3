@@ -32,10 +32,12 @@ from app.models.kp_event import (
     KpEventNametagBackground,
     KpEventRegistrationException,
     KpEventService,
+    KpEventServiceExclusion,
+    KpEventServiceInclusion,
     KpEventServiceRequirement,
     NameTag,
 )
-from app.models.mail import MailTemplate
+from app.models.mail import MailCampaign, MailCampaignRecipient, MailTemplate
 from app.models.storage import StoredFile
 from app.models.user import (
     ConfirmEmailToken,
@@ -98,6 +100,8 @@ SQLITE_TABLES = [
     KpEventBoothZone.__table__,
     KpEventService.__table__,
     KpEventBoothZoneServiceLink.__table__,
+    KpEventServiceInclusion.__table__,
+    KpEventServiceExclusion.__table__,
     KpEventServiceRequirement.__table__,
     KpEventBooking.__table__,
     KpEventBookingService.__table__,
@@ -108,6 +112,8 @@ SQLITE_TABLES = [
     KpBookingCompanyDetails.__table__,
     KpBookingCompanyDetailsIndustryLink.__table__,
     NameTag.__table__,
+    MailCampaign.__table__,
+    MailCampaignRecipient.__table__,
     StoredFile.__table__,
     KpVenueLayout.__table__,
     KpVenueZoneShape.__table__,

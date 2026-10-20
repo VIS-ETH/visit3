@@ -8,9 +8,15 @@ const isUnsafeNextCharacter = (character: string) => {
   return character === "\\" || code < 0x20 || code === 0x7f;
 };
 
-export function getSafeNextPath(search: string): string | null {
-  const next = new URLSearchParams(search).get("next");
+export const reloadAt = (path: string) => {
+  window.location.assign(path);
+};
 
+export function getSafeNextPath(search: string): string | null {
+  return getSafeInternalPath(new URLSearchParams(search).get("next"));
+}
+
+export function getSafeInternalPath(next: string | null): string | null {
   if (!next?.startsWith("/") || [...next].some(isUnsafeNextCharacter)) {
     return null;
   }

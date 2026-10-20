@@ -6,6 +6,7 @@ import {
   Divider,
   Group,
   Loader,
+  MultiSelect,
   NumberInput,
   Paper,
   SegmentedControl,
@@ -71,6 +72,8 @@ const emptyServiceFormValues = {
   maxTotal: 0,
   isActive: true,
   requirements: [],
+  includedServices: [] as { serviceId: string; quantity: number }[],
+  excludedServiceIds: [] as string[],
 };
 
 const KpServiceForm = () => {
@@ -131,6 +134,11 @@ const KpServiceForm = () => {
         description: requirement.description,
         order: requirement.order,
       })),
+      includedServices: (service.included_services ?? []).map((included) => ({
+        serviceId: included.service_id,
+        quantity: included.included_quantity,
+      })),
+      excludedServiceIds: service.excluded_service_ids ?? [],
     });
     form.resetDirty();
     form.clearErrors();
@@ -172,6 +180,35 @@ const KpServiceForm = () => {
     },
   ];
 
+  const otherServices = (services ?? []).filter(
+    (item) => item.id !== serviceId,
+  );
+  const otherServiceById = new Map(
+    otherServices.map((item) => [item.id, item]),
+  );
+  const includedOptionsForRow = (index: number) => {
+    const takenIds = new Set(
+      form.values.includedServices
+        .filter((_, position) => position !== index)
+        .map((included) => included.serviceId),
+    );
+    return otherServices
+      .filter(
+        (item) =>
+          !takenIds.has(item.id) &&
+          !form.values.excludedServiceIds.includes(item.id),
+      )
+      .map((item) => ({ value: item.id, label: item.name }));
+  };
+  const excludedOptions = otherServices
+    .filter(
+      (item) =>
+        !form.values.includedServices.some(
+          (included) => included.serviceId === item.id,
+        ),
+    )
+    .map((item) => ({ value: item.id, label: item.name }));
+
   const handleSave = form.onSubmit(async (values) => {
     if (!eventId) return;
     const requirements = values.requirements.map((requirement) => ({
@@ -188,6 +225,11 @@ const KpServiceForm = () => {
       max_total_quantity: values.maxTotal,
       is_active: values.isActive,
       requirements,
+      included_services: values.includedServices.map((included) => ({
+        service_id: included.serviceId,
+        included_quantity: included.quantity,
+      })),
+      excluded_service_ids: values.excludedServiceIds,
     };
 
     const saveImage = async (nextServiceId: string) => {
@@ -350,6 +392,80 @@ const KpServiceForm = () => {
                 {...form.getInputProps("isActive", { type: "checkbox" })}
               />
             </Group>
+
+            <Divider label={t("kp.manage.service_contains")} />
+            <Stack gap="sm">
+              <Text c="dimmed" size="sm">
+                {t("kp.manage.service_contains_description")}
+              </Text>
+              {form.values.includedServices.map((included, index) => (
+                <Group align="flex-end" gap="xs" key={index} wrap="nowrap">
+                  <Select
+                    data={includedOptionsForRow(index)}
+                    disabled={isSaving}
+                    flex={1}
+                    label={t("kp.manage.zone_included_service")}
+                    searchable
+                    {...form.getInputProps(
+                      `includedServices.${index}.serviceId`,
+                    )}
+                  />
+                  <NumberInput
+                    allowDecimal={false}
+                    clampBehavior="strict"
+                    disabled={isSaving}
+                    label={t("kp.manage.zone_included_quantity")}
+                    min={1}
+                    max={
+                      otherServiceById.get(included.serviceId)
+                        ?.max_quantity_per_booking ?? 999
+                    }
+                    w={140}
+                    {...form.getInputProps(
+                      `includedServices.${index}.quantity`,
+                    )}
+                  />
+                  <ActionIcon
+                    aria-label={t("kp.manage.service_contains_remove")}
+                    color="red"
+                    disabled={isSaving}
+                    mb={4}
+                    onClick={() =>
+                      form.removeListItem("includedServices", index)
+                    }
+                    variant="subtle"
+                  >
+                    <IconTrash size={16} />
+                  </ActionIcon>
+                </Group>
+              ))}
+              <Button
+                disabled={
+                  isSaving ||
+                  form.values.includedServices.length >= otherServices.length
+                }
+                leftSection={<IconPlus size={16} />}
+                onClick={() =>
+                  form.insertListItem("includedServices", {
+                    serviceId: "",
+                    quantity: 1,
+                  })
+                }
+                variant="light"
+                w="fit-content"
+              >
+                {t("kp.manage.service_contains_add")}
+              </Button>
+              <MultiSelect
+                clearable
+                data={excludedOptions}
+                description={t("kp.manage.service_excludes_description")}
+                disabled={isSaving}
+                label={t("kp.manage.service_excludes")}
+                searchable
+                {...form.getInputProps("excludedServiceIds")}
+              />
+            </Stack>
 
             <Divider label={t("kp.manage.service_requirements")} />
             <Stack gap="md">

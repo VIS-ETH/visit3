@@ -31,7 +31,6 @@ const staffUser: UserResponse = {
   is_admin: false,
   is_company: false,
   is_kp_president: false,
-  user_confirmed: true,
   email_confirmed: true,
 };
 

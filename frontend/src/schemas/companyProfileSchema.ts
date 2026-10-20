@@ -7,11 +7,22 @@ import type {
 import { richTextLength } from "../utils/rich-text";
 import { zPhone } from "./utils";
 
-export const PROFILE_DESCRIPTION_MAX_LENGTH = 2500;
+const isHttpUrl = (value: string) =>
+  URL.canParse(value) && ["http:", "https:"].includes(new URL(value).protocol);
+
+export const PROFILE_DESCRIPTION_MAX_LENGTH = 3500;
 
 const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
 
 const isBlank = (value: string) => value.trim().length === 0;
+
+const optionalEmail = z
+  .string()
+  .trim()
+  .refine(
+    (value) => isBlank(value) || z.email().safeParse(value).success,
+    "validation.invalid_email",
+  );
 
 const employeeCount = z.union(
   [
@@ -27,7 +38,6 @@ const employeeCount = z.union(
 export const companyProfileSchema = z.object({
   description: z
     .string()
-    .refine((value) => richTextLength(value) > 0, "validation.required")
     .refine(
       (value) => richTextLength(value) <= PROFILE_DESCRIPTION_MAX_LENGTH,
       "validation.too_long",
@@ -36,14 +46,11 @@ export const companyProfileSchema = z.object({
     .string()
     .trim()
     .refine(
-      (value) => isBlank(value) || URL.canParse(value),
+      (value) => isBlank(value) || isHttpUrl(value),
       "validation.invalid_url",
     ),
   brand_name: z.string().trim(),
-  general_email: z
-    .email("validation.invalid_email")
-    .trim()
-    .min(1, "validation.required"),
+  general_email: optionalEmail,
   general_phone: z
     .string()
     .trim()
@@ -51,11 +58,11 @@ export const companyProfileSchema = z.object({
       (value) => isBlank(value) || zPhone.safeParse(value).success,
       "register.phoneNumber.invalid",
     ),
-  student_contact_email: z
-    .string()
-    .trim()
+  student_contact_email: optionalEmail,
+  additional_emails: z
+    .array(z.string())
     .refine(
-      (value) => isBlank(value) || z.email().safeParse(value).success,
+      (values) => values.every((value) => z.email().safeParse(value).success),
       "validation.invalid_email",
     ),
   places_of_work: z.string().trim(),
@@ -67,21 +74,22 @@ export const companyProfileSchema = z.object({
   offers_graduate_positions: z.boolean(),
   languages: z.array(z.enum(KpCompanyLanguage)),
   industry_ids: z.array(z.string()),
-  kp_contact_user_id: z.string().min(1, "validation.required"),
-  billing_company_name: z.string().trim().min(1, "validation.required"),
-  billing_street: z.string().trim().min(1, "validation.required"),
+  kp_contact_user_id: z.string(),
+  billing_company_name: z.string().trim(),
+  billing_street: z.string().trim(),
   billing_house_number: z.string().trim(),
-  billing_postal_code: z.string().trim().min(1, "validation.required"),
-  billing_city: z.string().trim().min(1, "validation.required"),
+  billing_postal_code: z.string().trim(),
+  billing_city: z.string().trim(),
   billing_country: z
     .string()
     .trim()
-    .regex(COUNTRY_CODE_PATTERN, "company_profile_form.errors.country"),
+    .refine(
+      (value) =>
+        isBlank(value) || COUNTRY_CODE_PATTERN.test(value.toUpperCase()),
+      "company_profile_form.errors.country",
+    ),
   billing_vat_number: z.string().trim(),
-  billing_email: z
-    .email("validation.invalid_email")
-    .trim()
-    .min(1, "validation.required"),
+  billing_email: optionalEmail,
 });
 
 export type CompanyProfileFormValues = z.infer<typeof companyProfileSchema>;
@@ -93,6 +101,7 @@ export const emptyCompanyProfileFormValues: CompanyProfileFormValues = {
   general_email: "",
   general_phone: "",
   student_contact_email: "",
+  additional_emails: [],
   places_of_work: "",
   employee_count_switzerland: "",
   employee_count_worldwide: "",
@@ -122,6 +131,7 @@ export const toCompanyProfileFormValues = (
   general_email: profile.general_email ?? "",
   general_phone: profile.general_phone ?? "",
   student_contact_email: profile.student_contact_email ?? "",
+  additional_emails: profile.additional_emails ?? [],
   places_of_work: profile.places_of_work ?? "",
   employee_count_switzerland: profile.employee_count_switzerland ?? "",
   employee_count_worldwide: profile.employee_count_worldwide ?? "",
@@ -155,6 +165,7 @@ export const toCompanyProfileRequest = (
   general_email: trimmedOrNull(values.general_email),
   general_phone: trimmedOrNull(values.general_phone),
   student_contact_email: trimmedOrNull(values.student_contact_email),
+  additional_emails: values.additional_emails,
   places_of_work: values.places_of_work.trim(),
   employee_count_switzerland: countOrNull(values.employee_count_switzerland),
   employee_count_worldwide: countOrNull(values.employee_count_worldwide),

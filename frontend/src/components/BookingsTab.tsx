@@ -5,6 +5,7 @@ import {
   Checkbox,
   Group,
   Loader,
+  MultiSelect,
   Pagination,
   Paper,
   Select,
@@ -13,20 +14,14 @@ import {
   Text,
   TextInput,
   Title,
-  UnstyledButton,
 } from "@mantine/core";
-import {
-  IconChevronDown,
-  IconChevronUp,
-  IconDownload,
-  IconGift,
-  IconSearch,
-  IconSelector,
-} from "@tabler/icons-react";
+import { IconDownload, IconGift, IconSearch } from "@tabler/icons-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { NavLink, useNavigate } from "react-router";
+import { NavLink, useNavigate, useSearchParams } from "react-router";
+import { useGetRecentChanges } from "../orval/generated/changes/changes";
 import { KpBookingStatusBadge } from "./KpBookingStatusBadge";
+import SortableHeader from "./SortableHeader";
 import BookingNewAdditionsBadge from "./bookings/BookingNewAdditionsBadge";
 import BookingCompletenessIcon from "./bookings/BookingCompletenessIcon";
 import BookingConfirmModal from "./bookings/BookingConfirmModal";
@@ -37,6 +32,8 @@ import BookingRowActions, {
   type BookingRowActionKind,
 } from "./bookings/BookingRowActions";
 import BoothNumberCell from "./bookings/BoothNumberCell";
+import ServiceFilterSelect from "./bookings/ServiceFilterSelect";
+import { bookedAnyService } from "./bookings/service-filter";
 import { formatBookingTimestamp } from "./bookings/booking-format";
 import { useBookingActions } from "./bookings/useBookingActions";
 import {
@@ -58,40 +55,49 @@ import {
   formatKpDisplayDate,
 } from "../utils/kp-utils";
 import { formatPrice } from "../utils/price-utils";
+import { sortRows, useSort, type SortValue } from "../utils/sort";
 
 type BookingRow = ListEventBookingsQueryResult[number];
-type SortField = "company" | "zone" | "status";
-type SortDirection = "asc" | "desc";
+type SortField =
+  | "company"
+  | "zone"
+  | "booth"
+  | "status"
+  | "complete"
+  | "waitlist"
+  | "total"
+  | "changed";
 
 const ALL_STATUSES = "ALL";
 const PAGE_SIZE = 25;
 
-const SortableHeader = ({
-  direction,
-  isActive,
-  label,
-  onSort,
-}: {
-  direction: SortDirection;
-  isActive: boolean;
-  label: string;
-  onSort: () => void;
-}) => (
-  <UnstyledButton onClick={onSort}>
-    <Group gap={4} wrap="nowrap">
-      <Text fw={600} size="sm">
-        {label}
-      </Text>
-      {!isActive ? (
-        <IconSelector size={14} />
-      ) : direction === "asc" ? (
-        <IconChevronUp size={14} />
-      ) : (
-        <IconChevronDown size={14} />
-      )}
-    </Group>
-  </UnstyledButton>
-);
+const SORT_COLUMNS: [SortField, string, number?][] = [
+  ["company", "kp.manage.booking_company"],
+  ["zone", "kp.manage.booking_booth_zone"],
+  ["booth", "kp.manage.booking_booth_nr", 110],
+  ["status", "kp.manage.booking_status"],
+  ["complete", "kp.manage.booking_completeness", 110],
+  ["waitlist", "kp.manage.booking_waitlist", 90],
+  ["total", "kp.manage.booking_gross_total"],
+  ["changed", "kp.manage.booking_status_changed_at"],
+];
+
+const SORT_VALUES: Record<SortField, (booking: BookingRow) => SortValue[]> = {
+  company: () => [],
+  zone: (booking) => [booking.booth_zone.order, booking.booth_zone.name],
+  booth: (booking) => [booking.booth_nr],
+  status: (booking) => [bookingStatusRank(booking.status)],
+  complete: (booking) => [Number(booking.is_complete ?? false)],
+  waitlist: (booking) => [booking.waitlist_count],
+  total: (booking) => [booking.price.gross],
+  changed: (booking) => [booking.status_changed_at],
+};
+
+const changedSince = (booking: BookingRow, since: Date | null) => {
+  if (since === null) return true;
+  const changedAt = booking.changed_at ?? booking.created_at;
+  return changedAt != null && new Date(changedAt) > since;
+};
 
 const BookingsTab = ({
   eventId,
@@ -109,17 +115,63 @@ const BookingsTab = ({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUSES);
   const [incompleteOnly, setIncompleteOnly] = useState(false);
-  const [sortField, setSortField] = useState<SortField>("company");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const onlyChanges = searchParams.get("changes") === "1";
+  const { data: recentChanges } = useGetRecentChanges({
+    query: { enabled: onlyChanges },
+  });
+  const changesSince = useMemo(
+    () => (recentChanges ? new Date(recentChanges.since) : null),
+    [recentChanges],
+  );
+  const setOnlyChanges = (value: boolean) => {
+    setPage(1);
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (value) next.set("changes", "1");
+        else next.delete("changes");
+        return next;
+      },
+      { replace: true },
+    );
+  };
+  const [serviceFilter, setServiceFilter] = useState<string[]>([]);
+  const [zoneFilter, setZoneFilter] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const { sort, toggleSort } = useSort<SortField>(
+    { field: "company", direction: "asc" },
+    () => setPage(1),
+  );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeAction, setActiveAction] = useState<{
     booking: BookingRow;
     kind: Exclude<BookingRowActionKind, "open">;
   } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [page, setPage] = useState(1);
 
   const rows = useMemo(() => bookings ?? [], [bookings]);
+  const zoneOptions = useMemo(
+    () =>
+      [
+        ...new Map(
+          rows.map((booking) => [booking.booth_zone_id, booking.booth_zone]),
+        ).values(),
+      ]
+        .sort(
+          (left, right) =>
+            left.order - right.order || left.name.localeCompare(right.name),
+        )
+        .map((zone) => ({ value: zone.id, label: zone.name })),
+    [rows],
+  );
+  const bookedServices = useMemo(
+    () =>
+      rows.flatMap((booking) =>
+        (booking.services ?? []).map((entry) => entry.service),
+      ),
+    [rows],
+  );
   const visibleRows = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     const filtered = rows.filter((booking) => {
@@ -133,27 +185,33 @@ const BookingsTab = ({
         return false;
       }
       if (incompleteOnly && booking.is_complete !== false) return false;
-      return true;
+      if (onlyChanges && !changedSince(booking, changesSince)) return false;
+      if (zoneFilter.length > 0 && !zoneFilter.includes(booking.booth_zone_id)) {
+        return false;
+      }
+      return bookedAnyService(booking.services ?? [], serviceFilter);
     });
 
-    const factor = sortDirection === "asc" ? 1 : -1;
-    return [...filtered].sort((left, right) => {
-      if (sortField === "status") {
-        return (
-          factor *
-          (bookingStatusRank(left.status) - bookingStatusRank(right.status))
-        );
-      }
-      if (sortField === "zone") {
-        return (
-          factor *
-          (left.booth_zone.order - right.booth_zone.order ||
-            left.booth_zone.name.localeCompare(right.booth_zone.name))
-        );
-      }
-      return factor * left.company.name.localeCompare(right.company.name);
-    });
-  }, [incompleteOnly, rows, search, sortDirection, sortField, statusFilter]);
+    const sorted = sortRows(filtered, sort, (booking, field) => [
+      ...SORT_VALUES[field](booking),
+      booking.company.name,
+    ]);
+    return onlyChanges
+      ? [...sorted].sort((left, right) =>
+          (right.changed_at ?? "").localeCompare(left.changed_at ?? ""),
+        )
+      : sorted;
+  }, [
+    changesSince,
+    onlyChanges,
+    incompleteOnly,
+    rows,
+    search,
+    serviceFilter,
+    sort,
+    statusFilter,
+    zoneFilter,
+  ]);
 
   const pageCount = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -172,16 +230,6 @@ const BookingsTab = ({
         selectedIds.includes(booking.id) && canAcceptBooking(booking.status),
     )
     .map((booking) => booking.id);
-
-  const toggleSort = (field: SortField) => {
-    setPage(1);
-    if (field === sortField) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-      return;
-    }
-    setSortField(field);
-    setSortDirection("asc");
-  };
 
   const toggleSelection = (bookingId: string, checked: boolean) =>
     setSelectedIds((previous) =>
@@ -307,6 +355,34 @@ const BookingsTab = ({
             value={statusFilter}
             w={200}
           />
+          {zoneOptions.length > 0 ? (
+            <MultiSelect
+              clearable
+              searchable
+              data={zoneOptions}
+              label={t("kp.manage.bookings_filter_zones")}
+              onChange={(value) => {
+                setPage(1);
+                setZoneFilter(value);
+              }}
+              placeholder={t("kp.manage.bookings_filter_zones_all")}
+              value={zoneFilter}
+              w={220}
+            />
+          ) : null}
+          {bookedServices.length > 0 ? (
+            <ServiceFilterSelect
+              label={t("kp.manage.bookings_filter_services")}
+              onChange={(value) => {
+                setPage(1);
+                setServiceFilter(value);
+              }}
+              placeholder={t("kp.manage.bookings_filter_services_all")}
+              services={bookedServices}
+              value={serviceFilter}
+              w={280}
+            />
+          ) : null}
           <Checkbox
             checked={incompleteOnly}
             label={t("kp.manage.bookings_filter_incomplete")}
@@ -314,6 +390,12 @@ const BookingsTab = ({
               setPage(1);
               setIncompleteOnly(event.currentTarget.checked);
             }}
+            pb={8}
+          />
+          <Checkbox
+            checked={onlyChanges}
+            label={t("changes.only_changes")}
+            onChange={(event) => setOnlyChanges(event.currentTarget.checked)}
             pb={8}
           />
         </Group>
@@ -346,39 +428,16 @@ const BookingsTab = ({
                       }
                     />
                   </Table.Th>
-                  <Table.Th>
+                  {SORT_COLUMNS.map(([field, labelKey, width]) => (
                     <SortableHeader
-                      direction={sortDirection}
-                      isActive={sortField === "company"}
-                      label={t("kp.manage.booking_company")}
-                      onSort={() => toggleSort("company")}
+                      key={field}
+                      w={width}
+                      field={field}
+                      label={t(labelKey)}
+                      sort={sort}
+                      onSort={toggleSort}
                     />
-                  </Table.Th>
-                  <Table.Th>
-                    <SortableHeader
-                      direction={sortDirection}
-                      isActive={sortField === "zone"}
-                      label={t("kp.manage.booking_booth_zone")}
-                      onSort={() => toggleSort("zone")}
-                    />
-                  </Table.Th>
-                  <Table.Th w={110}>{t("kp.manage.booking_booth_nr")}</Table.Th>
-                  <Table.Th>
-                    <SortableHeader
-                      direction={sortDirection}
-                      isActive={sortField === "status"}
-                      label={t("kp.manage.booking_status")}
-                      onSort={() => toggleSort("status")}
-                    />
-                  </Table.Th>
-                  <Table.Th w={110}>
-                    {t("kp.manage.booking_completeness")}
-                  </Table.Th>
-                  <Table.Th w={90}>{t("kp.manage.booking_waitlist")}</Table.Th>
-                  <Table.Th>{t("kp.manage.booking_gross_total")}</Table.Th>
-                  <Table.Th>
-                    {t("kp.manage.booking_status_changed_at")}
-                  </Table.Th>
+                  ))}
                   <Table.Th w={60}>{t("kp.manage.booking_actions")}</Table.Th>
                 </Table.Tr>
               </Table.Thead>

@@ -20,8 +20,8 @@ class CompanyUserResponse(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     phone_number: str | None = None
-    user_confirmed: bool
     email_confirmed: bool
+    has_password: bool = False
     pending_email: str | None = None
     company: CompanyResponse | None = None
 
@@ -38,8 +38,8 @@ class UserResponse(BaseModel):
     is_admin: bool
     is_company: bool
     is_kp_president: bool
-    user_confirmed: bool
     email_confirmed: bool
+    has_password: bool = False
     company_id: UUID | None = None
     company: CompanyResponse | None = None
 
@@ -53,9 +53,19 @@ class StaffUserResponse(UserResponse):
 
 class UserFilter(StrEnum):
     ALL = "all"
-    UNCONFIRMED = "unconfirmed"
     COMPANY = "company"
     STAFF = "staff"
+    NEW = "new"
+
+
+class UserSort(StrEnum):
+    EMAIL = "email"
+    NAME = "name"
+    COMPANY = "company"
+    ROLE = "role"
+    STATUS = "status"
+    SIGNED_UP = "signed_up"
+    LAST_LOGIN = "last_login"
 
 
 class UserPageResult(BaseModel):
@@ -98,6 +108,7 @@ class UpdateUserProfileRequest(UpdateUserProfileInput):
 
 class EmailChangeInput(BaseModel):
     email: EmailStr
+    current_password: str | None = Field(default=None, max_length=1024)
 
 
 class EmailChangeRequest(EmailChangeInput):
@@ -107,11 +118,10 @@ class EmailChangeRequest(EmailChangeInput):
 class UpdateCompanyUserInput(UserProfileFieldsInput):
     email: EmailStr | None = None
     company_id: UUID | None = None
-    user_confirmed: bool | None = None
     is_staff: bool | None = None
     is_admin: bool | None = None
 
-    @field_validator("user_confirmed", "is_staff", "is_admin")
+    @field_validator("is_staff", "is_admin")
     @classmethod
     def flag_cannot_be_cleared(cls, v: bool | None) -> bool:
         if v is None:

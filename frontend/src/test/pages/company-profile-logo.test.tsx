@@ -21,7 +21,6 @@ const companyUser: UserResponse = {
   is_admin: false,
   is_company: true,
   is_kp_president: false,
-  user_confirmed: true,
   email_confirmed: true,
   company_id: "company-1",
 };

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse, type DefaultBodyType } from "msw";
-import { beforeEach, describe, expect, it } from "vitest";
-import { Route, Routes, useParams } from "react-router";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Route, Routes, useLocation, useParams } from "react-router";
 import { UserProvider } from "../../context/UserContext";
 import {
   KpBookingStatus,
@@ -24,6 +24,12 @@ import {
 import { createToken } from "../jwt";
 import { testOpenEvent, testStaffBooking } from "../fixtures/kp-booking";
 import { renderWithProviders } from "../render";
+import { reloadAt } from "../../utils/navigation";
+
+vi.mock("../../utils/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/navigation")>()),
+  reloadAt: vi.fn(),
+}));
 import { server } from "../server";
 
 let listRequests: URL[] = [];
@@ -36,12 +42,23 @@ let companyTotal = 2;
 let companyMembers: StaffUserResponse[] = [];
 let deleteResponse: () => HttpResponse<DefaultBodyType>;
 let latestEvent: KpResponse | null = null;
+const olderEvent: KpResponse = {
+  ...testOpenEvent,
+  id: "event-older",
+  name: "Kontaktparty 2000",
+  event_date: "2000-01-02",
+};
 let eventBookings: StaffBookingResponse[] = [];
 let bookingActions: string[] = [];
 
 const BookingRouteProbe = () => {
   const { id, bookingId } = useParams();
   return <p>{`${id}/${bookingId}`}</p>;
+};
+
+const LocationProbe = () => {
+  const location = useLocation();
+  return <p>{`${location.pathname}${location.search}`}</p>;
 };
 
 const acmeBooking = (status: KpBookingStatus): StaffBookingResponse => ({
@@ -104,8 +121,8 @@ beforeEach(() => {
         return HttpResponse.json({ id: params.companyId, name: "Renamed AG" });
       },
     ),
-    http.get(`${testBackendUrl}/api/kp/latest`, () =>
-      HttpResponse.json(latestEvent),
+    http.get(`${testBackendUrl}/api/kp/list`, () =>
+      HttpResponse.json(latestEvent ? [latestEvent, olderEvent] : [olderEvent]),
     ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId/bookings`, () =>
       HttpResponse.json(eventBookings),
@@ -229,6 +246,27 @@ describe("the company management page", () => {
     });
   });
 
+  it("sorts by member count on the server", async () => {
+    const { user } = renderPage();
+    await screen.findByText(acmeCompany.name);
+
+    await user.click(
+      screen.getByRole("button", { name: "company_management.users_count" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "company_management.users_count" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        listRequests[listRequests.length - 1].searchParams.get("direction"),
+      ).toBe("desc");
+    });
+    expect(listRequests[listRequests.length - 1].searchParams.get("sort")).toBe(
+      "members",
+    );
+  });
+
   it("renames a company inline", async () => {
     const { user } = renderPage();
     const row = await acmeRow();
@@ -267,6 +305,59 @@ describe("the company management page", () => {
         { companyId: acmeCompany.id, userId: memberUser.id },
       ]);
     });
+  });
+
+  it("impersonates a member and remembers where it started", async () => {
+    const { user } = renderWithProviders(
+      <UserProvider user={adminUser} isLoading={false}>
+        <CompanyManagement />
+      </UserProvider>,
+      { route: "/company-management" },
+    );
+    const row = await acmeRow();
+    await user.click(
+      row.getByRole("button", { name: "company_management.view_users" }),
+    );
+    await screen.findByText(memberUser.email);
+
+    await user.click(
+      screen.getByRole("button", { name: "user_management.impersonate" }),
+    );
+
+    expect(reloadAt).toHaveBeenCalledWith("/");
+    expect(sessionStorage.getItem("impersonating_user_id")).toBe(memberUser.id);
+    expect(sessionStorage.getItem("impersonation_origin")).toBe(
+      "/company-management",
+    );
+  });
+
+  it("edits a member and links to the user management", async () => {
+    const { user } = renderPage(staffUser);
+    const row = await acmeRow();
+    await user.click(
+      row.getByRole("button", { name: "company_management.view_users" }),
+    );
+    await screen.findByText(memberUser.email);
+
+    expect(
+      screen.queryByRole("button", { name: "user_management.impersonate" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: "company_management.members.open_in_user_management",
+      }),
+    ).toHaveAttribute(
+      "href",
+      `/user-management?query=${encodeURIComponent(acmeCompany.name).replaceAll("%20", "+")}`,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "user_management.edit.title" }),
+    );
+
+    expect(
+      await screen.findByDisplayValue(memberUser.email),
+    ).toBeInTheDocument();
   });
 
   it("only offers users without a company when adding a member", async () => {
@@ -501,6 +592,40 @@ describe("confirming bookings from the company management", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows the bookings of another picked Kontaktparty", async () => {
+    latestEvent = testOpenEvent;
+    eventBookings = [];
+    server.use(
+      http.get(
+        `${testBackendUrl}/api/kp/events/:eventId/bookings`,
+        ({ params }) =>
+          HttpResponse.json(
+            params.eventId === olderEvent.id
+              ? [acmeBooking(KpBookingStatus.CONFIRMED)]
+              : [],
+          ),
+      ),
+    );
+    const { user } = renderPage(staffUser);
+    const row = await acmeRow();
+
+    await user.click(
+      await screen.findByRole("combobox", {
+        name: "kp.bookings_overview.event",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("option", { name: olderEvent.name }),
+    );
+
+    expect(
+      await row.findByText("kp.booking.status.confirmed.label"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: olderEvent.name }),
+    ).toBeInTheDocument();
+  });
+
   it("ignores bookings of an event that is already over", async () => {
     latestEvent = { ...testOpenEvent, event_date: "2000-01-02" };
     eventBookings = [acmeBooking(KpBookingStatus.REGISTERED)];
@@ -510,6 +635,83 @@ describe("confirming bookings from the company management", () => {
     await waitFor(() => expect(listRequests.length).toBeGreaterThan(0));
     expect(
       row.queryByRole("button", { name: "kp.manage.booking_action_accept" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("mailing a company", () => {
+  it("opens a new mail for the company and the shown event", async () => {
+    latestEvent = testOpenEvent;
+    const { user } = renderWithProviders(
+      <UserProvider
+        user={{ ...staffUser, is_kp_president: true }}
+        isLoading={false}
+      >
+        <Routes>
+          <Route path="/" element={<CompanyManagement />} />
+          <Route path="/admin/mail-campaigns" element={<LocationProbe />} />
+        </Routes>
+      </UserProvider>,
+    );
+    const row = await acmeRow();
+
+    await user.click(
+      row.getByRole("button", { name: "company_management.send_mail" }),
+    );
+
+    expect(
+      await screen.findByText(
+        `/admin/mail-campaigns?company=${acmeCompany.id}&event=${testOpenEvent.id}`,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the mail action from staff without the organiser role", async () => {
+    renderPage(staffUser);
+    const row = await acmeRow();
+
+    expect(
+      row.queryByRole("button", { name: "company_management.send_mail" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("company confirmation", () => {
+  it("confirms a company the organisers have not approved yet", async () => {
+    const confirmed: string[] = [];
+    companies = [{ ...acmeCompany, confirmed_at: null }, globexCompany];
+    server.use(
+      http.post(
+        `${testBackendUrl}/api/companies/:companyId/confirm`,
+        ({ params }) => {
+          confirmed.push(String(params.companyId));
+          return HttpResponse.json({
+            id: acmeCompany.id,
+            name: acmeCompany.name,
+            confirmed_at: "2026-10-20T10:00:00Z",
+          });
+        },
+      ),
+    );
+    const { user } = renderPage();
+    const row = await acmeRow();
+
+    expect(row.getByText("company_management.unconfirmed")).toBeInTheDocument();
+    await user.click(
+      row.getByRole("button", { name: "company_management.confirm" }),
+    );
+
+    await waitFor(() => {
+      expect(confirmed).toEqual([acmeCompany.id]);
+    });
+  });
+
+  it("offers no confirmation for an approved company", async () => {
+    renderPage();
+    const row = await acmeRow();
+
+    expect(
+      row.queryByRole("button", { name: "company_management.confirm" }),
     ).not.toBeInTheDocument();
   });
 });

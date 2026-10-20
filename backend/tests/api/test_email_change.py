@@ -12,6 +12,7 @@ from sqlmodel import col, update
 from app.core.utils import hash_str
 from app.models.user import EmailChangeToken, User
 from app.repositories.user_repository import UserRepository
+from app.services.auth_service import AuthService
 from tests.api.conftest import DEFAULT_PASSWORD, decoded_subject
 
 NEW_EMAIL = "moved@example.com"
@@ -242,7 +243,9 @@ async def request_own_change(
     client: AsyncClient, headers: dict[str, str], email: str = NEW_EMAIL
 ) -> Response:
     return await client.post(
-        "/api/user/me/email", json={"email": email}, headers=headers
+        "/api/user/me/email",
+        json={"email": email, "current_password": DEFAULT_PASSWORD},
+        headers=headers,
     )
 
 
@@ -371,3 +374,46 @@ async def test_staff_cannot_change_the_own_email_through_the_profile(
 
     assert response.status_code == 403
     mail_stub.SendMail.assert_not_awaited()
+
+
+async def test_an_own_email_change_needs_the_current_password(
+    client: AsyncClient,
+    company_headers: dict[str, str],
+    mail_stub: AsyncMock,
+):
+    missing = await client.post(
+        "/api/user/me/email", json={"email": NEW_EMAIL}, headers=company_headers
+    )
+    wrong = await client.post(
+        "/api/user/me/email",
+        json={"email": NEW_EMAIL, "current_password": "not-the-password"},
+        headers=company_headers,
+    )
+
+    assert missing.status_code == 400
+    assert wrong.json()["code"] == "error.invalid_credentials"
+    assert mails_to(mail_stub, NEW_EMAIL) == []
+
+
+async def test_a_password_reset_cancels_a_pending_email_change(
+    client: AsyncClient,
+    csrf_headers: dict[str, str],
+    company_user: User,
+    company_headers: dict[str, str],
+    auth_service: AuthService,
+    mail_stub: AsyncMock,
+):
+    await request_own_change(client, company_headers)
+    change_token = confirm_token(mail_stub)
+    reset_token = await auth_service.create_reset_password_token(company_user)
+
+    await client.post(
+        "/api/auth/reset",
+        json={"token": reset_token, "new_password": "a-new-long-password"},
+        headers=csrf_headers,
+    )
+    confirmed = await client.post(
+        f"/api/user/confirm-email/{change_token}", headers=csrf_headers
+    )
+
+    assert confirmed.status_code == 400

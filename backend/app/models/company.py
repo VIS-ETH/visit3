@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import EmailStr, field_validator
 from pydantic_core import PydanticCustomError
-from sqlalchemy import Column, DateTime, Text
+from sqlalchemy import JSON, Column, DateTime, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field, Relationship
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from app.models.kp_event import KpEventBooking, KpEventRegistrationException
     from app.models.user import User
 
-PROFILE_DESCRIPTION_MAX_LENGTH = 2500
+PROFILE_DESCRIPTION_MAX_LENGTH = 3500
 PROFILE_DESCRIPTION_MARKUP_MAX_LENGTH = 100_000
 
 MANDATORY_PROFILE_FIELDS = (
@@ -82,6 +82,9 @@ class Company(BaseEntity, table=True):
     __table_args__ = (unique_among_active_index("ix_company_name", "name"),)
 
     name: str
+    confirmed_at: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
 
     users: list["User"] = Relationship(back_populates="company")
     invites: list["CompanyInvite"] = Relationship(back_populates="company")
@@ -108,6 +111,10 @@ class KpCompanyProfile(BaseEntity, table=True):
     general_email: EmailStr | None = Field(default=None)
     general_phone: str | None = Field(default=None)
     student_contact_email: EmailStr | None = Field(default=None)
+    additional_emails: list[str] = Field(
+        default_factory=list,
+        sa_column=Column(JSON, nullable=False, server_default="[]"),
+    )
     places_of_work: str = Field(default="")
 
     employee_count_switzerland: int | None = Field(default=None, ge=0)

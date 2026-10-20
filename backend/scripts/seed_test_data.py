@@ -7,7 +7,7 @@ import struct
 import sys
 import zlib
 from collections.abc import Mapping
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import TypedDict
 
@@ -117,7 +117,6 @@ class SeedUser(TypedDict):
     is_admin: bool
     is_staff: bool
     is_company: bool
-    user_confirmed: bool
     email_confirmed: bool
     company_key: str | None
 
@@ -126,7 +125,6 @@ class SeedUserFlags(TypedDict):
     is_admin: bool
     is_staff: bool
     is_company: bool
-    user_confirmed: bool
     email_confirmed: bool
 
 
@@ -616,7 +614,6 @@ KNOWN_COMPANY_USERS: list[SeedUser] = [
         "is_admin": False,
         "is_staff": False,
         "is_company": True,
-        "user_confirmed": True,
         "email_confirmed": True,
         "company_key": "seed-robotics",
     },
@@ -651,7 +648,6 @@ def generate_seed_users() -> list[SeedUser]:
                     "is_admin": False,
                     "is_staff": False,
                     "is_company": True,
-                    "user_confirmed": False,
                     "email_confirmed": randomizer.choice([True, False]),
                 }
             elif group == "staff":
@@ -659,7 +655,6 @@ def generate_seed_users() -> list[SeedUser]:
                     "is_admin": False,
                     "is_staff": True,
                     "is_company": False,
-                    "user_confirmed": True,
                     "email_confirmed": True,
                 }
             elif group == "admins":
@@ -667,7 +662,6 @@ def generate_seed_users() -> list[SeedUser]:
                     "is_admin": True,
                     "is_staff": False,
                     "is_company": False,
-                    "user_confirmed": True,
                     "email_confirmed": True,
                 }
             else:
@@ -675,7 +669,6 @@ def generate_seed_users() -> list[SeedUser]:
                     "is_admin": False,
                     "is_staff": False,
                     "is_company": True,
-                    "user_confirmed": True,
                     "email_confirmed": True,
                 }
 
@@ -687,7 +680,6 @@ def generate_seed_users() -> list[SeedUser]:
                     "is_admin": user_payload["is_admin"],
                     "is_staff": user_payload["is_staff"],
                     "is_company": user_payload["is_company"],
-                    "user_confirmed": user_payload["user_confirmed"],
                     "email_confirmed": user_payload["email_confirmed"],
                     "company_key": randomizer.choice(company_keys)
                     if user_payload["is_company"]
@@ -740,7 +732,7 @@ async def get_or_create_company(session, name: str) -> Company:
     if company:
         return company
 
-    company = Company(name=name)
+    company = Company(name=name, confirmed_at=datetime.now(timezone.utc))
     session.add(company)
     await session.flush()
     return company
@@ -952,8 +944,7 @@ async def upsert_requirement_text_answer(
     answer = (
         await session.execute(
             select(KpEventBookingServiceFileLink).where(
-                KpEventBookingServiceFileLink.booking_service_id
-                == booking_service.id,
+                KpEventBookingServiceFileLink.booking_service_id == booking_service.id,
                 KpEventBookingServiceFileLink.requirement_id == requirement.id,
             )
         )
@@ -1022,8 +1013,7 @@ async def upsert_requirement_file_answer(
     answer = (
         await session.execute(
             select(KpEventBookingServiceFileLink).where(
-                KpEventBookingServiceFileLink.booking_service_id
-                == booking_service.id,
+                KpEventBookingServiceFileLink.booking_service_id == booking_service.id,
                 KpEventBookingServiceFileLink.requirement_id == requirement.id,
             )
         )
@@ -1173,7 +1163,9 @@ async def seed_kp_nametag_exports(
 
         service_image = KP_SERVICE_IMAGE_FILES.get(service_name)
         if service_image is not None:
-            stored_file = await upload_seed_file(session, storage_service, service_image)
+            stored_file = await upload_seed_file(
+                session, storage_service, service_image
+            )
             service.image_stored_file_id = stored_file.id
             session.add(service)
             await session.flush()
@@ -1248,7 +1240,9 @@ async def seed_kp_nametag_exports(
                 .get(service_name, {})
                 .items()
             ):
-                stored_file = await upload_seed_file(session, storage_service, file_seed)
+                stored_file = await upload_seed_file(
+                    session, storage_service, file_seed
+                )
                 requirement = requirements[service_name][requirement_name]
                 await upsert_requirement_file_answer(
                     session,
@@ -1311,7 +1305,6 @@ async def seed() -> None:
                     is_admin=item["is_admin"],
                     is_staff=item["is_staff"],
                     is_company=item["is_company"],
-                    user_confirmed=item["user_confirmed"],
                     email_confirmed=item["email_confirmed"],
                     company_id=company.id if company else None,
                 )
@@ -1323,7 +1316,6 @@ async def seed() -> None:
                 existing.is_admin = item["is_admin"]
                 existing.is_staff = item["is_staff"]
                 existing.is_company = item["is_company"]
-                existing.user_confirmed = item["user_confirmed"]
                 existing.email_confirmed = item["email_confirmed"]
                 existing.company_id = company.id if company else None
                 if not existing.password:

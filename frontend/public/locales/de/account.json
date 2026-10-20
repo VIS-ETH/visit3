@@ -39,7 +39,8 @@
       "submit": "Bestätigungslink senden",
       "sent_title": "Bestätigungslink gesendet",
       "sent_message": "Öffnen Sie den Link, den wir an {{email}} gesendet haben, um die Änderung abzuschliessen.",
-      "pending": "Wartet auf Bestätigung von {{email}}"
+      "pending": "Wartet auf Bestätigung von {{email}}",
+      "current_password": "Aktuelles Passwort"
     }
   },
   "impersonation": {
@@ -74,8 +75,8 @@
     "profile_complete_hint": "Alle Pflichtangaben für die Kontaktparty sind ausgefüllt.",
     "profile_incomplete_hint": "{{missing}} Pflichtfelder fehlen noch.",
     "profile_link": "Profil bearbeiten",
-    "unconfirmed_title": "Konto noch nicht bestätigt",
-    "members_unconfirmed": "Mitglieder werden sichtbar, sobald Ihr Konto bestätigt ist.",
+    "unconfirmed_title": "Unternehmen noch nicht freigegeben",
+    "unconfirmed_description": "Die Kontaktparty-Organisatoren müssen Ihr Unternehmen noch freigeben. Sie können das Profil bereits vervollständigen und Kolleginnen und Kollegen einladen; die Anmeldung zur Kontaktparty ist nach der Freigabe möglich.",
     "settings_button": "Einstellungen",
     "settings_title": "Unternehmen bearbeiten",
     "name_label": "Unternehmensname",
@@ -92,7 +93,7 @@
   },
   "company_profile_form": {
     "title": "Unternehmensprofil",
-    "subtitle": "Diese Angaben werden für den Kontaktparty-Katalog und für die Rechnungsstellung verwendet.",
+    "subtitle": "Diese Angaben werden für den Kontaktparty-Katalog und für die Rechnungsstellung verwendet. Sie können jederzeit speichern, auch wenn noch nicht alles ausgefüllt ist.",
     "load_error": "Das Unternehmensprofil konnte nicht geladen werden.",
     "complete": "Profil vollständig",
     "incomplete": "Profil unvollständig",
@@ -124,6 +125,13 @@
     "editor_italic": "Kursiv",
     "editor_underline": "Unterstrichen",
     "editor_strike": "Durchgestrichen",
+    "editor_bullet_list": "Aufzählung",
+    "editor_ordered_list": "Nummerierte Liste",
+    "editor_indent": "Listenpunkt einrücken",
+    "editor_outdent": "Listenpunkt ausrücken",
+    "editor_undo": "Rückgängig",
+    "editor_redo": "Wiederholen",
+    "editor_hint": "Enter beginnt einen neuen Absatz, Umschalt+Enter eine neue Zeile. Mit „- “ oder „1. “ beginnt eine Liste, Tab rückt einen Listenpunkt eine Stufe ein.",
     "description_counter": "{{current}} von {{max}} Zeichen",
     "website": "Website",
     "website_placeholder": "https://example.com",
@@ -152,6 +160,9 @@
     "student_contact_email": "E-Mail für Studierende",
     "student_contact_email_hint": "Erscheint im Booklet, damit Studierende Sie kontaktieren können.",
     "student_contact_email_placeholder": "jobs@firma.ch",
+    "additional_emails": "Weitere E-Mail-Adressen",
+    "additional_emails_hint": "Erhalten E-Mails von VIS zusätzlich zur Kontaktperson. Erscheinen nicht im Booklet.",
+    "additional_emails_placeholder": "Adresse eingeben und Enter drücken",
     "general_phone": "Allgemeine Telefonnummer",
     "billing_company_name": "Unternehmensname für die Rechnung",
     "billing_street": "Strasse",
@@ -165,6 +176,8 @@
     "errors": {
       "country": "Bitte wählen Sie ein Land aus."
     },
-    "no_match": "Keine Treffer"
+    "no_match": "Keine Treffer",
+    "draft_restored_title": "Ungespeicherte Änderungen wiederhergestellt",
+    "draft_restored": "Ihre letzten Änderungen waren noch nicht gespeichert. Sie wurden in diesem Browser aufbewahrt und hier wiederhergestellt. Speichern Sie, um sie zu behalten, oder verwerfen Sie sie."
   }
 }

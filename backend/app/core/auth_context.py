@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.core.config import get_settings
-from app.core.exceptions import EmailNotConfirmed, NotAllowed, UserNotConfirmed
+from app.core.exceptions import EmailNotConfirmed, NotAllowed
 from app.models.user import User
 
 
@@ -41,8 +41,6 @@ def require_confirmed_company_user(user: User) -> ConfirmedCompanyUser:
         raise NotAllowed(f"require_confirmed_company:{user.id}")
     if not user.email_confirmed:
         raise EmailNotConfirmed(f"require_confirmed_company:{user.id}")
-    if not user.user_confirmed:
-        raise UserNotConfirmed(f"require_confirmed_company:{user.id}")
     return ConfirmedCompanyUser(user=user)
 
 

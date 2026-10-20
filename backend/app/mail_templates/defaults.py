@@ -20,38 +20,6 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
             "<p>Best regards<br />Your VIS Kontaktparty team</p>"
         ),
     ),
-    MailTemplateKey.ACCOUNT_CONFIRMED: MailTemplateTexts(
-        subject_de="VISIT: Konto freigeschaltet",
-        subject_en="VISIT: Account activated",
-        body_de=(
-            "<p>Hallo {{ name }},</p>"
-            "<p>Ihr VISIT-Konto wurde vom VIS freigegeben. Sie können sich ab sofort"
-            " anmelden und Ihr Unternehmen verwalten.</p>"
-            '<p><a href="{{ login_url }}">Zu VISIT</a></p>'
-            "<p>Viele Grüsse<br />Ihr VIS-Kontaktparty-Team</p>"
-        ),
-        body_en=(
-            "<p>Hello {{ name }},</p>"
-            "<p>your VISIT account has been approved by VIS. You can log in and manage"
-            " your company from now on.</p>"
-            '<p><a href="{{ login_url }}">Go to VISIT</a></p>'
-            "<p>Best regards<br />Your VIS Kontaktparty team</p>"
-        ),
-    ),
-    MailTemplateKey.ACCOUNT_AWAITING_CONFIRMATION: MailTemplateTexts(
-        subject_de="VISIT: Neues Konto wartet auf Freigabe",
-        subject_en="VISIT: New account awaiting approval",
-        body_de=(
-            "<p>{{ name }} ({{ email }}) hat die E-Mail-Adresse bestätigt und wartet"
-            " nun auf die Freigabe durch den VIS.</p>"
-            '<p><a href="{{ admin_url }}">Konto prüfen</a></p>'
-        ),
-        body_en=(
-            "<p>{{ name }} ({{ email }}) confirmed their email address and is now"
-            " waiting for approval by VIS.</p>"
-            '<p><a href="{{ admin_url }}">Review account</a></p>'
-        ),
-    ),
     MailTemplateKey.PASSWORD_RESET: MailTemplateTexts(
         subject_de="VISIT: Passwort zurücksetzen",
         subject_en="VISIT: Reset your password",
@@ -162,6 +130,38 @@ MAIL_TEMPLATE_DEFAULTS: dict[MailTemplateKey, MailTemplateTexts] = {
             " VISIT.</p>"
             '<p><a href="{{ invite_url }}">Accept invitation</a></p>'
             "<p>The invitation is valid for seven days.</p>"
+        ),
+    ),
+    MailTemplateKey.COMPANY_CONFIRMED: MailTemplateTexts(
+        subject_de="VISIT: {{ company_name }} freigeschaltet",
+        subject_en="VISIT: {{ company_name }} approved",
+        body_de=(
+            "<p>Hallo {{ name }},</p>"
+            "<p>das Unternehmen {{ company_name }} wurde vom VIS freigegeben. Sie"
+            " können sich ab sofort für die Kontaktparty anmelden.</p>"
+            '<p><a href="{{ login_url }}">Zu VISIT</a></p>'
+            "<p>Viele Grüsse<br />Ihr VIS-Kontaktparty-Team</p>"
+        ),
+        body_en=(
+            "<p>Hello {{ name }},</p>"
+            "<p>the company {{ company_name }} has been approved by VIS. You can"
+            " register for the Kontaktparty from now on.</p>"
+            '<p><a href="{{ login_url }}">Go to VISIT</a></p>'
+            "<p>Best regards<br />Your VIS Kontaktparty team</p>"
+        ),
+    ),
+    MailTemplateKey.COMPANY_AWAITING_CONFIRMATION: MailTemplateTexts(
+        subject_de="VISIT: Neues Unternehmen {{ company_name }} wartet auf Freigabe",
+        subject_en="VISIT: New company {{ company_name }} awaiting approval",
+        body_de=(
+            "<p>{{ name }} ({{ email }}) hat das Unternehmen {{ company_name }}"
+            " erstellt. Es wartet nun auf die Freigabe durch den VIS.</p>"
+            '<p><a href="{{ admin_url }}">Unternehmen prüfen</a></p>'
+        ),
+        body_en=(
+            "<p>{{ name }} ({{ email }}) created the company {{ company_name }}."
+            " It is now waiting for approval by VIS.</p>"
+            '<p><a href="{{ admin_url }}">Review company</a></p>'
         ),
     ),
     MailTemplateKey.BOOKING_REGISTERED: MailTemplateTexts(

@@ -14,8 +14,12 @@
     "rename_save": "Save name",
     "rename_cancel": "Cancel rename",
     "renamed": "Company renamed.",
+    "unconfirmed": "Unconfirmed",
+    "confirm": "Confirm company",
+    "confirmed_notice": "Company confirmed.",
     "view_users": "Members",
     "edit_profile": "Edit company profile",
+    "send_mail": "Send mail",
     "delete": "Delete company",
     "profile_title": "Company profile",
     "members": {
@@ -29,7 +33,8 @@
       "add_empty": "No users without a company found",
       "added": "Member added.",
       "acknowledge": "Mark as seen",
-      "acknowledged": "Marked as seen."
+      "acknowledged": "Marked as seen.",
+      "open_in_user_management": "Open in user management"
     },
     "delete_modal": {
       "title": "Delete company",
@@ -57,20 +62,17 @@
     "table_empty": "No users found.",
     "total": "{{total}} users",
     "confirmed": "Confirmed",
-    "unconfirmed": "Unconfirmed",
     "email_unconfirmed": "Email unconfirmed",
     "email_change_pending": "New email pending",
-    "confirm": "Confirm user",
-    "confirmed_notice": "User confirmed.",
     "resend": "Resend confirmation email",
     "resent_notice": "Confirmation email sent.",
     "impersonate": "Impersonate",
     "delete": "Delete user",
     "filters": {
       "all": "All",
-      "unconfirmed": "Unconfirmed",
       "company": "Company users",
-      "staff": "Staff"
+      "staff": "Staff",
+      "new": "New since last visit"
     },
     "flags": {
       "header": "Roles",
@@ -89,7 +91,6 @@
       "company": "Company",
       "company_placeholder": "No company",
       "company_empty": "No companies found",
-      "user_confirmed": "Account confirmed",
       "is_staff": "Staff",
       "is_admin": "Admin",
       "save": "Save user",
@@ -163,6 +164,159 @@
     "preview_text": "Plain text",
     "preview_frame_title": "Email preview"
   },
+  "mail_campaigns": {
+    "title": "Mails",
+    "description": "Write mails to companies and send them now or at a set time.",
+    "error": "Failed to load the mails",
+    "list_title": "Mails",
+    "new": "New",
+    "empty": "No mails yet.",
+    "new_title": "New mail",
+    "name": "Internal name",
+    "event": "Kontaktparty",
+    "section": {
+      "audience": "Audience",
+      "content": "Content",
+      "preview": "Preview"
+    },
+    "status": {
+      "DRAFT": "Draft",
+      "SCHEDULED": "Scheduled",
+      "SENDING": "Sending",
+      "SENT": "Sent",
+      "PARTIALLY_FAILED": "Partly failed"
+    },
+    "recipient_status": {
+      "PENDING": "Pending",
+      "SENDING": "Sending",
+      "SENT": "Sent",
+      "FAILED": "Failed",
+      "SKIPPED": "Skipped"
+    },
+    "segment": {
+      "ALL": "All companies",
+      "NOT_REGISTERED": "Not registered",
+      "REGISTERED": "Registered",
+      "CONFIRMED": "Confirmed",
+      "OFFERED": "Offered, pending",
+      "WAITLISTED": "Waitlisted"
+    },
+    "audience": {
+      "segments": "Send to",
+      "segments_hint": "Registered includes confirmed bookings. A pending offer does not count as registered.",
+      "all_accounts": "To all accounts",
+      "all_accounts_hint": "Every confirmed account of the companies instead of only the contact person. Without an account the mail goes to the general email.",
+      "zones": "Booth zones",
+      "zones_hint": "Only bookings in these zones. Leave empty for all zones.",
+      "zones_placeholder": "All zones",
+      "services": "Booked services",
+      "services_hint": "Only bookings with at least one of them. Leave empty for all.",
+      "services_placeholder": "All services",
+      "include": "Always include",
+      "exclude": "Never include",
+      "company_placeholder": "Pick companies"
+    },
+    "recipients": {
+      "title": "Recipients",
+      "summary": "{{count}} to send, {{skipped}} skipped",
+      "empty": "No company matches.",
+      "company": "Company",
+      "address": "Address",
+      "via": "Via",
+      "manual": "manual"
+    },
+    "skip": {
+      "NO_ADDRESS": "No contact person or general email",
+      "DUPLICATE_ADDRESS": "Address already included"
+    },
+    "source": {
+      "CONTACT": "Contact person",
+      "GENERAL_EMAIL": "General email",
+      "ACCOUNT": "Account",
+      "ADDITIONAL_EMAIL": "Additional email"
+    },
+    "failure": {
+      "DELIVERY_FAILED": "Rejected by the mail service",
+      "RENDER_FAILED": "Text could not be rendered",
+      "INTERRUPTED": "Interrupted, delivery unknown",
+      "ABORTED": "Stopped after repeated failures"
+    },
+    "tab_en_optional": "English (optional)",
+    "english_hint": "Without English text the mail is sent in German only.",
+    "english_incomplete": "Fill in both the English subject and body, or neither.",
+    "variable": {
+      "name": "Name of the person, or the company name when the general email is used",
+      "company_name": "Company name",
+      "event_name": "Name of the Kontaktparty",
+      "event_date": "Date of the Kontaktparty",
+      "registration_end": "End of registration",
+      "finalization_deadline": "Deadline to complete the booking",
+      "nametags_deadline": "Deadline for name tags",
+      "booth_zone_name": "Booked booth zone, otherwise -",
+      "offer_deadline": "Deadline of an open offer, otherwise -",
+      "services": "Booked services, otherwise -",
+      "booth_elements": "Booked booth elements, otherwise -",
+      "login_url": "Login link, personal unless sent to the general email"
+    },
+    "condition": {
+      "button": "Paragraph only for…",
+      "hint": "Inserts a paragraph only companies that booked the chosen item receive. Selected text gets wrapped."
+    },
+    "preview_company": "Preview for",
+    "preview_sample": "Sample data",
+    "test_send": "Send test to me",
+    "test_send_success": "Test mail sent to you.",
+    "save": "Save",
+    "save_success": "Mail saved.",
+    "send_now": "Send now",
+    "send_success": "The mail is being sent.",
+    "schedule": "Schedule",
+    "schedule_success": "Mail scheduled.",
+    "delete": "Delete",
+    "delete_success": "Mail deleted.",
+    "cancel": "Cancel",
+    "scheduled_for": "Scheduled for {{date}}",
+    "scheduled_hint": "Changes apply to the scheduled mail. Recipients are determined when it is sent.",
+    "unschedule": "Cancel schedule",
+    "send_modal": {
+      "title": "Send mail now?",
+      "message": "The mail goes out now to {{count}} recipients.",
+      "message_one": "The mail goes out now to 1 recipient.",
+      "nobody": "No company would receive this mail.",
+      "confirm": "Send now"
+    },
+    "schedule_modal": {
+      "title": "Schedule mail",
+      "label": "Date and time (Zurich time)",
+      "hint": "Sent within a minute after this time to the companies that match then.",
+      "past": "Pick a time in the future.",
+      "confirm": "Schedule"
+    },
+    "delete_modal": {
+      "title": "Delete mail?",
+      "message": "Delete the draft {{name}}?"
+    },
+    "retry": "Retry failed ({{count}})",
+    "retry_success": "Failed mails are being sent again.",
+    "duplicate": "Copy as new draft",
+    "counts": {
+      "sent": "Sent",
+      "failed": "Failed",
+      "skipped": "Skipped",
+      "pending": "Pending"
+    },
+    "filter": {
+      "all": "All",
+      "failed": "Failed",
+      "skipped": "Skipped"
+    },
+    "log": {
+      "status": "Status",
+      "time": "Time",
+      "note": "Note",
+      "empty": "No entries."
+    }
+  },
   "industries": {
     "page_title": "Industries",
     "page_subtitle": "The industries companies can pick in their Kontaktparty profile.",
@@ -184,5 +338,18 @@
       "usage_hint": "The industry is removed from every company profile that uses it.",
       "confirm": "Delete industry"
     }
+  },
+  "changes": {
+    "title": "What happened since your last visit",
+    "since": "Changes since {{since}}",
+    "none": "Nothing new.",
+    "show_all": "Show all {{total}}",
+    "open_bookings": "Kontaktparty bookings",
+    "mark_seen": "Mark all as seen",
+    "new_bookings": "New KP registrations",
+    "changed_bookings": "Changed bookings",
+    "new_companies": "New companies",
+    "new_users": "New users",
+    "only_changes": "Only changes since last visit"
   }
 }

@@ -24,6 +24,7 @@ from app.models.kp_event import (
     KpEventServiceRequirementType,
     NameTag,
 )
+from app.models.mail import MailCampaign
 from app.models.user import User
 from app.models.venue import KpVenueLayout
 from app.repositories.company_repository import CompanyRepository
@@ -56,6 +57,7 @@ class Persona(StrEnum):
 class Access(StrEnum):
     AUTHENTICATED = "authenticated"
     COMPANY = "company"
+    BOOKING_COMPANY = "booking-company"
     COMPANY_PROFILE = "company-profile"
     UNASSIGNED_COMPANY = "unassigned-company"
     STAFF = "staff"
@@ -98,10 +100,8 @@ ROUTE_ACCESS: dict[str, Access] = {
     "GET /api/user/companies": Access.STAFF,
     "GET /api/user/admins": Access.STAFF,
     "GET /api/user/staff": Access.STAFF,
-    "GET /api/user/unconfirmed": Access.STAFF,
     "GET /api/users": Access.STAFF,
     "GET /api/users/{user_id}": Access.STAFF,
-    "POST /api/users/{user_id}/confirm": Access.STAFF,
     "POST /api/users/{user_id}/resend-confirmation": Access.STAFF,
     "PATCH /api/users/{user_id}": Access.STAFF,
     "DELETE /api/users/{user_id}": Access.STAFF,
@@ -129,6 +129,9 @@ ROUTE_ACCESS: dict[str, Access] = {
     "GET /api/companies": Access.STAFF,
     "PATCH /api/companies/{company_id}": Access.STAFF,
     "POST /api/companies/{company_id}/members": Access.STAFF,
+    "POST /api/companies/{company_id}/confirm": Access.STAFF,
+    "GET /api/changes": Access.STAFF,
+    "POST /api/changes/seen": Access.STAFF,
     "POST /api/companies/{company_id}/members/acknowledge": Access.STAFF,
     "DELETE /api/companies/{company_id}/members/{user_id}": Access.STAFF,
     "GET /api/industries": Access.AUTHENTICATED,
@@ -170,16 +173,16 @@ ROUTE_ACCESS: dict[str, Access] = {
     "GET /api/kp/events/{event_id}/booth-zones/available": Access.COMPANY,
     "GET /api/kp/events/{event_id}/services/available": Access.COMPANY,
     "GET /api/kp/events/{event_id}/my-booking": Access.COMPANY,
-    "POST /api/kp/events/{event_id}/bookings/register": Access.COMPANY,
-    "POST /api/kp/bookings/{booking_id}/services": Access.COMPANY,
-    "GET /api/kp/bookings/{booking_id}/upgrade-waitlist": Access.COMPANY,
-    "PUT /api/kp/bookings/{booking_id}/upgrade-waitlist": Access.COMPANY,
-    "POST /api/kp/bookings/{booking_id}/switch-zone": Access.COMPANY,
-    "GET /api/kp/bookings/{booking_id}/nametags": Access.COMPANY,
-    "PUT /api/kp/bookings/{booking_id}/nametags": Access.COMPANY,
+    "POST /api/kp/events/{event_id}/bookings/register": Access.BOOKING_COMPANY,
+    "POST /api/kp/bookings/{booking_id}/services": Access.BOOKING_COMPANY,
+    "GET /api/kp/bookings/{booking_id}/upgrade-waitlist": Access.BOOKING_COMPANY,
+    "PUT /api/kp/bookings/{booking_id}/upgrade-waitlist": Access.BOOKING_COMPANY,
+    "POST /api/kp/bookings/{booking_id}/switch-zone": Access.BOOKING_COMPANY,
+    "GET /api/kp/bookings/{booking_id}/nametags": Access.BOOKING_COMPANY,
+    "PUT /api/kp/bookings/{booking_id}/nametags": Access.BOOKING_COMPANY,
     "GET /api/kp/staff/bookings/{booking_id}/nametags": Access.STAFF,
     "GET /api/kp/staff/bookings/{booking_id}/upgrade-waitlist": Access.STAFF,
-    "PATCH /api/kp/bookings/{booking_id}/status": Access.COMPANY,
+    "PATCH /api/kp/bookings/{booking_id}/status": Access.BOOKING_COMPANY,
     "GET /api/kp/events/{event_id}/bookings": Access.STAFF,
     "GET /api/kp/events/{event_id}/bookings/summary": Access.STAFF,
     "GET /api/kp/events/{event_id}/bookings/{booking_id}": Access.STAFF,
@@ -192,13 +195,13 @@ ROUTE_ACCESS: dict[str, Access] = {
     "DELETE /api/kp/bookings/{booking_id}": Access.STAFF,
     "POST /api/kp/events/{event_id}/bookings/offer": Access.PRESIDENT,
     "PATCH /api/kp/bookings/{booking_id}/offer": Access.PRESIDENT,
-    "POST /api/kp/bookings/{booking_id}/accept-offer": Access.COMPANY,
-    "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.COMPANY,
-    "POST /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.COMPANY,
-    "DELETE /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.COMPANY,
-    "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file/download": Access.COMPANY,
-    "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/text": Access.COMPANY,
-    "PUT /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/text": Access.COMPANY,
+    "POST /api/kp/bookings/{booking_id}/accept-offer": Access.BOOKING_COMPANY,
+    "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.BOOKING_COMPANY,
+    "POST /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.BOOKING_COMPANY,
+    "DELETE /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.BOOKING_COMPANY,
+    "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file/download": Access.BOOKING_COMPANY,
+    "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/text": Access.BOOKING_COMPANY,
+    "PUT /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/text": Access.BOOKING_COMPANY,
     "GET /api/kp/staff/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.STAFF,
     "GET /api/kp/staff/booking-services/{booking_service_id}/requirements/{requirement_id}/file/download": Access.STAFF,
     "GET /api/kp/staff/events/{event_id}/bookings/{booking_id}/requirement-files": Access.STAFF,
@@ -227,6 +230,21 @@ ROUTE_ACCESS: dict[str, Access] = {
     "DELETE /api/mail-templates/{key}": Access.STAFF,
     "POST /api/mail-templates/{key}/preview": Access.STAFF,
     "POST /api/mail-templates/{key}/test-send": Access.STAFF,
+    "GET /api/mail-campaigns": Access.PRESIDENT,
+    "POST /api/mail-campaigns": Access.PRESIDENT,
+    "GET /api/mail-campaigns/variables": Access.PRESIDENT,
+    "GET /api/mail-campaigns/companies": Access.PRESIDENT,
+    "POST /api/mail-campaigns/audience": Access.PRESIDENT,
+    "POST /api/mail-campaigns/render": Access.PRESIDENT,
+    "POST /api/mail-campaigns/test-send": Access.PRESIDENT,
+    "GET /api/mail-campaigns/{campaign_id}": Access.PRESIDENT,
+    "PUT /api/mail-campaigns/{campaign_id}": Access.PRESIDENT,
+    "DELETE /api/mail-campaigns/{campaign_id}": Access.PRESIDENT,
+    "POST /api/mail-campaigns/{campaign_id}/duplicate": Access.PRESIDENT,
+    "POST /api/mail-campaigns/{campaign_id}/send": Access.PRESIDENT,
+    "POST /api/mail-campaigns/{campaign_id}/schedule": Access.PRESIDENT,
+    "POST /api/mail-campaigns/{campaign_id}/unschedule": Access.PRESIDENT,
+    "POST /api/mail-campaigns/{campaign_id}/retry": Access.PRESIDENT,
 }
 
 
@@ -305,6 +323,13 @@ KP_ROUTE_SUBJECT: dict[str, KpSubject] = {
     "GET /api/kp/events/{event_id}/exports/registration-exceptions/download": KpSubject.BOOKINGS,
 }
 
+MAIL_CAMPAIGN_BODY: dict[str, Any] = {
+    "name": "Matrix campaign {persona}",
+    "event_id": "{event_id}",
+    "subject_de": "Betreff {persona}",
+    "body_de": "<p>Hallo {{{{ company_name }}}}</p>",
+}
+
 REQUEST_BODIES: dict[str, dict[str, Any]] = {
     "PATCH /api/user/me": {},
     "POST /api/user/me/email": {"email": "matrix-{persona}@example.com"},
@@ -370,6 +395,17 @@ REQUEST_BODIES: dict[str, dict[str, Any]] = {
         "subject_en": "Subject {persona}",
         "body_de": "<p>Hallo</p>",
         "body_en": "<p>Hello</p>",
+    },
+    "POST /api/mail-campaigns": MAIL_CAMPAIGN_BODY,
+    "PUT /api/mail-campaigns/{campaign_id}": MAIL_CAMPAIGN_BODY,
+    "POST /api/mail-campaigns/audience": {
+        "event_id": "{event_id}",
+        "audience": {"segments": ["ALL"]},
+    },
+    "POST /api/mail-campaigns/render": MAIL_CAMPAIGN_BODY,
+    "POST /api/mail-campaigns/test-send": MAIL_CAMPAIGN_BODY,
+    "POST /api/mail-campaigns/{campaign_id}/schedule": {
+        "scheduled_at": "2099-01-01T09:00"
     },
 }
 
@@ -449,7 +485,8 @@ STAFF_PERSONAS = {Persona.STAFF, Persona.PRESIDENT, Persona.ADMIN}
 
 EXPECTATIONS: dict[Access, dict[Persona, Expected]] = {
     Access.AUTHENTICATED: _expectations(AUTHENTICATED_PERSONAS),
-    Access.COMPANY: _expectations({Persona.COMPANY}),
+    Access.COMPANY: _expectations({Persona.COMPANY, Persona.UNCONFIRMED}),
+    Access.BOOKING_COMPANY: _expectations({Persona.COMPANY}),
     Access.COMPANY_PROFILE: _expectations({Persona.COMPANY, Persona.UNCONFIRMED}),
     Access.UNASSIGNED_COMPANY: _expectations(set()),
     Access.STAFF: _expectations(STAFF_PERSONAS),
@@ -507,8 +544,8 @@ async def unconfirmed_user(create_user: Callable[..., Awaitable[User]]) -> User:
     return await create_user(
         email="unconfirmed@example.com",
         password=None,
-        user_confirmed=False,
         company_name="Unconfirmed AG",
+        company_confirmed=False,
     )
 
 
@@ -590,6 +627,12 @@ async def matrix_world(
     )
     catalogue_industry = Industry(name="Catalogue software")
     layout = KpVenueLayout(event_id=UUID(kp_setup.event_id), name="Matrix layout")
+    mail_campaign = MailCampaign(
+        name="Matrix campaign",
+        event_id=UUID(kp_setup.event_id),
+        subject_de="Betreff",
+        body_de="<p>Hallo</p>",
+    )
     spare_layout = KpVenueLayout(event_id=UUID(kp_setup.event_id), name="Spare layout")
     db_session.add_all(
         [
@@ -600,6 +643,7 @@ async def matrix_world(
             catalogue_industry,
             layout,
             spare_layout,
+            mail_campaign,
         ]
     )
     await db_session.commit()
@@ -630,6 +674,7 @@ async def matrix_world(
             "unassigned_user_id": str(unassigned_user.id),
             "token": INVITE_TOKEN,
             "key": MAIL_TEMPLATE_KEY,
+            "campaign_id": str(mail_campaign.id),
         },
         headers=matrix_headers,
     )

@@ -29,7 +29,6 @@ const companyUser: UserResponse = {
   is_admin: false,
   is_company: true,
   is_kp_president: false,
-  user_confirmed: true,
   email_confirmed: true,
   company_id: "company-1",
 };
@@ -85,7 +84,6 @@ const labelOf = (key: string) => new RegExp(`^${key.replaceAll(".", "\\.")}`);
 
 let putBodies: unknown[] = [];
 let bookletRequests: BookletPageRequest[] = [];
-let memberRequests = 0;
 
 const mockProfile = (profile: CompanyProfileResponse) => {
   server.use(
@@ -116,7 +114,6 @@ const backLinkHref = async () => {
 
 beforeEach(() => {
   putBodies = [];
-  memberRequests = 0;
   localStorage.setItem("token", createToken(3600));
   server.use(
     http.get(`${testBackendUrl}/api/csrftoken`, () =>
@@ -125,10 +122,9 @@ beforeEach(() => {
     http.get(`${testBackendUrl}/api/industries`, () =>
       HttpResponse.json([{ id: "industry-1", name: "Software" }]),
     ),
-    http.get(`${testBackendUrl}/api/company/me/members`, () => {
-      memberRequests += 1;
-      return HttpResponse.json([companyUser, colleague, otherColleague]);
-    }),
+    http.get(`${testBackendUrl}/api/company/me/members`, () =>
+      HttpResponse.json([companyUser, colleague, otherColleague]),
+    ),
     http.put(
       `${testBackendUrl}/api/company/me/profile`,
       async ({ request }) => {
@@ -322,7 +318,62 @@ describe("Company profile form", () => {
     expect(putBodies[0]).toMatchObject({ kp_contact_user_id: "user-1" });
   });
 
-  it("does not submit without a contact person", async () => {
+  it("keeps unsaved changes after a failed save and restores them", async () => {
+    server.use(
+      http.put(`${testBackendUrl}/api/company/me/profile`, () =>
+        HttpResponse.json({ code: "server.error" }, { status: 500 }),
+      ),
+    );
+    const first = renderProfile();
+    const brand = await screen.findByLabelText(
+      labelOf("company_profile_form.brand_name"),
+    );
+    await first.user.clear(brand);
+    await first.user.type(brand, "Draftify");
+    await first.user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+    await waitFor(() => {
+      expect(
+        localStorage.getItem("company-profile-draft:me:company-1"),
+      ).toContain("Draftify");
+    });
+    first.unmount();
+
+    renderProfile();
+
+    expect(
+      await screen.findByText("company_profile_form.draft_restored_title"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(labelOf("company_profile_form.brand_name")),
+    ).toHaveValue("Draftify");
+  });
+
+  it("forgets the draft once the profile is saved", async () => {
+    const { user } = renderProfile();
+    const brand = await screen.findByLabelText(
+      labelOf("company_profile_form.brand_name"),
+    );
+    await user.type(brand, " Plus");
+    await waitFor(() => {
+      expect(
+        localStorage.getItem("company-profile-draft:me:company-1"),
+      ).not.toBeNull();
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        localStorage.getItem("company-profile-draft:me:company-1"),
+      ).toBeNull();
+    });
+  });
+
+  it("saves an unfinished profile without a contact person", async () => {
     mockProfile({
       ...storedProfile,
       kp_contact_user_id: null,
@@ -341,11 +392,13 @@ describe("Company profile form", () => {
       screen.getByRole("button", { name: "company_profile_form.save" }),
     );
 
-    expect(await screen.findByText("validation.required")).toBeInTheDocument();
-    expect(putBodies).toHaveLength(0);
+    await waitFor(() => {
+      expect(putBodies).toHaveLength(1);
+    });
+    expect(screen.queryByText("validation.required")).not.toBeInTheDocument();
   });
 
-  it("does not submit without a general email", async () => {
+  it("saves an unfinished profile without a general email", async () => {
     mockProfile({
       ...storedProfile,
       general_email: null,
@@ -364,8 +417,10 @@ describe("Company profile form", () => {
       screen.getByRole("button", { name: "company_profile_form.save" }),
     );
 
-    expect(await screen.findByText("validation.required")).toBeInTheDocument();
-    expect(putBodies).toHaveLength(0);
+    await waitFor(() => {
+      expect(putBodies).toHaveLength(1);
+    });
+    expect(screen.queryByText("validation.required")).not.toBeInTheDocument();
   });
 
   it("does not submit when the general email is invalid", async () => {
@@ -407,7 +462,7 @@ describe("Company profile form", () => {
   it("does not submit a description over the visible limit", async () => {
     mockProfile({
       ...storedProfile,
-      description: `<p>${"<strong>x</strong>".repeat(2501)}</p>`,
+      description: `<p>${"<strong>x</strong>".repeat(3501)}</p>`,
     });
     const { user } = renderProfile();
 
@@ -419,7 +474,7 @@ describe("Company profile form", () => {
     expect(putBodies).toHaveLength(0);
   });
 
-  it("does not submit when the billing country is missing", async () => {
+  it("saves an unfinished profile without a billing country", async () => {
     mockProfile({
       ...storedProfile,
       billing_country: "",
@@ -435,10 +490,12 @@ describe("Company profile form", () => {
       }),
     );
 
+    await waitFor(() => {
+      expect(putBodies).toHaveLength(1);
+    });
     expect(
-      await screen.findByText("company_profile_form.errors.country"),
-    ).toBeInTheDocument();
-    expect(putBodies).toHaveLength(0);
+      screen.queryByText("company_profile_form.errors.country"),
+    ).not.toBeInTheDocument();
   });
 
   it("sends the complete profile payload", async () => {
@@ -449,6 +506,10 @@ describe("Company profile form", () => {
     );
     await user.clear(brandName);
     await user.paste("Examplify Group");
+    const [additionalEmails] = screen
+      .getAllByLabelText(labelOf("company_profile_form.additional_emails"))
+      .filter((element) => (element as HTMLInputElement).type !== "hidden");
+    await user.type(additionalEmails, "team@example.com{enter}");
     await user.click(
       screen.getByRole("button", { name: "company_profile_form.save" }),
     );
@@ -481,6 +542,7 @@ describe("Company profile form", () => {
       billing_vat_number: "CHE-123.456.789",
       billing_email: "billing@example.com",
       student_contact_email: null,
+      additional_emails: ["team@example.com"],
     });
   });
 
@@ -533,15 +595,6 @@ describe("Company profile form", () => {
       await screen.findByText("validation.invalid_email"),
     ).toBeInTheDocument();
     expect(putBodies).toHaveLength(0);
-  });
-
-  it("opens for a user the organisers have not confirmed yet", async () => {
-    renderProfile({ ...companyUser, user_confirmed: false });
-
-    expect(
-      await screen.findByLabelText(labelOf("company_profile_form.brand_name")),
-    ).toHaveValue("Examplify");
-    expect(memberRequests).toBe(0);
   });
 
   it("goes back to the company overview by default", async () => {

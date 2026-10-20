@@ -20,11 +20,13 @@ from app.services.booking_notifier import MailBookingNotifier
 from app.services.booking_offers import process_booking_offers
 from app.services.booking_reminders import send_incomplete_booking_reminders
 from app.services.invite_service import InviteService
+from app.services.mail_campaign_delivery import MailCampaignDelivery
 from app.services.mail_service import MailService
 from app.services.mail_template_service import MailTemplateService
 from app.services.notification_recipients import NotificationRecipients
 from app.services.storage_service import StorageService
 
+MINUTELY = 60
 HOURLY = 3600
 UNCONFIRMED_ACCOUNT_MAX_AGE = timedelta(days=7)
 DAILY = 86400
@@ -95,6 +97,14 @@ async def handle_booking_offers() -> None:
         )
 
 
+async def dispatch_mail_campaigns() -> None:
+    await MailCampaignDelivery(
+        SessionLocal,
+        MailService(mail_stub()),
+        pause_seconds=get_settings().MAIL_CAMPAIGN_SEND_PAUSE_SECONDS,
+    ).run_due()
+
+
 def create_scheduler() -> Scheduler:
     scheduler = Scheduler()
     scheduler.add(cleanup_expired_tokens, interval=HOURLY)
@@ -103,6 +113,7 @@ def create_scheduler() -> Scheduler:
     scheduler.add(cleanup_orphaned_stored_files, interval=HOURLY)
     scheduler.add(remind_incomplete_bookings, interval=DAILY)
     scheduler.add(handle_booking_offers, interval=HOURLY)
+    scheduler.add(dispatch_mail_campaigns, interval=MINUTELY)
     return scheduler
 
 

@@ -138,3 +138,27 @@ async def test_a_page_with_a_background_renders_within_the_memory_limit():
     )
 
     assert png.startswith(b"\x89PNG")
+
+
+async def test_renders_beyond_the_queue_are_refused_at_once(tmp_path: Path):
+    runner = TypstRunner(max_parallel=1, memory_limit_bytes=None)
+    queued = [
+        asyncio.create_task(
+            runner.run(
+                typst_work.sleep_after_writing_pid,
+                (2, str(tmp_path / f"pid-{index}")),
+                timeout=5,
+            )
+        )
+        for index in range(2)
+    ]
+    await asyncio.sleep(0)
+    started = time.monotonic()
+
+    with pytest.raises(TypstRenderAborted, match="busy"):
+        await runner.run(typst_work.echo, ({},), timeout=5)
+
+    assert time.monotonic() - started < 1
+    for task in queued:
+        task.cancel()
+    await asyncio.gather(*queued, return_exceptions=True)

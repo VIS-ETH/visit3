@@ -14,9 +14,11 @@ from app.core.exceptions import CsrfInvalid, NotAllowed, Unauthenticated
 from app.core.grpc import grpc_client
 from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 from app.models.user import User
+from app.repositories.change_repository import ChangeRepository
 from app.repositories.company_repository import CompanyRepository
 from app.repositories.industry_repository import IndustryRepository
 from app.repositories.kp_repository import KpRepository
+from app.repositories.mail_campaign_repository import MailCampaignRepository
 from app.repositories.mail_repository import MailTemplateRepository
 from app.repositories.role_repository import RoleRepository
 from app.repositories.token_repository import TokenRepository
@@ -25,6 +27,7 @@ from app.repositories.venue_repository import VenueRepository
 from app.services.auth_service import AuthService
 from app.services.booking_notifier import MailBookingNotifier
 from app.services.booklet_service import BookletService
+from app.services.change_service import ChangeService
 from app.services.company_service import CompanyService
 from app.services.csv_service import CsvService
 from app.services.event_banner_service import EventBannerService
@@ -32,6 +35,8 @@ from app.services.export_service import ExportService
 from app.services.industry_service import IndustryService
 from app.services.invite_service import InviteService
 from app.services.kp_service import KpService
+from app.services.mail_campaign_delivery import MailCampaignDelivery, SessionFactory
+from app.services.mail_campaign_service import MailCampaignService
 from app.services.mail_service import MailService
 from app.services.mail_template_admin_service import MailTemplateAdminService
 from app.services.mail_template_service import MailTemplateService
@@ -110,6 +115,8 @@ async def get_current_user(
         target = await user_repo.get_by_id(target_uuid)
         if target is None:
             raise NotAllowed(f"impersonate:user_not_found:{impersonate_id}")
+        if target.is_admin and target.id != user.id:
+            raise NotAllowed(f"impersonate:target_is_admin:{target.id}")
         await user_repo.load_user_roles(target)
         logger.info("Admin %s impersonating: %s", user.id, target.id)
         return target
@@ -338,6 +345,23 @@ async def get_industry_service(
 IndustryServiceDep = Annotated[IndustryService, Depends(get_industry_service)]
 
 
+async def get_change_repository(session: DbSessionDep):
+    return ChangeRepository(session)
+
+
+ChangeRepositoryDep = Annotated[ChangeRepository, Depends(get_change_repository)]
+
+
+async def get_change_service(
+    change_repository: ChangeRepositoryDep,
+    current_user: CurrentUserDep,
+):
+    return ChangeService(change_repository, current_user)
+
+
+ChangeServiceDep = Annotated[ChangeService, Depends(get_change_service)]
+
+
 async def get_booking_notifier(
     mail_template_service: MailTemplateServiceDep,
     auth_service: AuthServiceDep,
@@ -438,3 +462,43 @@ def get_event_banner_service(
 
 
 EventBannerServiceDep = Annotated[EventBannerService, Depends(get_event_banner_service)]
+
+
+def get_mail_campaign_session_factory() -> SessionFactory:
+    return SessionLocal
+
+
+MailCampaignSessionFactoryDep = Annotated[
+    SessionFactory, Depends(get_mail_campaign_session_factory)
+]
+
+
+async def get_mail_campaign_service(
+    session: DbSessionDep,
+    mail_service: MailServiceDep,
+    current_user: CurrentUserDep,
+) -> MailCampaignService:
+    return MailCampaignService(
+        MailCampaignRepository(session), mail_service, current_user
+    )
+
+
+MailCampaignServiceDep = Annotated[
+    MailCampaignService, Depends(get_mail_campaign_service)
+]
+
+
+async def get_mail_campaign_delivery(
+    session_factory: MailCampaignSessionFactoryDep,
+    mail_service: MailServiceDep,
+) -> MailCampaignDelivery:
+    return MailCampaignDelivery(
+        session_factory,
+        mail_service,
+        pause_seconds=get_settings().MAIL_CAMPAIGN_SEND_PAUSE_SECONDS,
+    )
+
+
+MailCampaignDeliveryDep = Annotated[
+    MailCampaignDelivery, Depends(get_mail_campaign_delivery)
+]

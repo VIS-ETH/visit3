@@ -1,6 +1,23 @@
+from collections.abc import Iterable
 from dataclasses import dataclass, fields
 
 from app.mail_templates.keys import MailTemplateKey
+
+
+class NameList(str):
+    names: tuple[str, ...]
+
+    def __new__(cls, names: Iterable[str]) -> "NameList":
+        unique = tuple(dict.fromkeys(names))
+        value = super().__new__(cls, ", ".join(unique) or "-")
+        value.names = unique
+        return value
+
+    def __contains__(self, name: object) -> bool:
+        return name in self.names
+
+    def __bool__(self) -> bool:
+        return bool(self.names)
 
 
 @dataclass(frozen=True)
@@ -17,19 +34,6 @@ class MailContext:
 class AccountConfirmEmailContext(MailContext):
     name: str
     confirm_url: str
-
-
-@dataclass(frozen=True)
-class AccountConfirmedContext(MailContext):
-    name: str
-    login_url: str
-
-
-@dataclass(frozen=True)
-class AccountAwaitingConfirmationContext(MailContext):
-    name: str
-    email: str
-    admin_url: str
 
 
 @dataclass(frozen=True)
@@ -63,6 +67,21 @@ class CompanyInviteContext(MailContext):
 
 
 @dataclass(frozen=True)
+class CompanyConfirmedContext(MailContext):
+    name: str
+    company_name: str
+    login_url: str
+
+
+@dataclass(frozen=True)
+class CompanyAwaitingConfirmationContext(MailContext):
+    company_name: str
+    name: str
+    email: str
+    admin_url: str
+
+
+@dataclass(frozen=True)
 class BookingContext(MailContext):
     name: str
     company_name: str
@@ -91,19 +110,42 @@ class BookingOfferedContext(BookingContext):
     deadline: str
 
 
+@dataclass(frozen=True)
+class MailCampaignContext(MailContext):
+    name: str
+    company_name: str
+    event_name: str
+    event_date: str
+    registration_end: str
+    finalization_deadline: str
+    nametags_deadline: str
+    booth_zone_name: str
+    offer_deadline: str
+    login_url: str
+    services: str
+    booth_elements: str
+
+
+MAIL_CAMPAIGN_SAMPLE_CONTEXT = MailCampaignContext(
+    name="Ada Lovelace",
+    company_name="Acme AG",
+    event_name="Kontaktparty 2026",
+    event_date="2026-10-20",
+    registration_end="2026-09-15",
+    finalization_deadline="2026-09-30",
+    nametags_deadline="2026-10-05",
+    booth_zone_name="Haupthalle",
+    offer_deadline="2026-09-20",
+    login_url="https://visit.vis.ethz.ch/login",
+    services=NameList(["Strom"]),
+    booth_elements=NameList(["Stehtisch"]),
+)
+
+
 SAMPLE_CONTEXTS: dict[MailTemplateKey, MailContext] = {
     MailTemplateKey.ACCOUNT_CONFIRM_EMAIL: AccountConfirmEmailContext(
         name="Ada Lovelace",
         confirm_url="https://visit.vis.ethz.ch/confirm-email/sample-token",
-    ),
-    MailTemplateKey.ACCOUNT_CONFIRMED: AccountConfirmedContext(
-        name="Ada Lovelace",
-        login_url="https://visit.vis.ethz.ch/auth/link/sample-token",
-    ),
-    MailTemplateKey.ACCOUNT_AWAITING_CONFIRMATION: AccountAwaitingConfirmationContext(
-        name="Ada Lovelace",
-        email="ada@example.com",
-        admin_url="https://visit.vis.ethz.ch/user-management",
     ),
     MailTemplateKey.PASSWORD_RESET: PasswordResetContext(
         name="Ada Lovelace",
@@ -131,6 +173,17 @@ SAMPLE_CONTEXTS: dict[MailTemplateKey, MailContext] = {
             "https://visit.vis.ethz.ch/company/join/sample-token"
             "?email=ada%40example.com"
         ),
+    ),
+    MailTemplateKey.COMPANY_CONFIRMED: CompanyConfirmedContext(
+        name="Ada Lovelace",
+        company_name="Acme AG",
+        login_url="https://visit.vis.ethz.ch/auth/link/sample-token",
+    ),
+    MailTemplateKey.COMPANY_AWAITING_CONFIRMATION: CompanyAwaitingConfirmationContext(
+        company_name="Acme AG",
+        name="Ada Lovelace",
+        email="ada@example.com",
+        admin_url="https://visit.vis.ethz.ch/company-management",
     ),
     MailTemplateKey.BOOKING_REGISTERED: BookingContext(
         name="Ada Lovelace",

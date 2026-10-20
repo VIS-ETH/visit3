@@ -11,12 +11,12 @@ from tests.booklet_pdfs import make_pdf
 ZONE_COLOR = "#e53935"
 
 
-def render_svg(background: bytes | None) -> str:
+def render_svg(background: bytes | None, zone_color: str = ZONE_COLOR) -> str:
     entry = {
         "company": "Acme AG",
         "brand_name": "Acme",
         "description_blocks": [[{"text": "We build anvils."}]],
-        "zone_color": ZONE_COLOR,
+        "zone_color": zone_color,
         "background_path": "background.pdf" if background is not None else None,
     }
     with tempfile.TemporaryDirectory() as workspace:

@@ -24,7 +24,6 @@ const currentUser = {
   is_company: true,
   company_id: "company-1",
   email_confirmed: true,
-  user_confirmed: true,
 };
 
 let meRequests = 0;

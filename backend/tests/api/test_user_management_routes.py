@@ -1,9 +1,12 @@
 from collections.abc import Awaitable, Callable
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app.core.config import get_settings
 from app.models.user import User
@@ -33,7 +36,6 @@ async def population(
         password=None,
         first_name="Grace",
         last_name="Hopper",
-        user_confirmed=False,
     )
     other = await create_user(
         email=OTHER_COMPANY_EMAIL, password=None, company_name=OTHER_COMPANY_NAME
@@ -45,15 +47,13 @@ async def emails(response: Response) -> list[str]:
     return [item["email"] for item in response.json()["items"]]
 
 
-async def test_user_list_is_paginated_with_unconfirmed_users_first(
+async def test_user_list_is_paginated_by_email(
     client: AsyncClient,
     population: list[User],
     create_user: Callable[..., Awaitable[User]],
     staff_headers: dict[str, str],
 ):
-    await create_user(
-        email="zoe.pending@example.com", password=None, user_confirmed=False
-    )
+    await create_user(email="zoe.pending@example.com", password=None)
 
     first = await client.get("/api/users?page=1&page_size=2", headers=staff_headers)
     second = await client.get("/api/users?page=2&page_size=2", headers=staff_headers)
@@ -63,9 +63,87 @@ async def test_user_list_is_paginated_with_unconfirmed_users_first(
     assert first.json()["total"] == 6
     assert first.json()["page"] == 1
     assert first.json()["page_size"] == 2
-    assert await emails(first) == ["pending@example.com", "zoe.pending@example.com"]
-    assert await emails(second) == ["admin@example.com", OTHER_COMPANY_EMAIL]
-    assert await emails(third) == ["company@example.com", "staff@example.com"]
+    assert await emails(first) == ["admin@example.com", OTHER_COMPANY_EMAIL]
+    assert await emails(second) == ["company@example.com", "pending@example.com"]
+    assert await emails(third) == ["staff@example.com", "zoe.pending@example.com"]
+
+
+@pytest.mark.parametrize(
+    ("direction", "expected"),
+    [
+        (
+            "asc",
+            [
+                "company@example.com",
+                OTHER_COMPANY_EMAIL,
+                "admin@example.com",
+                "pending@example.com",
+                "staff@example.com",
+            ],
+        ),
+        (
+            "desc",
+            [
+                OTHER_COMPANY_EMAIL,
+                "company@example.com",
+                "admin@example.com",
+                "pending@example.com",
+                "staff@example.com",
+            ],
+        ),
+    ],
+)
+async def test_user_list_sorts_by_company_with_blanks_last(
+    client: AsyncClient,
+    population: list[User],
+    staff_headers: dict[str, str],
+    direction: str,
+    expected: list[str],
+):
+    response = await client.get(
+        f"/api/users?sort=company&direction={direction}", headers=staff_headers
+    )
+
+    assert response.status_code == 200
+    assert await emails(response) == expected
+
+
+async def test_user_list_sorts_by_signup_date_across_pages(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    population: list[User],
+    staff_headers: dict[str, str],
+):
+    users = (await db_session.execute(select(User))).scalars().all()
+    for index, user in enumerate(sorted(users, key=lambda user: user.email)):
+        user.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(
+            days=index
+        )
+    await db_session.commit()
+
+    first = await client.get(
+        "/api/users?sort=signed_up&direction=desc&page_size=3", headers=staff_headers
+    )
+    second = await client.get(
+        "/api/users?sort=signed_up&direction=desc&page_size=3&page=2",
+        headers=staff_headers,
+    )
+
+    assert await emails(first) + await emails(second) == [
+        "staff@example.com",
+        "pending@example.com",
+        "company@example.com",
+        OTHER_COMPANY_EMAIL,
+        "admin@example.com",
+    ]
+
+
+async def test_user_list_rejects_an_unknown_sort(
+    client: AsyncClient, staff_headers: dict[str, str]
+):
+    response = await client.get("/api/users?sort=password", headers=staff_headers)
+
+    assert response.status_code == 422
 
 
 async def test_user_list_rejects_an_oversized_page(
@@ -80,13 +158,12 @@ async def test_user_list_rejects_an_oversized_page(
 @pytest.mark.parametrize(
     ("user_filter", "expected"),
     [
-        ("unconfirmed", ["pending@example.com"]),
         (
             "company",
             [
-                "pending@example.com",
                 OTHER_COMPANY_EMAIL,
                 "company@example.com",
+                "pending@example.com",
             ],
         ),
         ("staff", ["admin@example.com", "staff@example.com"]),
@@ -211,25 +288,6 @@ async def test_staff_resend_is_rate_limited(
     assert accepted == [200] * limit
     assert blocked.status_code == 429
     assert blocked.json()["code"] == "error.rate_limited"
-
-
-async def test_staff_confirms_a_user_through_the_patch_route(
-    client: AsyncClient,
-    create_user: Callable[..., Awaitable[User]],
-    non_admin_staff_headers: dict[str, str],
-):
-    user = await create_user(
-        email="pending@example.com", password=None, user_confirmed=False
-    )
-
-    response = await client.patch(
-        f"/api/users/{user.id}",
-        json={"user_confirmed": True},
-        headers=non_admin_staff_headers,
-    )
-
-    assert response.status_code == 200
-    assert response.json()["user_confirmed"] is True
 
 
 async def test_staff_reassigns_a_user_to_another_company(

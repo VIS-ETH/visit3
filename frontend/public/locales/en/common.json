@@ -47,7 +47,7 @@
     "token_invalid": "Token is invalid",
     "not_allowed": "User is not allowed to make this request",
     "email_not_confirmed": "User email is not confirmed",
-    "not_confirmed": "User is not confirmed by the Kontaktparty organisers",
+    "company_not_confirmed": "Your company is not confirmed by the Kontaktparty organisers yet",
     "phone_number_invalid": "Phone number is invalid",
     "invalid_credentials": "Invalid credentials, please check your email and password",
     "email_used": "Email is already used",
@@ -128,8 +128,13 @@
     "session_load_failed": "Your session could not be loaded. Please try again.",
     "mail_template_not_found": "This email template does not exist.",
     "mail_template_invalid": "The email template uses a placeholder that is not available.",
+    "mail_campaign_not_found": "This mail no longer exists.",
+    "mail_campaign_locked": "This mail is already being sent and can no longer be changed.",
+    "mail_campaign_schedule_in_past": "Pick a time in the future.",
     "retry": "Try again",
-    "identity_provider_unavailable": "The VIS login service cannot be reached right now. Please try again in a few minutes."
+    "identity_provider_unavailable": "The VIS login service cannot be reached right now. Please try again in a few minutes.",
+    "kp_service_relation_invalid": "This service cannot contain or exclude the chosen services.",
+    "kp_services_excluded": "Some of the chosen services cannot be booked together."
   },
   "validation": {
     "required": "This field is required.",
@@ -208,6 +213,7 @@
     "kontaktparty": "Kontaktparty",
     "company_management": "Company management",
     "mail_templates": "Email templates",
+    "mail_campaigns": "Mails",
     "industries": "Industries",
     "bookings_overview": "Bookings overview",
     "logout": "Logout",

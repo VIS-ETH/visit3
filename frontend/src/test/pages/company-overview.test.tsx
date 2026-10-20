@@ -18,7 +18,6 @@ const companyUser: UserResponse = {
   is_admin: false,
   is_company: true,
   is_kp_president: false,
-  user_confirmed: true,
   email_confirmed: true,
   company_id: "company-1",
 };
@@ -50,6 +49,7 @@ beforeEach(() => {
       HttpResponse.json({
         id: "company-1",
         name: "Example AG",
+        confirmed_at: "2026-01-01T00:00:00Z",
         profile_complete: false,
         missing_profile_fields: ["description", "billing_city"],
       }),
@@ -76,18 +76,32 @@ describe("Company overview", () => {
       screen.getByRole("link", { name: "company_profile.profile_link" }),
     ).toHaveAttribute("href", "/company/profile");
     expect(await screen.findByText("alice@example.com")).toBeInTheDocument();
+    expect(
+      screen.queryByText("company_profile.unconfirmed_description"),
+    ).not.toBeInTheDocument();
   });
 
-  it("waits for the organisers before showing members", async () => {
-    renderOverview({ ...companyUser, user_confirmed: false });
+  it("flags a company the organisers have not confirmed yet", async () => {
+    server.use(
+      http.get(`${testBackendUrl}/api/company/me`, () =>
+        HttpResponse.json({
+          id: "company-1",
+          name: "Example AG",
+          confirmed_at: null,
+          profile_complete: false,
+          missing_profile_fields: ["description"],
+        }),
+      ),
+    );
+    renderOverview(companyUser);
 
-    expect(await screen.findByText("user.unconfirmed")).toBeInTheDocument();
     expect(
-      screen.getByText("company_profile.members_unconfirmed"),
+      await screen.findByText("company_profile.unconfirmed_description"),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "company_profile.profile_link" }),
+      screen.getByRole("button", { name: "company_profile.invite_button" }),
     ).toBeInTheDocument();
-    expect(memberRequests).toBe(0);
+    expect(await screen.findByText("alice@example.com")).toBeInTheDocument();
+    expect(memberRequests).toBe(1);
   });
 });

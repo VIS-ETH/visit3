@@ -125,7 +125,7 @@ async def test_accepting_an_invite_makes_the_user_new(
     assert listed[NEWCOMER_EMAIL]["new_in_company_since"] is not None
 
 
-async def test_setting_up_a_company_makes_the_founder_new(
+async def test_setting_up_a_company_awaits_confirmation_instead_of_flagging(
     client: AsyncClient,
     create_user: Callable[..., Awaitable[User]],
     auth_headers: Callable[[User], Awaitable[dict[str, str]]],
@@ -141,7 +141,9 @@ async def test_setting_up_a_company_makes_the_founder_new(
     )
 
     assert created.status_code == 200
-    assert (await company_row(client, staff_headers, "Gamma"))["new_members_count"] == 1
+    row = await company_row(client, staff_headers, "Gamma")
+    assert row["new_members_count"] == 0
+    assert row["confirmed_at"] is None
 
 
 async def test_staff_reassignment_makes_the_user_new_and_removal_forgets_it(

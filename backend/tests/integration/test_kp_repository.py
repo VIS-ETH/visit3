@@ -658,7 +658,9 @@ async def test_create_booking_stores_requested_quantity_as_total(
             BookingServiceInput(service_id=context.included_service_id, quantity=3),
             BookingServiceInput(service_id=context.extra_service_id, quantity=1),
         ],
-        included_services=[context.included_link],
+        included_quantities={
+            context.included_link.service_id: context.included_link.included_quantity
+        },
     )
 
     by_service_id = {item.service_id: item for item in booking.services}
@@ -690,7 +692,9 @@ async def test_create_booking_raises_quantity_to_included_amount(
         services=[
             BookingServiceInput(service_id=context.included_service_id, quantity=1),
         ],
-        included_services=[context.included_link],
+        included_quantities={
+            context.included_link.service_id: context.included_link.included_quantity
+        },
     )
 
     included = booking.services[0]
@@ -715,7 +719,9 @@ async def test_create_booking_adds_unrequested_included_service(
         company_id=context.company_id,
         booth_zone_id=context.zone_id,
         create_booking_input=CreateBookingInput(),
-        included_services=[context.included_link],
+        included_quantities={
+            context.included_link.service_id: context.included_link.included_quantity
+        },
     )
 
     included = booking.services[0]
@@ -740,7 +746,9 @@ async def test_add_booking_services_increments_total_quantity(
         company_id=context.company_id,
         booth_zone_id=context.zone_id,
         create_booking_input=CreateBookingInput(),
-        included_services=[context.included_link],
+        included_quantities={
+            context.included_link.service_id: context.included_link.included_quantity
+        },
     )
 
     updated = await kp_repository.add_booking_services(
@@ -772,7 +780,9 @@ async def test_count_active_charged_service_quantity_ignores_included_and_cancel
         services=[
             BookingServiceInput(service_id=context.included_service_id, quantity=5),
         ],
-        included_services=[context.included_link],
+        included_quantities={
+            context.included_link.service_id: context.included_link.included_quantity
+        },
     )
     cancelled_company = await company_repository.create_company("Cancelled AG")
     cancelled_booking = await kp_repository.create_booking(
@@ -783,7 +793,9 @@ async def test_count_active_charged_service_quantity_ignores_included_and_cancel
         services=[
             BookingServiceInput(service_id=context.included_service_id, quantity=4),
         ],
-        included_services=[context.included_link],
+        included_quantities={
+            context.included_link.service_id: context.included_link.included_quantity
+        },
     )
 
     charged = await kp_repository.count_active_charged_service_quantity(
@@ -1464,7 +1476,9 @@ async def test_move_booking_to_zone_recomputes_inclusions(
             BookingServiceInput(service_id=context.included_service_id, quantity=3),
             BookingServiceInput(service_id=context.extra_service_id, quantity=1),
         ],
-        included_services=[context.included_link],
+        included_quantities={
+            context.included_link.service_id: context.included_link.included_quantity
+        },
     )
     target = await create_upgrade_zone(
         kp_repository,

@@ -7,6 +7,7 @@ import grpc
 from app.core.config import get_settings
 from app.generated.sip.notifications import mail_pb2 as mail_pb
 from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
+from app.mail_templates.renderer import header_safe
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ class MailService:
             return None
 
         mail = mail_pb.Mail()
-        mail.subject = subject
+        mail.subject = header_safe(subject)
         mail.to.extend(
             [
                 mail_pb.MailAddress(

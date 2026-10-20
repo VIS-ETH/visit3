@@ -1,7 +1,6 @@
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock
-from uuid import uuid4
 
 import grpc
 import pytest
@@ -75,7 +74,6 @@ async def test_register_creates_an_unconfirmed_company_user(
     assert user.is_company is True
     assert user.is_staff is False
     assert user.is_admin is False
-    assert user.user_confirmed is False
     assert user.email_confirmed is False
 
 
@@ -322,26 +320,6 @@ async def test_refresh_with_rotated_token_after_grace_is_unauthenticated(
 
     assert response.status_code == 401
     assert response.json()["code"] == "error.unauthenticated"
-
-
-async def test_unconfirmed_user_cannot_use_company_route(
-    client: AsyncClient,
-    create_user: Callable[..., Awaitable[User]],
-    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
-):
-    user = await create_user(
-        email="unconfirmed@example.com",
-        company_name="Pending AG",
-        user_confirmed=False,
-    )
-
-    response = await client.get(
-        f"/api/kp/events/{uuid4()}/booth-zones/available",
-        headers=await auth_headers(user),
-    )
-
-    assert response.status_code == 403
-    assert response.json()["code"] == "error.not_confirmed"
 
 
 async def test_company_user_cannot_use_staff_route(

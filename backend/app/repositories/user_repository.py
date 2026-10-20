@@ -1,11 +1,13 @@
 import uuid
 from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql._typing import ColumnExpressionArgument
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.selectable import Select
 from sqlmodel import col, or_, select
@@ -14,13 +16,18 @@ from app.core.exceptions import EmailUsed
 from app.core.utils import normalize_email
 from app.models.company import Company, KpCompanyProfile
 from app.models.user import Role, User
-from app.repositories.base import BaseRepository, rel
-from app.schemas.user import UserFilter, UserProfileFieldsInput
+from app.repositories.base import BaseRepository, ordered, rel
+from app.schemas.sorting import SortDirection
+from app.schemas.user import UserFilter, UserProfileFieldsInput, UserSort
 
 
-def _filter_conditions(user_filter: UserFilter) -> list[ColumnElement[bool]]:
-    if user_filter is UserFilter.UNCONFIRMED:
-        return [col(User.user_confirmed).is_(False)]
+def _filter_conditions(
+    user_filter: UserFilter, since: datetime | None
+) -> list[ColumnElement[bool]]:
+    if user_filter is UserFilter.NEW and since is not None:
+        return [
+            or_(col(User.created_at) > since, col(User.new_in_company_since) > since)
+        ]
     if user_filter is UserFilter.COMPANY:
         return [col(User.is_company).is_(True)]
     if user_filter is UserFilter.STAFF:
@@ -39,6 +46,39 @@ def _search_conditions(query: str | None) -> list[ColumnElement[bool]]:
             col(User.last_name).icontains(term, autoescape=True),
             col(Company.name).icontains(term, autoescape=True),
         )
+    ]
+
+
+def _sort_expressions(sort: UserSort) -> list[ColumnExpressionArgument[Any]]:
+    match sort:
+        case UserSort.EMAIL:
+            return [col(User.email)]
+        case UserSort.NAME:
+            return [
+                func.lower(func.coalesce(col(User.first_name), "")),
+                func.lower(func.coalesce(col(User.last_name), "")),
+            ]
+        case UserSort.COMPANY:
+            return [func.lower(col(Company.name))]
+        case UserSort.ROLE:
+            return [col(User.is_admin), col(User.is_staff), col(User.is_company)]
+        case UserSort.STATUS:
+            return [col(User.email_confirmed)]
+        case UserSort.SIGNED_UP:
+            return [col(User.created_at)]
+        case UserSort.LAST_LOGIN:
+            return [col(User.last_login_at)]
+
+
+def _user_order(
+    sort: UserSort | None, direction: SortDirection
+) -> list[ColumnExpressionArgument[Any]]:
+    if sort is None:
+        return [col(User.email), col(User.id)]
+    return [
+        *ordered(_sort_expressions(sort), direction),
+        col(User.email),
+        col(User.id),
     ]
 
 
@@ -107,7 +147,7 @@ class UserRepository(BaseRepository[User]):
         return result.scalar_one_or_none()
 
     def _searchable_users(
-        self, query: str | None, user_filter: UserFilter
+        self, query: str | None, user_filter: UserFilter, since: datetime | None
     ) -> Select[tuple[User]]:
         return (
             select(User)
@@ -117,53 +157,40 @@ class UserRepository(BaseRepository[User]):
             )
             .where(
                 self._not_deleted(User),
-                *_filter_conditions(user_filter),
+                *_filter_conditions(user_filter, since),
                 *_search_conditions(query),
             )
         )
 
     async def count_users_matching(
-        self, query: str | None, user_filter: UserFilter
+        self, query: str | None, user_filter: UserFilter, since: datetime | None = None
     ) -> int:
-        statement = self._searchable_users(query, user_filter).with_only_columns(
+        statement = self._searchable_users(query, user_filter, since).with_only_columns(
             func.count(col(User.id))
         )
         result = await self.session.execute(statement)
         return result.scalar_one()
 
     async def search_users(
-        self, query: str | None, user_filter: UserFilter, offset: int, limit: int
+        self,
+        query: str | None,
+        user_filter: UserFilter,
+        offset: int,
+        limit: int,
+        sort: UserSort | None = None,
+        direction: SortDirection = SortDirection.ASC,
+        since: datetime | None = None,
     ) -> Sequence[User]:
         statement = (
-            self._searchable_users(query, user_filter)
+            self._searchable_users(query, user_filter, since)
             .options(selectinload(rel(User.company)))
             .execution_options(populate_existing=True)
-            .order_by(col(User.user_confirmed), col(User.email))
+            .order_by(*_user_order(sort, direction))
             .offset(offset)
             .limit(limit)
         )
         result = await self.session.execute(statement)
         return result.scalars().all()
-
-    async def get_unconfirmed_users(self) -> Sequence[User]:
-        statement = (
-            select(User)
-            .where(col(User.user_confirmed) == False)
-            .options(selectinload(rel(User.company)))
-        )
-        result = await self.session.execute(statement)
-        return result.scalars().all()
-
-    async def confirm_user(self, user: User):
-        try:
-            user.user_confirmed = True
-            self.session.add(user)
-            await self.session.commit()
-            await self.session.refresh(user)
-            return user
-        except Exception as e:
-            await self.session.rollback()
-            raise e
 
     async def purge_unconfirmed_accounts(self, max_age: timedelta) -> int:
         cutoff = datetime.now(timezone.utc) - max_age
@@ -238,7 +265,6 @@ class UserRepository(BaseRepository[User]):
             db_user.last_name = keycloak_user.last_name
             db_user.is_staff = keycloak_user.is_staff
             db_user.is_admin = keycloak_user.is_admin
-            db_user.user_confirmed = keycloak_user.user_confirmed
             db_user.email_confirmed = keycloak_user.email_confirmed
 
             await self.load_user_roles(db_user)
@@ -279,6 +305,7 @@ class UserRepository(BaseRepository[User]):
             await self.update_where(
                 User,
                 col(User.id) == user_id,
+                previous_login_at=col(User.last_login_at),
                 last_login_at=datetime.now(timezone.utc),
             )
             await self.session.commit()

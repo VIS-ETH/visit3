@@ -120,6 +120,11 @@ export default function BookingProfileConfirmation({
         <Text c="dimmed" size="sm">
           {t("kp.booking.profile_description")}
         </Text>
+        {company.confirmed_at === null ? (
+          <Alert icon={<IconAlertCircle />} color="blue">
+            {t("kp.booking.company_unconfirmed")}
+          </Alert>
+        ) : null}
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
           <ProfileSummaryField
             label={t("kp.booking.profile_company")}

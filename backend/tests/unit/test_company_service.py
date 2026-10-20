@@ -18,6 +18,8 @@ from app.core.exceptions import (
 )
 from app.mail_templates.keys import MailTemplateKey
 from app.models.company import CompanyInvite
+from app.schemas.company import CompanySort
+from app.schemas.sorting import SortDirection
 from app.services.company_service import CompanyService
 
 
@@ -115,7 +117,66 @@ async def test_setup_company_creates_company_and_assigns_user(
     company_service.company_repo.assign_user.assert_awaited_once_with(
         company_service.service.current_user,
         company.id,
+        mark_new=False,
     )
+    company_service.mail_template_service.send_to_staff_notification.assert_awaited_once()
+
+
+async def test_confirm_company_rejects_company_user(company_service):
+    with pytest.raises(NotAllowed):
+        await company_service.service.confirm_company(uuid4())
+
+    company_service.company_repo.confirm_company.assert_not_awaited()
+
+
+async def test_confirm_company_confirms_and_mails_members(
+    company_repo,
+    mail_template_service,
+    storage_service,
+    staff_user,
+    make_user,
+    make_company,
+):
+    company = make_company(name="Acme AG")
+    member = make_user(email="member@example.com", company_id=company.id)
+    company_repo.get_by_id.return_value = company
+    company_repo.confirm_company.return_value = company
+    company_repo.get_users.return_value = [member]
+    company_repo.get_company_with_users.return_value = company
+    service = CompanyService(
+        company_repo, mail_template_service, storage_service, staff_user
+    )
+
+    result = await service.confirm_company(company.id)
+
+    assert result.id == company.id
+    company_repo.confirm_company.assert_awaited_once_with(company)
+    key, recipients, context = mail_template_service.send.await_args.args
+    assert key == MailTemplateKey.COMPANY_CONFIRMED
+    assert recipients == ["member@example.com"]
+    assert context.company_name == "Acme AG"
+
+
+async def test_confirm_company_keeps_an_already_confirmed_company(
+    company_repo,
+    mail_template_service,
+    storage_service,
+    staff_user,
+    make_company,
+):
+    company = make_company(confirmed_at=datetime.now(timezone.utc))
+    company_repo.get_by_id.return_value = company
+    company_repo.get_company_with_users.return_value = company
+    service = CompanyService(
+        company_repo, mail_template_service, storage_service, staff_user
+    )
+
+    result = await service.confirm_company(company.id)
+
+    assert result.confirmed_at == company.confirmed_at
+
+    company_repo.confirm_company.assert_not_awaited()
+    mail_template_service.send.assert_not_awaited()
 
 
 async def test_create_invite_normalizes_email_creates_invite_and_sends_mail(
@@ -578,7 +639,7 @@ async def test_search_companies_reports_counts_and_paging(
     company = make_company(name="Acme AG")
     company_repo.count_companies.return_value = 3
     company_repo.get_company_overviews.return_value = [
-        (company.id, company.name, 2, 1, 0)
+        (company.id, company.name, None, 2, 1, 0)
     ]
     service = CompanyService(
         company_repo, mail_template_service, storage_service, staff_user
@@ -592,4 +653,6 @@ async def test_search_companies_reports_counts_and_paging(
     assert [
         (item.name, item.users_count, item.bookings_count) for item in result.items
     ] == [("Acme AG", 2, 1)]
-    company_repo.get_company_overviews.assert_awaited_once_with("acme", 10, 10)
+    company_repo.get_company_overviews.assert_awaited_once_with(
+        "acme", 10, 10, CompanySort.NAME, SortDirection.ASC, None
+    )

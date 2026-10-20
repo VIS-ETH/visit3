@@ -47,7 +47,7 @@
     "token_invalid": "Token ist ungültig",
     "not_allowed": "Benutzer darf diese Anfrage nicht ausführen",
     "email_not_confirmed": "Die E-Mail des Benutzers ist nicht bestätigt",
-    "not_confirmed": "Benutzer ist nicht durch die Organisator:innen der Kontaktparty bestätigt",
+    "company_not_confirmed": "Ihr Unternehmen wurde von den Kontaktparty-Organisatoren noch nicht freigegeben",
     "phone_number_invalid": "Telefonnummer ist ungültig",
     "invalid_credentials": "Ungültige Anmeldeinformationen, bitte überprüfen Sie Ihre E-Mail und Ihr Passwort",
     "email_used": "E-Mail wird bereits verwendet",
@@ -128,8 +128,13 @@
     "session_load_failed": "Ihre Sitzung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "mail_template_not_found": "Diese E-Mail-Vorlage existiert nicht.",
     "mail_template_invalid": "Die E-Mail-Vorlage verwendet einen Platzhalter, der nicht verfügbar ist.",
+    "mail_campaign_not_found": "Diese E-Mail existiert nicht mehr.",
+    "mail_campaign_locked": "Diese E-Mail wird bereits versendet und kann nicht mehr geändert werden.",
+    "mail_campaign_schedule_in_past": "Bitte einen Zeitpunkt in der Zukunft wählen.",
     "retry": "Erneut versuchen",
-    "identity_provider_unavailable": "Der VIS-Anmeldedienst ist gerade nicht erreichbar. Bitte versuchen Sie es in ein paar Minuten erneut."
+    "identity_provider_unavailable": "Der VIS-Anmeldedienst ist gerade nicht erreichbar. Bitte versuchen Sie es in ein paar Minuten erneut.",
+    "kp_service_relation_invalid": "Dieser Service kann die gewählten Services nicht enthalten oder ausschliessen.",
+    "kp_services_excluded": "Einige der gewählten Services können nicht zusammen gebucht werden."
   },
   "validation": {
     "required": "Dieses Feld ist erforderlich.",
@@ -208,6 +213,7 @@
     "kontaktparty": "Kontaktparty",
     "company_management": "Unternehmensverwaltung",
     "mail_templates": "E-Mail-Vorlagen",
+    "mail_campaigns": "E-Mails",
     "industries": "Branchen",
     "bookings_overview": "Buchungsübersicht",
     "logout": "Abmelden",

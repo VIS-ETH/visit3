@@ -92,6 +92,11 @@ def make_company_profile() -> Callable[..., KpCompanyProfile]:
 def kp_repo(make_company_profile: Callable[..., KpCompanyProfile]) -> AsyncMock:
     repo = AsyncMock(spec=KpRepository)
     repo.get_company_profile.return_value = make_company_profile()
+    repo.package_inclusion_quantities.return_value = {}
+    repo.zone_inclusion_portion.return_value = {}
+    repo.list_service_inclusions.return_value = []
+    repo.list_service_exclusions.return_value = []
+    repo.list_containing_services.return_value = []
     return repo
 
 
@@ -121,7 +126,6 @@ def make_user() -> Callable[..., User]:
         is_staff: bool = False,
         is_admin: bool = False,
         is_company: bool = True,
-        user_confirmed: bool = True,
         email_confirmed: bool = True,
         company_id: UUID | None = None,
     ) -> User:
@@ -132,7 +136,6 @@ def make_user() -> Callable[..., User]:
             is_staff=is_staff,
             is_admin=is_admin,
             is_company=is_company,
-            user_confirmed=user_confirmed,
             email_confirmed=email_confirmed,
             company_id=company_id,
         )
@@ -142,8 +145,10 @@ def make_user() -> Callable[..., User]:
 
 @pytest.fixture
 def make_company() -> Callable[..., Company]:
-    def _make_company(*, name: str = "Acme AG") -> Company:
-        return Company(id=uuid4(), name=name)
+    def _make_company(
+        *, name: str = "Acme AG", confirmed_at: datetime | None = None
+    ) -> Company:
+        return Company(id=uuid4(), name=name, confirmed_at=confirmed_at)
 
     return _make_company
 
@@ -176,7 +181,6 @@ def admin_user(make_user: Callable[..., User]) -> User:
 def unconfirmed_user(make_user: Callable[..., User]) -> User:
     return make_user(
         email="unconfirmed@example.com",
-        user_confirmed=False,
         email_confirmed=False,
     )
 

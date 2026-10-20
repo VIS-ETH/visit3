@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 from uuid import UUID
@@ -30,6 +30,8 @@ from app.models.kp_event import (
     KpEventNametagBackground,
     KpEventRegistrationException,
     KpEventService,
+    KpEventServiceExclusion,
+    KpEventServiceInclusion,
     KpEventServiceRequirement,
     KpServiceCategory,
     NameTag,
@@ -86,6 +88,15 @@ BOOTH_ZONE_CLONE_FIELDS = (
 )
 
 INCLUDED_SERVICE_CLONE_FIELDS = ("included_quantity",)
+
+SERVICE_RELATIONSHIPS = {
+    "event",
+    "booth_zones",
+    "booking_services",
+    "requirements",
+    "included_services",
+    "excluded_services",
+}
 
 COMPANY_SNAPSHOT_FIELDS = (
     "description",
@@ -266,6 +277,12 @@ class KpRepository(BaseRepository[KpEvent]):
                     selectinload(rel(KpEvent.services)).selectinload(
                         rel(KpEventService.requirements)
                     ),
+                    selectinload(rel(KpEvent.services)).selectinload(
+                        rel(KpEventService.included_services)
+                    ),
+                    selectinload(rel(KpEvent.services)).selectinload(
+                        rel(KpEventService.excluded_services)
+                    ),
                     selectinload(rel(KpEvent.booth_zones)).selectinload(
                         rel(KpEventBoothZone.included_services)
                     ),
@@ -311,6 +328,33 @@ class KpRepository(BaseRepository[KpEvent]):
                         requirement,
                         SERVICE_REQUIREMENT_CLONE_FIELDS,
                         service_id=cloned_service.id,
+                    )
+
+            for service in source_event.services:
+                for inclusion in service.included_services:
+                    cloned_included_id = service_id_map.get(
+                        inclusion.included_service_id
+                    )
+                    if cloned_included_id is None:
+                        continue
+                    self.session.add(
+                        KpEventServiceInclusion(
+                            service_id=service_id_map[service.id],
+                            included_service_id=cloned_included_id,
+                            included_quantity=inclusion.included_quantity,
+                        )
+                    )
+                for exclusion in service.excluded_services:
+                    cloned_excluded_id = service_id_map.get(
+                        exclusion.excluded_service_id
+                    )
+                    if cloned_excluded_id is None:
+                        continue
+                    self.session.add(
+                        KpEventServiceExclusion(
+                            service_id=service_id_map[service.id],
+                            excluded_service_id=cloned_excluded_id,
+                        )
                     )
 
             booth_zone_id_map: dict[UUID, UUID] = {}
@@ -533,19 +577,26 @@ class KpRepository(BaseRepository[KpEvent]):
         self, event_id: UUID, create_service_input: CreateServiceInput
     ) -> KpEventService:
         try:
-            data = create_service_input.model_dump(exclude={"requirements"})
+            data = create_service_input.model_dump(
+                exclude={"requirements", "included_services", "excluded_service_ids"}
+            )
             service = KpEventService(
                 **data,
                 event_id=event_id,
             )
             self._validate_model(
                 service,
-                exclude={"event", "booth_zones", "booking_services", "requirements"},
+                exclude=SERVICE_RELATIONSHIPS,
             )
             self.session.add(service)
             await self.session.flush()
             await self._replace_service_requirements(
                 service, create_service_input.requirements
+            )
+            await self._replace_service_relations(
+                service,
+                create_service_input.included_services,
+                create_service_input.excluded_service_ids,
             )
             await self.session.commit()
             return await self.get_service_by_id(service.id) or service
@@ -588,23 +639,82 @@ class KpRepository(BaseRepository[KpEvent]):
             if requirement.id not in kept_ids:
                 await self.session.delete(requirement)
 
+    async def _replace_service_relations(
+        self,
+        service: KpEventService,
+        included_services: Sequence[IncludedServiceInput] | None,
+        excluded_service_ids: Sequence[UUID] | None,
+    ) -> None:
+        if included_services is not None:
+            result = await self.session.execute(
+                select(KpEventServiceInclusion).where(
+                    col(KpEventServiceInclusion.service_id) == service.id
+                )
+            )
+            removed = {
+                inclusion.included_service_id: inclusion
+                for inclusion in result.scalars().all()
+            }
+            for included_service in included_services:
+                inclusion = removed.pop(
+                    included_service.service_id, None
+                ) or KpEventServiceInclusion(
+                    service_id=service.id,
+                    included_service_id=included_service.service_id,
+                )
+                inclusion.included_quantity = included_service.included_quantity
+                self._validate_model(inclusion)
+                self.session.add(inclusion)
+            for inclusion in removed.values():
+                await self.session.delete(inclusion)
+        if excluded_service_ids is not None:
+            result = await self.session.execute(
+                select(KpEventServiceExclusion).where(
+                    (col(KpEventServiceExclusion.service_id) == service.id)
+                    | (col(KpEventServiceExclusion.excluded_service_id) == service.id)
+                )
+            )
+            existing = {
+                (exclusion.service_id, exclusion.excluded_service_id): exclusion
+                for exclusion in result.scalars().all()
+            }
+            for excluded_service_id in excluded_service_ids:
+                for pair in (
+                    (service.id, excluded_service_id),
+                    (excluded_service_id, service.id),
+                ):
+                    if existing.pop(pair, None) is None:
+                        self.session.add(
+                            KpEventServiceExclusion(
+                                service_id=pair[0], excluded_service_id=pair[1]
+                            )
+                        )
+            for exclusion in existing.values():
+                await self.session.delete(exclusion)
+
     async def update_service(
         self, service: KpEventService, update_service_input: UpdateServiceInput
     ) -> KpEventService:
         try:
             updates = update_service_input.model_dump(
-                exclude_unset=True, exclude={"requirements"}
+                exclude_unset=True,
+                exclude={"requirements", "included_services", "excluded_service_ids"},
             )
             service.sqlmodel_update(updates)
             self._validate_model(
                 service,
-                exclude={"event", "booth_zones", "booking_services", "requirements"},
+                exclude=SERVICE_RELATIONSHIPS,
             )
             self.session.add(service)
             if update_service_input.requirements is not None:
                 await self._replace_service_requirements(
                     service, update_service_input.requirements
                 )
+            await self._replace_service_relations(
+                service,
+                update_service_input.included_services,
+                update_service_input.excluded_service_ids,
+            )
             await self.session.commit()
             return await self.get_service_by_id(service.id) or service
         except Exception as e:
@@ -628,6 +738,16 @@ class KpRepository(BaseRepository[KpEvent]):
             await self.hard_delete_where(
                 KpEventBoothZoneServiceLink,
                 col(KpEventBoothZoneServiceLink.service_id) == service.id,
+            )
+            await self.hard_delete_where(
+                KpEventServiceInclusion,
+                (col(KpEventServiceInclusion.service_id) == service.id)
+                | (col(KpEventServiceInclusion.included_service_id) == service.id),
+            )
+            await self.hard_delete_where(
+                KpEventServiceExclusion,
+                (col(KpEventServiceExclusion.service_id) == service.id)
+                | (col(KpEventServiceExclusion.excluded_service_id) == service.id),
             )
             await self.delete_where(
                 KpEventServiceRequirement,
@@ -831,6 +951,9 @@ class KpRepository(BaseRepository[KpEvent]):
         result = await self.session.execute(statement)
         return result.scalar_one()
 
+    async def get_company(self, company_id: UUID) -> Optional[Company]:
+        return await self.session.get(Company, company_id)
+
     async def get_company_profile(self, company_id: UUID) -> Optional[KpCompanyProfile]:
         statement = (
             select(KpCompanyProfile)
@@ -878,7 +1001,7 @@ class KpRepository(BaseRepository[KpEvent]):
         booth_zone_id: UUID,
         create_booking_input: CreateBookingInput,
         services: Sequence[BookingServiceInput] = (),
-        included_services: Sequence[KpEventBoothZoneServiceLink] = (),
+        included_quantities: Mapping[UUID, int] | None = None,
         company_profile: Optional[KpCompanyProfile] = None,
         confirmed_at: Optional[datetime] = None,
     ) -> KpEventBooking:
@@ -900,39 +1023,20 @@ class KpRepository(BaseRepository[KpEvent]):
                     confirmed_at or datetime.now(timezone.utc),
                 )
 
-            booking_services_by_service_id = {
-                item.service_id: KpEventBookingService(
+            for item in services:
+                booking_service = KpEventBookingService(
                     booking_id=booking.id,
                     service_id=item.service_id,
                     quantity=item.quantity,
                     included_quantity=0,
                 )
-                for item in services
-            }
-            for included_service in included_services:
-                booking_service = booking_services_by_service_id.get(
-                    included_service.service_id
-                )
-                if booking_service is None:
-                    booking_service = KpEventBookingService(
-                        booking_id=booking.id,
-                        service_id=included_service.service_id,
-                        quantity=included_service.included_quantity,
-                    )
-                    booking_services_by_service_id[included_service.service_id] = (
-                        booking_service
-                    )
-                booking_service.included_quantity = included_service.included_quantity
-                booking_service.quantity = max(
-                    booking_service.quantity, included_service.included_quantity
-                )
-
-            for booking_service in booking_services_by_service_id.values():
                 self._validate_model(
                     booking_service,
                     exclude={"booking", "service", "requirement_file_links"},
                 )
                 self.session.add(booking_service)
+            await self.session.flush()
+            await self._sync_inclusions(booking.id, included_quantities or {})
 
             await self.session.commit()
             return await self.get_booking_by_id(booking.id) or booking
@@ -1042,6 +1146,7 @@ class KpRepository(BaseRepository[KpEvent]):
         quantities: dict[UUID, int],
     ) -> KpEventBooking:
         try:
+            zone_quantities = await self.zone_inclusion_portion(booking.id)
             statement = select(KpEventBookingService).where(
                 col(KpEventBookingService.booking_id) == booking.id,
                 col(KpEventBookingService.service_id).in_(list(quantities)),
@@ -1074,52 +1179,92 @@ class KpRepository(BaseRepository[KpEvent]):
                 )
                 self.session.add(booking_service)
 
+            await self.session.flush()
+            await self._sync_inclusions(booking.id, zone_quantities)
             await self.session.commit()
             return await self.get_booking_by_id(booking.id) or booking
         except Exception as e:
             await self.session.rollback()
             raise e
 
+    async def zone_inclusion_portion(self, booking_id: UUID) -> dict[UUID, int]:
+        statement = select(KpEventBookingService).where(
+            col(KpEventBookingService.booking_id) == booking_id
+        )
+        result = await self.session.execute(statement)
+        booking_services = result.scalars().all()
+        package_quantities = await self.package_inclusion_quantities(
+            {
+                booking_service.service_id: booking_service.quantity
+                for booking_service in booking_services
+            }
+        )
+        portion = {
+            booking_service.service_id: booking_service.included_quantity
+            - package_quantities.get(booking_service.service_id, 0)
+            for booking_service in booking_services
+        }
+        return {
+            service_id: quantity
+            for service_id, quantity in portion.items()
+            if quantity > 0
+        }
+
+    async def _sync_inclusions(
+        self, booking_id: UUID, zone_quantities: Mapping[UUID, int]
+    ) -> None:
+        statement = select(KpEventBookingService).where(
+            col(KpEventBookingService.booking_id) == booking_id
+        )
+        result = await self.session.execute(statement)
+        booking_services = {
+            booking_service.service_id: booking_service
+            for booking_service in result.scalars().all()
+        }
+        included_quantities = dict(zone_quantities)
+        package_quantities = await self.package_inclusion_quantities(
+            {
+                service_id: booking_service.quantity
+                for service_id, booking_service in booking_services.items()
+            }
+        )
+        for service_id, quantity in package_quantities.items():
+            included_quantities[service_id] = (
+                included_quantities.get(service_id, 0) + quantity
+            )
+
+        for service_id, included_quantity in included_quantities.items():
+            booking_service = booking_services.get(service_id)
+            if booking_service is None:
+                booking_service = KpEventBookingService(
+                    booking_id=booking_id,
+                    service_id=service_id,
+                    quantity=included_quantity,
+                )
+                booking_services[service_id] = booking_service
+            booking_service.included_quantity = included_quantity
+            booking_service.quantity = max(booking_service.quantity, included_quantity)
+
+        for service_id, booking_service in booking_services.items():
+            if service_id not in included_quantities:
+                booking_service.included_quantity = 0
+            self._validate_model(
+                booking_service,
+                exclude={"booking", "service", "requirement_file_links"},
+            )
+            self.session.add(booking_service)
+
     async def apply_zone_inclusions(
         self, booking: KpEventBooking, zone: KpEventBoothZone
     ) -> KpEventBooking:
         try:
-            included_quantities = {
-                included_service.service_id: included_service.included_quantity
-                for included_service in zone.included_services
-            }
-            statement = select(KpEventBookingService).where(
-                col(KpEventBookingService.booking_id) == booking.id
+            await self._sync_inclusions(
+                booking.id,
+                {
+                    included_service.service_id: included_service.included_quantity
+                    for included_service in zone.included_services
+                },
             )
-            result = await self.session.execute(statement)
-            booking_services = {
-                booking_service.service_id: booking_service
-                for booking_service in result.scalars().all()
-            }
-
-            for service_id, included_quantity in included_quantities.items():
-                booking_service = booking_services.get(service_id)
-                if booking_service is None:
-                    booking_service = KpEventBookingService(
-                        booking_id=booking.id,
-                        service_id=service_id,
-                        quantity=included_quantity,
-                    )
-                    booking_services[service_id] = booking_service
-                booking_service.included_quantity = included_quantity
-                booking_service.quantity = max(
-                    booking_service.quantity, included_quantity
-                )
-
-            for service_id, booking_service in booking_services.items():
-                if service_id not in included_quantities:
-                    booking_service.included_quantity = 0
-                self._validate_model(
-                    booking_service,
-                    exclude={"booking", "service", "requirement_file_links"},
-                )
-                self.session.add(booking_service)
-
             await self.session.commit()
             return await self.get_booking_by_id(booking.id) or booking
         except Exception as e:
@@ -1133,6 +1278,7 @@ class KpRepository(BaseRepository[KpEvent]):
         after_confirmation: bool = False,
     ) -> KpEventBooking:
         try:
+            zone_quantities = await self.zone_inclusion_portion(booking.id)
             service_ids = [item.service_id for item in services]
             existing_by_service_id: dict[UUID, KpEventBookingService] = {}
             if service_ids:
@@ -1167,6 +1313,8 @@ class KpRepository(BaseRepository[KpEvent]):
                 )
                 self.session.add(booking_service)
 
+            await self.session.flush()
+            await self._sync_inclusions(booking.id, zone_quantities)
             await self.session.commit()
             return await self.get_booking_by_id(booking.id) or booking
         except Exception as e:
@@ -1324,6 +1472,8 @@ class KpRepository(BaseRepository[KpEvent]):
             .options(
                 selectinload(rel(KpEventService.requirements)),
                 selectinload(rel(KpEventService.image_stored_file)),
+                selectinload(rel(KpEventService.included_services)),
+                selectinload(rel(KpEventService.excluded_services)),
             )
         )
         if category is not None:
@@ -1338,6 +1488,8 @@ class KpRepository(BaseRepository[KpEvent]):
             .options(
                 selectinload(rel(KpEventService.requirements)),
                 selectinload(rel(KpEventService.image_stored_file)),
+                selectinload(rel(KpEventService.included_services)),
+                selectinload(rel(KpEventService.excluded_services)),
             )
             .execution_options(populate_existing=True)
         )
@@ -1356,19 +1508,70 @@ class KpRepository(BaseRepository[KpEvent]):
             .options(
                 selectinload(rel(KpEventService.requirements)),
                 selectinload(rel(KpEventService.image_stored_file)),
+                selectinload(rel(KpEventService.included_services)),
+                selectinload(rel(KpEventService.excluded_services)),
             )
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
     async def max_included_quantity(self, service_id: UUID) -> int:
-        statement = select(
+        zone_statement = select(
             func.coalesce(
                 func.max(col(KpEventBoothZoneServiceLink.included_quantity)), 0
             )
         ).where(col(KpEventBoothZoneServiceLink.service_id) == service_id)
+        package_statement = select(
+            func.coalesce(func.max(col(KpEventServiceInclusion.included_quantity)), 0)
+        ).where(col(KpEventServiceInclusion.included_service_id) == service_id)
+        zone_quantity = (await self.session.execute(zone_statement)).scalar_one()
+        package_quantity = (await self.session.execute(package_statement)).scalar_one()
+        return max(zone_quantity, package_quantity)
+
+    async def list_service_inclusions(
+        self, service_ids: Sequence[UUID]
+    ) -> Sequence[KpEventServiceInclusion]:
+        if not service_ids:
+            return []
+        statement = select(KpEventServiceInclusion).where(
+            col(KpEventServiceInclusion.service_id).in_(list(service_ids))
+        )
         result = await self.session.execute(statement)
-        return result.scalar_one()
+        return result.scalars().all()
+
+    async def list_containing_services(
+        self, service_id: UUID
+    ) -> Sequence[KpEventServiceInclusion]:
+        statement = select(KpEventServiceInclusion).where(
+            col(KpEventServiceInclusion.included_service_id) == service_id
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().all()
+
+    async def list_service_exclusions(
+        self, service_ids: Sequence[UUID]
+    ) -> Sequence[KpEventServiceExclusion]:
+        if not service_ids:
+            return []
+        statement = select(KpEventServiceExclusion).where(
+            col(KpEventServiceExclusion.service_id).in_(list(service_ids))
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().all()
+
+    async def package_inclusion_quantities(
+        self, quantities: Mapping[UUID, int]
+    ) -> dict[UUID, int]:
+        booked_ids = [
+            service_id for service_id, quantity in quantities.items() if quantity > 0
+        ]
+        included: dict[UUID, int] = {}
+        for inclusion in await self.list_service_inclusions(booked_ids):
+            included[inclusion.included_service_id] = (
+                included.get(inclusion.included_service_id, 0)
+                + inclusion.included_quantity
+            )
+        return included
 
     async def get_service_requirement_by_id(
         self, requirement_id: UUID

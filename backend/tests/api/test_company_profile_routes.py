@@ -4,7 +4,7 @@ import pytest
 from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.company import MANDATORY_PROFILE_FIELDS
+from app.models.company import MANDATORY_PROFILE_FIELDS, PROFILE_DESCRIPTION_MAX_LENGTH
 from app.models.industry import Industry
 from app.models.user import User
 from tests.api.conftest import PNG_UPLOAD, company_profile_payload
@@ -28,8 +28,8 @@ async def unconfirmed_company_user(
 ) -> User:
     return await create_user(
         email="unconfirmed@example.com",
-        user_confirmed=False,
         company_name="Pending AG",
+        company_confirmed=False,
     )
 
 
@@ -155,18 +155,25 @@ async def test_profile_accepts_a_description_of_a_booklet_page(
 ):
     response = await client.put(
         PROFILE,
-        json=company_profile_payload(description="x" * 2500),
+        json=company_profile_payload(description="x" * PROFILE_DESCRIPTION_MAX_LENGTH),
         headers=company_headers,
     )
 
     assert response.status_code == 200
-    assert response.json()["description"] == f"<p>{'x' * 2500}</p>"
+    assert (
+        response.json()["description"]
+        == f"<p>{'x' * PROFILE_DESCRIPTION_MAX_LENGTH}</p>"
+    )
 
 
 async def test_the_description_limit_counts_only_the_visible_text(
     client: AsyncClient, company_headers: dict[str, str]
 ):
-    formatted = "<p>" + "<strong>x</strong><em>y</em>" * 1250 + "</p>"
+    formatted = (
+        "<p>"
+        + "<strong>x</strong><em>y</em>" * (PROFILE_DESCRIPTION_MAX_LENGTH // 2)
+        + "</p>"
+    )
 
     accepted = await client.put(
         PROFILE,
@@ -205,6 +212,48 @@ async def test_the_description_is_stored_sanitised(
     )
 
 
+async def test_the_description_keeps_lists_one_level_deep(
+    client: AsyncClient, company_headers: dict[str, str]
+):
+    response = await client.put(
+        PROFILE,
+        json=company_profile_payload(
+            description=(
+                '<ul><li style="color:red">a<ol start="4"><li>b<ul><li>c</li></ul>'
+                "</li></ol></li></ul><p></p><p></p><p>d<br><br><br>e</p>"
+            )
+        ),
+        headers=company_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["description"] == (
+        "<ul><li><p>a</p><ol><li><p>b</p></li><li><p>c</p></li></ol></li></ul>"
+        "<p></p><p>d<br><br>e</p>"
+    )
+
+
+async def test_the_description_limit_counts_list_items_as_lines(
+    client: AsyncClient, company_headers: dict[str, str]
+):
+    items = "<li><p>xxxx</p></li>" * (PROFILE_DESCRIPTION_MAX_LENGTH // 5)
+
+    accepted = await client.put(
+        PROFILE,
+        json=company_profile_payload(description=f"<ul>{items}</ul>"),
+        headers=company_headers,
+    )
+    rejected = await client.put(
+        PROFILE,
+        json=company_profile_payload(description=f"<ul>{items}<li>x</li></ul>"),
+        headers=company_headers,
+    )
+
+    assert accepted.status_code == 200
+    assert rejected.status_code == 422
+    assert rejected.json()["fieldErrors"][0]["code"] == "validation.too_long"
+
+
 async def test_a_description_of_empty_markup_is_missing(
     client: AsyncClient, company_headers: dict[str, str]
 ):
@@ -223,7 +272,9 @@ async def test_profile_rejects_a_description_over_the_limit(
 ):
     response = await client.put(
         PROFILE,
-        json=company_profile_payload(description="x" * 2501),
+        json=company_profile_payload(
+            description="x" * (PROFILE_DESCRIPTION_MAX_LENGTH + 1)
+        ),
         headers=company_headers,
     )
 
@@ -435,7 +486,7 @@ async def test_staff_profile_of_an_unknown_company_is_not_found(
     assert response.json()["code"] == "error.company_not_found"
 
 
-async def test_unconfirmed_user_may_edit_the_profile(
+async def test_unconfirmed_company_may_edit_the_profile(
     client: AsyncClient, unconfirmed_headers: dict[str, str]
 ):
     written = await client.put(
@@ -449,7 +500,7 @@ async def test_unconfirmed_user_may_edit_the_profile(
     assert read.json()["billing_city"] == "Winterthur"
 
 
-async def test_unconfirmed_user_may_not_register_a_booking(
+async def test_unconfirmed_company_may_not_register_a_booking(
     client: AsyncClient,
     unconfirmed_headers: dict[str, str],
     kp_setup,
@@ -465,4 +516,4 @@ async def test_unconfirmed_user_may_not_register_a_booking(
     )
 
     assert response.status_code == 403
-    assert response.json()["code"] == "error.not_confirmed"
+    assert response.json()["code"] == "error.company_not_confirmed"

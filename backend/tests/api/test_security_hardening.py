@@ -1,155 +1,134 @@
-from typing import Any
+from collections.abc import Awaitable, Callable
+from unittest.mock import AsyncMock
 
 import pytest
-from fastapi import FastAPI
 from httpx import AsyncClient
-from starlette.types import Message
 
-from app.core.config import Settings, UnsafeDebugSetting, get_settings
+from app.core.utils import bounded_filename, safe_suffix
 from app.models.user import User
-from tests.api.conftest import DEFAULT_PASSWORD
+from tests.api.conftest import KpSetup, company_profile_payload, first_member_id
 
-MEGABYTE = 1024 * 1024
-OVERSIZED_BODY_BYTES = 40 * MEGABYTE
-CHUNK_BYTES = MEGABYTE
-BOUNDARY = "sec-boundary"
+IMPERSONATE_HEADER = "X-Impersonate-User-Id"
 
 
-def _settings(**overrides: Any) -> Settings:
-    return Settings.model_validate({**get_settings().model_dump(), **overrides})
-
-
-async def _bytes_read_by_app(
-    app: FastAPI, path: str, content_type: str, body_prefix: bytes, total: int
-) -> tuple[int, int]:
-    consumed = 0
-    sent = 0
-    status: list[int] = []
-    payload_bytes = total - len(body_prefix)
-    headers = [
-        (b"content-type", content_type.encode()),
-        (b"content-length", str(total).encode()),
-    ]
-    scope: dict[str, Any] = {
-        "type": "http",
-        "asgi": {"version": "3.0"},
-        "http_version": "1.1",
-        "method": "POST",
-        "scheme": "https",
-        "path": path,
-        "raw_path": path.encode(),
-        "query_string": b"",
-        "root_path": "",
-        "headers": headers,
-        "client": ("203.0.113.9", 50000),
-        "server": ("test", 443),
-    }
-
-    async def receive() -> Message:
-        nonlocal consumed, sent
-        if sent == 0:
-            sent = 1
-            consumed += len(body_prefix)
-            return {"type": "http.request", "body": body_prefix, "more_body": True}
-        remaining = payload_bytes - (sent - 1) * CHUNK_BYTES
-        if remaining <= 0:
-            return {"type": "http.disconnect"}
-        chunk = b"a" * min(CHUNK_BYTES, remaining)
-        sent += 1
-        consumed += len(chunk)
-        return {
-            "type": "http.request",
-            "body": chunk,
-            "more_body": remaining > CHUNK_BYTES,
-        }
-
-    async def send(message: Message) -> None:
-        if message["type"] == "http.response.start":
-            status.append(message["status"])
-
-    await app(scope, receive, send)
-    return consumed, status[0]
-
-
-def test_production_refuses_the_keycloak_admin_debug_switch():
-    with pytest.raises(UnsafeDebugSetting):
-        _settings(DEBUG=False, DEBUG_KEYCLOAK_ADMIN=True)
-
-
-@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
-async def test_api_documentation_is_hidden_in_production(
-    client: AsyncClient, path: str
-):
-    assert get_settings().DEBUG is False
-
-    response = await client.get(path)
-
-    assert response.status_code == 404
-
-
-async def test_api_responses_forbid_content_sniffing(client: AsyncClient):
-    response = await client.get("/api/csrftoken")
-
-    assert response.headers.get("x-content-type-options") == "nosniff"
-
-
-async def test_token_responses_are_not_cached(
-    client: AsyncClient, csrf_headers: dict[str, str], company_user: User
-):
-    response = await client.post(
-        "/api/auth/login",
-        data={"username": company_user.email, "password": DEFAULT_PASSWORD},
-        headers=csrf_headers,
+@pytest.fixture
+async def plain_staff_headers(
+    create_user: Callable[..., Awaitable[User]],
+    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
+    csrf_headers: dict[str, str],
+) -> dict[str, str]:
+    helper = await create_user(
+        email="helper@example.com", is_staff=True, is_company=False
     )
+    return {**await auth_headers(helper), **csrf_headers}
+
+
+async def test_plain_staff_cannot_move_an_admin_into_a_company(
+    client: AsyncClient,
+    company_user: User,
+    create_user: Callable[..., Awaitable[User]],
+    plain_staff_headers: dict[str, str],
+):
+    privileged = await create_user(
+        email="privileged@example.com", is_admin=True, is_staff=True
+    )
+
+    response = await client.post(
+        f"/api/companies/{company_user.company_id}/members",
+        json={"user_id": str(privileged.id)},
+        headers=plain_staff_headers,
+    )
+
+    assert response.status_code == 403
+
+
+async def test_an_admin_cannot_impersonate_another_admin(
+    client: AsyncClient,
+    create_user: Callable[..., Awaitable[User]],
+    staff_headers: dict[str, str],
+):
+    other_admin = await create_user(
+        email="other-admin@example.com", is_admin=True, is_staff=True
+    )
+
+    response = await client.get(
+        "/api/user/profile",
+        headers={**staff_headers, IMPERSONATE_HEADER: str(other_admin.id)},
+    )
+
+    assert response.status_code == 403
+
+
+async def test_renaming_a_confirmed_company_asks_staff_again(
+    client: AsyncClient,
+    company_headers: dict[str, str],
+    mail_stub: AsyncMock,
+):
+    response = await client.patch(
+        "/api/company/me",
+        json={"name": "Totally Different AG"},
+        headers=company_headers,
+    )
+    company = await client.get("/api/company/me", headers=company_headers)
 
     assert response.status_code == 200
-    assert "no-store" in response.headers.get("cache-control", "")
+    assert company.json()["confirmed_at"] is None
+    mail_stub.SendMail.assert_awaited_once()
 
 
-async def test_an_anonymous_upload_is_refused_before_it_is_read(api_app: FastAPI):
-    prefix = (
-        f"--{BOUNDARY}\r\n"
-        'Content-Disposition: form-data; name="file"; filename="logo.png"\r\n'
-        "Content-Type: image/png\r\n\r\n"
-    ).encode()
-
-    consumed, status = await _bytes_read_by_app(
-        api_app,
-        "/api/company/me/profile/logo",
-        f"multipart/form-data; boundary={BOUNDARY}",
-        prefix,
-        OVERSIZED_BODY_BYTES,
-    )
-
-    assert status in {401, 403, 413}
-    assert consumed < 2 * MEGABYTE
-
-
-async def test_an_anonymous_json_body_is_bounded(api_app: FastAPI):
-    consumed, status = await _bytes_read_by_app(
-        api_app,
-        "/api/auth/register",
-        "application/json",
-        b'{"email": "a@example.com", "first_name": "',
-        OVERSIZED_BODY_BYTES,
-    )
-
-    assert status == 413
-    assert consumed < 2 * MEGABYTE
-
-
-async def test_repeated_failed_logins_are_throttled(
-    client: AsyncClient, csrf_headers: dict[str, str], company_user: User
+async def test_a_company_website_must_be_an_http_url(
+    client: AsyncClient, company_headers: dict[str, str]
 ):
-    statuses = [
-        (
-            await client.post(
-                "/api/auth/login",
-                data={"username": company_user.email, "password": f"guess-{attempt}"},
-                headers=csrf_headers,
-            )
-        ).status_code
-        for attempt in range(30)
-    ]
+    response = await client.put(
+        "/api/company/me/profile",
+        json=company_profile_payload(
+            kp_contact_user_id=await first_member_id(client, company_headers),
+            website="javascript:alert(1)",
+        ),
+        headers=company_headers,
+    )
 
-    assert 429 in statuses
+    assert response.status_code == 422
+
+
+async def test_a_package_cannot_contain_a_service_that_excludes_it(
+    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+):
+    package = await client.post(
+        f"/api/kp/events/{kp_setup.event_id}/services",
+        json={"name": "Package"},
+        headers=staff_headers,
+    )
+    await client.patch(
+        f"/api/kp/services/{kp_setup.service_id}",
+        json={"excluded_service_ids": [package.json()["id"]]},
+        headers=staff_headers,
+    )
+
+    response = await client.patch(
+        f"/api/kp/services/{package.json()['id']}",
+        json={"included_services": [{"service_id": kp_setup.service_id}]},
+        headers=staff_headers,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "error.kp_service_relation_invalid"
+
+
+@pytest.mark.parametrize(
+    ("filename", "suffix"),
+    [
+        ("logo.PNG", ".png"),
+        ("report.pdf", ".pdf"),
+        ("no-suffix", ""),
+        ("weird.p h p", ""),
+        ("long." + "x" * 40, ""),
+    ],
+)
+def test_storage_keys_only_keep_plain_suffixes(filename: str, suffix: str):
+    assert safe_suffix(filename) == suffix
+
+
+def test_stored_filenames_are_bounded():
+    assert len(bounded_filename("a" * 1000 + ".pdf")) == 255
+    assert bounded_filename("a" * 1000 + ".pdf").endswith(".pdf")

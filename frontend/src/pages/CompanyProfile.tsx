@@ -34,7 +34,6 @@ import {
   useGetUserProfile,
 } from "../orval/generated/user/user";
 import CompanyProfileBadge from "../components/company/CompanyProfileBadge";
-import { useCurrentUser } from "../context/useCurrentUser";
 import { useTranslatedForm } from "../utils/translator";
 import { companySchema } from "../schemas/companySchema";
 import { inviteSchema } from "../schemas/inviteSchema";
@@ -42,10 +41,7 @@ import { inviteSchema } from "../schemas/inviteSchema";
 const CompanyProfile = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { user } = useCurrentUser();
   const [settingsOpened, setSettingsOpened] = useState(false);
-
-  const isConfirmed = user?.user_confirmed === true;
 
   const { data: userProfile } = useGetUserProfile();
   const { data: company } = useGetMyCompany();
@@ -53,7 +49,7 @@ const CompanyProfile = () => {
     data: members = [],
     isLoading: membersLoading,
     isError: membersError,
-  } = useGetMyCompanyMembers({ query: { enabled: isConfirmed } });
+  } = useGetMyCompanyMembers();
 
   const companyForm = useTranslatedForm<typeof companySchema>(companySchema, {
     initialValues: { name: "" },
@@ -164,16 +160,16 @@ const CompanyProfile = () => {
           </form>
         </Modal>
 
-        {isConfirmed ? null : (
+        {company?.confirmed_at === null ? (
           <Alert
             icon={<IconClock />}
             color="blue"
             variant="light"
             title={t("company_profile.unconfirmed_title")}
           >
-            {t("user.unconfirmed")}
+            {t("company_profile.unconfirmed_description")}
           </Alert>
-        )}
+        ) : null}
 
         <Paper withBorder p="xl" radius="md">
           <Group justify="space-between" align="center" wrap="wrap">
@@ -198,46 +194,42 @@ const CompanyProfile = () => {
           </Group>
         </Paper>
 
-        {isConfirmed ? (
-          <Paper withBorder p="xl" radius="md">
-            <Stack gap="md">
-              <Title order={4}>
-                <IconMail
-                  size={18}
-                  style={{ marginRight: 6, verticalAlign: "middle" }}
+        <Paper withBorder p="xl" radius="md">
+          <Stack gap="md">
+            <Title order={4}>
+              <IconMail
+                size={18}
+                style={{ marginRight: 6, verticalAlign: "middle" }}
+              />
+              {t("company_profile.invite_title")}
+            </Title>
+            <form
+              onSubmit={inviteForm.onSubmit((v) =>
+                sendInvite({ data: { email: v.email } }),
+              )}
+            >
+              <Group align="flex-end" gap="sm">
+                <TextInput
+                  style={{ flex: 1 }}
+                  label={t("company_profile.invite_email")}
+                  placeholder={t("company_profile.invite_email_placeholder")}
+                  {...inviteForm.getInputProps("email")}
                 />
-                {t("company_profile.invite_title")}
-              </Title>
-              <form
-                onSubmit={inviteForm.onSubmit((v) =>
-                  sendInvite({ data: { email: v.email } }),
-                )}
-              >
-                <Group align="flex-end" gap="sm">
-                  <TextInput
-                    style={{ flex: 1 }}
-                    label={t("company_profile.invite_email")}
-                    placeholder={t("company_profile.invite_email_placeholder")}
-                    {...inviteForm.getInputProps("email")}
-                  />
-                  <Button
-                    type="submit"
-                    loading={isSending}
-                    disabled={isSending || !inviteForm.isValid()}
-                  >
-                    {t("company_profile.invite_button")}
-                  </Button>
-                </Group>
-              </form>
-            </Stack>
-          </Paper>
-        ) : null}
+                <Button
+                  type="submit"
+                  loading={isSending}
+                  disabled={isSending || !inviteForm.isValid()}
+                >
+                  {t("company_profile.invite_button")}
+                </Button>
+              </Group>
+            </form>
+          </Stack>
+        </Paper>
 
         <Title order={3}>{t("company_profile.members_title")}</Title>
 
-        {!isConfirmed ? (
-          <Text c="dimmed">{t("company_profile.members_unconfirmed")}</Text>
-        ) : membersLoading ? (
+        {membersLoading ? (
           <Center>
             <Loader />
           </Center>
