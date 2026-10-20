@@ -61,8 +61,11 @@ import {
   useUploadBookingRequirementFile,
 } from "../orval/generated/kp/kp";
 import {
+  blockingServiceName,
+  excludedByService,
   maxServiceQuantity,
   servicesOfCategory,
+  withPackageInclusions,
 } from "../utils/kp-service-quantity";
 import { isManageableBooking } from "../utils/my-booking";
 import { bookingRequirementElementId } from "../utils/navigation";
@@ -509,14 +512,18 @@ const BookedServiceCard = ({
 };
 
 const AddServiceCard = ({
+  blockedBy,
   bookedQuantity,
+  contents,
   editable,
   includedQuantity,
   onQuantityChange,
   quantity,
   service,
 }: {
+  blockedBy: string | null;
   bookedQuantity: number;
+  contents: string;
   editable: boolean;
   includedQuantity: number;
   onQuantityChange: (quantity: number) => void;
@@ -526,6 +533,7 @@ const AddServiceCard = ({
   const { t } = useTranslation();
   const maxQuantity = maxServiceQuantity(service, bookedQuantity);
   const addedQuantity = Math.max(quantity - bookedQuantity, 0);
+  const isBlocked = blockedBy !== null && quantity <= bookedQuantity;
 
   return (
     <Paper withBorder radius="sm" p="md">
@@ -536,6 +544,11 @@ const AddServiceCard = ({
             {service.description ? (
               <Text c="dimmed" size="sm">
                 {service.description}
+              </Text>
+            ) : null}
+            {contents ? (
+              <Text c="dimmed" size="xs">
+                {t("kp.booking.service_contains", { contents })}
               </Text>
             ) : null}
           </div>
@@ -555,7 +568,7 @@ const AddServiceCard = ({
         {service.max_quantity_per_booking === 1 ? (
           <Switch
             checked={quantity > 0}
-            disabled={!editable || maxQuantity <= bookedQuantity}
+            disabled={!editable || isBlocked || maxQuantity <= bookedQuantity}
             label={t("kp.booking.service_book_toggle")}
             onChange={(event) =>
               onQuantityChange(event.currentTarget.checked ? 1 : 0)
@@ -566,7 +579,7 @@ const AddServiceCard = ({
             allowDecimal={false}
             allowNegative={false}
             clampBehavior="strict"
-            disabled={!editable || maxQuantity <= bookedQuantity}
+            disabled={!editable || isBlocked || maxQuantity <= bookedQuantity}
             label={
               service.unit_label
                 ? t("kp.booking.service_quantity_with_unit", {
@@ -585,6 +598,11 @@ const AddServiceCard = ({
             }
           />
         )}
+        {blockedBy !== null ? (
+          <Text c="orange" size="xs">
+            {t("kp.booking.service_excluded_by", { name: blockedBy })}
+          </Text>
+        ) : null}
         {service.remaining_total_quantity != null ? (
           <Text c="dimmed" size="xs">
             {t("kp.booking.service_remaining_total", {
@@ -650,6 +668,47 @@ const AddServicesForm = ({
     0,
   );
   const selectedPrice = priceBreakdown(selectedTotal, vatRatePercent);
+  const bookedSelection = bookingServices.map((item) => ({
+    serviceId: item.service_id,
+    quantity: item.quantity,
+  }));
+  const packageIncluded = withPackageInclusions(
+    new Map(),
+    services,
+    bookedSelection,
+  );
+  const zoneIncluded = new Map(
+    bookingServices.map((item) => [
+      item.service_id,
+      Math.max(
+        item.included_quantity - (packageIncluded.get(item.service_id) ?? 0),
+        0,
+      ),
+    ]),
+  );
+  const excludedBy = excludedByService(
+    services,
+    services.map((service) => ({
+      serviceId: service.id,
+      quantity:
+        service.id in quantities
+          ? quantities[service.id]
+          : (bookingServiceByServiceId.get(service.id)?.quantity ?? 0),
+    })),
+    zoneIncluded,
+  );
+  const serviceNameById = new Map(
+    services.map((service) => [service.id, service.name]),
+  );
+  const contentsOf = (service: ServiceResponse) =>
+    (service.included_services ?? [])
+      .map(
+        (content) =>
+          `${content.included_quantity}× ${
+            serviceNameById.get(content.service_id) ?? ""
+          }`,
+      )
+      .join(", ");
 
   const handleSubmit = async (bookingId: string) => {
     const payload = selectedServices.map((item) => ({
@@ -697,7 +756,9 @@ const AddServicesForm = ({
           const bookedQuantity = bookingService?.quantity ?? 0;
           return (
             <AddServiceCard
+              blockedBy={blockingServiceName(service, excludedBy)}
               bookedQuantity={bookedQuantity}
+              contents={contentsOf(service)}
               editable={editable}
               includedQuantity={bookingService?.included_quantity ?? 0}
               key={service.id}

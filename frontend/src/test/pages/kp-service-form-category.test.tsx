@@ -126,6 +126,40 @@ describe("the admin service form", () => {
   });
 });
 
+describe("service relations in the admin service form", () => {
+  it("sends the contained and excluded services", async () => {
+    const { user } = renderForm();
+
+    await user.type(
+      await screen.findByLabelText(
+        "kp.manage.service_name",
+        undefined,
+        SLOW_WAIT,
+      ),
+      "Sponsor package",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "kp.manage.service_contains_add" }),
+    );
+    await user.click(
+      screen.getByRole("combobox", { name: "kp.manage.zone_included_service" }),
+    );
+    await user.click(await screen.findByRole("option", { name: chair.name }));
+    await user.click(screen.getAllByLabelText("kp.manage.service_excludes")[0]);
+    await user.click(
+      await screen.findByRole("option", { name: powerSocket.name }),
+    );
+    await user.click(screen.getByRole("button", { name: "kp.manage.save" }));
+
+    await waitFor(() => {
+      expect(createdPayload).toMatchObject({
+        included_services: [{ service_id: chair.id, included_quantity: 1 }],
+        excluded_service_ids: [powerSocket.id],
+      });
+    }, SLOW_WAIT);
+  });
+});
+
 describe("the admin services tab", () => {
   it("lists services and booth elements in separate groups", async () => {
     renderWithProviders(<ServicesTab eventId={testEventId} />);

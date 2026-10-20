@@ -176,6 +176,13 @@ export const serviceSchema = z.object({
       order: z.number().min(0, "kp.manage.service_number_non_negative"),
     }),
   ),
+  includedServices: z.array(
+    z.object({
+      serviceId: z.string().min(1, "validation.required"),
+      quantity: z.number().min(1, "kp.manage.zone_included_quantity_min"),
+    }),
+  ),
+  excludedServiceIds: z.array(z.string()),
 });
 
 export type ServiceFormValues = z.infer<typeof serviceSchema>;

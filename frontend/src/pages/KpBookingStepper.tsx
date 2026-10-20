@@ -67,11 +67,14 @@ import BookingProfileConfirmation from "../components/booking/BookingProfileConf
 import KpBookingZoneSelector from "../components/KpBookingZoneSelector";
 import FloorPlanImages from "../components/venue/FloorPlanImages";
 import {
+  blockingServiceName,
   chargedServiceQuantity,
   clampServiceQuantity,
+  excludedByService,
   includedQuantitiesByServiceId,
   maxServiceQuantity,
   servicesOfCategory,
+  withPackageInclusions,
 } from "../utils/kp-service-quantity";
 import { isZoneBookable } from "../utils/booth-zones";
 import { formatPrice } from "../utils/price-utils";
@@ -149,14 +152,18 @@ function KpBookingZoneStep({
 
 function KpBookingServiceGrid({
   services,
+  allServices,
   includedQuantities,
+  excludedBy,
   selectedServices,
   onChangeServices,
   emptyLabel,
   isLoading,
 }: {
   services: ServiceResponse[];
+  allServices: ServiceResponse[];
   includedQuantities: Map<string, number>;
+  excludedBy: Map<string, string>;
   selectedServices: DraftBookingService[];
   onChangeServices: (services: DraftBookingService[]) => void;
   emptyLabel: string;
@@ -168,6 +175,26 @@ function KpBookingServiceGrid({
   const selectedServiceById = new Map(
     selectedServices.map((service) => [service.serviceId, service]),
   );
+  const serviceNameById = new Map(
+    allServices.map((service) => [service.id, service.name]),
+  );
+
+  const withoutPackageContents = (
+    items: DraftBookingService[],
+    service: ServiceResponse,
+  ) =>
+    (service.included_services ?? []).reduce((current, content) => {
+      const included = includedFor(content.service_id);
+      return current.flatMap((item) => {
+        if (item.serviceId !== content.service_id) return [item];
+        const quantity = Math.max(
+          item.quantity - content.included_quantity,
+          included - content.included_quantity,
+          0,
+        );
+        return quantity > 0 ? [{ ...item, quantity }] : [];
+      });
+    }, items);
 
   const updateQuantity = (service: ServiceResponse, quantity: number) => {
     const nextQuantity = clampServiceQuantity(
@@ -175,9 +202,11 @@ function KpBookingServiceGrid({
       includedFor(service.id),
       quantity,
     );
-    const next = selectedServices.filter(
-      (item) => item.serviceId !== service.id,
-    );
+    const previousQuantity = selectedServiceById.get(service.id)?.quantity ?? 0;
+    let next = selectedServices.filter((item) => item.serviceId !== service.id);
+    if (previousQuantity > 0 && nextQuantity === 0) {
+      next = withoutPackageContents(next, service);
+    }
     if (nextQuantity > 0) {
       const current = selectedServiceById.get(service.id);
       next.push({
@@ -349,6 +378,16 @@ function KpBookingServiceGrid({
         const included = includedFor(service.id);
         const quantity = selectedService?.quantity ?? included;
         const charged = chargedServiceQuantity(quantity, included);
+        const blockedBy = blockingServiceName(service, excludedBy);
+        const isBlocked = blockedBy !== null && quantity <= included;
+        const contents = (service.included_services ?? [])
+          .map(
+            (content) =>
+              `${content.included_quantity}× ${
+                serviceNameById.get(content.service_id) ?? ""
+              }`,
+          )
+          .join(", ");
         return (
           <Paper withBorder radius="md" p="md" key={service.id}>
             <Stack gap="xs">
@@ -367,6 +406,11 @@ function KpBookingServiceGrid({
                   {service.description ? (
                     <Text c="dimmed" size="sm" mt={4}>
                       {service.description}
+                    </Text>
+                  ) : null}
+                  {contents ? (
+                    <Text c="dimmed" size="xs" mt={4}>
+                      {t("kp.booking.service_contains", { contents })}
                     </Text>
                   ) : null}
                 </div>
@@ -402,7 +446,10 @@ function KpBookingServiceGrid({
               {service.max_quantity_per_booking === 1 ? (
                 <Switch
                   checked={quantity > 0}
-                  disabled={maxServiceQuantity(service, included) <= included}
+                  disabled={
+                    isBlocked ||
+                    maxServiceQuantity(service, included) <= included
+                  }
                   label={t("kp.booking.service_book_toggle")}
                   onChange={(event) =>
                     updateQuantity(service, event.currentTarget.checked ? 1 : 0)
@@ -423,6 +470,7 @@ function KpBookingServiceGrid({
                         })
                       : t("kp.booking.service_quantity")
                   }
+                  disabled={isBlocked}
                   min={included}
                   max={maxServiceQuantity(service, included)}
                   step={1}
@@ -435,6 +483,11 @@ function KpBookingServiceGrid({
                   }
                 />
               )}
+              {blockedBy !== null ? (
+                <Text c="orange" size="xs">
+                  {t("kp.booking.service_excluded_by", { name: blockedBy })}
+                </Text>
+              ) : null}
               {service.remaining_total_quantity != null ? (
                 <Text c="dimmed" size="xs">
                   {t("kp.booking.service_remaining_total", {
@@ -488,7 +541,9 @@ function KpBookingServiceGrid({
 
 function KpBookingServicesStep(props: {
   services: ServiceResponse[];
+  allServices: ServiceResponse[];
   includedQuantities: Map<string, number>;
+  excludedBy: Map<string, string>;
   selectedServices: DraftBookingService[];
   onChangeServices: (services: DraftBookingService[]) => void;
   isLoading: boolean;
@@ -515,7 +570,9 @@ function KpBookingServicesStep(props: {
 
 function KpBookingBoothStep(props: {
   services: ServiceResponse[];
+  allServices: ServiceResponse[];
   includedQuantities: Map<string, number>;
+  excludedBy: Map<string, string>;
   selectedServices: DraftBookingService[];
   onChangeServices: (services: DraftBookingService[]) => void;
   isLoading: boolean;
@@ -564,12 +621,21 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
   const { data: availableServices, isLoading: isLoadingServices } =
     useListAvailableServices(event.id);
   const allServices = availableServices ?? NO_SERVICES;
-  const includedQuantities = useMemo(
+  const zoneIncludedQuantities = useMemo(
     () =>
       includedQuantitiesByServiceId(
         selectedZone?.included_services ?? NO_INCLUDED_SERVICES,
       ),
     [selectedZone],
+  );
+  const includedQuantities = useMemo(
+    () =>
+      withPackageInclusions(zoneIncludedQuantities, allServices, draftServices),
+    [zoneIncludedQuantities, allServices, draftServices],
+  );
+  const excludedBy = useMemo(
+    () => excludedByService(allServices, draftServices, zoneIncludedQuantities),
+    [allServices, draftServices, zoneIncludedQuantities],
   );
   const bookableServices = useMemo(
     () => servicesOfCategory(allServices, KpServiceCategory.SERVICE),
@@ -761,7 +827,9 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
         >
           <KpBookingServicesStep
             services={bookableServices}
+            allServices={allServices}
             includedQuantities={includedQuantities}
+            excludedBy={excludedBy}
             selectedServices={draftServices}
             onChangeServices={setDraftServices}
             isLoading={isLoadingServices}
@@ -773,7 +841,9 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
         >
           <KpBookingBoothStep
             services={boothElements}
+            allServices={allServices}
             includedQuantities={includedQuantities}
+            excludedBy={excludedBy}
             selectedServices={draftServices}
             onChangeServices={setDraftServices}
             isLoading={isLoadingServices}

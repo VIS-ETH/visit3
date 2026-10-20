@@ -132,7 +132,9 @@
     "mail_campaign_locked": "Diese E-Mail wird bereits versendet und kann nicht mehr geändert werden.",
     "mail_campaign_schedule_in_past": "Bitte einen Zeitpunkt in der Zukunft wählen.",
     "retry": "Erneut versuchen",
-    "identity_provider_unavailable": "Der VIS-Anmeldedienst ist gerade nicht erreichbar. Bitte versuchen Sie es in ein paar Minuten erneut."
+    "identity_provider_unavailable": "Der VIS-Anmeldedienst ist gerade nicht erreichbar. Bitte versuchen Sie es in ein paar Minuten erneut.",
+    "kp_service_relation_invalid": "Dieser Service kann die gewählten Services nicht enthalten oder ausschliessen.",
+    "kp_services_excluded": "Einige der gewählten Services können nicht zusammen gebucht werden."
   },
   "validation": {
     "required": "Dieses Feld ist erforderlich.",

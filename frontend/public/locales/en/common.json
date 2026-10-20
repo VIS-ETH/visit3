@@ -132,7 +132,9 @@
     "mail_campaign_locked": "This mail is already being sent and can no longer be changed.",
     "mail_campaign_schedule_in_past": "Pick a time in the future.",
     "retry": "Try again",
-    "identity_provider_unavailable": "The VIS login service cannot be reached right now. Please try again in a few minutes."
+    "identity_provider_unavailable": "The VIS login service cannot be reached right now. Please try again in a few minutes.",
+    "kp_service_relation_invalid": "This service cannot contain or exclude the chosen services.",
+    "kp_services_excluded": "Some of the chosen services cannot be booked together."
   },
   "validation": {
     "required": "This field is required.",
