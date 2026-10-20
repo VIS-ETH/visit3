@@ -21,7 +21,13 @@ from app.schemas.sorting import SortDirection
 from app.schemas.user import UserFilter, UserProfileFieldsInput, UserSort
 
 
-def _filter_conditions(user_filter: UserFilter) -> list[ColumnElement[bool]]:
+def _filter_conditions(
+    user_filter: UserFilter, since: datetime | None
+) -> list[ColumnElement[bool]]:
+    if user_filter is UserFilter.NEW and since is not None:
+        return [
+            or_(col(User.created_at) > since, col(User.new_in_company_since) > since)
+        ]
     if user_filter is UserFilter.COMPANY:
         return [col(User.is_company).is_(True)]
     if user_filter is UserFilter.STAFF:
@@ -141,7 +147,7 @@ class UserRepository(BaseRepository[User]):
         return result.scalar_one_or_none()
 
     def _searchable_users(
-        self, query: str | None, user_filter: UserFilter
+        self, query: str | None, user_filter: UserFilter, since: datetime | None
     ) -> Select[tuple[User]]:
         return (
             select(User)
@@ -151,15 +157,15 @@ class UserRepository(BaseRepository[User]):
             )
             .where(
                 self._not_deleted(User),
-                *_filter_conditions(user_filter),
+                *_filter_conditions(user_filter, since),
                 *_search_conditions(query),
             )
         )
 
     async def count_users_matching(
-        self, query: str | None, user_filter: UserFilter
+        self, query: str | None, user_filter: UserFilter, since: datetime | None = None
     ) -> int:
-        statement = self._searchable_users(query, user_filter).with_only_columns(
+        statement = self._searchable_users(query, user_filter, since).with_only_columns(
             func.count(col(User.id))
         )
         result = await self.session.execute(statement)
@@ -173,9 +179,10 @@ class UserRepository(BaseRepository[User]):
         limit: int,
         sort: UserSort | None = None,
         direction: SortDirection = SortDirection.ASC,
+        since: datetime | None = None,
     ) -> Sequence[User]:
         statement = (
-            self._searchable_users(query, user_filter)
+            self._searchable_users(query, user_filter, since)
             .options(selectinload(rel(User.company)))
             .execution_options(populate_existing=True)
             .order_by(*_user_order(sort, direction))
@@ -298,6 +305,7 @@ class UserRepository(BaseRepository[User]):
             await self.update_where(
                 User,
                 col(User.id) == user_id,
+                previous_login_at=col(User.last_login_at),
                 last_login_at=datetime.now(timezone.utc),
             )
             await self.session.commit()

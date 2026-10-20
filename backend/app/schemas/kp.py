@@ -484,6 +484,8 @@ class BookingWithBoothZoneBase(BookingBase):
     nametag_count: int
     waitlist_count: int
     company_details_submitted: bool
+    created_at: datetime | None = None
+    changed_at: datetime | None = None
     status_note: str | None = None
     added_after_confirmation: list[BookingAdditionResponse] = Field(
         default_factory=lambda: []

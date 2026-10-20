@@ -57,6 +57,7 @@ from app.schemas.company import (
 )
 from app.schemas.industry import IndustryResult
 from app.schemas.sorting import SortDirection
+from app.services.change_service import changes_since
 from app.services.invite_service import InviteService
 from app.services.mail_template_service import MailTemplateService
 from app.services.storage_service import StorageService, UploadKind, UploadStream
@@ -130,11 +131,13 @@ class CompanyService:
         page_size: int,
         sort: CompanySort = CompanySort.NAME,
         direction: SortDirection = SortDirection.ASC,
+        only_changes: bool = False,
     ) -> CompanyPageResult:
         require_staff_user(self.current_user)
-        total = await self.company_repository.count_companies(query)
+        changed_since = changes_since(self.current_user) if only_changes else None
+        total = await self.company_repository.count_companies(query, changed_since)
         items = await self._company_overviews(
-            query, (page - 1) * page_size, page_size, sort, direction
+            query, (page - 1) * page_size, page_size, sort, direction, changed_since
         )
         return CompanyPageResult(
             items=list(items), total=total, page=page, page_size=page_size
@@ -147,9 +150,10 @@ class CompanyService:
         limit: int | None = None,
         sort: CompanySort = CompanySort.NAME,
         direction: SortDirection = SortDirection.ASC,
+        changed_since: datetime | None = None,
     ) -> Sequence[CompanyListResult]:
         companies = await self.company_repository.get_company_overviews(
-            query, offset, limit, sort, direction
+            query, offset, limit, sort, direction, changed_since
         )
         return [
             CompanyListResult(

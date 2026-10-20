@@ -654,5 +654,5 @@ async def test_search_companies_reports_counts_and_paging(
         (item.name, item.users_count, item.bookings_count) for item in result.items
     ] == [("Acme AG", 2, 1)]
     company_repo.get_company_overviews.assert_awaited_once_with(
-        "acme", 10, 10, CompanySort.NAME, SortDirection.ASC
+        "acme", 10, 10, CompanySort.NAME, SortDirection.ASC, None
     )

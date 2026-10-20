@@ -65,6 +65,12 @@ class User(BaseEntity, table=True):
     last_login_at: datetime | None = Field(
         default=None, nullable=True, sa_type=TIMESTAMPTZ
     )
+    previous_login_at: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
+    changes_seen_at: datetime | None = Field(
+        default=None, nullable=True, sa_type=TIMESTAMPTZ
+    )
     company: Company = Relationship(
         back_populates="users", sa_relationship_kwargs={"lazy": "noload"}
     )

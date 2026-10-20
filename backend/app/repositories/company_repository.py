@@ -28,6 +28,7 @@ from app.models.kp_event import (
 from app.models.storage import StoredFile
 from app.models.user import User
 from app.repositories.base import BaseRepository, ordered, rel
+from app.repositories.change_repository import company_changed_since
 from app.schemas.company import CompanySort, UpdateCompanyProfileInput
 from app.schemas.sorting import SortDirection
 
@@ -83,15 +84,21 @@ class CompanyRepository(BaseRepository[Company]):
         result = await self.session.execute(statement)
         return result.scalar_one()
 
-    def _matching_companies(self, query: str | None) -> Select[tuple[Company]]:
+    def _matching_companies(
+        self, query: str | None, changed_since: datetime | None = None
+    ) -> Select[tuple[Company]]:
         term = (query or "").strip()
         conditions = (
             [col(Company.name).icontains(term, autoescape=True)] if term else []
         )
+        if changed_since is not None:
+            conditions.append(company_changed_since(changed_since))
         return select(Company).where(self._not_deleted(Company), *conditions)
 
-    async def count_companies(self, query: str | None) -> int:
-        statement = self._matching_companies(query).with_only_columns(
+    async def count_companies(
+        self, query: str | None, changed_since: datetime | None = None
+    ) -> int:
+        statement = self._matching_companies(query, changed_since).with_only_columns(
             func.count(col(Company.id))
         )
         result = await self.session.execute(statement)
@@ -104,6 +111,7 @@ class CompanyRepository(BaseRepository[Company]):
         limit: int | None = None,
         sort: CompanySort = CompanySort.NAME,
         direction: SortDirection = SortDirection.ASC,
+        changed_since: datetime | None = None,
     ) -> Sequence[tuple[UUID, str, datetime | None, int, int, int]]:
         users_count = (
             select(func.count(col(User.id)))
@@ -137,7 +145,7 @@ class CompanyRepository(BaseRepository[Company]):
             CompanySort.BOOKINGS: bookings_count,
         }[sort]
         statement = (
-            self._matching_companies(query)
+            self._matching_companies(query, changed_since)
             .with_only_columns(
                 col(Company.id),
                 col(Company.name),

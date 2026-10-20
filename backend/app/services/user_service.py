@@ -39,6 +39,7 @@ from app.schemas.user import (
     UserSort,
 )
 from app.services.auth_service import AuthService, frontend_url
+from app.services.change_service import changes_since
 from app.services.mail_template_service import MailTemplateService
 
 logger = logging.getLogger(__name__)
@@ -116,9 +117,18 @@ class UserService:
         direction: SortDirection = SortDirection.ASC,
     ) -> UserPageResult:
         require_staff_user(self.current_user)
-        total = await self.user_repository.count_users_matching(query, user_filter)
+        since = changes_since(self.current_user)
+        total = await self.user_repository.count_users_matching(
+            query, user_filter, since
+        )
         users = await self.user_repository.search_users(
-            query, user_filter, (page - 1) * page_size, page_size, sort, direction
+            query,
+            user_filter,
+            (page - 1) * page_size,
+            page_size,
+            sort,
+            direction,
+            since,
         )
         return UserPageResult(
             items=[StaffUserResponse.model_validate(user) for user in users],

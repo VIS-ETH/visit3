@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.routes.auth import router as auth_router
+from app.routes.changes import router as changes_router
 from app.routes.company import companies_router
 from app.routes.company import public_router as public_company_router
 from app.routes.company import router as company_router
@@ -28,3 +29,4 @@ router.include_router(kp_router)
 router.include_router(mail_template_router)
 router.include_router(mail_campaign_router)
 router.include_router(venue_router)
+router.include_router(changes_router)

@@ -53,6 +53,7 @@ class UserFilter(StrEnum):
     ALL = "all"
     COMPANY = "company"
     STAFF = "staff"
+    NEW = "new"
 
 
 class UserSort(StrEnum):

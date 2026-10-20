@@ -14,6 +14,7 @@ from app.core.exceptions import CsrfInvalid, NotAllowed, Unauthenticated
 from app.core.grpc import grpc_client
 from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 from app.models.user import User
+from app.repositories.change_repository import ChangeRepository
 from app.repositories.company_repository import CompanyRepository
 from app.repositories.industry_repository import IndustryRepository
 from app.repositories.kp_repository import KpRepository
@@ -26,6 +27,7 @@ from app.repositories.venue_repository import VenueRepository
 from app.services.auth_service import AuthService
 from app.services.booking_notifier import MailBookingNotifier
 from app.services.booklet_service import BookletService
+from app.services.change_service import ChangeService
 from app.services.company_service import CompanyService
 from app.services.csv_service import CsvService
 from app.services.event_banner_service import EventBannerService
@@ -339,6 +341,23 @@ async def get_industry_service(
 
 
 IndustryServiceDep = Annotated[IndustryService, Depends(get_industry_service)]
+
+
+async def get_change_repository(session: DbSessionDep):
+    return ChangeRepository(session)
+
+
+ChangeRepositoryDep = Annotated[ChangeRepository, Depends(get_change_repository)]
+
+
+async def get_change_service(
+    change_repository: ChangeRepositoryDep,
+    current_user: CurrentUserDep,
+):
+    return ChangeService(change_repository, current_user)
+
+
+ChangeServiceDep = Annotated[ChangeService, Depends(get_change_service)]
 
 
 async def get_booking_notifier(

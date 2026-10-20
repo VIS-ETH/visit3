@@ -328,9 +328,10 @@ async def search_companies(
     page_size: int = Query(default=25, ge=1, le=MAX_PAGE_SIZE),
     sort: CompanySort = CompanySort.NAME,
     direction: SortDirection = SortDirection.ASC,
+    only_changes: bool = False,
 ) -> CompanyPageResult:
     return await company_service.search_companies(
-        query, page, page_size, sort, direction
+        query, page, page_size, sort, direction, only_changes
     )
 
 

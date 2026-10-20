@@ -140,6 +140,7 @@ from app.services.booth_zone_view import (
     free_spots,
     staff_booth_zone_response,
 )
+from app.services.change_service import booking_changed_at
 from app.services.download_urls import DownloadUrls
 from app.services.pricing import booking_price
 from app.services.registration_exceptions import has_registration_exception
@@ -1070,6 +1071,8 @@ class KpService:
             nametag_count=booking.nametag_count,
             waitlist_count=booking.waitlist_count,
             company_details_submitted=booking.company_details_submitted,
+            created_at=booking.created_at,
+            changed_at=booking_changed_at(booking),
             status_note=booking.status_note,
             added_after_confirmation=[
                 BookingAdditionResponse(
