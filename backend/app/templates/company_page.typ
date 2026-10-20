@@ -2,17 +2,18 @@
 #let page-height = 210mm
 #let sidebar-width = 50mm
 #let content-padding = 8mm
+#let content-padding-bottom = 5mm
 #let sidebar-padding = 6mm
 #let logo-height = 22mm
-#let body-size = 8pt
+#let body-size = 7.5pt
 #let sidebar-value-size = 7.5pt
 #let sidebar-inner-width = sidebar-width - 2 * sidebar-padding
 #let neutral-banner = rgb("#4b5563")
 #let muted = rgb("#5f6368")
 #let white = rgb("#ffffff")
 #let black = rgb("#000000")
-#let paragraph-spacing = 0.9em
-#let list-item-spacing = 0.6em
+#let paragraph-spacing = 1.25em
+#let list-item-spacing = 0.7em
 #let list-indent = 0.4em
 #let list-body-indent = 0.5em
 #let list-markers = ([•], [–])
@@ -151,20 +152,20 @@
 #let company-body(entry) = {
   let brand = field(entry, "brand_name")
   let company = field(entry, "company")
-  set text(font: "DejaVu Sans", size: body-size)
-  set par(justify: true, leading: 0.55em, spacing: paragraph-spacing)
-  text(size: 16pt, weight: "bold", if brand == "" { company } else { brand })
+  set text(font: "Source Sans 3", size: body-size)
+  set par(justify: true, leading: 0.7em, spacing: paragraph-spacing)
+  text(size: 15pt, weight: "bold", if brand == "" { company } else { brand })
   if brand != "" and brand != company {
     linebreak()
     text(size: 9pt, fill: muted, company)
   }
-  v(4mm)
+  v(3mm)
   company-description(entry)
 }
 
 #let company-sidebar(entry) = {
   let ink = sidebar-ink(banner-color(entry))
-  set text(font: "DejaVu Sans", fill: ink)
+  set text(font: "Source Sans 3", fill: ink)
   set par(leading: 0.45em)
   let logo = field(entry, "logo_path")
   let booth = field(entry, "booth_number")
@@ -222,7 +223,7 @@
 }
 
 #let body-width = page-width - sidebar-width - 2 * content-padding
-#let body-height = page-height - 2 * content-padding
+#let body-height = page-height - content-padding - content-padding-bottom
 #let sidebar-inner-height = page-height - 2 * sidebar-padding
 
 #let company-page-overflows(entry) = {
@@ -235,7 +236,13 @@
   #grid(
     columns: (1fr, sidebar-width),
     rows: page-height,
-    block(width: 100%, height: 100%, inset: content-padding, clip: true, company-body(entry)),
+    block(
+      width: 100%,
+      height: 100%,
+      inset: (x: content-padding, top: content-padding, bottom: content-padding-bottom),
+      clip: true,
+      company-body(entry),
+    ),
     block(
       width: 100%,
       height: 100%,

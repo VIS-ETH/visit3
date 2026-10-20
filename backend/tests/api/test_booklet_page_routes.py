@@ -8,6 +8,7 @@ from httpx import AsyncClient
 
 from app.core import deps
 from app.core.config import get_settings
+from app.models.company import PROFILE_DESCRIPTION_MAX_LENGTH
 from app.models.user import User
 from app.services.pdf_service import PdfService, RenderedImage
 from app.services.typst_runner import TypstRenderAborted
@@ -107,7 +108,9 @@ async def test_the_preview_rejects_a_description_over_the_limit(
 ):
     response = await client.post(
         MY_PAGE,
-        json=company_profile_payload(description="x" * 2501),
+        json=company_profile_payload(
+            description="x" * (PROFILE_DESCRIPTION_MAX_LENGTH + 1)
+        ),
         headers=company_headers,
     )
 

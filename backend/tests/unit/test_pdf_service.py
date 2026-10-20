@@ -55,7 +55,7 @@ def test_render_passes_user_data_as_json_sys_input(monkeypatch, tmp_path):
     assert json.loads(captured["sys_inputs"]["data"]) == data
 
 
-def test_bundled_fonts_provide_every_dejavu_sans_style():
+def test_bundled_fonts_provide_every_style():
     fonts = typst.Fonts(
         include_system_fonts=False,
         include_embedded_fonts=False,
@@ -67,6 +67,10 @@ def test_bundled_fonts_provide_every_dejavu_sans_style():
         ("DejaVu Sans", 700, "normal"),
         ("DejaVu Sans", 400, "italic"),
         ("DejaVu Sans", 700, "italic"),
+        ("Source Sans 3", 400, "normal"),
+        ("Source Sans 3", 700, "normal"),
+        ("Source Sans 3", 400, "italic"),
+        ("Source Sans 3", 700, "italic"),
     }
 
 

@@ -4,7 +4,7 @@ import pytest
 from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.company import MANDATORY_PROFILE_FIELDS
+from app.models.company import MANDATORY_PROFILE_FIELDS, PROFILE_DESCRIPTION_MAX_LENGTH
 from app.models.industry import Industry
 from app.models.user import User
 from tests.api.conftest import PNG_UPLOAD, company_profile_payload
@@ -155,18 +155,25 @@ async def test_profile_accepts_a_description_of_a_booklet_page(
 ):
     response = await client.put(
         PROFILE,
-        json=company_profile_payload(description="x" * 2500),
+        json=company_profile_payload(description="x" * PROFILE_DESCRIPTION_MAX_LENGTH),
         headers=company_headers,
     )
 
     assert response.status_code == 200
-    assert response.json()["description"] == f"<p>{'x' * 2500}</p>"
+    assert (
+        response.json()["description"]
+        == f"<p>{'x' * PROFILE_DESCRIPTION_MAX_LENGTH}</p>"
+    )
 
 
 async def test_the_description_limit_counts_only_the_visible_text(
     client: AsyncClient, company_headers: dict[str, str]
 ):
-    formatted = "<p>" + "<strong>x</strong><em>y</em>" * 1250 + "</p>"
+    formatted = (
+        "<p>"
+        + "<strong>x</strong><em>y</em>" * (PROFILE_DESCRIPTION_MAX_LENGTH // 2)
+        + "</p>"
+    )
 
     accepted = await client.put(
         PROFILE,
@@ -229,7 +236,7 @@ async def test_the_description_keeps_lists_one_level_deep(
 async def test_the_description_limit_counts_list_items_as_lines(
     client: AsyncClient, company_headers: dict[str, str]
 ):
-    items = "<li><p>xxxx</p></li>" * 500
+    items = "<li><p>xxxx</p></li>" * (PROFILE_DESCRIPTION_MAX_LENGTH // 5)
 
     accepted = await client.put(
         PROFILE,
@@ -265,7 +272,9 @@ async def test_profile_rejects_a_description_over_the_limit(
 ):
     response = await client.put(
         PROFILE,
-        json=company_profile_payload(description="x" * 2501),
+        json=company_profile_payload(
+            description="x" * (PROFILE_DESCRIPTION_MAX_LENGTH + 1)
+        ),
         headers=company_headers,
     )
 
