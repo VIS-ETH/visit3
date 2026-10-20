@@ -11,7 +11,7 @@ import {
 import { notifications } from "@mantine/notifications";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router";
 import { useScrollToHash } from "../../utils/use-scroll-to-hash";
@@ -24,6 +24,8 @@ import CompanyLogoField from "../../components/company/CompanyLogoField";
 import CompanyOfferFields from "../../components/company/CompanyOfferFields";
 import CompanyProfileBadge from "../../components/company/CompanyProfileBadge";
 import CompanyProfileMissingFields from "../../components/company/CompanyProfileMissingFields";
+import ProfileDraftNotice from "../../components/company/ProfileDraftNotice";
+import { useProfileDraft } from "../../components/company/use-profile-draft";
 import CompanyProfileSection from "../../components/company/CompanyProfileSection";
 import { showProfileFieldError } from "../../components/company/company-profile-fields";
 import {
@@ -65,8 +67,6 @@ const CompanyProfileEdit = () => {
     { initialValues: emptyCompanyProfileFormValues },
   );
 
-  const loadedProfileIdRef = useRef<string | null>(null);
-
   const applyValues = useCallback(
     (values: CompanyProfileFormValues) => {
       form.setInitialValues(values);
@@ -77,11 +77,12 @@ const CompanyProfileEdit = () => {
     [form],
   );
 
-  useEffect(() => {
-    if (!profile || loadedProfileIdRef.current === profile.company_id) return;
-    loadedProfileIdRef.current = profile.company_id;
-    applyValues(toCompanyProfileFormValues(profile));
-  }, [profile, applyValues]);
+  const { restored, clearDraft } = useProfileDraft(
+    form,
+    profile,
+    "me",
+    applyValues,
+  );
 
   const isDirty = form.isDirty();
 
@@ -101,6 +102,7 @@ const CompanyProfileEdit = () => {
         await queryClient.invalidateQueries({
           queryKey: getGetMyCompanyQueryKey(),
         });
+        clearDraft();
         applyValues(toCompanyProfileFormValues(updated));
         notifications.show({
           color: "green",
@@ -142,6 +144,15 @@ const CompanyProfileEdit = () => {
         <Text c="dimmed" size="sm">
           {t("company_profile_form.subtitle")}
         </Text>
+
+        {restored ? (
+          <ProfileDraftNotice
+            onDiscard={() => {
+              clearDraft();
+              applyValues(toCompanyProfileFormValues(profile));
+            }}
+          />
+        ) : null}
 
         <CompanyProfileMissingFields
           fields={profile.missing_profile_fields ?? []}
@@ -212,7 +223,10 @@ const CompanyProfileEdit = () => {
               <Button
                 variant="default"
                 disabled={!isDirty || isSaving}
-                onClick={() => applyValues(toCompanyProfileFormValues(profile))}
+                onClick={() => {
+                  clearDraft();
+                  applyValues(toCompanyProfileFormValues(profile));
+                }}
               >
                 {t("company_profile_form.discard")}
               </Button>

@@ -67,6 +67,7 @@ import {
   servicesOfCategory,
   withPackageInclusions,
 } from "../utils/kp-service-quantity";
+import { REQUIREMENT_TEXT_MAX_LENGTH } from "../utils/kp-utils";
 import { isManageableBooking } from "../utils/my-booking";
 import { bookingRequirementElementId } from "../utils/navigation";
 import { useScrollToHash } from "../utils/use-scroll-to-hash";
@@ -272,6 +273,7 @@ const RequirementEditor = ({
               maxRows={14}
               minRows={6}
               disabled={!editable}
+              maxLength={REQUIREMENT_TEXT_MAX_LENGTH}
               placeholder={t("kp.booking_manage.text_placeholder")}
               size="sm"
               style={{ flex: "1 1 520px" }}

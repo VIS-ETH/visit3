@@ -1,7 +1,10 @@
 const WORD_LIST_LEVEL = /mso-list:\s*\S+\s+level(\d+)/i;
 const WORD_LIST_MARKER = /mso-list:\s*ignore/i;
 const ORDERED_MARKER = /^\(?(\d+|[a-z]|[ivxlcdm]+)[.)]$/i;
-const BULLET_LINE = /^(\s*)[-*•◦▪‣·–]\s+(.*)$/u;
+const BULLET_LINE = /^(\s*)(?:[-*+–]\s+|[•◦▪▫■□●○‣·⁃➢➤►▶✓✔]\s*)(.*)$/u;
+const HEADING_LINE = /^#{1,6}\s+(.*)$/;
+const MARKDOWN_INLINE =
+  /(\*\*|__)(?=\S)(.+?)(?<=\S)\1|(?<![\w*])\*(?=\S)([^*]+?)(?<=\S)\*(?![\w*])|(?<![\w_])_(?=\S)([^_]+?)(?<=\S)_(?![\w_])/gu;
 const NUMBER_LINE = /^(\s*)\d{1,3}[.)]\s+(.*)$/;
 const NESTED_INDENT = /^(?: {2,}|\t)/;
 const BLANK_TEXT = /^\s*$/;
@@ -115,6 +118,19 @@ export const cleanPastedHtml = (html: string) => {
   return doc.body.innerHTML;
 };
 
+const appendMarkdown = (doc: Document, parent: HTMLElement, text: string) => {
+  let last = 0;
+  for (const match of text.matchAll(MARKDOWN_INLINE)) {
+    parent.append(text.slice(last, match.index));
+    const strong = match[2] !== undefined;
+    const element = doc.createElement(strong ? "strong" : "em");
+    element.append(match[2] ?? match[3] ?? match[4]);
+    parent.append(element);
+    last = match.index + match[0].length;
+  }
+  parent.append(text.slice(last));
+};
+
 export const plainTextToDom = (text: string) => {
   const doc = document.implementation.createHTMLDocument();
   const root = doc.createElement("div");
@@ -126,20 +142,30 @@ export const plainTextToDom = (text: string) => {
       builder = new ListBuilder(doc);
       continue;
     }
-    const bullet = BULLET_LINE.exec(line);
-    const number = bullet ? null : NUMBER_LINE.exec(line);
+    const heading = HEADING_LINE.exec(line.trim());
+    const bullet = heading ? null : BULLET_LINE.exec(line);
+    const number = heading || bullet ? null : NUMBER_LINE.exec(line);
     const item = bullet ?? number;
-    if (item) {
+    if (heading) {
+      const paragraph = doc.createElement("p");
+      const strong = doc.createElement("strong");
+      appendMarkdown(doc, strong, heading[1].replace(/\*\*|__/g, "").trim());
+      paragraph.append(strong);
+      root.append(paragraph);
+      current = null;
+      builder = new ListBuilder(doc);
+    } else if (item) {
       const level = NESTED_INDENT.test(item[1]) ? 2 : 1;
       current = builder.add(level, bullet ? "UL" : "OL", (list) =>
         root.append(list),
       );
-      current.append(item[2].trim());
+      appendMarkdown(doc, current, item[2].trim());
     } else if (current) {
-      current.append(doc.createElement("br"), line.trim());
+      current.append(doc.createElement("br"));
+      appendMarkdown(doc, current, line.trim());
     } else {
       current = doc.createElement("p");
-      current.append(line.trim());
+      appendMarkdown(doc, current, line.trim());
       root.append(current);
       builder = new ListBuilder(doc);
     }

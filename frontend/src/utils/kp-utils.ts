@@ -155,3 +155,5 @@ export const BOOKING_STATUS_DESCRIPTION_KEYS: Record<KpBookingStatus, string> =
     REJECTED: "kp.booking.status.rejected.description",
     EXPIRED: "kp.booking.status.expired.description",
   };
+
+export const REQUIREMENT_TEXT_MAX_LENGTH = 5000;

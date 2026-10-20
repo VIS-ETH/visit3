@@ -55,7 +55,7 @@ import {
   useGetMyBooking,
   useListAvailableServices,
 } from "../orval/generated/kp/kp";
-import { getEventStatus } from "../utils/kp-utils";
+import { REQUIREMENT_TEXT_MAX_LENGTH, getEventStatus } from "../utils/kp-utils";
 import { activeBooking } from "../utils/my-booking";
 import type {
   BookingConfirmState,
@@ -293,6 +293,7 @@ function KpBookingServiceGrid({
         <Textarea
           label={requirement.name}
           description={requirement.description}
+          maxLength={REQUIREMENT_TEXT_MAX_LENGTH}
           minRows={3}
           value={value?.text ?? ""}
           onChange={(event) =>

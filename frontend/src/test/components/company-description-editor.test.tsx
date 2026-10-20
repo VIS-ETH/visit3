@@ -333,6 +333,35 @@ describe("the company description editor", () => {
     );
   });
 
+  it("reads bullets pasted from a PDF without a space after the marker", async () => {
+    const { user, onChange } = renderEditor("<p></p>");
+
+    await user.click(content());
+    paste({
+      "text/plain": "Projektbeispiele\n▪Service Roboter\n▪Digital Twin (IoT)",
+    });
+
+    await expectValue(
+      onChange,
+      "<p>Projektbeispiele</p><ul><li><p>Service Roboter</p></li><li><p>Digital Twin (IoT)</p></li></ul>",
+    );
+  });
+
+  it("turns pasted markdown into formatting", async () => {
+    const { user, onChange } = renderEditor("<p></p>");
+
+    await user.click(content());
+    paste({
+      "text/plain":
+        "## Warum zu uns\nWir sind **innovativ** und *agil*, my_file bleibt.\n- **Packende** Aufgaben",
+    });
+
+    await expectValue(
+      onChange,
+      "<p><strong>Warum zu uns</strong></p><p>Wir sind <strong>innovativ</strong> und <em>agil</em>, my_file bleibt.</p><ul><li><p><strong>Packende</strong> Aufgaben</p></li></ul>",
+    );
+  });
+
   it("reports an emptied editor as an empty value", async () => {
     const { user, onChange } = renderEditor("<p>Hello</p>");
 

@@ -1,6 +1,6 @@
 import type { UseFormReturnType } from "@mantine/form";
 import type { TFunction } from "i18next";
-import { getApiErrorCode } from "../../api/errors";
+import { getApiErrorCode, getApiFieldErrors } from "../../api/errors";
 import type { CompanyProfileFormValues } from "../../schemas/companyProfileSchema";
 
 export interface CompanyProfileFieldsProps {
@@ -32,6 +32,10 @@ export const showProfileFieldError = (
       "general_email",
       t("error.company_general_email_is_login"),
     );
+  }
+  for (const { field, code } of getApiFieldErrors(error)) {
+    const name = field.split(".")[0];
+    if (name in form.values) form.setFieldError(name, t(code));
   }
 };
 

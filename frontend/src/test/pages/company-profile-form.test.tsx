@@ -318,7 +318,62 @@ describe("Company profile form", () => {
     expect(putBodies[0]).toMatchObject({ kp_contact_user_id: "user-1" });
   });
 
-  it("does not submit without a contact person", async () => {
+  it("keeps unsaved changes after a failed save and restores them", async () => {
+    server.use(
+      http.put(`${testBackendUrl}/api/company/me/profile`, () =>
+        HttpResponse.json({ code: "server.error" }, { status: 500 }),
+      ),
+    );
+    const first = renderProfile();
+    const brand = await screen.findByLabelText(
+      labelOf("company_profile_form.brand_name"),
+    );
+    await first.user.clear(brand);
+    await first.user.type(brand, "Draftify");
+    await first.user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+    await waitFor(() => {
+      expect(
+        localStorage.getItem("company-profile-draft:me:company-1"),
+      ).toContain("Draftify");
+    });
+    first.unmount();
+
+    renderProfile();
+
+    expect(
+      await screen.findByText("company_profile_form.draft_restored_title"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(labelOf("company_profile_form.brand_name")),
+    ).toHaveValue("Draftify");
+  });
+
+  it("forgets the draft once the profile is saved", async () => {
+    const { user } = renderProfile();
+    const brand = await screen.findByLabelText(
+      labelOf("company_profile_form.brand_name"),
+    );
+    await user.type(brand, " Plus");
+    await waitFor(() => {
+      expect(
+        localStorage.getItem("company-profile-draft:me:company-1"),
+      ).not.toBeNull();
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        localStorage.getItem("company-profile-draft:me:company-1"),
+      ).toBeNull();
+    });
+  });
+
+  it("saves an unfinished profile without a contact person", async () => {
     mockProfile({
       ...storedProfile,
       kp_contact_user_id: null,
@@ -337,11 +392,13 @@ describe("Company profile form", () => {
       screen.getByRole("button", { name: "company_profile_form.save" }),
     );
 
-    expect(await screen.findByText("validation.required")).toBeInTheDocument();
-    expect(putBodies).toHaveLength(0);
+    await waitFor(() => {
+      expect(putBodies).toHaveLength(1);
+    });
+    expect(screen.queryByText("validation.required")).not.toBeInTheDocument();
   });
 
-  it("does not submit without a general email", async () => {
+  it("saves an unfinished profile without a general email", async () => {
     mockProfile({
       ...storedProfile,
       general_email: null,
@@ -360,8 +417,10 @@ describe("Company profile form", () => {
       screen.getByRole("button", { name: "company_profile_form.save" }),
     );
 
-    expect(await screen.findByText("validation.required")).toBeInTheDocument();
-    expect(putBodies).toHaveLength(0);
+    await waitFor(() => {
+      expect(putBodies).toHaveLength(1);
+    });
+    expect(screen.queryByText("validation.required")).not.toBeInTheDocument();
   });
 
   it("does not submit when the general email is invalid", async () => {
@@ -403,7 +462,7 @@ describe("Company profile form", () => {
   it("does not submit a description over the visible limit", async () => {
     mockProfile({
       ...storedProfile,
-      description: `<p>${"<strong>x</strong>".repeat(2501)}</p>`,
+      description: `<p>${"<strong>x</strong>".repeat(3501)}</p>`,
     });
     const { user } = renderProfile();
 
@@ -415,7 +474,7 @@ describe("Company profile form", () => {
     expect(putBodies).toHaveLength(0);
   });
 
-  it("does not submit when the billing country is missing", async () => {
+  it("saves an unfinished profile without a billing country", async () => {
     mockProfile({
       ...storedProfile,
       billing_country: "",
@@ -431,10 +490,12 @@ describe("Company profile form", () => {
       }),
     );
 
+    await waitFor(() => {
+      expect(putBodies).toHaveLength(1);
+    });
     expect(
-      await screen.findByText("company_profile_form.errors.country"),
-    ).toBeInTheDocument();
-    expect(putBodies).toHaveLength(0);
+      screen.queryByText("company_profile_form.errors.country"),
+    ).not.toBeInTheDocument();
   });
 
   it("sends the complete profile payload", async () => {

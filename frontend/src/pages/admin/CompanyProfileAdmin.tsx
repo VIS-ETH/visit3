@@ -11,7 +11,7 @@ import {
 import { notifications } from "@mantine/notifications";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
 import BackButton from "../../components/BackButton";
@@ -23,6 +23,8 @@ import CompanyLogoFieldForStaff from "../../components/company/CompanyLogoFieldF
 import CompanyOfferFields from "../../components/company/CompanyOfferFields";
 import CompanyProfileBadge from "../../components/company/CompanyProfileBadge";
 import CompanyProfileMissingFields from "../../components/company/CompanyProfileMissingFields";
+import ProfileDraftNotice from "../../components/company/ProfileDraftNotice";
+import { useProfileDraft } from "../../components/company/use-profile-draft";
 import CompanyProfileSection from "../../components/company/CompanyProfileSection";
 import { showProfileFieldError } from "../../components/company/company-profile-fields";
 import {
@@ -64,8 +66,6 @@ const CompanyProfileAdmin = () => {
     { initialValues: emptyCompanyProfileFormValues },
   );
 
-  const loadedProfileIdRef = useRef<string | null>(null);
-
   const applyValues = useCallback(
     (values: CompanyProfileFormValues) => {
       form.setInitialValues(values);
@@ -76,11 +76,12 @@ const CompanyProfileAdmin = () => {
     [form],
   );
 
-  useEffect(() => {
-    if (!profile || loadedProfileIdRef.current === profile.company_id) return;
-    loadedProfileIdRef.current = profile.company_id;
-    applyValues(toCompanyProfileFormValues(profile));
-  }, [profile, applyValues]);
+  const { restored, clearDraft } = useProfileDraft(
+    form,
+    profile,
+    "staff",
+    applyValues,
+  );
 
   const { mutate: save, isPending: isSaving } = useUpdateCompanyProfile({
     mutation: {
@@ -89,6 +90,7 @@ const CompanyProfileAdmin = () => {
           getGetCompanyProfileQueryKey(companyId),
           updated,
         );
+        clearDraft();
         applyValues(toCompanyProfileFormValues(updated));
         notifications.show({
           color: "green",
@@ -129,6 +131,15 @@ const CompanyProfileAdmin = () => {
           </Group>
           <CompanyProfileBadge complete={profile.profile_complete === true} />
         </Group>
+
+        {restored ? (
+          <ProfileDraftNotice
+            onDiscard={() => {
+              clearDraft();
+              applyValues(toCompanyProfileFormValues(profile));
+            }}
+          />
+        ) : null}
 
         <CompanyProfileMissingFields
           fields={profile.missing_profile_fields ?? []}
@@ -202,7 +213,10 @@ const CompanyProfileAdmin = () => {
               <Button
                 variant="default"
                 disabled={!isDirty || isSaving}
-                onClick={() => applyValues(toCompanyProfileFormValues(profile))}
+                onClick={() => {
+                  clearDraft();
+                  applyValues(toCompanyProfileFormValues(profile));
+                }}
               >
                 {t("company_profile_form.discard")}
               </Button>

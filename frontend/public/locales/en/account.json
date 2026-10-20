@@ -93,7 +93,7 @@
   },
   "company_profile_form": {
     "title": "Company profile",
-    "subtitle": "This information is used for the Kontaktparty catalogue and for invoicing.",
+    "subtitle": "This information is used for the Kontaktparty catalogue and for invoicing. You can save at any time, even before everything is filled in.",
     "load_error": "The company profile could not be loaded.",
     "complete": "Profile complete",
     "incomplete": "Profile incomplete",
@@ -176,6 +176,8 @@
     "errors": {
       "country": "Please select a country."
     },
-    "no_match": "No matches"
+    "no_match": "No matches",
+    "draft_restored_title": "Unsaved changes restored",
+    "draft_restored": "Your last changes were not saved yet. They were kept in this browser and restored here. Save to keep them or discard them."
   }
 }
