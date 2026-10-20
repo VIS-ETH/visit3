@@ -18,7 +18,8 @@ import {
 import { IconDownload, IconGift, IconSearch } from "@tabler/icons-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { NavLink, useNavigate } from "react-router";
+import { NavLink, useNavigate, useSearchParams } from "react-router";
+import { useGetRecentChanges } from "../orval/generated/changes/changes";
 import { KpBookingStatusBadge } from "./KpBookingStatusBadge";
 import SortableHeader from "./SortableHeader";
 import BookingNewAdditionsBadge from "./bookings/BookingNewAdditionsBadge";
@@ -92,6 +93,12 @@ const SORT_VALUES: Record<SortField, (booking: BookingRow) => SortValue[]> = {
   changed: (booking) => [booking.status_changed_at],
 };
 
+const changedSince = (booking: BookingRow, since: Date | null) => {
+  if (since === null) return true;
+  const changedAt = booking.changed_at ?? booking.created_at;
+  return changedAt != null && new Date(changedAt) > since;
+};
+
 const BookingsTab = ({
   eventId,
   canOffer = false,
@@ -108,6 +115,27 @@ const BookingsTab = ({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(ALL_STATUSES);
   const [incompleteOnly, setIncompleteOnly] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const onlyChanges = searchParams.get("changes") === "1";
+  const { data: recentChanges } = useGetRecentChanges({
+    query: { enabled: onlyChanges },
+  });
+  const changesSince = useMemo(
+    () => (recentChanges ? new Date(recentChanges.since) : null),
+    [recentChanges],
+  );
+  const setOnlyChanges = (value: boolean) => {
+    setPage(1);
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (value) next.set("changes", "1");
+        else next.delete("changes");
+        return next;
+      },
+      { replace: true },
+    );
+  };
   const [serviceFilter, setServiceFilter] = useState<string[]>([]);
   const [zoneFilter, setZoneFilter] = useState<string[]>([]);
   const [page, setPage] = useState(1);
@@ -157,17 +185,25 @@ const BookingsTab = ({
         return false;
       }
       if (incompleteOnly && booking.is_complete !== false) return false;
+      if (onlyChanges && !changedSince(booking, changesSince)) return false;
       if (zoneFilter.length > 0 && !zoneFilter.includes(booking.booth_zone_id)) {
         return false;
       }
       return bookedAnyService(booking.services ?? [], serviceFilter);
     });
 
-    return sortRows(filtered, sort, (booking, field) => [
+    const sorted = sortRows(filtered, sort, (booking, field) => [
       ...SORT_VALUES[field](booking),
       booking.company.name,
     ]);
+    return onlyChanges
+      ? [...sorted].sort((left, right) =>
+          (right.changed_at ?? "").localeCompare(left.changed_at ?? ""),
+        )
+      : sorted;
   }, [
+    changesSince,
+    onlyChanges,
     incompleteOnly,
     rows,
     search,
@@ -354,6 +390,12 @@ const BookingsTab = ({
               setPage(1);
               setIncompleteOnly(event.currentTarget.checked);
             }}
+            pb={8}
+          />
+          <Checkbox
+            checked={onlyChanges}
+            label={t("changes.only_changes")}
+            onChange={(event) => setOnlyChanges(event.currentTarget.checked)}
             pb={8}
           />
         </Group>

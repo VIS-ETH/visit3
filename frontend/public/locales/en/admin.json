@@ -71,7 +71,8 @@
     "filters": {
       "all": "All",
       "company": "Company users",
-      "staff": "Staff"
+      "staff": "Staff",
+      "new": "New since last visit"
     },
     "flags": {
       "header": "Roles",
@@ -337,5 +338,18 @@
       "usage_hint": "The industry is removed from every company profile that uses it.",
       "confirm": "Delete industry"
     }
+  },
+  "changes": {
+    "title": "What happened since your last visit",
+    "since": "Changes since {{since}}",
+    "none": "Nothing new.",
+    "show_all": "Show all {{total}}",
+    "open_bookings": "Kontaktparty bookings",
+    "mark_seen": "Mark all as seen",
+    "new_bookings": "New KP registrations",
+    "changed_bookings": "Changed bookings",
+    "new_companies": "New companies",
+    "new_users": "New users",
+    "only_changes": "Only changes since last visit"
   }
 }

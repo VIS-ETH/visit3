@@ -71,7 +71,8 @@
     "filters": {
       "all": "Alle",
       "company": "Unternehmensbenutzer",
-      "staff": "Mitarbeitende"
+      "staff": "Mitarbeitende",
+      "new": "Neu seit dem letzten Besuch"
     },
     "flags": {
       "header": "Rollen",
@@ -337,5 +338,18 @@
       "usage_hint": "Die Branche wird aus jedem Unternehmensprofil entfernt, das sie verwendet.",
       "confirm": "Branche löschen"
     }
+  },
+  "changes": {
+    "title": "Was seit Ihrem letzten Besuch passiert ist",
+    "since": "Änderungen seit {{since}}",
+    "none": "Nichts Neues.",
+    "show_all": "Alle {{total}} anzeigen",
+    "open_bookings": "Kontaktparty-Anmeldungen",
+    "mark_seen": "Alles als gesehen markieren",
+    "new_bookings": "Neue KP-Anmeldungen",
+    "changed_bookings": "Geänderte Anmeldungen",
+    "new_companies": "Neue Unternehmen",
+    "new_users": "Neue Benutzer",
+    "only_changes": "Nur Änderungen seit dem letzten Besuch"
   }
 }

@@ -84,7 +84,11 @@ const filterLabelKeys: Record<UserFilter, string> = {
   [UserFilter.all]: "user_management.filters.all",
   [UserFilter.company]: "user_management.filters.company",
   [UserFilter.staff]: "user_management.filters.staff",
+  [UserFilter.new]: "user_management.filters.new",
 };
+
+const isUserFilter = (value: string | null): value is UserFilter =>
+  value !== null && value in filterLabelKeys;
 
 const UserManagement = () => {
   const { t } = useTranslation();
@@ -95,7 +99,10 @@ const UserManagement = () => {
 
   const [search, setSearch] = useState(() => searchParams.get("query") ?? "");
   const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
-  const [filter, setFilter] = useState<UserFilter>(UserFilter.all);
+  const [filter, setFilter] = useState<UserFilter>(() => {
+    const initial = searchParams.get("filter");
+    return isUserFilter(initial) ? initial : UserFilter.all;
+  });
   const [page, setPage] = useState(1);
   const { sort, toggleSort } = useSort<UserSort>(null, () => setPage(1));
   const [editedUser, setEditedUser] = useState<UserResponse | null>(null);
@@ -112,11 +119,13 @@ const UserManagement = () => {
         const next = new URLSearchParams(current);
         if (query) next.set("query", query);
         else next.delete("query");
+        if (filter === UserFilter.all) next.delete("filter");
+        else next.set("filter", filter);
         return next;
       },
       { replace: true },
     );
-  }, [debouncedSearch, setSearchParams]);
+  }, [debouncedSearch, filter, setSearchParams]);
 
   const { data, isLoading, isError } = useListUsers(
     {

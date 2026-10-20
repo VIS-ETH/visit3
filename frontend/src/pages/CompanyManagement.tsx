@@ -9,6 +9,7 @@ import {
   Paper,
   Select,
   Stack,
+  Switch,
   Table,
   Text,
   TextInput,
@@ -32,7 +33,7 @@ import {
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import CompanyBookingActions from "../components/admin/CompanyBookingActions";
 import CompanyDeleteModal from "../components/admin/CompanyDeleteModal";
 import BookingNewAdditionsBadge from "../components/bookings/BookingNewAdditionsBadge";
@@ -66,6 +67,20 @@ const CompanyManagement = () => {
   const isAdmin = user?.is_admin ?? false;
   const canMail = user?.is_kp_president ?? false;
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const onlyChanges = searchParams.get("changes") === "1";
+  const setOnlyChanges = (value: boolean) => {
+    setPage(1);
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (value) next.set("changes", "1");
+        else next.delete("changes");
+        return next;
+      },
+      { replace: true },
+    );
+  };
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const [page, setPage] = useState(1);
@@ -123,6 +138,7 @@ const CompanyManagement = () => {
       page_size: PAGE_SIZE,
       sort: sort?.field,
       direction: sort?.direction,
+      only_changes: onlyChanges || undefined,
     },
     { query: { placeholderData: keepPreviousData } },
   );
@@ -192,6 +208,12 @@ const CompanyManagement = () => {
             onChange={(event) => setSearch(event.currentTarget.value)}
             placeholder={t("company_management.search_placeholder")}
             value={search}
+          />
+          <Switch
+            checked={onlyChanges}
+            label={t("changes.only_changes")}
+            mb={8}
+            onChange={(event) => setOnlyChanges(event.currentTarget.checked)}
           />
           <Select
             label={t("kp.bookings_overview.event")}

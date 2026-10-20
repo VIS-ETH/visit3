@@ -24,6 +24,7 @@ import {
   toKpWithSettingsRequest,
   type KpWithSettingsFormValues,
 } from "../schemas/eventSettingsSchema";
+import RecentChanges from "../components/home/RecentChanges";
 import CloneKpModal from "../components/kp/CloneKpModal";
 import EventSettingsFields from "../components/kp/EventSettingsFields";
 import {
@@ -202,6 +203,7 @@ const KpDashboard = () => {
 
   return (
     <Stack gap="md">
+      <RecentChanges latestEventId={latestEvent?.id ?? null} />
       <Group justify="space-between" align="center">
         <Title order={2}>{t("kp.dashboard.title")}</Title>
         <Group gap="sm">
