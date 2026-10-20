@@ -161,7 +161,6 @@ describe("the exports tab", () => {
     is_admin: false,
     is_company: false,
     is_kp_president: true,
-    user_confirmed: true,
     email_confirmed: true,
     company_id: null,
   };

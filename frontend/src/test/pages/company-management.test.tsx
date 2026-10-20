@@ -122,9 +122,7 @@ beforeEach(() => {
       },
     ),
     http.get(`${testBackendUrl}/api/kp/list`, () =>
-      HttpResponse.json(
-        latestEvent ? [latestEvent, olderEvent] : [olderEvent],
-      ),
+      HttpResponse.json(latestEvent ? [latestEvent, olderEvent] : [olderEvent]),
     ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId/bookings`, () =>
       HttpResponse.json(eventBookings),
@@ -264,9 +262,9 @@ describe("the company management page", () => {
         listRequests[listRequests.length - 1].searchParams.get("direction"),
       ).toBe("desc");
     });
-    expect(
-      listRequests[listRequests.length - 1].searchParams.get("sort"),
-    ).toBe("members");
+    expect(listRequests[listRequests.length - 1].searchParams.get("sort")).toBe(
+      "members",
+    );
   });
 
   it("renames a company inline", async () => {
@@ -674,6 +672,46 @@ describe("mailing a company", () => {
 
     expect(
       row.queryByRole("button", { name: "company_management.send_mail" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("company confirmation", () => {
+  it("confirms a company the organisers have not approved yet", async () => {
+    const confirmed: string[] = [];
+    companies = [{ ...acmeCompany, confirmed_at: null }, globexCompany];
+    server.use(
+      http.post(
+        `${testBackendUrl}/api/companies/:companyId/confirm`,
+        ({ params }) => {
+          confirmed.push(String(params.companyId));
+          return HttpResponse.json({
+            id: acmeCompany.id,
+            name: acmeCompany.name,
+            confirmed_at: "2026-10-20T10:00:00Z",
+          });
+        },
+      ),
+    );
+    const { user } = renderPage();
+    const row = await acmeRow();
+
+    expect(row.getByText("company_management.unconfirmed")).toBeInTheDocument();
+    await user.click(
+      row.getByRole("button", { name: "company_management.confirm" }),
+    );
+
+    await waitFor(() => {
+      expect(confirmed).toEqual([acmeCompany.id]);
+    });
+  });
+
+  it("offers no confirmation for an approved company", async () => {
+    renderPage();
+    const row = await acmeRow();
+
+    expect(
+      row.queryByRole("button", { name: "company_management.confirm" }),
     ).not.toBeInTheDocument();
   });
 });

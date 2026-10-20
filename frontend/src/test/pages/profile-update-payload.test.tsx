@@ -16,7 +16,6 @@ const storedProfile = {
   is_staff: false,
   is_admin: false,
   is_company: true,
-  user_confirmed: true,
   email_confirmed: true,
   company_id: "company-1",
 };

@@ -663,7 +663,9 @@ const KpBookingStepper = ({ event }: KpBookingStepperProps) => {
   }
 
   const canContinueFromProfile =
-    Boolean(company?.profile_bookable) && isProfileConfirmed;
+    Boolean(company?.profile_bookable) &&
+    Boolean(company?.confirmed_at) &&
+    isProfileConfirmed;
   const canContinueFromZone =
     selectedZone !== null &&
     isZoneBookable(selectedZone) &&

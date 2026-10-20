@@ -14,7 +14,6 @@ export const adminUser: UserResponse = {
   is_admin: true,
   is_company: false,
   is_kp_president: false,
-  user_confirmed: true,
   email_confirmed: true,
 };
 
@@ -37,7 +36,6 @@ export const memberUser: StaffUserResponse = {
   is_admin: false,
   is_company: true,
   is_kp_president: false,
-  user_confirmed: false,
   email_confirmed: false,
   company_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
   company: { id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", name: "Acme AG" },
@@ -54,7 +52,6 @@ export const orphanUser: StaffUserResponse = {
   is_admin: false,
   is_company: true,
   is_kp_president: false,
-  user_confirmed: true,
   email_confirmed: true,
   created_at: "2025-11-02T08:00:00Z",
   last_login_at: "2026-09-28T16:45:00Z",
@@ -63,6 +60,7 @@ export const orphanUser: StaffUserResponse = {
 export const acmeCompany: CompanyListResult = {
   id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
   name: "Acme AG",
+  confirmed_at: "2026-01-01T00:00:00Z",
   users_count: 2,
   bookings_count: 1,
 };
@@ -70,6 +68,7 @@ export const acmeCompany: CompanyListResult = {
 export const globexCompany: CompanyListResult = {
   id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
   name: "Globex SA",
+  confirmed_at: "2026-01-01T00:00:00Z",
   users_count: 0,
   bookings_count: 0,
 };

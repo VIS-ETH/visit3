@@ -121,11 +121,6 @@ const UserEditDrawer = ({
             }
             value={form.values.company_id || null}
           />
-          <Switch
-            disabled={isSaving}
-            label={t("user_management.edit.user_confirmed")}
-            {...form.getInputProps("user_confirmed", { type: "checkbox" })}
-          />
           {canEditPrivileges ? (
             <>
               <Switch

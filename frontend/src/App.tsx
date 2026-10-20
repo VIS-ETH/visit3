@@ -28,7 +28,6 @@ import RequestPasswordReset from "./pages/RequestPasswordReset";
 import ResetPassword from "./pages/ResetPassword";
 import UnconfirmedEmail from "./pages/UnconfirmedEmail";
 import ConfirmEmail from "./pages/ConfirmEmail";
-import UnconfirmedUser from "./pages/UnconfirmedUser";
 import PendingActivation from "./pages/PendingActivation";
 import CompanyManagement from "./pages/CompanyManagement";
 import CompanyProfile from "./pages/CompanyProfile";
@@ -101,7 +100,6 @@ function ConfirmedRoute() {
   if (!user) return <Navigate to="/login" replace />;
   if (!user.email_confirmed)
     return <Navigate to="/unconfirmed-email" replace />;
-  if (!user.user_confirmed) return <Navigate to="/unconfirmed-user" replace />;
   if (user.is_company && !user.company_id)
     return <Navigate to="/setup-company" replace />;
   return <Outlet />;
@@ -124,7 +122,6 @@ function AppRoutes() {
         <Route path="/company/join/:token" element={<CompanyJoin />} />
         <Route path="/unconfirmed-email" element={<UnconfirmedEmail />} />
         <Route path="/confirm-email/:token" element={<ConfirmEmail />} />
-        <Route path="/unconfirmed-user" element={<UnconfirmedUser />} />
         <Route element={<ActivatedRoute />}>
           <Route element={<ConfirmedRoute />}>
             <Route index path="/" element={<Home />} />

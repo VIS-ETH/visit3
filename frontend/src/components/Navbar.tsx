@@ -101,7 +101,7 @@ const Navbar = () => {
           >
             {t("nav.home")}
           </Button>
-          {user?.email_confirmed && user.user_confirmed && user.company_id && (
+          {user?.email_confirmed && user.company_id && (
             <>
               <Button
                 component={NavLink}

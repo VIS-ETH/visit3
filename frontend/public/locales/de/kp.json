@@ -183,6 +183,7 @@
       "continue_to_zone": "Weiter zur Standzone",
       "profile_title": "Unternehmensprofil",
       "profile_description": "Prüfen Sie vor der Standbuchung, ob Ihre Unternehmensangaben aktuell sind. Sie werden für Ihren Standeintrag und für die Rechnung verwendet.",
+      "company_unconfirmed": "Die Kontaktparty-Organisatoren müssen Ihr Unternehmen noch freigeben. Sie können sich anmelden, sobald es freigegeben ist.",
       "profile_company": "Unternehmen",
       "profile_contact": "Kontaktperson",
       "profile_general_contact": "Allgemeiner Kontakt",

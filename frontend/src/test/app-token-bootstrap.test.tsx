@@ -32,7 +32,6 @@ beforeEach(() => {
         is_staff: false,
         is_company: true,
         is_kp_president: false,
-        user_confirmed: true,
         email_confirmed: true,
         company: null,
         roles: [],

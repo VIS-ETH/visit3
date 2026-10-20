@@ -183,6 +183,7 @@
       "continue_to_zone": "Continue to booth zone",
       "profile_title": "Company profile",
       "profile_description": "Check that your company details are up to date before you book a booth. They are used for your booth listing and for the invoice.",
+      "company_unconfirmed": "The Kontaktparty organisers still need to approve your company. You can register as soon as it is approved.",
       "profile_company": "Company",
       "profile_contact": "Contact person",
       "profile_general_contact": "General contact",

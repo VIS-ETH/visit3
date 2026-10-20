@@ -24,7 +24,6 @@ const adminUser: UserResponse = {
   is_admin: true,
   is_company: false,
   is_kp_president: true,
-  user_confirmed: true,
   email_confirmed: true,
 };
 
@@ -37,7 +36,6 @@ const companyUser = {
   is_admin: false,
   is_company: true,
   is_kp_president: false,
-  user_confirmed: true,
   email_confirmed: true,
 };
 

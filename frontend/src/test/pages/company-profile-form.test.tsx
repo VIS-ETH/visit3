@@ -29,7 +29,6 @@ const companyUser: UserResponse = {
   is_admin: false,
   is_company: true,
   is_kp_president: false,
-  user_confirmed: true,
   email_confirmed: true,
   company_id: "company-1",
 };
@@ -85,7 +84,6 @@ const labelOf = (key: string) => new RegExp(`^${key.replaceAll(".", "\\.")}`);
 
 let putBodies: unknown[] = [];
 let bookletRequests: BookletPageRequest[] = [];
-let memberRequests = 0;
 
 const mockProfile = (profile: CompanyProfileResponse) => {
   server.use(
@@ -116,7 +114,6 @@ const backLinkHref = async () => {
 
 beforeEach(() => {
   putBodies = [];
-  memberRequests = 0;
   localStorage.setItem("token", createToken(3600));
   server.use(
     http.get(`${testBackendUrl}/api/csrftoken`, () =>
@@ -125,10 +122,9 @@ beforeEach(() => {
     http.get(`${testBackendUrl}/api/industries`, () =>
       HttpResponse.json([{ id: "industry-1", name: "Software" }]),
     ),
-    http.get(`${testBackendUrl}/api/company/me/members`, () => {
-      memberRequests += 1;
-      return HttpResponse.json([companyUser, colleague, otherColleague]);
-    }),
+    http.get(`${testBackendUrl}/api/company/me/members`, () =>
+      HttpResponse.json([companyUser, colleague, otherColleague]),
+    ),
     http.put(
       `${testBackendUrl}/api/company/me/profile`,
       async ({ request }) => {
@@ -538,15 +534,6 @@ describe("Company profile form", () => {
       await screen.findByText("validation.invalid_email"),
     ).toBeInTheDocument();
     expect(putBodies).toHaveLength(0);
-  });
-
-  it("opens for a user the organisers have not confirmed yet", async () => {
-    renderProfile({ ...companyUser, user_confirmed: false });
-
-    expect(
-      await screen.findByLabelText(labelOf("company_profile_form.brand_name")),
-    ).toHaveValue("Examplify");
-    expect(memberRequests).toBe(0);
   });
 
   it("goes back to the company overview by default", async () => {

@@ -1,6 +1,7 @@
 import {
   ActionIcon,
   Alert,
+  Badge,
   Center,
   Group,
   Loader,
@@ -19,6 +20,7 @@ import { notifications } from "@mantine/notifications";
 import {
   IconAlertCircle,
   IconCheck,
+  IconCircleCheck,
   IconId,
   IconMail,
   IconPencil,
@@ -39,6 +41,7 @@ import SortableHeader from "../components/SortableHeader";
 import { useCurrentUser } from "../context/useCurrentUser";
 import {
   getSearchCompaniesQueryKey,
+  useConfirmCompany,
   useSearchCompanies,
   useUpdateCompany,
 } from "../orval/generated/company/company";
@@ -85,9 +88,7 @@ const CompanyManagement = () => {
   const [pickedEventId, setPickedEventId] = useState<string | null>(null);
   const latestEvent = events?.at(0);
   const upcomingEvent =
-    latestEvent && getEventStatus(latestEvent) !== "past"
-      ? latestEvent
-      : null;
+    latestEvent && getEventStatus(latestEvent) !== "past" ? latestEvent : null;
   const bookingEvent =
     events?.find((event) => event.id === pickedEventId) ??
     upcomingEvent ??
@@ -140,6 +141,22 @@ const CompanyManagement = () => {
       },
     },
   });
+
+  const { mutate: confirmCompany, isPending: isConfirming } = useConfirmCompany(
+    {
+      mutation: {
+        onSuccess: async () => {
+          await queryClient.invalidateQueries({
+            queryKey: getSearchCompaniesQueryKey(),
+          });
+          notifications.show({
+            color: "green",
+            message: t("company_management.confirmed_notice"),
+          });
+        },
+      },
+    },
+  );
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -284,6 +301,15 @@ const CompanyManagement = () => {
                             ) : (
                               <Group gap="xs" wrap="nowrap">
                                 <Text>{company.name}</Text>
+                                {company.confirmed_at === null ? (
+                                  <Badge
+                                    color="yellow"
+                                    size="sm"
+                                    variant="light"
+                                  >
+                                    {t("company_management.unconfirmed")}
+                                  </Badge>
+                                ) : null}
                                 {company.new_members_count ? (
                                   <BookingNewAdditionsBadge />
                                 ) : null}
@@ -307,6 +333,24 @@ const CompanyManagement = () => {
                           ) : null}
                           <Table.Td>
                             <Group gap="xs" wrap="nowrap">
+                              {company.confirmed_at === null ? (
+                                <Tooltip
+                                  label={t("company_management.confirm")}
+                                  withArrow
+                                >
+                                  <ActionIcon
+                                    aria-label={t("company_management.confirm")}
+                                    color="green"
+                                    disabled={isConfirming}
+                                    onClick={() =>
+                                      confirmCompany({ companyId: company.id })
+                                    }
+                                    variant="light"
+                                  >
+                                    <IconCircleCheck size={16} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              ) : null}
                               <Tooltip
                                 label={t("company_management.view_users")}
                                 withArrow

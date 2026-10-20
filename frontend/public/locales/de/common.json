@@ -47,7 +47,7 @@
     "token_invalid": "Token ist ungültig",
     "not_allowed": "Benutzer darf diese Anfrage nicht ausführen",
     "email_not_confirmed": "Die E-Mail des Benutzers ist nicht bestätigt",
-    "not_confirmed": "Benutzer ist nicht durch die Organisator:innen der Kontaktparty bestätigt",
+    "company_not_confirmed": "Ihr Unternehmen wurde von den Kontaktparty-Organisatoren noch nicht freigegeben",
     "phone_number_invalid": "Telefonnummer ist ungültig",
     "invalid_credentials": "Ungültige Anmeldeinformationen, bitte überprüfen Sie Ihre E-Mail und Ihr Passwort",
     "email_used": "E-Mail wird bereits verwendet",

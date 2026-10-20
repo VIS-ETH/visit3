@@ -19,14 +19,13 @@ import { useDebouncedValue } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
   IconAlertCircle,
-  IconCheck,
   IconMailForward,
   IconPencil,
   IconSearch,
   IconTrash,
   IconUserSearch,
 } from "@tabler/icons-react";
-import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
@@ -43,8 +42,6 @@ import {
   type UserSort,
 } from "../orval/generated/fastAPI.schemas";
 import {
-  getListUsersQueryKey,
-  useConfirmUser,
   useListUsers,
   useResendUserConfirmationMail,
 } from "../orval/generated/user/user";
@@ -85,14 +82,12 @@ const SORT_COLUMNS: [UserSort, string][] = [
 
 const filterLabelKeys: Record<UserFilter, string> = {
   [UserFilter.all]: "user_management.filters.all",
-  [UserFilter.unconfirmed]: "user_management.filters.unconfirmed",
   [UserFilter.company]: "user_management.filters.company",
   [UserFilter.staff]: "user_management.filters.staff",
 };
 
 const UserManagement = () => {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const { user: currentUser } = useCurrentUser();
   const isAdmin = currentUser?.is_admin ?? false;
   const { canImpersonate, impersonate } = useImpersonate();
@@ -134,21 +129,6 @@ const UserManagement = () => {
     },
     { query: { placeholderData: keepPreviousData } },
   );
-
-  const invalidateUsers = () =>
-    queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
-
-  const { mutate: confirmUser, isPending: isConfirming } = useConfirmUser({
-    mutation: {
-      onSuccess: async () => {
-        await invalidateUsers();
-        notifications.show({
-          color: "green",
-          message: t("user_management.confirmed_notice"),
-        });
-      },
-    },
-  });
 
   const { mutate: resendConfirmation, isPending: isResending } =
     useResendUserConfirmationMail({
@@ -254,15 +234,11 @@ const UserManagement = () => {
                           </Table.Td>
                           <Table.Td>
                             <Group gap="xs" wrap="wrap">
-                              <Badge
-                                color={item.user_confirmed ? "green" : "yellow"}
-                                variant="light"
-                              >
-                                {item.user_confirmed
-                                  ? t("user_management.confirmed")
-                                  : t("user_management.unconfirmed")}
-                              </Badge>
-                              {item.email_confirmed ? null : (
+                              {item.email_confirmed ? (
+                                <Badge color="green" variant="light">
+                                  {t("user_management.confirmed")}
+                                </Badge>
+                              ) : (
                                 <Badge color="orange" variant="light">
                                   {t("user_management.email_unconfirmed")}
                                 </Badge>
@@ -300,24 +276,6 @@ const UserManagement = () => {
                           </Table.Td>
                           <Table.Td>
                             <Group gap="xs" wrap="nowrap">
-                              {item.user_confirmed ? null : (
-                                <Tooltip
-                                  label={t("user_management.confirm")}
-                                  withArrow
-                                >
-                                  <ActionIcon
-                                    aria-label={t("user_management.confirm")}
-                                    color="green"
-                                    disabled={isConfirming}
-                                    onClick={() =>
-                                      confirmUser({ userId: item.id })
-                                    }
-                                    variant="light"
-                                  >
-                                    <IconCheck size={16} />
-                                  </ActionIcon>
-                                </Tooltip>
-                              )}
                               {item.email_confirmed ? null : (
                                 <Tooltip
                                   label={t("user_management.resend")}

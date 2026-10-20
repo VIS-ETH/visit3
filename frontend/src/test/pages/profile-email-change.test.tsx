@@ -16,7 +16,6 @@ const storedProfile = {
   first_name: "Mem",
   last_name: "Ber",
   phone_number: "+41791234567",
-  user_confirmed: true,
   email_confirmed: true,
   pending_email: null as string | null,
 };

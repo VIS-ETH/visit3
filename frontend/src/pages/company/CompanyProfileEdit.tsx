@@ -26,7 +26,6 @@ import CompanyProfileBadge from "../../components/company/CompanyProfileBadge";
 import CompanyProfileMissingFields from "../../components/company/CompanyProfileMissingFields";
 import CompanyProfileSection from "../../components/company/CompanyProfileSection";
 import { showProfileFieldError } from "../../components/company/company-profile-fields";
-import { useCurrentUser } from "../../context/useCurrentUser";
 import {
   getGetMyCompanyProfileQueryKey,
   getGetMyCompanyQueryKey,
@@ -50,7 +49,6 @@ const CompanyProfileEdit = () => {
   const { t } = useTranslation();
   useScrollToHash();
   const queryClient = useQueryClient();
-  const { user } = useCurrentUser();
   const location = useLocation();
   const backPath = getSafeNextPath(location.search) ?? "/company";
 
@@ -60,9 +58,7 @@ const CompanyProfileEdit = () => {
     isError,
   } = useGetMyCompanyProfile({ query: { retry: false } });
   const { data: industries = [] } = useListIndustryCatalogue();
-  const { data: members = [] } = useGetMyCompanyMembers({
-    query: { enabled: user?.user_confirmed === true },
-  });
+  const { data: members = [] } = useGetMyCompanyMembers();
 
   const form = useTranslatedForm<typeof companyProfileSchema>(
     companyProfileSchema,

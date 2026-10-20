@@ -23,7 +23,6 @@ import { server } from "../server";
 
 let listRequests: URL[] = [];
 let patchBodies: unknown[] = [];
-let confirmedIds: string[] = [];
 let resendIds: string[] = [];
 let deletedIds: string[] = [];
 let listItems: StaffUserResponse[] = [];
@@ -45,7 +44,6 @@ const lastListParams = () => {
 beforeEach(() => {
   listRequests = [];
   patchBodies = [];
-  confirmedIds = [];
   resendIds = [];
   deletedIds = [];
   listItems = [memberUser, orphanUser];
@@ -77,10 +75,6 @@ beforeEach(() => {
     ),
     http.patch(`${testBackendUrl}/api/users/:userId`, async ({ request }) => {
       patchBodies.push(await request.json());
-      return HttpResponse.json(memberUser);
-    }),
-    http.post(`${testBackendUrl}/api/users/:userId/confirm`, ({ params }) => {
-      confirmedIds.push(String(params.userId));
       return HttpResponse.json(memberUser);
     }),
     http.post(
@@ -239,19 +233,6 @@ describe("the user management page", () => {
     ).toBeInTheDocument();
   });
 
-  it("confirms a user", async () => {
-    const { user } = renderPage();
-    const row = await memberRow();
-
-    await user.click(
-      row.getByRole("button", { name: "user_management.confirm" }),
-    );
-
-    await waitFor(() => {
-      expect(confirmedIds).toEqual([memberUser.id]);
-    });
-  });
-
   it("resends the confirmation mail", async () => {
     const { user } = renderPage();
     const row = await memberRow();
@@ -265,14 +246,11 @@ describe("the user management page", () => {
     });
   });
 
-  it("hides the confirm and resend actions for a confirmed user", async () => {
+  it("hides the resend action for a confirmed user", async () => {
     renderPage();
     const cell = await screen.findByText(orphanUser.email);
     const row = within(cell.closest("tr") as HTMLElement);
 
-    expect(
-      row.queryByRole("button", { name: "user_management.confirm" }),
-    ).not.toBeInTheDocument();
     expect(
       row.queryByRole("button", { name: "user_management.resend" }),
     ).not.toBeInTheDocument();
@@ -304,7 +282,6 @@ describe("the user management page", () => {
       phone_number: memberUser.phone_number,
       email: memberUser.email,
       company_id: memberUser.company_id,
-      user_confirmed: false,
       is_staff: true,
       is_admin: false,
     });
