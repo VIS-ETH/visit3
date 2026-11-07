@@ -38,6 +38,7 @@ class BookingWorld:
     booking_id: str
     company_headers: dict[str, str]
     staff_headers: dict[str, str]
+    president_headers: dict[str, str]
 
 
 async def drop_company_details(db_session: AsyncSession, booking_id: str) -> None:
@@ -88,6 +89,7 @@ async def booking_world(
     kp_setup: KpSetup,
     company_headers: dict[str, str],
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     register_booking: Callable[..., Awaitable[Response]],
 ) -> BookingWorld:
     booking = (await register_booking(company_headers, kp_setup)).json()
@@ -98,6 +100,7 @@ async def booking_world(
         booking_id=booking["id"],
         company_headers=company_headers,
         staff_headers=staff_headers,
+        president_headers=president_headers,
     )
 
 
@@ -416,7 +419,7 @@ async def test_reject_stores_the_reason_and_frees_capacity(
     await client.patch(
         f"/api/kp/booth-zones/{booking_world.booth_zone_id}",
         json={"capacity": 1},
-        headers=booking_world.staff_headers,
+        headers=booking_world.president_headers,
     )
     await complete_company_profile(other_company_headers)
     blocked = await client.post(
@@ -462,12 +465,15 @@ async def test_reject_requires_a_real_reason(
 
 
 async def test_staff_edits_zone_booth_number_and_quantities(
-    client: AsyncClient, booking_world: BookingWorld, staff_headers: dict[str, str]
+    client: AsyncClient,
+    booking_world: BookingWorld,
+    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
 ):
     spare_zone = await client.post(
         f"/api/kp/events/{booking_world.event_id}/booth-zones",
         json={"name": "Side hall", "capacity": 2, "color": "#ABCDEF"},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     response = await client.patch(
@@ -533,7 +539,7 @@ async def test_staff_edit_rejects_a_full_target_zone(
     full_zone = await client.post(
         f"/api/kp/events/{booking_world.event_id}/booth-zones",
         json={"name": "Tiny hall", "capacity": 1, "color": "#ABCDEF"},
-        headers=booking_world.staff_headers,
+        headers=booking_world.president_headers,
     )
     await complete_company_profile(other_company_headers)
     await client.post(
@@ -589,7 +595,7 @@ async def test_staff_zone_change_clears_a_stale_booth_number(
     spare_zone = await client.post(
         f"/api/kp/events/{booking_world.event_id}/booth-zones",
         json={"name": "Side hall", "capacity": 2, "color": "#ABCDEF"},
-        headers=booking_world.staff_headers,
+        headers=booking_world.president_headers,
     )
     spare_zone_id = spare_zone.json()["id"]
     await complete_company_profile(other_company_headers)
@@ -625,7 +631,7 @@ async def test_staff_zone_change_rejects_a_taken_booth_number(
     spare_zone = await client.post(
         f"/api/kp/events/{booking_world.event_id}/booth-zones",
         json={"name": "Side hall", "capacity": 2, "color": "#ABCDEF"},
-        headers=booking_world.staff_headers,
+        headers=booking_world.president_headers,
     )
     spare_zone_id = spare_zone.json()["id"]
     await complete_company_profile(other_company_headers)
@@ -660,7 +666,7 @@ async def test_staff_zone_change_drops_the_waitlist_entry_of_the_target_zone(
             await client.post(
                 f"/api/kp/events/{booking_world.event_id}/booth-zones",
                 json={"name": name, "capacity": 2, "color": color},
-                headers=booking_world.staff_headers,
+                headers=booking_world.president_headers,
             )
         ).json()["id"]
         for name, color in (("Side hall", "#ABCDEF"), ("Back hall", "#FEDCBA"))
@@ -696,12 +702,12 @@ async def test_staff_zone_change_respects_the_service_stock(
     generous_zone = await client.post(
         f"/api/kp/events/{booking_world.event_id}/booth-zones",
         json={"name": "Gold hall", "capacity": 2, "color": "#ABCDEF"},
-        headers=booking_world.staff_headers,
+        headers=booking_world.president_headers,
     )
     spare_zone = await client.post(
         f"/api/kp/events/{booking_world.event_id}/booth-zones",
         json={"name": "Side hall", "capacity": 2, "color": "#FEDCBA"},
-        headers=booking_world.staff_headers,
+        headers=booking_world.president_headers,
     )
     db_session.add(
         KpEventBoothZoneServiceLink(
@@ -720,7 +726,7 @@ async def test_staff_zone_change_respects_the_service_stock(
     await client.patch(
         f"/api/kp/services/{booking_world.service_id}",
         json={"max_total_quantity": 1},
-        headers=booking_world.staff_headers,
+        headers=booking_world.president_headers,
     )
 
     response = await client.patch(
@@ -798,12 +804,12 @@ async def test_staff_booking_list_presigns_each_stored_file_once(
     await client.put(
         f"/api/kp/booth-zones/{booking_world.booth_zone_id}/layout-file",
         files={"file": PNG_UPLOAD},
-        headers=booking_world.staff_headers,
+        headers=booking_world.president_headers,
     )
     await client.post(
         f"/api/kp/services/{booking_world.service_id}/image",
         files={"file": PNG_UPLOAD},
-        headers=booking_world.staff_headers,
+        headers=booking_world.president_headers,
     )
     for name in ("first", "second", "third"):
         headers = await company_headers_factory(name)

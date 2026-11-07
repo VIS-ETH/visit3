@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { Route, Routes } from "react-router";
 import KpServiceForm from "../../pages/KpServiceForm";
-import ServicesTab from "../../components/ServicesTab";
+import ServicesTab from "../../components/kp-manage/ServicesTab";
 import { KpServiceCategory } from "../../orval/generated/fastAPI.schemas";
 import type { ServiceResponse } from "../../orval/generated/fastAPI.schemas";
 import { server } from "../server";
@@ -61,9 +61,6 @@ beforeEach(() => {
   createdPayload = null;
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(servicesUrl, () => HttpResponse.json([powerSocket, chair])),
     http.post(servicesUrl, async ({ request }) => {
       createdPayload = await request.json();

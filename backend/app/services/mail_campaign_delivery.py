@@ -8,7 +8,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dates import utc_now
-from app.core.exceptions import MailTemplateInvalid
+from app.core.utils import normalize_email
 from app.mail_templates.campaign import campaign_identifier, render_campaign_mail
 from app.mail_templates.texts import MailTemplateTexts
 from app.models.mail import (
@@ -123,7 +123,7 @@ class MailCampaignDelivery:
                 await repository.abort_pending(campaign.id)
             else:
                 await self._send_pending(session, repository, campaign, data)
-            await self._finish(repository, campaign.id)
+            await self._finish(repository, campaign.id, aborted=data is None)
 
     async def _send_pending(
         self,
@@ -178,6 +178,8 @@ class MailCampaignDelivery:
                 person
                 for person in people
                 if person.user_id == recipient.contact_user_id
+                and recipient.email is not None
+                and normalize_email(person.email) == normalize_email(recipient.email)
             ),
             None,
         )
@@ -208,13 +210,13 @@ class MailCampaignDelivery:
     ) -> MailCampaignFailure | None:
         company = self._company(recipient, data)
         person = self._person(recipient, company)
-        login_url = await self._login_url(session, recipient, data, person)
-        context = campaign_context(data, company, person, login_url)
         try:
+            login_url = await self._login_url(session, recipient, data, person)
+            context = campaign_context(data, company, person, login_url)
             rendered = await asyncio.to_thread(
                 render_campaign_mail, texts, context, identifier
             )
-        except MailTemplateInvalid:
+        except Exception:
             logger.exception(
                 "Mail campaign recipient %s could not render", recipient.id
             )
@@ -232,13 +234,15 @@ class MailCampaignDelivery:
         return None
 
     async def _finish(
-        self, repository: MailCampaignRepository, campaign_id: UUID
+        self, repository: MailCampaignRepository, campaign_id: UUID, aborted: bool
     ) -> None:
         failed = await repository.count_recipients(
             campaign_id, MailCampaignRecipientStatus.FAILED
         )
         status = (
-            MailCampaignStatus.PARTIALLY_FAILED if failed else MailCampaignStatus.SENT
+            MailCampaignStatus.PARTIALLY_FAILED
+            if failed or aborted
+            else MailCampaignStatus.SENT
         )
         await repository.transition(
             campaign_id,

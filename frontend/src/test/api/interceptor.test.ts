@@ -219,7 +219,7 @@ describe("token refresh on 401", () => {
     expect(location.navigations).toEqual([]);
   });
 
-  it("does not replay the request when no token is stored", async () => {
+  it("does not refresh or replay the request when no token is stored", async () => {
     respondWithFailingRefresh();
     server.use(
       http.get(meUrl, ({ request }) => {
@@ -231,10 +231,63 @@ describe("token refresh on 401", () => {
 
     await expect(api.get("/api/user/me")).rejects.toThrow();
 
-    expect(refreshRequests).toBe(1);
+    expect(refreshRequests).toBe(0);
     expect(meRequests).toHaveLength(1);
     expect(meRequests[0].headers.get("Authorization")).toBeNull();
     expect(location.navigations).toEqual(["/login"]);
+  });
+});
+
+describe("session expiry", () => {
+  it("keeps the current page as next when redirecting to the login", async () => {
+    location.restore();
+    location = stubLocation("/company/profile");
+    storeValidToken();
+    respondWithFailingRefresh();
+    server.use(http.get(profileUrl, unauthorized));
+    const api = await importApi();
+
+    await expect(api.get("/api/user/profile")).rejects.toThrow();
+
+    expect(location.navigations).toEqual([
+      `/login?next=${encodeURIComponent("/company/profile")}`,
+    ]);
+  });
+
+  it.each([
+    ["a network error", () => HttpResponse.error()],
+    ["a bad gateway", () => new HttpResponse(null, { status: 502 })],
+  ])(
+    "keeps the session when the refresh fails with %s",
+    async (_label, respond) => {
+      localStorage.setItem("token", createToken(-60));
+      sessionStorage.setItem("impersonating_user_id", "user-9");
+      server.use(
+        http.post(refreshUrl, respond),
+        http.get(profileUrl, () => HttpResponse.json({ id: "profile-1" })),
+      );
+      const api = await importApi();
+
+      await api.get("/api/user/profile");
+
+      expect(localStorage.getItem("token")).not.toBeNull();
+      expect(sessionStorage.getItem("impersonating_user_id")).toBe("user-9");
+    },
+  );
+
+  it("keeps the session and reports the outage when a 401 cannot be refreshed", async () => {
+    storeValidToken();
+    server.use(
+      http.post(refreshUrl, () => HttpResponse.error()),
+      http.get(meUrl, unauthorized),
+    );
+    const api = await importApi();
+
+    await expect(api.get("/api/user/me")).rejects.toThrow();
+
+    expect(localStorage.getItem("token")).not.toBeNull();
+    expect(location.navigations).toEqual([]);
+    expect(notificationsShow).toHaveBeenCalledOnce();
   });
 });
 

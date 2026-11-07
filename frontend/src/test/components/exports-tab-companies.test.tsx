@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import ExportsTab from "../../components/ExportsTab";
+import ExportsTab from "../../components/kp-manage/ExportsTab";
 import * as download from "../../utils/download";
 import { testBackendUrl } from "../constants";
 import { testEventId } from "../fixtures/kp-booking";
@@ -18,9 +18,6 @@ beforeEach(() => {
   vi.spyOn(download, "downloadBlob").mockImplementation(() => undefined);
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(
       `${testBackendUrl}/api/kp/events/:eventId/exports/nametags/background`,
       () => HttpResponse.json(null),

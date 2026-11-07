@@ -1,22 +1,13 @@
 import hashlib
-import json
 import re
 import unicodedata
 from pathlib import Path
-from typing import Any, Protocol, TypeVar, cast, overload
+from typing import overload
 
 import phonenumbers
 from pydantic import HttpUrl, TypeAdapter, ValidationError
 
 _http_url = TypeAdapter(HttpUrl)
-
-T = TypeVar("T", covariant=True)
-
-
-class ModelValidateType(Protocol[T]):
-    @classmethod
-    def model_validate(cls, obj: Any) -> T: ...
-
 
 CONTROL_CHARACTER_CATEGORY = "Cc"
 
@@ -28,9 +19,23 @@ def has_control_characters(value: str) -> bool:
     )
 
 
+INVISIBLE_LETTERS = frozenset({"\u115f", "\u1160", "\u2800", "\u3164", "\uffa0"})
+
+
 def reject_control_characters(value: str) -> str:
     if has_control_characters(value):
         raise ValueError("control characters are not allowed")
+    return value
+
+
+def clean_name(value: str) -> str:
+    value = unicodedata.normalize("NFKC", value)
+    if any(unicodedata.category(character) in ("Cc", "Cf") for character in value):
+        raise ValueError("control or formatting characters are not allowed")
+    if value and all(
+        character.isspace() or character in INVISIBLE_LETTERS for character in value
+    ):
+        raise ValueError("name must contain visible characters")
     return value
 
 
@@ -77,28 +82,6 @@ def normalize_http_url(url: str | None) -> str | None:
 
 def hash_str(s: str) -> str:
     return hashlib.sha256(s.encode()).hexdigest()
-
-
-def dump_json(value: Any) -> str:
-    def _default_serializer(item: Any):
-        if hasattr(item, "model_dump"):
-            return item.model_dump()
-        raise TypeError(
-            f"Object of type {item.__class__.__name__} is not JSON serializable"
-        )
-
-    return json.dumps(value, default=_default_serializer)
-
-
-def load_json(target_type: type[T], value: str) -> T:
-    data = json.loads(value)
-
-    if hasattr(target_type, "model_validate"):
-        return cast(ModelValidateType[T], target_type).model_validate(data)
-    else:
-        raise TypeError(
-            f"Target type {target_type.__name__} does not support model validation"
-        )
 
 
 MAX_FILENAME_LENGTH = 255

@@ -1,33 +1,22 @@
-import {
-  Alert,
-  Button,
-  Center,
-  Group,
-  Loader,
-  Stack,
-  Tabs,
-  Text,
-  Title,
-} from "@mantine/core";
-import { IconAlertCircle, IconCopy } from "@tabler/icons-react";
+import { Button, Group, Stack, Tabs, Text, Title } from "@mantine/core";
+import { IconCopy } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router";
 import BackButton from "../components/BackButton";
+import ErrorAlert from "../components/ErrorAlert";
+import PageLoader from "../components/PageLoader";
 import { useGetKpById } from "../orval/generated/kp/kp";
-import CloneKpModal from "../components/kp/CloneKpModal";
+import CloneKpModal from "../components/kp-manage/CloneKpModal";
 import { formatKpDisplayDate } from "../utils/kp-utils";
-import BookingsTab from "../components/BookingsTab";
-import BoothZonesTab from "../components/BoothZonesTab";
-import DetailsTab from "../components/DetailsTab";
-import IndustriesTab from "../components/IndustriesTab";
-import ServicesTab from "../components/ServicesTab";
-import ExportsTab from "../components/ExportsTab";
-import VenueTab from "../components/kp/VenueTab";
+import BookingsTab from "../components/kp-manage/BookingsTab";
+import BoothZonesTab from "../components/kp-manage/BoothZonesTab";
+import DetailsTab from "../components/kp-manage/DetailsTab";
+import IndustriesTab from "../components/kp-manage/IndustriesTab";
+import ServicesTab from "../components/kp-manage/ServicesTab";
+import ExportsTab from "../components/kp-manage/ExportsTab";
+import VenueTab from "../components/kp-manage/VenueTab";
 import { useCurrentUser } from "../context/useCurrentUser";
-function formatDate(dateString?: string) {
-  return formatKpDisplayDate(dateString);
-}
 
 const KP_MANAGE_TAB_VALUES = [
   "details",
@@ -99,35 +88,15 @@ const KpManage = () => {
     setSearchParams(next, { replace: true });
   };
 
-  if (!id) {
+  if (!id || isError || !event) {
     return (
       <Stack gap="md">
         <BackButton to="/kp" />
-        <Alert icon={<IconAlertCircle />} color="red">
-          {t("kp.manage.not_found")}
-        </Alert>
-      </Stack>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <Stack gap="md">
-        <BackButton to="/kp" />
-        <Center py="xl">
-          <Loader />
-        </Center>
-      </Stack>
-    );
-  }
-
-  if (isError || !event) {
-    return (
-      <Stack gap="md">
-        <BackButton to="/kp" />
-        <Alert icon={<IconAlertCircle />} color="red">
-          {t("kp.manage.not_found")}
-        </Alert>
+        {id && isLoading ? (
+          <PageLoader />
+        ) : (
+          <ErrorAlert>{t("kp.manage.not_found")}</ErrorAlert>
+        )}
       </Stack>
     );
   }
@@ -142,22 +111,26 @@ const KpManage = () => {
             {event.name} — {t("kp.manage.title")}
           </Title>
           <Text c="dimmed" size="sm">
-            {formatDate(event.event_date)}
+            {formatKpDisplayDate(event.event_date)}
           </Text>
         </div>
-        <Button
-          leftSection={<IconCopy size={16} />}
-          onClick={() => setCloneModalOpen(true)}
-        >
-          {t("kp.manage.clone")}
-        </Button>
+        {isPresident ? (
+          <Button
+            leftSection={<IconCopy size={16} />}
+            onClick={() => setCloneModalOpen(true)}
+          >
+            {t("kp.manage.clone")}
+          </Button>
+        ) : null}
       </Group>
 
-      <CloneKpModal
-        eventId={id}
-        opened={cloneModalOpen}
-        onClose={() => setCloneModalOpen(false)}
-      />
+      {isPresident ? (
+        <CloneKpModal
+          eventId={id}
+          opened={cloneModalOpen}
+          onClose={() => setCloneModalOpen(false)}
+        />
+      ) : null}
 
       <Tabs value={activeTab} onChange={setActiveTabInUrl}>
         <Tabs.List>

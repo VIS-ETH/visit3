@@ -1,11 +1,3 @@
-"""Scope KP booth zone and service uniqueness to active rows
-
-Revision ID: 0026
-Revises: 0025
-Create Date: 2026-09-22 00:00:00.000000
-
-"""
-
 from typing import Sequence, Union
 
 import sqlalchemy as sa

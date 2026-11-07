@@ -111,9 +111,7 @@ class UserService:
 
     async def logout_user(self, refresh_token: str | None) -> None:
         if refresh_token:
-            await self.token_repository.revoke_refresh_token(
-                self.current_user.id, refresh_token
-            )
+            await self.token_repository.revoke_refresh_token_family(refresh_token)
 
     async def list_users(
         self,
@@ -123,11 +121,12 @@ class UserService:
         page_size: int,
         sort: UserSort | None = None,
         direction: SortDirection = SortDirection.ASC,
+        company_id: UUID | None = None,
     ) -> UserPageResult:
         require_staff_user(self.current_user)
         since = changes_since(self.current_user)
         total = await self.user_repository.count_users_matching(
-            query, user_filter, since
+            query, user_filter, since, company_id
         )
         users = await self.user_repository.search_users(
             query,
@@ -137,6 +136,7 @@ class UserService:
             sort,
             direction,
             since,
+            company_id,
         )
         return UserPageResult(
             items=[StaffUserResponse.model_validate(user) for user in users],
@@ -288,6 +288,6 @@ class UserService:
         if user.company_id is not None:
             await self._ensure_company_keeps_a_member(user.company_id, "delete_user")
 
-        await self.company_repository.revoke_open_invites_by(user.id)
         await self.user_repository.delete_user(user)
+        await self.company_repository.revoke_open_invites_by(user.id)
         logger.info("User deleted by staff %s: %s", self.current_user.id, user.id)

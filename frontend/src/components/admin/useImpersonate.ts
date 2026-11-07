@@ -1,17 +1,34 @@
 import { useLocation } from "react-router";
-import { setImpersonation } from "../../api/utils";
+import {
+  clearImpersonation,
+  getImpersonatingUserId,
+  getImpersonationOrigin,
+  setImpersonation,
+} from "../../api/utils";
 import { useCurrentUser } from "../../context/useCurrentUser";
 import type { UserResponse } from "../../orval/generated/fastAPI.schemas";
 import { getDisplayName } from "../../utils/display";
-import { reloadAt } from "../../utils/navigation";
+import { getSafeInternalPath, reloadAt } from "../../utils/navigation";
+
+export const stopImpersonating = () => {
+  const origin = getSafeInternalPath(getImpersonationOrigin()) ?? "/";
+  clearImpersonation();
+  reloadAt(origin);
+};
 
 export function useImpersonate() {
   const { user } = useCurrentUser();
   const location = useLocation();
   const canImpersonate = user?.is_admin ?? false;
 
+  const canImpersonateUser = (target: UserResponse) =>
+    canImpersonate &&
+    !target.is_admin &&
+    target.id !== user?.id &&
+    getImpersonatingUserId() !== target.id;
+
   const impersonate = (target: UserResponse) => {
-    if (!canImpersonate) return;
+    if (!canImpersonateUser(target)) return;
     setImpersonation(
       target.id,
       getDisplayName(target.first_name, target.last_name, target.email),
@@ -20,5 +37,5 @@ export function useImpersonate() {
     reloadAt("/");
   };
 
-  return { canImpersonate, impersonate };
+  return { canImpersonate, canImpersonateUser, impersonate };
 }

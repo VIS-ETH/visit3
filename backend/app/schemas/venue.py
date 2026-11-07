@@ -9,6 +9,7 @@ from app.models.venue import (
     KpVenueFloorPlan,
 )
 from app.schemas.kp import BoothZoneWithAvailabilityResult, StoredFileResponse
+from app.schemas.limits import MAX_DB_INT
 
 VenuePoint = tuple[float, float]
 
@@ -43,7 +44,7 @@ def shape_extent_points(shape: VenuePolygonShape | VenueRectShape) -> list[Venue
 
 class CreateVenueLayoutInput(BaseModel):
     name: str = Field(min_length=1)
-    order: int = Field(default=100, ge=0)
+    order: int = Field(default=100, ge=0, le=MAX_DB_INT)
     width: int = Field(default=DEFAULT_VENUE_LAYOUT_WIDTH, ge=1)
     height: int = Field(default=DEFAULT_VENUE_LAYOUT_HEIGHT, ge=1)
     is_active: bool = True
@@ -56,7 +57,7 @@ class CreateVenueLayoutRequest(CreateVenueLayoutInput):
 
 class UpdateVenueLayoutInput(BaseModel):
     name: str | None = Field(default=None, min_length=1)
-    order: int | None = Field(default=None, ge=0)
+    order: int | None = Field(default=None, ge=0, le=MAX_DB_INT)
     width: int | None = Field(default=None, ge=1)
     height: int | None = Field(default=None, ge=1)
     is_active: bool | None = None
@@ -81,7 +82,7 @@ class ReplaceVenueZoneShapesRequest(BaseModel):
 
 class VenueBoothInput(BaseModel):
     booth_zone_id: UUID
-    booth_nr: int = Field(ge=1)
+    booth_nr: int = Field(ge=1, le=MAX_DB_INT)
     x: float
     y: float
     rotation: float | None = None

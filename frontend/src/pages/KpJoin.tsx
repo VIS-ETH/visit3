@@ -1,76 +1,68 @@
-import { Alert, Card, Center, Loader, Stack, Text, Title } from "@mantine/core";
-import { IconAlertCircle } from "@tabler/icons-react";
+import { Card, Stack, Text, Title } from "@mantine/core";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import BackButton from "../components/BackButton";
+import ErrorAlert from "../components/ErrorAlert";
+import PageLoader from "../components/PageLoader";
 import { useGetLatestKp } from "../orval/generated/kp/kp";
 import { formatKpDisplayDate } from "../utils/kp-utils";
+
+const Detail = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) => (
+  <Text>
+    <Text span fw={600}>
+      {label}:
+    </Text>{" "}
+    {children}
+  </Text>
+);
 
 const KpJoin = () => {
   const { t } = useTranslation();
 
-  const { data: latestKp, isLoading, isError } = useGetLatestKp();
+  const { data: latestKp, isPending, isError } = useGetLatestKp();
 
   return (
     <Stack gap="md">
       <BackButton to="/" />
       <Title order={2}>{t("kp.join.title")}</Title>
 
-      {isLoading ? (
-        <Center py="md">
-          <Loader />
-        </Center>
-      ) : null}
-
       {isError ? (
-        <Alert icon={<IconAlertCircle />} color="red" title={t("server.error")}>
-          {t("kp.join.error")}
-        </Alert>
-      ) : null}
-
-      {!isLoading && !isError ? (
+        <ErrorAlert>{t("kp.join.error")}</ErrorAlert>
+      ) : isPending ? (
+        <PageLoader />
+      ) : (
         <Card withBorder radius="md" p="md">
           <Stack gap="sm">
             <Title order={4}>{t("kp.join.current_event")}</Title>
             {latestKp ? (
               <>
-                <Text>
-                  <Text span fw={600}>
-                    {t("kp.join.name")}:
-                  </Text>
-                  {latestKp.name}
-                </Text>
-                <Text>
-                  <Text span fw={600}>
-                    {t("kp.join.registration_window")}:
-                  </Text>
+                <Detail label={t("kp.join.name")}>{latestKp.name}</Detail>
+                <Detail label={t("kp.join.registration_window")}>
                   {formatKpDisplayDate(latestKp.registration_open)} -{" "}
                   {formatKpDisplayDate(latestKp.registration_end)}
-                </Text>
-                <Text>
-                  <Text span fw={600}>
-                    {t("kp.join.finalization_deadline")}:
-                  </Text>
+                </Detail>
+                <Detail label={t("kp.join.finalization_deadline")}>
                   {formatKpDisplayDate(latestKp.finalization_deadline)}
-                </Text>
-                <Text>
-                  <Text span fw={600}>
-                    {t("kp.join.nametags_deadline")}:
-                  </Text>
+                </Detail>
+                <Detail label={t("kp.join.nametags_deadline")}>
                   {formatKpDisplayDate(latestKp.nametags_deadline)}
-                </Text>
-                <Text>
-                  <Text span fw={600}>
-                    {t("kp.join.event_date")}:
-                  </Text>
+                </Detail>
+                <Detail label={t("kp.join.event_date")}>
                   {formatKpDisplayDate(latestKp.event_date)}
-                </Text>
+                </Detail>
               </>
             ) : (
               <Text c="dimmed">{t("kp.join.no_event")}</Text>
             )}
           </Stack>
         </Card>
-      ) : null}
+      )}
     </Stack>
   );
 };

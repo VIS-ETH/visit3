@@ -91,7 +91,10 @@ async def login_user(
     except InvalidCredentials:
         login_throttle.record_failure(client, form_data.username)
         raise
-    login_throttle.record_success(form_data.username)
+    else:
+        login_throttle.record_success(form_data.username)
+    finally:
+        login_throttle.release(form_data.username)
 
     set_refresh_cookie(response, refresh_token)
     return Token(access_token=access_token, token_type="bearer")

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { File as NodeFile } from "node:buffer";
-import EventBannerSection from "../../components/kp/EventBannerSection";
+import EventBannerSection from "../../components/kp-manage/EventBannerSection";
 import type { EventBannerResponse } from "../../orval/generated/fastAPI.schemas";
 import banner1200 from "../../assets/home/kontaktparty-banner-1200.webp";
 import { server } from "../server";
@@ -35,9 +35,6 @@ beforeEach(() => {
   resets = 0;
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(bannerUrl, () => HttpResponse.json(banner)),
     http.put(bannerUrl, async ({ request }) => {
       const file = (await request.formData()).get("file");

@@ -1,7 +1,11 @@
 from fastapi import APIRouter
 
 from app.core.deps import ChangeServiceDep, CsrfDep
-from app.schemas.changes import RecentChangesResponse, RecentChangesResult
+from app.schemas.changes import (
+    MarkChangesSeenRequest,
+    RecentChangesResponse,
+    RecentChangesResult,
+)
 
 router = APIRouter(prefix="/changes", tags=["changes"], dependencies=[CsrfDep])
 
@@ -12,5 +16,7 @@ async def get_recent_changes(change_service: ChangeServiceDep) -> RecentChangesR
 
 
 @router.post("/seen", operation_id="markChangesSeen", status_code=204)
-async def mark_changes_seen(change_service: ChangeServiceDep) -> None:
-    await change_service.mark_changes_seen()
+async def mark_changes_seen(
+    change_service: ChangeServiceDep, request: MarkChangesSeenRequest
+) -> None:
+    await change_service.mark_changes_seen(request.as_of)

@@ -18,8 +18,10 @@ import { renderWithProviders } from "../render";
 import {
   testBooking,
   testBookingId,
-  testEvent,
+  testBookingServiceId,
+  testOpenEvent,
   testEventId,
+  testTextRequirementId,
 } from "../fixtures/kp-booking";
 import { SLOW_TEST_TIMEOUT, SLOW_WAIT } from "../timeouts";
 
@@ -75,7 +77,10 @@ const bookingWithBanner = (booking: BookingResponse): BookingResponse => ({
   ],
 });
 
+const sloganTextUrl = `${testBackendUrl}/api/kp/booking-services/${testBookingServiceId}/requirements/${testTextRequirementId}/text`;
+
 let savedTexts: unknown[] = [];
+let savedSlogans: unknown[] = [];
 
 const serveBooking = (booking: BookingResponse) => {
   let current = booking;
@@ -127,13 +132,11 @@ const addBanner = async (user: UserEvent) => {
 
 beforeEach(() => {
   savedTexts = [];
+  savedSlogans = [];
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId`, () =>
-      HttpResponse.json(testEvent),
+      HttpResponse.json(testOpenEvent),
     ),
     http.get(
       `${testBackendUrl}/api/kp/events/:eventId/services/available`,
@@ -147,6 +150,10 @@ beforeEach(() => {
       `${testBackendUrl}/api/kp/booking-services/:bookingServiceId/requirements/:requirementId/text`,
       () => HttpResponse.json(null),
     ),
+    http.put(sloganTextUrl, async ({ request }) => {
+      savedSlogans.push(await request.json());
+      return HttpResponse.json(null);
+    }),
     http.put(logoTextUrl, async ({ request }) => {
       savedTexts.push(await request.json());
       return HttpResponse.json({
@@ -202,5 +209,37 @@ describe("the requirements prompt after adding services", () => {
     expect(
       await screen.findByText("Banner text", undefined, SLOW_WAIT),
     ).toBeInTheDocument();
+  });
+
+  it("saves only the requirements of the added service from the prompt", async () => {
+    serveBooking(testBooking);
+    const { user } = renderManage();
+
+    const slogan = await screen.findByPlaceholderText(
+      "kp.booking_manage.text_placeholder",
+      undefined,
+      SLOW_WAIT,
+    );
+    await user.type(slogan, "Unrelated");
+    const dialog = await addBanner(user);
+    await user.type(
+      within(dialog).getByPlaceholderText("kp.booking_manage.text_placeholder"),
+      "Hello",
+    );
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: "kp.booking_manage.requirements_prompt_save",
+      }),
+    );
+
+    await waitFor(() => expect(dialog).not.toBeInTheDocument(), SLOW_WAIT);
+    expect(savedTexts).toEqual([{ text_value: "Hello" }]);
+    expect(savedSlogans).toEqual([]);
+    expect(
+      screen.getByText("kp.booking_manage.unsaved_changes_notice"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByPlaceholderText("kp.booking_manage.text_placeholder")[0],
+    ).toHaveValue("Unrelated");
   });
 });

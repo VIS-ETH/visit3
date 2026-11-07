@@ -3,9 +3,7 @@ import {
   Badge,
   Button,
   Card,
-  Center,
   Group,
-  Loader,
   SimpleGrid,
   Stack,
   Stepper,
@@ -22,12 +20,14 @@ import {
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
-import { KpBookingCompletion } from "../components/KpBookingCompletion";
-import { canSwitchBoothZone } from "../components/booking/booking-zone-access";
+import ErrorAlert from "../components/ErrorAlert";
+import PageLoader from "../components/PageLoader";
+import { KpBookingCompletion } from "../components/exhibitor-booking/KpBookingCompletion";
+import { canSwitchBoothZone } from "../components/exhibitor-booking/booking-zone-access";
 import { KpBoothZoneColorSwatch } from "../components/KpBoothZoneColorSwatch";
-import { KpBookingStatusHelp } from "../components/KpBookingStatusHelp";
+import { KpBookingStatusHelp } from "../components/exhibitor-booking/KpBookingStatusHelp";
 import { KpBookingStatusBadge } from "../components/KpBookingStatusBadge";
-import OfferResponseCard from "../components/booking/OfferResponseCard";
+import OfferResponseCard from "../components/exhibitor-booking/OfferResponseCard";
 import { useGetKpById, useGetMyBooking } from "../orval/generated/kp/kp";
 import {
   EVENT_STATUS_COLORS,
@@ -40,7 +40,7 @@ import {
   isInactiveBooking,
   isPendingOffer,
 } from "../utils/my-booking";
-import { formatPrice } from "../utils/price-utils";
+import { formatMoney } from "../utils/money";
 
 const KpCompanyView = () => {
   const { t } = useTranslation();
@@ -59,10 +59,11 @@ const KpCompanyView = () => {
   const status = event ? getEventStatus(event) : null;
   const isRegistrationOpen = status === "registration_open";
 
-  const { data: myBooking, isLoading: isLoadingBooking } = useGetMyBooking(
-    eventId,
-    { query: { enabled: !!eventId } },
-  );
+  const {
+    data: myBooking,
+    isLoading: isLoadingBooking,
+    isError: isBookingError,
+  } = useGetMyBooking(eventId, { query: { enabled: !!eventId } });
   const isBookingInactive = myBooking ? isInactiveBooking(myBooking) : false;
   const canRegisterAgain = canStartNewBooking(myBooking, isRegistrationOpen);
 
@@ -84,17 +85,9 @@ const KpCompanyView = () => {
         <Title order={2}>{t("kp.company_view.title")}</Title>
       </Group>
 
-      {isLoading ? (
-        <Center py="xl">
-          <Loader />
-        </Center>
-      ) : null}
+      {isLoading ? <PageLoader /> : null}
 
-      {isError ? (
-        <Alert icon={<IconAlertCircle />} color="red" title={t("server.error")}>
-          {t("kp.company_view.error")}
-        </Alert>
-      ) : null}
+      {isError ? <ErrorAlert>{t("kp.company_view.error")}</ErrorAlert> : null}
 
       {!isLoading && !isError && !event ? (
         <Card withBorder radius="md" p="lg">
@@ -182,9 +175,9 @@ const KpCompanyView = () => {
           </Card>
 
           {isLoadingBooking ? (
-            <Center py="md">
-              <Loader />
-            </Center>
+            <PageLoader />
+          ) : isBookingError ? (
+            <ErrorAlert />
           ) : myBooking && isPendingOffer(myBooking) ? (
             <OfferResponseCard event={event} booking={myBooking} />
           ) : myBooking ? (
@@ -229,9 +222,7 @@ const KpCompanyView = () => {
                   <Text size="sm" c="dimmed">
                     {t("kp.company_view.booking_total_gross")}
                   </Text>
-                  <Text fw={500}>
-                    {t("common.currency")} {formatPrice(myBooking.price.gross)}
-                  </Text>
+                  <Text fw={500}>{formatMoney(myBooking.price.gross)}</Text>
                 </div>
                 <div>
                   <Group gap={6} align="center">

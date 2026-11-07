@@ -2,11 +2,11 @@ import logging
 from base64 import b64encode
 from collections.abc import Mapping, Sequence
 from datetime import date
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from app.core.auth_context import (
     require_admin_user,
-    require_company_profile_user,
+    require_assigned_company_user,
     require_staff_user,
 )
 from app.core.config import get_settings
@@ -15,12 +15,9 @@ from app.core.exceptions import (
     BookletBackgroundRejected,
     BookletPageRenderTimeout,
     CompanyNotFound,
-    KpEventNotFound,
-    StorageDeleteFailed,
 )
 from app.core.images import image_within_limits
 from app.core.rich_text import rich_text_blocks
-from app.core.utils import bounded_filename
 from app.models.company import Company, KpCompanyLanguage
 from app.models.industry import Industry
 from app.models.kp_event import KpEvent, KpEventBooking
@@ -34,8 +31,10 @@ from app.schemas.company import (
     CompanyProfileFields,
     UpdateCompanyProfileInput,
 )
+from app.services.event_lookup import require_event
 from app.services.pdf_service import PdfService, PdfUnreadable
 from app.services.storage_service import StorageService, UploadKind, UploadStream
+from app.services.stored_files import StoredFiles
 from app.services.typst_runner import TypstRenderAborted
 
 COMPANY_PAGE_TEMPLATE = "company_page.typ"
@@ -145,13 +144,14 @@ class BookletService:
         self.company_repository = company_repository
         self.kp_repository = kp_repository
         self.storage_service = storage_service
+        self.stored_files = StoredFiles(storage_service, kp_repository)
         self.pdf_service = pdf_service
         self.current_user = current_user
 
     async def preview_my_company_page(
         self, profile: UpdateCompanyProfileInput
     ) -> BookletPageResult:
-        company_user = require_company_profile_user(self.current_user)
+        company_user = require_assigned_company_user(self.current_user)
         return await self._preview(company_user.company_id, profile)
 
     async def preview_company_page(
@@ -216,10 +216,9 @@ class BookletService:
         )
 
     async def _get_event(self, event_id: UUID) -> KpEvent:
-        event = await self.kp_repository.get_by_id(event_id)
-        if event is None:
-            raise KpEventNotFound(f"{BACKGROUND_CONTEXT}:{event_id}")
-        return event
+        return await require_event(
+            self.kp_repository, event_id, f"{BACKGROUND_CONTEXT}:{event_id}"
+        )
 
     async def _background_file(self, event: KpEvent | None) -> StoredFile | None:
         if event is None or event.booklet_background_stored_file_id is None:
@@ -270,26 +269,20 @@ class BookletService:
         event = await self._get_event(event_id)
         content = await self._read_background(event_id, upload, content_length)
         await self._validate_background(event_id, content)
-        stored_object = await self.storage_service.upload_bytes(
-            key=f"kp/events/{event_id}/booklet/background/{uuid4()}.pdf",
-            content=content,
-            filename=filename,
-            content_type="application/pdf",
-        )
         previous_id = event.booklet_background_stored_file_id
-        try:
-            stored_file = await self.kp_repository.upsert_stored_file(
-                storage_key=stored_object.key,
-                original_filename=bounded_filename(filename),
-                mime_type=stored_object.mime_type,
-                size_bytes=stored_object.size_bytes,
-                sha256=stored_object.sha256,
-                etag=stored_object.etag,
-            )
+
+        async def attach(stored_file: StoredFile) -> StoredFile:
             await self.kp_repository.set_booklet_background(event, stored_file.id)
-        except Exception:
-            await self.storage_service.delete_object(stored_object.key)
-            raise
+            return stored_file
+
+        stored_file = await self.stored_files.save(
+            f"kp/events/{event_id}/booklet/background",
+            filename,
+            content,
+            "application/pdf",
+            attach,
+            suffix=".pdf",
+        )
         await self._release_background(previous_id)
         return await self._background_result(stored_file)
 
@@ -309,17 +302,9 @@ class BookletService:
             stored_file_id
         ):
             return
-        stored_file = await self.kp_repository.get_stored_file(stored_file_id)
-        if stored_file is None:
-            return
-        try:
-            await self.storage_service.delete_object(stored_file.storage_key)
-        except StorageDeleteFailed:
-            logger.warning(
-                "Booklet background cleanup failed for %s", stored_file.storage_key
-            )
-            return
-        await self.kp_repository.delete_stored_file(stored_file)
+        await self.stored_files.discard(
+            await self.kp_repository.get_stored_file(stored_file_id)
+        )
 
     async def _read_background(
         self, event_id: UUID, upload: UploadStream, content_length: int | None

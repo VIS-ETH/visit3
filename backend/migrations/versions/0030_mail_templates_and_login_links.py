@@ -1,11 +1,3 @@
-"""mail templates and login link tokens
-
-Revision ID: 0030
-Revises: 0029
-Create Date: 2026-09-22 00:00:00.000000
-
-"""
-
 from typing import Sequence, Union
 
 import sqlalchemy as sa

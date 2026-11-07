@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import CompanyProfileEdit from "../../pages/company/CompanyProfileEdit";
 import { UserProvider } from "../../context/UserContext";
@@ -116,9 +116,6 @@ beforeEach(() => {
   putBodies = [];
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/industries`, () =>
       HttpResponse.json([{ id: "industry-1", name: "Software" }]),
     ),
@@ -820,5 +817,126 @@ describe("Company booklet page", () => {
         SLOW_WAIT,
       ),
     ).toBeInTheDocument();
+  });
+});
+
+describe("Company profile saving", () => {
+  it("saves once when Enter is pressed twice", async () => {
+    const { user } = renderProfile();
+    await user.click(
+      await screen.findByLabelText(labelOf("company_profile_form.brand_name")),
+    );
+
+    await user.keyboard("{Enter}{Enter}");
+
+    await waitFor(() => expect(putBodies).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(putBodies).toHaveLength(1);
+  });
+
+  it("saves once when the form is submitted twice at once", async () => {
+    renderProfile();
+    const brand = await screen.findByLabelText(
+      labelOf("company_profile_form.brand_name"),
+    );
+    const form = brand.closest("form")!;
+
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+
+    await waitFor(() => expect(putBodies).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(putBodies).toHaveLength(1);
+  });
+
+  it("does not submit an employee count beyond the supported range", async () => {
+    const { user } = renderProfile();
+    const count = await screen.findByLabelText(
+      labelOf("company_profile_form.employee_count_switzerland"),
+    );
+    await user.clear(count);
+    await user.type(count, "99999999999");
+    await user.click(
+      screen.getByRole("button", { name: "company_profile_form.save" }),
+    );
+
+    expect(
+      await screen.findByText("validation.out_of_range"),
+    ).toBeInTheDocument();
+    expect(putBodies).toHaveLength(0);
+  });
+
+  it("keeps a colleague's newer change when restoring a draft", async () => {
+    const first = renderProfile();
+    const brand = await screen.findByLabelText(
+      labelOf("company_profile_form.brand_name"),
+    );
+    await first.user.clear(brand);
+    await first.user.type(brand, "Draftify");
+    await waitFor(() => {
+      expect(
+        localStorage.getItem("company-profile-draft:me:company-1"),
+      ).toContain("Draftify");
+    });
+    first.unmount();
+
+    mockProfile({ ...storedProfile, website: "https://new.example.com" });
+    renderProfile();
+
+    expect(
+      await screen.findByText("company_profile_form.draft_restored_title"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(labelOf("company_profile_form.brand_name")),
+    ).toHaveValue("Draftify");
+    expect(
+      screen.getByLabelText(labelOf("company_profile_form.website")),
+    ).toHaveValue("https://new.example.com");
+  });
+
+  it("drops a draft field that a colleague changed in the meantime", async () => {
+    const first = renderProfile();
+    const brand = await screen.findByLabelText(
+      labelOf("company_profile_form.brand_name"),
+    );
+    await first.user.clear(brand);
+    await first.user.type(brand, "Draftify");
+    await waitFor(() => {
+      expect(
+        localStorage.getItem("company-profile-draft:me:company-1"),
+      ).toContain("Draftify");
+    });
+    first.unmount();
+
+    mockProfile({ ...storedProfile, brand_name: "Colleagify" });
+    renderProfile();
+
+    expect(
+      await screen.findByLabelText(labelOf("company_profile_form.brand_name")),
+    ).toHaveValue("Colleagify");
+    expect(
+      screen.queryByText("company_profile_form.draft_restored_title"),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("Company booklet page website", () => {
+  it("leaves an unfinished website off the page", async () => {
+    const { user } = renderProfile();
+    const website = await screen.findByLabelText(
+      labelOf("company_profile_form.website"),
+    );
+    await user.clear(website);
+    await user.paste("example.com");
+
+    await waitFor(() => {
+      expect(lastBookletBody()).toMatchObject({
+        brand_name: "Examplify",
+        website: null,
+      });
+    }, SLOW_WAIT);
+    expect(notificationsShow).not.toHaveBeenCalledWith(
+      expect.objectContaining({ color: "red" }),
+    );
   });
 });

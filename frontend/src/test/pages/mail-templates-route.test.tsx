@@ -39,9 +39,6 @@ const mockCurrentUser = (user: UserResponse) => {
 beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.post(`${testBackendUrl}/api/auth/refresh`, () =>
       HttpResponse.json({ access_token: createToken(3600) }),
     ),

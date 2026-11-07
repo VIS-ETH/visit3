@@ -2,7 +2,6 @@ import {
   Anchor,
   AppShell,
   Button,
-  Divider,
   Group,
   Modal,
   Stack,
@@ -24,7 +23,7 @@ import { useState } from "react";
 import { NavLink, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { clearAuthState } from "../api/utils";
+import { clearAuthState, markLoggedOut } from "../api/utils";
 import { useLogoutUser } from "../orval/generated/user/user";
 import { useCurrentUser } from "../context/useCurrentUser";
 import serverData from "../utils/server-data";
@@ -39,6 +38,7 @@ const Navbar = () => {
   const { mutate: logout, isPending: isLoggingOut } = useLogoutUser({
     mutation: {
       onSettled: () => {
+        markLoggedOut();
         clearAuthState();
         queryClient.clear();
         navigate("/login");
@@ -90,7 +90,6 @@ const Navbar = () => {
             </Anchor>
           </Text>
         </Group>
-        <Divider my="xs" label={t("nav.navigation")} labelPosition="center" />
         <Stack gap="xs">
           <Button
             component={NavLink}

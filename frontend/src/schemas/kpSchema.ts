@@ -4,49 +4,31 @@ import { parseKpDateInput, toKpIsoDate } from "../utils/kp-utils";
 
 const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
 
+export const kpDateFieldNames = [
+  "registrationOpen",
+  "registrationEnd",
+  "finalizationDeadline",
+  "nametagsDeadline",
+  "eventDate",
+] as const;
+
+const kpDateInput = z
+  .string()
+  .trim()
+  .min(1, "validation.required")
+  .refine(
+    (value) => parseKpDateInput(value) !== null,
+    "kp.dashboard.invalid_date",
+  );
+
 export const kpSchema = z
   .object({
     name: z.string().trim().min(1, "kp.dashboard.invalid_name"),
-    registrationOpen: z
-      .string()
-      .trim()
-      .min(1, "validation.required")
-      .refine(
-        (value) => parseKpDateInput(value) !== null,
-        "kp.dashboard.invalid_date",
-      ),
-    registrationEnd: z
-      .string()
-      .trim()
-      .min(1, "validation.required")
-      .refine(
-        (value) => parseKpDateInput(value) !== null,
-        "kp.dashboard.invalid_date",
-      ),
-    finalizationDeadline: z
-      .string()
-      .trim()
-      .min(1, "validation.required")
-      .refine(
-        (value) => parseKpDateInput(value) !== null,
-        "kp.dashboard.invalid_date",
-      ),
-    nametagsDeadline: z
-      .string()
-      .trim()
-      .min(1, "validation.required")
-      .refine(
-        (value) => parseKpDateInput(value) !== null,
-        "kp.dashboard.invalid_date",
-      ),
-    eventDate: z
-      .string()
-      .trim()
-      .min(1, "validation.required")
-      .refine(
-        (value) => parseKpDateInput(value) !== null,
-        "kp.dashboard.invalid_date",
-      ),
+    registrationOpen: kpDateInput,
+    registrationEnd: kpDateInput,
+    finalizationDeadline: kpDateInput,
+    nametagsDeadline: kpDateInput,
+    eventDate: kpDateInput,
   })
   .superRefine((values, ctx) => {
     const registrationOpen = parseKpDateInput(values.registrationOpen);
@@ -114,9 +96,9 @@ export const kpSchema = z
     }
   });
 
-export type KpFormValues = z.infer<typeof kpSchema>;
+type KpFormValues = z.infer<typeof kpSchema>;
 
-export const kpRequestSchema = kpSchema.transform((values) => ({
+const kpRequestSchema = kpSchema.transform((values) => ({
   name: values.name.trim(),
   registration_open: toKpIsoDate(values.registrationOpen),
   registration_end: toKpIsoDate(values.registrationEnd),
@@ -137,19 +119,17 @@ export const boothZoneSchema = z.object({
     .trim()
     .min(1, "validation.required")
     .regex(HEX_COLOR_PATTERN, "kp.manage.zone_color_invalid_hex"),
-  capacity: z.number().min(0, "kp.manage.zone_number_non_negative"),
+  capacity: z.number().int().min(0, "kp.manage.zone_number_non_negative"),
   boothSize: z.number().min(0, "kp.manage.zone_number_non_negative"),
   basePrice: z.number().min(0, "kp.manage.zone_number_non_negative"),
   layoutDescription: z.string(),
   includedServices: z.array(
     z.object({
       serviceId: z.string().min(1, "validation.required"),
-      quantity: z.number().min(1, "kp.manage.zone_included_quantity_min"),
+      quantity: z.number().int().min(1, "kp.manage.zone_included_quantity_min"),
     }),
   ),
 });
-
-export type BoothZoneFormValues = z.infer<typeof boothZoneSchema>;
 
 export const serviceSchema = z.object({
   name: z.string().trim().min(1, "validation.required"),
@@ -161,8 +141,11 @@ export const serviceSchema = z.object({
     .trim()
     .refine(isOptionalImageSource, "kp.manage.service_image_url_invalid"),
   price: z.number().min(0, "kp.manage.service_number_non_negative"),
-  maxPerBooking: z.number().min(1, "kp.manage.service_max_per_booking_min"),
-  maxTotal: z.number().min(0, "kp.manage.service_number_non_negative"),
+  maxPerBooking: z
+    .number()
+    .int()
+    .min(1, "kp.manage.service_max_per_booking_min"),
+  maxTotal: z.number().int().min(0, "kp.manage.service_number_non_negative"),
   isActive: z.boolean(),
   requirements: z.array(
     z.object({
@@ -173,16 +156,14 @@ export const serviceSchema = z.object({
         .string()
         .trim()
         .min(20, "kp.manage.requirement_description_min"),
-      order: z.number().min(0, "kp.manage.service_number_non_negative"),
+      order: z.number().int().min(0, "kp.manage.service_number_non_negative"),
     }),
   ),
   includedServices: z.array(
     z.object({
       serviceId: z.string().min(1, "validation.required"),
-      quantity: z.number().min(1, "kp.manage.zone_included_quantity_min"),
+      quantity: z.number().int().min(1, "kp.manage.zone_included_quantity_min"),
     }),
   ),
   excludedServiceIds: z.array(z.string()),
 });
-
-export type ServiceFormValues = z.infer<typeof serviceSchema>;

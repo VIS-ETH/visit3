@@ -220,27 +220,36 @@ def plan_recipients(
         select_companies(audience, data),
         key=lambda entry: (entry[0].name.casefold(), str(entry[0].id)),
     )
-    seen: set[str] = set()
+    candidates = [
+        (company, manually_included, email, source, person)
+        for company, manually_included in selected
+        for email, source, person in company_addresses(company, audience.all_accounts)
+    ]
+    winners: dict[str, int] = {}
+    for index, (_, _, email, _, person) in sorted(
+        enumerate(candidates), key=lambda entry: (entry[1][4] is None, entry[0])
+    ):
+        if email is not None:
+            winners.setdefault(normalize_email(email), index)
     planned: list[PlannedRecipient] = []
-    for company, manually_included in selected:
-        for email, source, person in company_addresses(company, audience.all_accounts):
-            skip_reason = None
-            if email is None:
-                skip_reason = MailCampaignSkipReason.NO_ADDRESS
-            elif normalize_email(email) in seen:
-                skip_reason = MailCampaignSkipReason.DUPLICATE_ADDRESS
-            else:
-                seen.add(normalize_email(email))
-            planned.append(
-                PlannedRecipient(
-                    company=company,
-                    email=email,
-                    source=source,
-                    person=person,
-                    skip_reason=skip_reason,
-                    manually_included=manually_included,
-                )
+    for index, (company, manually_included, email, source, person) in enumerate(
+        candidates
+    ):
+        skip_reason = None
+        if email is None:
+            skip_reason = MailCampaignSkipReason.NO_ADDRESS
+        elif winners[normalize_email(email)] != index:
+            skip_reason = MailCampaignSkipReason.DUPLICATE_ADDRESS
+        planned.append(
+            PlannedRecipient(
+                company=company,
+                email=email,
+                source=source,
+                person=person,
+                skip_reason=skip_reason,
+                manually_included=manually_included,
             )
+        )
     return planned
 
 

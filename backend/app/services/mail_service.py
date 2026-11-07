@@ -10,6 +10,7 @@ from app.generated.sip.notifications.mail_pb2_grpc import MailServiceStub
 from app.mail_templates.renderer import header_safe
 
 logger = logging.getLogger(__name__)
+SEND_TIMEOUT_SECONDS = 60
 
 SENDER_FIELD_NAME_IS_A_PYTHON_KEYWORD = "from"
 SENDER_NAME = "VISIT MAIL SERVICE"
@@ -35,7 +36,7 @@ class MailService:
     async def send_mail(self, request: mail_pb.Mail) -> None:
         try:
             logger.info("MailService sending mail via gRPC")
-            await cast(Any, self.mail).SendMail(request)
+            await cast(Any, self.mail).SendMail(request, timeout=SEND_TIMEOUT_SECONDS)
             logger.info("MailService gRPC send completed")
         except grpc.RpcError as e:
             # Do not propagate remote error details that might echo credentials.

@@ -1,11 +1,3 @@
-"""company profile
-
-Revision ID: 0027
-Revises: 0026
-Create Date: 2026-06-18 09:00:00.000000
-
-"""
-
 from typing import Sequence, Union
 
 import sqlalchemy as sa

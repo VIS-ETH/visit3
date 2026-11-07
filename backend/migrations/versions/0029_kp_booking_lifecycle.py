@@ -1,11 +1,3 @@
-"""KP booking rejection status and lifecycle timestamps
-
-Revision ID: 0029
-Revises: 0028
-Create Date: 2026-09-22 00:00:00.000000
-
-"""
-
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -67,8 +59,6 @@ def _swap_booking_status_enum(target: postgresql.ENUM) -> None:
 
 
 def _drop_active_booking_indexes() -> None:
-    # The index predicates reference the status enum, so they have to be gone
-    # before the column type changes.
     op.drop_index(BOOKING_ZONE_IX, table_name=BOOKING_TABLE)
     op.drop_index(BOOTH_NR_IX, table_name=BOOKING_TABLE)
 

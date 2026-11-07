@@ -27,6 +27,7 @@ class SwitchWorld:
     booking_id: str
     company_headers: dict[str, str]
     staff_headers: dict[str, str]
+    president_headers: dict[str, str]
 
 
 @pytest.fixture
@@ -43,7 +44,7 @@ async def other_company_headers(
 
 async def create_zone(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     event_id: str,
     *,
     name: str,
@@ -53,7 +54,7 @@ async def create_zone(
     response = await client.post(
         f"/api/kp/events/{event_id}/booth-zones",
         json={"name": name, "color": color, "capacity": capacity},
-        headers=staff_headers,
+        headers=president_headers,
     )
     return response.json()["id"]
 
@@ -75,14 +76,15 @@ async def switch_world(
     kp_setup: KpSetup,
     company_headers: dict[str, str],
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     register_booking: Callable[..., Awaitable[Response]],
 ) -> SwitchWorld:
     booking = (await register_booking(company_headers, kp_setup)).json()
     target_zone_id = await create_zone(
-        client, staff_headers, kp_setup.event_id, name="Gold", color="#AABBCC"
+        client, president_headers, kp_setup.event_id, name="Gold", color="#AABBCC"
     )
     spare_zone_id = await create_zone(
-        client, staff_headers, kp_setup.event_id, name="Silver", color="#CCBBAA"
+        client, president_headers, kp_setup.event_id, name="Silver", color="#CCBBAA"
     )
     db_session.add(
         KpEventBoothZoneServiceLink(
@@ -101,6 +103,7 @@ async def switch_world(
         booking_id=booking["id"],
         company_headers=company_headers,
         staff_headers=staff_headers,
+        president_headers=president_headers,
     )
 
 
@@ -235,11 +238,11 @@ async def test_switching_into_a_zone_of_another_event_is_refused(
     other_event = await client.post(
         "/api/kp/create",
         json=kp_payload("Other Kontaktparty"),
-        headers=switch_world.staff_headers,
+        headers=switch_world.president_headers,
     )
     foreign_zone_id = await create_zone(
         client,
-        switch_world.staff_headers,
+        switch_world.president_headers,
         other_event.json()["id"],
         name="Foreign hall",
         color="#123456",
@@ -269,7 +272,7 @@ async def test_switching_into_a_zone_without_inclusions_respects_the_service_sto
     await client.patch(
         f"/api/kp/services/{kp_setup.service_id}",
         json={"max_total_quantity": 1},
-        headers=switch_world.staff_headers,
+        headers=switch_world.president_headers,
     )
 
     response = await switch_zone(client, switch_world, switch_world.spare_zone_id)

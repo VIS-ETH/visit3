@@ -1,11 +1,8 @@
 {
   "common": {
     "or": "or",
-    "yes": "Yes",
-    "no": "No",
     "ok": "OK",
-    "cancel": "Cancel",
-    "currency": "CHF"
+    "cancel": "Cancel"
   },
   "uploads": {
     "unavailable_title": "Uploads are not available yet",
@@ -96,7 +93,7 @@
     "storage_download_failed": "The file download failed.",
     "storage_file_too_large": "The uploaded file is too large.",
     "storage_file_invalid_mime_type": "The uploaded file type is not allowed.",
-    "event_banner_too_small": "The banner must be at least 800 pixels wide.",
+    "event_banner_too_small": "The banner must be at least 800 pixels wide and 100 pixels high.",
     "storage_image_too_large": "The image is too large. Use at most 8000 pixels per side and 40 megapixels.",
     "kp_registration_closed": "Registration for this event is currently closed.",
     "kp_zone_registration_closed": "Registration for this booth zone is currently closed.",
@@ -134,7 +131,8 @@
     "retry": "Try again",
     "identity_provider_unavailable": "The VIS login service cannot be reached right now. Please try again in a few minutes.",
     "kp_service_relation_invalid": "This service cannot contain or exclude the chosen services.",
-    "kp_services_excluded": "Some of the chosen services cannot be booked together."
+    "kp_services_excluded": "Some of the chosen services cannot be booked together.",
+    "load_failed": "This could not be loaded. Please try again."
   },
   "validation": {
     "required": "This field is required.",
@@ -177,14 +175,12 @@
     }
   },
   "password": {
-    "wrong": "Wrong password or email",
     "min": "Password must be at least 8 characters long"
   },
   "company": {
     "login": "Company login"
   },
   "system-theme-follow": "Follow system theme",
-  "language-change": "Change language",
   "not_allowed": {
     "title": "Access denied",
     "description": "You do not have permission to access this page."
@@ -205,7 +201,6 @@
   "nav": {
     "company_portal_of": "Company portal of",
     "vis_short": "VIS",
-    "navigation": "Navigation",
     "home": "Home",
     "profile": "Profile",
     "company": "Company",

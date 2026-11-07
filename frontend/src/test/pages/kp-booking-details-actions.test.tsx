@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { Route, Routes } from "react-router";
 import KpBookingDetails from "../../pages/KpBookingDetails";
 import {
@@ -15,6 +15,9 @@ import { notificationsShow } from "../notifications";
 import { testEventId } from "../fixtures/kp-booking";
 import { emptyVenueHandler } from "../fixtures/venue";
 import { acmeBooking, acmeBookingId } from "../fixtures/staff-bookings";
+import { SLOW_TEST_TIMEOUT, SLOW_WAIT } from "../timeouts";
+
+vi.setConfig({ testTimeout: SLOW_TEST_TIMEOUT });
 
 const detailsPath = "/kp/:id/bookings/:bookingId";
 const detailsRoute = `/kp/${testEventId}/bookings/${acmeBookingId}`;
@@ -53,9 +56,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   server.use(
     emptyVenueHandler,
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(
       `${testBackendUrl}/api/kp/staff/events/:eventId/bookings/:bookingId/requirement-files`,
       () => HttpResponse.json({ files: {} }),
@@ -379,5 +379,140 @@ describe("services added after the confirmation", () => {
         name: "kp.manage.booking_additions_acknowledge",
       }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("the staff booking details while it reloads", () => {
+  it("keeps confirm disabled until the accepted booking reloaded", async () => {
+    let accepts = 0;
+    server.use(
+      http.get(
+        `${testBackendUrl}/api/kp/events/:eventId/bookings/:bookingId`,
+        async () => {
+          detailRequests.count += 1;
+          if (detailRequests.count > 1) await delay(1500);
+          return HttpResponse.json(acmeBooking);
+        },
+      ),
+      http.post(`${testBackendUrl}/api/kp/bookings/:bookingId/accept`, () => {
+        accepts += 1;
+        return HttpResponse.json(acmeBooking);
+      }),
+    );
+    const { user } = renderDetails();
+    await user.click(
+      await screen.findByRole(
+        "button",
+        { name: "kp.manage.booking_action_accept" },
+        SLOW_WAIT,
+      ),
+    );
+    const submit = await screen.findByRole("button", {
+      name: "kp.manage.booking_accept_submit",
+    });
+    await user.click(submit);
+    await waitFor(() => expect(detailRequests.count).toBe(2));
+
+    expect(submit).toBeDisabled();
+    await waitFor(
+      () =>
+        expect(
+          screen.queryByRole("button", {
+            name: "kp.manage.booking_accept_submit",
+          }),
+        ).toBeNull(),
+      SLOW_WAIT,
+    );
+    expect(accepts).toBe(1);
+  });
+});
+
+describe("requirement downloads of a staff booking", () => {
+  const rejections: unknown[] = [];
+  const onRejection = (reason: unknown) => {
+    rejections.push(reason);
+  };
+
+  beforeEach(() => {
+    rejections.length = 0;
+    process.on("unhandledRejection", onRejection);
+  });
+
+  afterEach(() => {
+    process.off("unhandledRejection", onRejection);
+  });
+
+  it("handles a failed download without an unhandled rejection", async () => {
+    const service = {
+      id: "svc-1",
+      event_id: testEventId,
+      name: "Booth package",
+      description: "",
+      confirmation_description: null,
+      order: 1,
+      price: 100,
+      max_quantity_per_booking: 1,
+      max_total_quantity: 0,
+      category: "SERVICE",
+      unit_label: null,
+      is_active: true,
+      requirements: [
+        {
+          id: "req-1",
+          service_id: "svc-1",
+          type: "pdf",
+          name: "Brochure",
+          description: "A brochure for the booth",
+          order: 1,
+        },
+      ],
+    };
+    serveBooking({
+      ...acmeBooking,
+      services: [
+        {
+          ...(acmeBooking.services?.[0] ?? {}),
+          id: "bs-1",
+          quantity: 1,
+          service,
+        },
+      ],
+    } as StaffBookingResponse);
+    server.use(
+      http.get(
+        `${testBackendUrl}/api/kp/staff/events/:eventId/bookings/:bookingId/requirement-files`,
+        () =>
+          HttpResponse.json({
+            files: {
+              "req-1": {
+                id: "f-1",
+                booking_service_id: "bs-1",
+                requirement_id: "req-1",
+                stored_file: {
+                  id: "s-1",
+                  original_filename: "brochure.pdf",
+                  mime_type: "application/pdf",
+                  size_bytes: 8,
+                  sha256: "x",
+                },
+              },
+            },
+          }),
+      ),
+      http.get(`${testBackendUrl}/api/kp/staff/*`, () =>
+        HttpResponse.json({ statusCode: 500 }, { status: 500 }),
+      ),
+    );
+    const { user } = renderDetails();
+    const download = await screen.findByRole(
+      "button",
+      { name: "kp.manage.booking_requirement_download" },
+      SLOW_WAIT,
+    );
+    await user.click(download);
+
+    await waitFor(() => expect(download).toBeEnabled());
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(rejections).toHaveLength(0);
   });
 });

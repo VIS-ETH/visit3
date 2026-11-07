@@ -1,6 +1,6 @@
 import logging
-from datetime import datetime, timezone
 
+from app.core.dates import as_utc, utc_now
 from app.core.exceptions import (
     CompanyNotFound,
     InviteEmailMismatch,
@@ -24,7 +24,7 @@ class InviteService:
         invite = await self.company_repository.get_invite_by_token(token)
         if not invite or invite.is_used:
             raise InviteNotFound(f"{action}:{token}")
-        if invite.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        if as_utc(invite.expires_at) < utc_now():
             raise InviteExpired(f"{action}:{token}")
         return invite
 

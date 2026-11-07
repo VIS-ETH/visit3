@@ -11,7 +11,7 @@ from sqlalchemy.sql.selectable import Select
 from sqlmodel import col, or_, select
 
 from app.models.company import Company
-from app.models.kp_event import KpEventBooking, KpEventBookingService
+from app.models.kp_event import KpEvent, KpEventBooking, KpEventBookingService
 from app.models.user import User
 from app.repositories.base import BaseRepository, rel
 
@@ -74,7 +74,7 @@ class ChangeRepository(BaseRepository[User]):
 
     async def bookings(
         self, since: datetime, limit: int, *, new: bool
-    ) -> tuple[Sequence[KpEventBooking], int]:
+    ) -> tuple[Sequence[KpEventBooking], int, Sequence[KpEvent]]:
         condition = (
             col(KpEventBooking.created_at) > since
             if new
@@ -97,14 +97,23 @@ class ChangeRepository(BaseRepository[User]):
             .order_by(order.desc())
             .limit(limit)
         )
-        return result.scalars().all(), await self._count(statement)
+        events = await self.session.execute(
+            select(KpEvent)
+            .where(
+                col(KpEvent.id).in_(
+                    statement.with_only_columns(col(KpEventBooking.event_id))
+                )
+            )
+            .order_by(col(KpEvent.event_date).desc())
+        )
+        return (
+            result.scalars().all(),
+            await self._count(statement),
+            events.scalars().all(),
+        )
 
     async def mark_changes_seen(self, user_id: UUID, seen_at: datetime) -> None:
-        try:
+        async with self.committing():
             await self.update_where(
                 User, col(User.id) == user_id, changes_seen_at=seen_at
             )
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e

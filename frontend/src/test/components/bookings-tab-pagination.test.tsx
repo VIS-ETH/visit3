@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import BookingsTab from "../../components/BookingsTab";
+import BookingsTab from "../../components/kp-manage/BookingsTab";
 import type { StaffBookingResponse } from "../../orval/generated/fastAPI.schemas";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
@@ -33,9 +33,6 @@ const companyOrder = () =>
 beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId/bookings`, () =>
       HttpResponse.json(manyBookings),
     ),

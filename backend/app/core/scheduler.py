@@ -21,16 +21,17 @@ class Scheduler:
     async def stop(self) -> None:
         for task in self._running:
             task.cancel()
+        await asyncio.gather(*self._running, return_exceptions=True)
         self._running.clear()
 
     async def _loop(
         self, func: Callable[[], Coroutine[Any, Any, None]], interval: int
     ) -> None:
         while True:
-            await asyncio.sleep(interval)
             try:
                 await func()
             except Exception:
                 logger.exception(
                     f"Scheduled task {getattr(func, '__name__', repr(func))} failed"
                 )
+            await asyncio.sleep(interval)

@@ -29,9 +29,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   server.use(
     emptyVenueHandler,
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId`, () =>
       HttpResponse.json(testEvent),
     ),
@@ -114,20 +111,22 @@ describe("requirement file load errors", () => {
       { route: `/kp/${testEventId}/bookings/${testBookingId}` },
     );
 
-    const alert = await screen.findByRole("alert", {}, { timeout: 5000 });
+    const retry = await screen.findByRole(
+      "button",
+      { name: "kp.manage.booking_requirement_retry" },
+      { timeout: 5000 },
+    );
+    const alert = retry.closest<HTMLElement>('[role="alert"]');
+    expect(alert).not.toBeNull();
     expect(
-      within(alert).getByText("kp.manage.booking_requirement_load_error"),
+      within(alert!).getByText("kp.manage.booking_requirement_load_error"),
     ).toBeInTheDocument();
     expect(
       screen.queryByText("kp.manage.booking_requirement_missing_badge"),
     ).not.toBeInTheDocument();
 
     const requestsBeforeRetry = staffRequirementFileRequests;
-    await user.click(
-      screen.getByRole("button", {
-        name: "kp.manage.booking_requirement_retry",
-      }),
-    );
+    await user.click(retry);
 
     await waitFor(() => {
       expect(staffRequirementFileRequests).toBeGreaterThan(requestsBeforeRetry);

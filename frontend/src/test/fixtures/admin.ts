@@ -2,29 +2,10 @@ import type {
   CompanyListResult,
   IndustryResponse,
   StaffUserResponse,
-  UserResponse,
 } from "../../orval/generated/fastAPI.schemas";
+import { adminUser, staffUser } from "./users";
 
-export const adminUser: UserResponse = {
-  id: "11111111-1111-1111-1111-111111111111",
-  email: "admin@example.test",
-  first_name: "Ada",
-  last_name: "Admin",
-  is_staff: true,
-  is_admin: true,
-  is_company: false,
-  is_kp_president: false,
-  email_confirmed: true,
-};
-
-export const staffUser: UserResponse = {
-  ...adminUser,
-  id: "22222222-2222-2222-2222-222222222222",
-  email: "staff@example.test",
-  first_name: "Stan",
-  last_name: "Staff",
-  is_admin: false,
-};
+export { adminUser, staffUser };
 
 export const memberUser: StaffUserResponse = {
   id: "33333333-3333-3333-3333-333333333333",

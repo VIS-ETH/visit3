@@ -1,4 +1,5 @@
 import re
+from collections import Counter
 from dataclasses import dataclass, field, replace
 from html import escape
 from html.parser import HTMLParser
@@ -112,19 +113,18 @@ class _RichTextParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.entries: list[Entry] = []
         self.current: Paragraph = []
-        self.open_marks: list[str] = []
+        self.open_marks: Counter[str] = Counter()
         self.hidden_depth = 0
         self.lists: list[bool] = []
         self.items: list[_OpenItem] = []
         self.paragraph_starts: list[int] = []
 
     def _marks(self) -> Marks:
-        active = set(self.open_marks)
         return Marks(
-            bold="bold" in active,
-            italic="italic" in active,
-            underline="underline" in active,
-            strike="strike" in active,
+            bold=self.open_marks["bold"] > 0,
+            italic=self.open_marks["italic"] > 0,
+            underline=self.open_marks["underline"] > 0,
+            strike=self.open_marks["strike"] > 0,
         )
 
     def _open_item(self) -> _OpenItem | None:
@@ -154,7 +154,7 @@ class _RichTextParser(HTMLParser):
         if tag in HIDDEN_TAGS:
             self.hidden_depth += 1
         elif tag in MARK_TAGS:
-            self.open_marks.append(MARK_TAGS[tag])
+            self.open_marks[MARK_TAGS[tag]] += 1
         elif tag == "br":
             self.current.append(LINE_BREAK)
         elif tag in LIST_TAGS:
@@ -169,17 +169,16 @@ class _RichTextParser(HTMLParser):
                 self.paragraph_starts.append(len(self.entries))
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag == "br":
-            self.current.append(LINE_BREAK)
+        if tag == "br" or tag in HIDDEN_TAGS:
+            self.handle_starttag(tag, attrs)
 
     def handle_endtag(self, tag: str) -> None:
         if tag in HIDDEN_TAGS:
             self.hidden_depth = max(self.hidden_depth - 1, 0)
         elif tag in MARK_TAGS:
             mark = MARK_TAGS[tag]
-            if mark in self.open_marks:
-                index = len(self.open_marks) - 1 - self.open_marks[::-1].index(mark)
-                del self.open_marks[index]
+            if self.open_marks[mark] > 0:
+                self.open_marks[mark] -= 1
         elif tag in LIST_TAGS:
             self._flush()
             if self.lists:
@@ -307,6 +306,7 @@ def _group(entries: list[Entry]) -> list[Block]:
 
 
 def _entries(value: str) -> list[Entry]:
+    value = value.lstrip("\ufeff")
     if not _is_markup(value):
         return _plain_entries(value)
     parser = _RichTextParser()

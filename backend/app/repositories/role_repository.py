@@ -16,13 +16,8 @@ class RoleRepository(BaseRepository[Role]):
         return await self.create_role(name)
 
     async def create_role(self, name: str):
-        role = Role(name=name)
-        self.session.add(role)
-
-        try:
-            await self.session.commit()
-            await self.session.refresh(role)
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        async with self.committing():
+            role = Role(name=name)
+            self.session.add(role)
+        await self.session.refresh(role)
         return role

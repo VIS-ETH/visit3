@@ -2,7 +2,7 @@ import asyncio
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Any, Literal
 
 import httpx
@@ -10,6 +10,7 @@ import jwt
 from pwdlib import PasswordHash
 
 from app.core.config import get_settings
+from app.core.dates import utc_now
 from app.core.exceptions import (
     AppError,
     EmailTakenLocally,
@@ -160,7 +161,7 @@ class AuthService:
             "sub": str(user.id),
             "email": user.email,
         }
-        expire = datetime.now(timezone.utc) + ACCESS_TOKEN_EXPIRE
+        expire = utc_now() + ACCESS_TOKEN_EXPIRE
         to_encode.update({"exp": expire})
         return jwt.encode(to_encode, get_settings().SECRET_KEY, algorithm="HS256")
 
@@ -225,7 +226,6 @@ class AuthService:
     async def send_confirm_email(self, user: User) -> None:
         if user.email_confirmed:
             return
-        await self.token_repository.revoke_confirm_email_tokens(user.id)
         token = await self.create_confirm_email_token(user)
         await self.mail_template_service.send(
             MailTemplateKey.ACCOUNT_CONFIRM_EMAIL,
@@ -235,6 +235,7 @@ class AuthService:
                 confirm_url=frontend_url(f"/confirm-email/{token}"),
             ),
         )
+        await self.token_repository.revoke_confirm_email_tokens(user.id, keep=token)
 
     async def register_user(self, user: User, invite_token: str | None = None) -> None:
         if not user.password:
@@ -278,7 +279,6 @@ class AuthService:
         try:
             await self.send_confirm_email(result)
         except Exception as e:
-            # Undo the registration so the email address can be used again.
             logger.error(
                 "User registration failed for %s: %s", result.id, e.__class__.__name__
             )
@@ -329,14 +329,27 @@ class AuthService:
         if user.sub is not None and not token.is_revoked:
             user, idp_refresh_token = await self._revalidate_sso_session(user, token)
 
-        if not token.is_revoked:
-            await self.token_repository.rotate_refresh_token(user.id, refresh_token)
+        if (
+            not token.is_revoked
+            and not await self.token_repository.rotate_refresh_token(refresh_token)
+        ):
+            if (
+                await self.token_repository.get_refresh_token_for_rotation(
+                    refresh_token
+                )
+                is None
+            ):
+                raise TokenInvalid("refresh:revoked")
 
-        access_token = await self.create_access_token(user)
         next_refresh_token = await self.token_repository.create_refresh_token(
             user.id, family_id=token.family_id, idp_refresh_token=idp_refresh_token
         )
-        return access_token, next_refresh_token
+        if not await self.token_repository.is_rotated(refresh_token):
+            await self.token_repository.revoke_refresh_token(
+                user.id, next_refresh_token
+            )
+            raise TokenInvalid("refresh:revoked")
+        return await self.create_access_token(user), next_refresh_token
 
     async def _revoke_reused_family(self, refresh_token: str) -> None:
         stale = await self.token_repository.find_refresh_token(refresh_token)
@@ -406,7 +419,6 @@ class AuthService:
             logger.warning("Password reset requested for OAuth-only user: %s", user.id)
             return
 
-        await self.token_repository.revoke_reset_password_tokens(user.id)
         token = await self.create_reset_password_token(user)
         logger.info("Password reset token created for user: %s", user.id)
         await self.mail_template_service.send(
@@ -416,6 +428,7 @@ class AuthService:
                 name=user.display_name, reset_url=frontend_url(f"/reset/{token}")
             ),
         )
+        await self.token_repository.revoke_reset_password_tokens(user.id, keep=token)
 
     async def reset_password(self, token: str, new_password: str) -> bool:
         if len(new_password) < MIN_PASSWORD_LENGTH:
@@ -429,7 +442,9 @@ class AuthService:
 
         try:
             await self.user_repository.update_password(
-                reset_token.user_id, await self.hash_password(new_password)
+                reset_token.user_id,
+                await self.hash_password(new_password),
+                confirm_email=True,
             )
             await self.token_repository.revoke_all_refresh_tokens(reset_token.user_id)
             await self.token_repository.revoke_reset_password_tokens(
@@ -503,6 +518,9 @@ class AuthService:
     async def _apply_pending_invite(self, user: User) -> None:
         token = user.pending_invite_token
         if token is None:
+            return
+        if user.company_id is not None:
+            await self.user_repository.clear_pending_invite(user)
             return
         try:
             await self.invite_service.join_company(user, token, "confirm_email")

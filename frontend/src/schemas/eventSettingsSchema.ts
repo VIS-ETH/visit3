@@ -1,6 +1,12 @@
 import { z } from "zod";
-import { isOptionalEmail, isOptionalHttpUrl } from "../utils/optional-inputs";
+import type {
+  KpResponse,
+  KpStaffResponse,
+} from "../orval/generated/fastAPI.schemas";
+import { formatKpIsoDateInput } from "../utils/kp-utils";
+import { isOptionalHttpUrl } from "../utils/optional-inputs";
 import { kpSchema, toKpRequest } from "./kpSchema";
+import { zEmail } from "./utils";
 
 const DEFAULT_VAT_RATE_PERCENT = 8.1;
 const DEFAULT_FINALIZATION_REMINDER_DAYS = 3;
@@ -22,10 +28,9 @@ export const eventSettingsSchema = z.object({
     .string()
     .trim()
     .refine(isOptionalHttpUrl, "validation.invalid_url"),
-  notificationEmail: z
-    .string()
-    .trim()
-    .refine(isOptionalEmail, "validation.invalid_email"),
+  notificationEmail: z.union([z.string().trim().max(0), zEmail()], {
+    error: "validation.invalid_email",
+  }),
   finalizationReminderDays: z
     .number()
     .int("event_settings.reminder_days_invalid")
@@ -51,6 +56,32 @@ export const emptyEventSettingsValues: EventSettingsFormValues = {
   notificationEmail: "",
   finalizationReminderDays: DEFAULT_FINALIZATION_REMINDER_DAYS,
 };
+
+export const emptyKpFormValues: KpWithSettingsFormValues = {
+  name: "",
+  registrationOpen: "",
+  registrationEnd: "",
+  finalizationDeadline: "",
+  nametagsDeadline: "",
+  eventDate: "",
+  ...emptyEventSettingsValues,
+};
+
+export const kpFormValuesFromEvent = (
+  event: KpResponse,
+  settings?: Pick<KpStaffResponse, "notification_email">,
+): KpWithSettingsFormValues => ({
+  name: event.name,
+  registrationOpen: formatKpIsoDateInput(event.registration_open),
+  registrationEnd: formatKpIsoDateInput(event.registration_end),
+  finalizationDeadline: formatKpIsoDateInput(event.finalization_deadline),
+  nametagsDeadline: formatKpIsoDateInput(event.nametags_deadline),
+  eventDate: formatKpIsoDateInput(event.event_date),
+  vatRatePercent: event.vat_rate_percent,
+  termsUrl: event.terms_url ?? "",
+  notificationEmail: settings?.notification_email ?? "",
+  finalizationReminderDays: event.finalization_reminder_days,
+});
 
 export function toKpWithSettingsRequest(values: KpWithSettingsFormValues) {
   return {

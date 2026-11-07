@@ -12,7 +12,7 @@ import { renderWithProviders } from "../render";
 import {
   testBooking,
   testBookingId,
-  testEvent,
+  testOpenEvent,
   testEventId,
 } from "../fixtures/kp-booking";
 
@@ -30,11 +30,8 @@ beforeEach(() => {
   });
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId`, () =>
-      HttpResponse.json(testEvent),
+      HttpResponse.json(testOpenEvent),
     ),
     http.get(
       `${testBackendUrl}/api/kp/events/:eventId/my-booking`,

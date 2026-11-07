@@ -134,9 +134,10 @@ async def list_users(
     page_size: int = Query(default=25, ge=1, le=MAX_PAGE_SIZE),
     sort: UserSort | None = None,
     direction: SortDirection = SortDirection.ASC,
+    company: UUID | None = None,
 ) -> UserPageResult:
     return await user_service.list_users(
-        query, filter, page, page_size, sort, direction
+        query, filter, page, page_size, sort, direction, company
     )
 
 

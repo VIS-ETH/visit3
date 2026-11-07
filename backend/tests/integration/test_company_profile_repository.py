@@ -140,7 +140,7 @@ async def test_profile_logo_is_not_cleaned_up_as_an_orphan(
     profile = await company_repository.upsert_kp_profile(
         company.id, complete_profile_input()
     )
-    logo = await company_repository.upsert_stored_file(
+    logo = await company_repository.create_stored_file(
         storage_key="company-logo.png",
         original_filename="logo.png",
         mime_type="image/png",
@@ -148,7 +148,7 @@ async def test_profile_logo_is_not_cleaned_up_as_an_orphan(
         sha256="a" * 64,
         etag=None,
     )
-    orphan = await company_repository.upsert_stored_file(
+    orphan = await company_repository.create_stored_file(
         storage_key="orphan.png",
         original_filename="orphan.png",
         mime_type="image/png",

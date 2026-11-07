@@ -8,6 +8,8 @@ from app.models.user import User
 from app.services.auth_service import AuthService
 from tests.api.conftest import decoded_subject
 
+CONFIRM_BODY = {"name": "Pending AG"}
+
 
 def sent_message(mail_stub: AsyncMock) -> object:
     mail_stub.SendMail.assert_awaited_once()
@@ -34,7 +36,7 @@ async def pending_company_user(
 ) -> User:
     return await create_user(
         email="pending@example.com",
-        company_name="Pending AG",
+        company_name=CONFIRM_BODY["name"],
         company_confirmed=False,
     )
 
@@ -171,6 +173,7 @@ async def test_staff_confirmation_sends_the_company_confirmed_mail(
 ):
     response = await client.post(
         f"/api/companies/{pending_company_user.company_id}/confirm",
+        json=CONFIRM_BODY,
         headers=staff_headers,
     )
 
@@ -190,8 +193,8 @@ async def test_confirming_a_company_twice_sends_the_mail_once(
 ):
     confirm_url = f"/api/companies/{pending_company_user.company_id}/confirm"
 
-    await client.post(confirm_url, headers=staff_headers)
-    await client.post(confirm_url, headers=staff_headers)
+    await client.post(confirm_url, json=CONFIRM_BODY, headers=staff_headers)
+    await client.post(confirm_url, json=CONFIRM_BODY, headers=staff_headers)
 
     mail_stub.SendMail.assert_awaited_once()
 
@@ -207,6 +210,7 @@ async def test_a_failed_company_confirmed_mail_keeps_the_confirmation(
 
     response = await client.post(
         f"/api/companies/{pending_company_user.company_id}/confirm",
+        json=CONFIRM_BODY,
         headers=staff_headers,
     )
 

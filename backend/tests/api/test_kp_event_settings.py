@@ -21,10 +21,11 @@ def settings_payload(name: str, **overrides: Any) -> dict[str, Any]:
 
 
 async def test_event_without_settings_uses_the_standard_vat_rate(
-    client: AsyncClient, staff_headers: dict[str, str]
+    client: AsyncClient,
+    president_headers: dict[str, str],
 ):
     response = await client.post(
-        "/api/kp/create", json=kp_payload("Defaults"), headers=staff_headers
+        "/api/kp/create", json=kp_payload("Defaults"), headers=president_headers
     )
 
     assert response.status_code == 200
@@ -35,16 +36,17 @@ async def test_event_without_settings_uses_the_standard_vat_rate(
     assert body["finalization_reminder_days"] == 3
 
 
-async def test_staff_settings_endpoint_returns_the_stored_settings(
-    client: AsyncClient, staff_headers: dict[str, str]
+async def test_the_settings_endpoint_returns_the_stored_settings(
+    client: AsyncClient,
+    president_headers: dict[str, str],
 ):
     created = await client.post(
-        "/api/kp/create", json=settings_payload("Settings"), headers=staff_headers
+        "/api/kp/create", json=settings_payload("Settings"), headers=president_headers
     )
     event_id = created.json()["id"]
 
     response = await client.get(
-        f"/api/kp/events/{event_id}/settings", headers=staff_headers
+        f"/api/kp/events/{event_id}/settings", headers=president_headers
     )
 
     assert response.status_code == 200
@@ -59,11 +61,11 @@ async def test_staff_settings_endpoint_returns_the_stored_settings(
 
 async def test_company_visible_event_hides_the_notification_email(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
 ):
     created = await client.post(
-        "/api/kp/create", json=settings_payload("Public"), headers=staff_headers
+        "/api/kp/create", json=settings_payload("Public"), headers=president_headers
     )
     event_id = created.json()["id"]
 
@@ -77,17 +79,18 @@ async def test_company_visible_event_hides_the_notification_email(
 
 
 async def test_updating_the_vat_rate_and_clearing_the_terms_url(
-    client: AsyncClient, staff_headers: dict[str, str]
+    client: AsyncClient,
+    president_headers: dict[str, str],
 ):
     created = await client.post(
-        "/api/kp/create", json=settings_payload("Updated"), headers=staff_headers
+        "/api/kp/create", json=settings_payload("Updated"), headers=president_headers
     )
     event_id = created.json()["id"]
 
     response = await client.patch(
         f"/api/kp/events/{event_id}",
         json={"vat_rate_percent": 2.6, "terms_url": ""},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 200
@@ -97,16 +100,17 @@ async def test_updating_the_vat_rate_and_clearing_the_terms_url(
 
 
 async def test_cloned_event_keeps_the_settings(
-    client: AsyncClient, staff_headers: dict[str, str]
+    client: AsyncClient,
+    president_headers: dict[str, str],
 ):
     created = await client.post(
-        "/api/kp/create", json=settings_payload("Original"), headers=staff_headers
+        "/api/kp/create", json=settings_payload("Original"), headers=president_headers
     )
 
     response = await client.post(
         f"/api/kp/events/{created.json()['id']}/clone",
         json=settings_payload("Clone"),
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 200
@@ -116,12 +120,12 @@ async def test_cloned_event_keeps_the_settings(
 
 @pytest.mark.parametrize("terms_url", ["not-a-url", "ftp://vis.ethz.ch/agb"])
 async def test_terms_url_must_be_an_http_url(
-    client: AsyncClient, staff_headers: dict[str, str], terms_url: str
+    client: AsyncClient, president_headers: dict[str, str], terms_url: str
 ):
     response = await client.post(
         "/api/kp/create",
         json=settings_payload("Bad terms", terms_url=terms_url),
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 422
@@ -133,12 +137,12 @@ async def test_terms_url_must_be_an_http_url(
 
 @pytest.mark.parametrize("vat_rate_percent", [-1, 100.1])
 async def test_vat_rate_outside_the_allowed_range_is_rejected(
-    client: AsyncClient, staff_headers: dict[str, str], vat_rate_percent: float
+    client: AsyncClient, president_headers: dict[str, str], vat_rate_percent: float
 ):
     response = await client.post(
         "/api/kp/create",
         json=settings_payload("Bad rate", vat_rate_percent=vat_rate_percent),
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 422
@@ -147,12 +151,13 @@ async def test_vat_rate_outside_the_allowed_range_is_rejected(
 
 
 async def test_vat_rate_is_limited_to_one_decimal(
-    client: AsyncClient, staff_headers: dict[str, str]
+    client: AsyncClient,
+    president_headers: dict[str, str],
 ):
     response = await client.post(
         "/api/kp/create",
         json=settings_payload("Too precise", vat_rate_percent=8.15),
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 422
@@ -160,12 +165,13 @@ async def test_vat_rate_is_limited_to_one_decimal(
 
 
 async def test_notification_email_must_be_an_email_address(
-    client: AsyncClient, staff_headers: dict[str, str]
+    client: AsyncClient,
+    president_headers: dict[str, str],
 ):
     response = await client.post(
         "/api/kp/create",
         json=settings_payload("Bad mail", notification_email="not-an-email"),
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 422

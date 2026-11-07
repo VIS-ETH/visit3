@@ -6,6 +6,8 @@ import { server } from "./server";
 import { testBackendUrl } from "./constants";
 import { createToken } from "./jwt";
 import { renderWithProviders } from "./render";
+import { isImpersonating, setImpersonation } from "../api/utils";
+import { stubLocation } from "./location";
 
 let meRequests = 0;
 
@@ -13,9 +15,6 @@ beforeEach(() => {
   meRequests = 0;
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.post(`${testBackendUrl}/api/auth/refresh`, () =>
       HttpResponse.json({ access_token: createToken(3600) }),
     ),
@@ -50,5 +49,32 @@ describe("App with a failing current user request", () => {
     await waitFor(() => {
       expect(meRequests).toBeGreaterThan(requestsBeforeRetry);
     });
+  });
+});
+
+describe("App with a refused impersonation", () => {
+  it("offers to stop impersonating", async () => {
+    setImpersonation("admin-2", "Other Admin", "/user-management");
+    server.use(
+      http.get(`${testBackendUrl}/api/user/me`, () =>
+        HttpResponse.json(
+          { statusCode: 403, code: "error.not_allowed" },
+          { status: 403 },
+        ),
+      ),
+    );
+    const location = stubLocation("/");
+    const { user } = renderWithProviders(<App />);
+
+    await user.click(
+      await screen.findByRole(
+        "button",
+        { name: "impersonation.stop" },
+        { timeout: 5000 },
+      ),
+    );
+
+    expect(isImpersonating()).toBe(false);
+    location.restore();
   });
 });

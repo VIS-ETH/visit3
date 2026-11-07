@@ -5,13 +5,8 @@ import { useTranslation } from "react-i18next";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import { readSessionBool, setSessionBool } from "../utils/session-storage";
-import {
-  clearImpersonation,
-  getImpersonatingDisplayName,
-  getImpersonationOrigin,
-  isImpersonating,
-} from "../api/utils";
-import { getSafeInternalPath, reloadAt } from "../utils/navigation";
+import { getImpersonatingDisplayName, isImpersonating } from "../api/utils";
+import { stopImpersonating } from "../components/admin/useImpersonate";
 
 interface RootLayoutProps {
   navbarHidden: boolean;
@@ -50,12 +45,6 @@ const RootLayout = ({ navbarHidden }: RootLayoutProps) => {
     return () => window.removeEventListener("impersonation-changed", handler);
   }, []);
 
-  const handleStopImpersonating = () => {
-    const origin = getSafeInternalPath(getImpersonationOrigin()) ?? "/";
-    clearImpersonation();
-    reloadAt(origin);
-  };
-
   return (
     <AppShell
       className="app-shell"
@@ -87,7 +76,7 @@ const RootLayout = ({ navbarHidden }: RootLayoutProps) => {
             mb="md"
             title={t("impersonation.banner_title", { name: displayName })}
           >
-            <Button size="xs" color="yellow" onClick={handleStopImpersonating}>
+            <Button size="xs" color="yellow" onClick={stopImpersonating}>
               {t("impersonation.stop")}
             </Button>
           </Alert>

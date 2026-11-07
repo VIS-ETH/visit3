@@ -1,4 +1,12 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import i18n from "i18next";
@@ -13,6 +21,7 @@ import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
+import { SLOW_TEST_TIMEOUT, SLOW_WAIT } from "../timeouts";
 import {
   testCampaignAudience,
   testCampaignCompanies,
@@ -25,7 +34,9 @@ import {
 } from "../fixtures/mail-campaign";
 
 const api = (path: string) => `${testBackendUrl}/api${path}`;
-const TIMEOUT = { timeout: 5000 };
+vi.setConfig({ testTimeout: SLOW_TEST_TIMEOUT });
+
+const TIMEOUT = SLOW_WAIT;
 
 let campaigns: MailCampaignResponse[] = [];
 let audienceRequests: MailCampaignAudienceRequest[] = [];
@@ -83,7 +94,6 @@ beforeEach(() => {
   calls = [];
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(api("/csrftoken"), () => HttpResponse.json({ token: "csrf-1" })),
     http.get(api("/kp/list"), () => HttpResponse.json([testCampaignEvent])),
     http.get(api("/kp/events/:eventId/booth-zones"), () =>
       HttpResponse.json([testCampaignZone]),
@@ -413,5 +423,85 @@ describe("the mail campaigns page", () => {
         "POST /mail-campaigns/campaign-2/retry",
       ]);
     }, TIMEOUT);
+  });
+
+  it("drops the zone and service filters of the old event when the event changes", async () => {
+    const otherEvent = {
+      ...testCampaignEvent,
+      id: "event-2",
+      name: "Kontaktparty 2031",
+    };
+    campaigns = [
+      {
+        ...testDraftCampaign,
+        audience: {
+          ...testDraftCampaign.audience,
+          service_ids: [testCampaignServices[0].id],
+          service_categories: ["SERVICE"],
+          booth_zone_ids: [testCampaignZone.id],
+        },
+      },
+    ];
+    server.use(
+      http.get(api("/kp/list"), () =>
+        HttpResponse.json([testCampaignEvent, otherEvent]),
+      ),
+    );
+    const { user } = renderPage();
+
+    await user.click(
+      (
+        await screen.findAllByLabelText(
+          enAdmin.mail_campaigns.event,
+          {},
+          TIMEOUT,
+        )
+      )[0],
+    );
+    await user.click(
+      await screen.findByRole("option", { name: otherEvent.name }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: enAdmin.mail_campaigns.save }),
+    );
+
+    await waitFor(() => expect(calls).toHaveLength(1), TIMEOUT);
+    expect(calls[0].body).toMatchObject({
+      event_id: otherEvent.id,
+      audience: {
+        booth_zone_ids: [],
+        service_ids: [],
+        service_categories: ["SERVICE"],
+      },
+    });
+  });
+
+  it("shows an error instead of a spinner when the events fail to load", async () => {
+    campaigns = [testDraftCampaign];
+    server.use(
+      http.get(api("/kp/list"), () =>
+        HttpResponse.json({ statusCode: 500 }, { status: 500 }),
+      ),
+    );
+    renderPage();
+
+    expect(await screen.findByRole("alert", {}, TIMEOUT)).toBeInTheDocument();
+    expect(document.querySelector(".mantine-Loader-root")).toBeNull();
+  });
+
+  it("shows an error instead of a spinner when the campaign is gone", async () => {
+    campaigns = [testDraftCampaign];
+    server.use(
+      http.get(api("/mail-campaigns/:id"), () =>
+        HttpResponse.json(
+          { statusCode: 404, code: "error.mail_campaign_not_found" },
+          { status: 404 },
+        ),
+      ),
+    );
+    renderPage();
+
+    expect(await screen.findByRole("alert", {}, TIMEOUT)).toBeInTheDocument();
+    expect(document.querySelector(".mantine-Loader-root")).toBeNull();
   });
 });

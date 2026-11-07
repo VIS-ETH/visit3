@@ -58,7 +58,7 @@ async def test_failed_login_cannot_forge_log_lines(
 @pytest.fixture
 async def text_requirement_url(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     complete_company_profile: Callable[..., Awaitable[Response]],
@@ -76,7 +76,7 @@ async def text_requirement_url(
                 }
             ],
         },
-        headers=staff_headers,
+        headers=president_headers,
     )
     await complete_company_profile(company_headers)
     booking = await client.post(

@@ -1,9 +1,14 @@
 import { useTranslation } from "react-i18next";
-import { useParams, useNavigate } from "react-router";
+import { Navigate, useParams, useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import {
+  getGetCurrentUserQueryKey,
   useConfirmEmail,
   useValidateConfirmEmailToken,
 } from "../orval/generated/user/user";
+import { useCurrentUser } from "../context/useCurrentUser";
+import { useAsyncAction } from "../hooks/use-async-action";
 import {
   Button,
   Center,
@@ -20,6 +25,9 @@ const ConfirmEmail = () => {
   const { token } = useParams();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useCurrentUser();
+  const [isConfirmSuccess, setIsConfirmSuccess] = useState(false);
   const confirmToken = token?.trim() ?? "";
 
   const {
@@ -33,15 +41,20 @@ const ConfirmEmail = () => {
     },
   });
 
-  const {
-    mutate: confirmEmail,
-    isPending: isConfirmPending,
-    isSuccess: isConfirmSuccess,
-  } = useConfirmEmail();
+  const { mutateAsync: confirmEmail } = useConfirmEmail();
+
+  const { run: confirm, isRunning: isConfirmPending } = useAsyncAction(
+    async () => {
+      await confirmEmail({ token: confirmToken });
+      await queryClient.invalidateQueries({
+        queryKey: getGetCurrentUserQueryKey(),
+      });
+      setIsConfirmSuccess(true);
+    },
+  );
 
   if (!confirmToken) {
-    navigate("/login");
-    return;
+    return <Navigate to="/login" replace />;
   }
 
   if (isValidationPending) {
@@ -106,10 +119,10 @@ const ConfirmEmail = () => {
             </Stack>
             <Button
               fullWidth
-              onClick={() => navigate("/login")}
+              onClick={() => navigate(user ? "/" : "/login")}
               leftSection={<IconArrowLeft size={16} />}
             >
-              {t("email.confirm.go_to_login")}
+              {user ? t("nav.home") : t("email.confirm.go_to_login")}
             </Button>
           </Stack>
         </Paper>
@@ -139,10 +152,7 @@ const ConfirmEmail = () => {
             >
               {t("email.confirm.cancel")}
             </Button>
-            <Button
-              onClick={() => confirmEmail({ token: confirmToken })}
-              loading={isConfirmPending}
-            >
+            <Button onClick={() => void confirm()} loading={isConfirmPending}>
               {t("email.confirm.confirm_button")}
             </Button>
           </Group>

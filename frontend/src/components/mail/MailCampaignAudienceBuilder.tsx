@@ -8,7 +8,7 @@ import {
 } from "../../orval/generated/kp/kp";
 import { useListMailCampaignCompanies } from "../../orval/generated/mail-campaigns/mail-campaigns";
 import type { MailCampaignFormValues } from "../../schemas/mailCampaignSchema";
-import ServiceFilterSelect from "../bookings/ServiceFilterSelect";
+import ServiceFilterSelect from "../staff-bookings/ServiceFilterSelect";
 import { MAIL_CAMPAIGN_SEGMENTS } from "../../utils/mail-campaign";
 
 interface MailCampaignAudienceBuilderProps {

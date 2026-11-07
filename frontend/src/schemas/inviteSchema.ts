@@ -1,7 +1,6 @@
 import { z } from "zod";
+import { zEmail } from "./utils";
 
 export const inviteSchema = z.object({
-  email: z.email("email.valid").trim().min(1, "validation.required"),
+  email: zEmail("email.valid"),
 });
-
-export type InviteFormValues = z.infer<typeof inviteSchema>;

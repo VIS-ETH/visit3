@@ -6,7 +6,7 @@ import { server } from "./server";
 import { testBackendUrl, testStaticBase, testVisWebsiteUrl } from "./constants";
 import "./i18n";
 
-vi.mock("../i18", () => import("./i18n"));
+vi.mock("../i18n", () => import("./i18n"));
 
 vi.mock("@mantine/notifications", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@mantine/notifications")>()),

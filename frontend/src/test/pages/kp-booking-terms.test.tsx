@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import KpBookingStepper from "../../pages/KpBookingStepper";
+import KpBookingStepper from "../../components/exhibitor-booking/KpBookingStepper";
 import type {
   BoothZoneWithAvailabilityResponse,
   KpResponse,
@@ -70,9 +70,6 @@ const openSummary = async (user: UserEvent) => {
 beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/${eventId}/my-booking`, () =>
       HttpResponse.json(null),
     ),

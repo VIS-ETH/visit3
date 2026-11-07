@@ -54,9 +54,6 @@ const renderManage = (user: UserResponse) =>
 beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId`, () =>
       HttpResponse.json(testEvent),
     ),
@@ -117,5 +114,28 @@ describe("the KP management tabs", () => {
     for (const tab of [...STAFF_TABS, ...PRESIDENT_TABS]) {
       expect(screen.getByText(tab)).toBeInTheDocument();
     }
+  });
+
+  it("offers cloning only to a president", async () => {
+    renderManage(staffUser);
+
+    expect(
+      await screen.findByText("kp.manage.tab_exports", {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "kp.manage.clone" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the clone button to a president", async () => {
+    renderManage(presidentUser);
+
+    expect(
+      await screen.findByRole(
+        "button",
+        { name: "kp.manage.clone" },
+        { timeout: 5000 },
+      ),
+    ).toBeInTheDocument();
   });
 });

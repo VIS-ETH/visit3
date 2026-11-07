@@ -1,7 +1,5 @@
-from collections.abc import Awaitable, Callable
 from unittest.mock import AsyncMock
 
-import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,19 +20,10 @@ VALID_BODY = {
 }
 
 
-@pytest.fixture
-async def plain_staff_headers(
-    staff_user: User,
-    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
-    csrf_headers: dict[str, str],
-) -> dict[str, str]:
-    return {**await auth_headers(staff_user), **csrf_headers}
-
-
 async def test_listing_covers_every_key_and_defaults_to_code_texts(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient, staff_headers: dict[str, str]
 ):
-    response = await client.get("/api/mail-templates", headers=plain_staff_headers)
+    response = await client.get("/api/mail-templates", headers=staff_headers)
 
     assert response.status_code == 200
     templates = response.json()
@@ -53,11 +42,9 @@ async def test_company_user_cannot_read_templates(
 
 
 async def test_single_template_falls_back_to_the_default(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient, staff_headers: dict[str, str]
 ):
-    response = await client.get(
-        f"/api/mail-templates/{KEY}", headers=plain_staff_headers
-    )
+    response = await client.get(f"/api/mail-templates/{KEY}", headers=staff_headers)
 
     assert response.status_code == 200
     body = response.json()
@@ -70,15 +57,13 @@ async def test_single_template_falls_back_to_the_default(
 
 
 async def test_default_texts_are_exposed_next_to_the_stored_ones(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient, staff_headers: dict[str, str]
 ):
     await client.put(
-        f"/api/mail-templates/{KEY}", json=VALID_BODY, headers=plain_staff_headers
+        f"/api/mail-templates/{KEY}", json=VALID_BODY, headers=staff_headers
     )
 
-    response = await client.get(
-        f"/api/mail-templates/{KEY}", headers=plain_staff_headers
-    )
+    response = await client.get(f"/api/mail-templates/{KEY}", headers=staff_headers)
 
     body = response.json()
     defaults = MAIL_TEMPLATE_DEFAULTS[MailTemplateKey.PASSWORD_RESET]
@@ -90,9 +75,9 @@ async def test_default_texts_are_exposed_next_to_the_stored_ones(
 
 
 async def test_defaults_match_the_texts_while_nothing_is_stored(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient, staff_headers: dict[str, str]
 ):
-    response = await client.get("/api/mail-templates", headers=plain_staff_headers)
+    response = await client.get("/api/mail-templates", headers=staff_headers)
 
     assert all(
         template["default_body_de"] == template["body_de"]
@@ -102,10 +87,10 @@ async def test_defaults_match_the_texts_while_nothing_is_stored(
 
 
 async def test_unknown_key_is_not_found(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient, staff_headers: dict[str, str]
 ):
     response = await client.get(
-        "/api/mail-templates/not_a_template", headers=plain_staff_headers
+        "/api/mail-templates/not_a_template", headers=staff_headers
     )
 
     assert response.status_code == 404
@@ -113,28 +98,28 @@ async def test_unknown_key_is_not_found(
 
 
 async def test_update_stores_the_template_and_marks_it_customized(
-    client: AsyncClient, plain_staff_headers: dict[str, str], staff_user: User
+    client: AsyncClient, staff_headers: dict[str, str], staff_user: User
 ):
     update = await client.put(
-        f"/api/mail-templates/{KEY}", json=VALID_BODY, headers=plain_staff_headers
+        f"/api/mail-templates/{KEY}", json=VALID_BODY, headers=staff_headers
     )
 
     assert update.status_code == 200
     assert update.json()["is_customized"] is True
     assert update.json()["updated_by_user_id"] == str(staff_user.id)
 
-    stored = await client.get(f"/api/mail-templates/{KEY}", headers=plain_staff_headers)
+    stored = await client.get(f"/api/mail-templates/{KEY}", headers=staff_headers)
 
     assert stored.json()["subject_en"] == "Reset password"
 
 
 async def test_update_rejects_unknown_variables(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient, staff_headers: dict[str, str]
 ):
     response = await client.put(
         f"/api/mail-templates/{KEY}",
         json={**VALID_BODY, "body_en": "<p>{{ nickname }}</p>"},
-        headers=plain_staff_headers,
+        headers=staff_headers,
     )
 
     assert response.status_code == 400
@@ -144,12 +129,12 @@ async def test_update_rejects_unknown_variables(
 
 
 async def test_update_rejects_broken_syntax(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient, staff_headers: dict[str, str]
 ):
     response = await client.put(
         f"/api/mail-templates/{KEY}",
         json={**VALID_BODY, "body_de": "<p>{% for %}</p>"},
-        headers=plain_staff_headers,
+        headers=staff_headers,
     )
 
     assert response.status_code == 400
@@ -158,7 +143,7 @@ async def test_update_rejects_broken_syntax(
 
 
 async def test_update_rejects_a_loop_before_saving(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient, staff_headers: dict[str, str]
 ):
     response = await client.put(
         f"/api/mail-templates/{KEY}",
@@ -166,7 +151,7 @@ async def test_update_rejects_a_loop_before_saving(
             **VALID_BODY,
             "body_en": "{% for a in name %}{% for b in name %}{% endfor %}{% endfor %}",
         },
-        headers=plain_staff_headers,
+        headers=staff_headers,
     )
 
     assert response.status_code == 400
@@ -175,24 +160,24 @@ async def test_update_rejects_a_loop_before_saving(
 
 
 async def test_update_rejects_an_oversized_template(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient, staff_headers: dict[str, str]
 ):
     response = await client.put(
         f"/api/mail-templates/{KEY}",
         json={**VALID_BODY, "body_de": "x" * (MAX_TEMPLATE_CHARACTERS + 1)},
-        headers=plain_staff_headers,
+        headers=staff_headers,
     )
 
     assert response.status_code == 422
 
 
 async def test_update_rejects_a_sandbox_violation(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient, staff_headers: dict[str, str]
 ):
     response = await client.put(
         f"/api/mail-templates/{KEY}",
         json={**VALID_BODY, "body_en": "<p>{{ name.__class__ }}</p>"},
-        headers=plain_staff_headers,
+        headers=staff_headers,
     )
 
     assert response.status_code == 400
@@ -211,16 +196,14 @@ async def test_company_user_cannot_update_a_template(
 
 
 async def test_reset_removes_the_stored_template_and_restores_the_default(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient, staff_headers: dict[str, str]
 ):
     await client.put(
-        f"/api/mail-templates/{KEY}", json=VALID_BODY, headers=plain_staff_headers
+        f"/api/mail-templates/{KEY}", json=VALID_BODY, headers=staff_headers
     )
 
-    response = await client.delete(
-        f"/api/mail-templates/{KEY}", headers=plain_staff_headers
-    )
-    stored = await client.get(f"/api/mail-templates/{KEY}", headers=plain_staff_headers)
+    response = await client.delete(f"/api/mail-templates/{KEY}", headers=staff_headers)
+    stored = await client.get(f"/api/mail-templates/{KEY}", headers=staff_headers)
 
     defaults = MAIL_TEMPLATE_DEFAULTS[MailTemplateKey.PASSWORD_RESET]
     assert response.status_code == 200
@@ -231,21 +214,19 @@ async def test_reset_removes_the_stored_template_and_restores_the_default(
 
 
 async def test_reset_can_be_repeated_when_nothing_is_stored(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient, staff_headers: dict[str, str]
 ):
-    response = await client.delete(
-        f"/api/mail-templates/{KEY}", headers=plain_staff_headers
-    )
+    response = await client.delete(f"/api/mail-templates/{KEY}", headers=staff_headers)
 
     assert response.status_code == 200
     assert response.json()["is_customized"] is False
 
 
 async def test_reset_of_an_unknown_key_is_not_found(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient, staff_headers: dict[str, str]
 ):
     response = await client.delete(
-        "/api/mail-templates/not_a_template", headers=plain_staff_headers
+        "/api/mail-templates/not_a_template", headers=staff_headers
     )
 
     assert response.status_code == 404
@@ -254,49 +235,47 @@ async def test_reset_of_an_unknown_key_is_not_found(
 
 async def test_customized_template_survives_a_reset_by_a_company_user(
     client: AsyncClient,
-    plain_staff_headers: dict[str, str],
+    staff_headers: dict[str, str],
     company_headers: dict[str, str],
 ):
     await client.put(
-        f"/api/mail-templates/{KEY}", json=VALID_BODY, headers=plain_staff_headers
+        f"/api/mail-templates/{KEY}", json=VALID_BODY, headers=staff_headers
     )
 
     response = await client.delete(
         f"/api/mail-templates/{KEY}", headers=company_headers
     )
-    stored = await client.get(f"/api/mail-templates/{KEY}", headers=plain_staff_headers)
+    stored = await client.get(f"/api/mail-templates/{KEY}", headers=staff_headers)
 
     assert response.status_code == 403
     assert stored.json()["is_customized"] is True
 
 
 async def test_reset_lets_the_default_text_be_sent_again(
-    client: AsyncClient, plain_staff_headers: dict[str, str], mail_stub: AsyncMock
+    client: AsyncClient, staff_headers: dict[str, str], mail_stub: AsyncMock
 ):
     await client.put(
         f"/api/mail-templates/{KEY}",
         json={**VALID_BODY, "subject_de": "Eigener Betreff"},
-        headers=plain_staff_headers,
+        headers=staff_headers,
     )
-    await client.delete(f"/api/mail-templates/{KEY}", headers=plain_staff_headers)
+    await client.delete(f"/api/mail-templates/{KEY}", headers=staff_headers)
 
-    await client.post(
-        f"/api/mail-templates/{KEY}/test-send", headers=plain_staff_headers
-    )
+    await client.post(f"/api/mail-templates/{KEY}/test-send", headers=staff_headers)
 
     message = mail_stub.SendMail.await_args.args[0]
     assert decoded_subject(message).startswith("VISIT: Passwort zurücksetzen")
 
 
 async def test_preview_renders_both_languages_with_sample_values(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient, staff_headers: dict[str, str]
 ):
     await client.put(
-        f"/api/mail-templates/{KEY}", json=VALID_BODY, headers=plain_staff_headers
+        f"/api/mail-templates/{KEY}", json=VALID_BODY, headers=staff_headers
     )
 
     response = await client.post(
-        f"/api/mail-templates/{KEY}/preview", headers=plain_staff_headers
+        f"/api/mail-templates/{KEY}/preview", headers=staff_headers
     )
 
     assert response.status_code == 200
@@ -308,12 +287,12 @@ async def test_preview_renders_both_languages_with_sample_values(
 
 async def test_test_send_mails_the_caller_once(
     client: AsyncClient,
-    plain_staff_headers: dict[str, str],
+    staff_headers: dict[str, str],
     staff_user: User,
     mail_stub: AsyncMock,
 ):
     response = await client.post(
-        f"/api/mail-templates/{KEY}/test-send", headers=plain_staff_headers
+        f"/api/mail-templates/{KEY}/test-send", headers=staff_headers
     )
 
     assert response.status_code == 200
@@ -338,12 +317,12 @@ async def test_company_user_cannot_trigger_a_test_send(
 
 async def test_staff_see_which_stored_templates_are_no_longer_valid(
     client: AsyncClient,
-    plain_staff_headers: dict[str, str],
+    staff_headers: dict[str, str],
     staff_user: User,
     db_session: AsyncSession,
 ):
     await client.put(
-        f"/api/mail-templates/{KEY}", json=VALID_BODY, headers=plain_staff_headers
+        f"/api/mail-templates/{KEY}", json=VALID_BODY, headers=staff_headers
     )
     await MailTemplateRepository(db_session).upsert(
         str(MailTemplateKey.COMPANY_INVITE),
@@ -356,10 +335,10 @@ async def test_staff_see_which_stored_templates_are_no_longer_valid(
         staff_user.id,
     )
 
-    listing = await client.get("/api/mail-templates", headers=plain_staff_headers)
+    listing = await client.get("/api/mail-templates", headers=staff_headers)
     detail = await client.get(
         f"/api/mail-templates/{MailTemplateKey.COMPANY_INVITE}",
-        headers=plain_staff_headers,
+        headers=staff_headers,
     )
 
     validity = {template["key"]: template["is_valid"] for template in listing.json()}

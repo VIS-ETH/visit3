@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import BookingsTab from "../../components/BookingsTab";
+import BookingsTab from "../../components/kp-manage/BookingsTab";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
@@ -33,9 +33,6 @@ beforeEach(() => {
   window.URL.createObjectURL = vi.fn(() => "blob:bookings");
   window.URL.revokeObjectURL = vi.fn();
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId/bookings`, () => {
       listRequests.count += 1;
       return HttpResponse.json(staffBookings);
@@ -66,6 +63,24 @@ describe("the staff booking row actions", () => {
     expect(
       screen.getByRole("menuitem", { name: "kp.manage.booking_action_delete" }),
     ).toBeEnabled();
+  });
+
+  it("links the company to the company and user management", async () => {
+    const { user } = renderWithProviders(<BookingsTab eventId={testEventId} />);
+
+    await screen.findByText("Beta GmbH", {}, { timeout: 5000 });
+
+    await openRowMenu(user, 1);
+    expect(
+      await screen.findByRole("menuitem", {
+        name: "kp.manage.booking_action_view_company",
+      }),
+    ).toHaveAttribute("href", "/company-management?company=company-beta");
+    expect(
+      screen.getByRole("menuitem", {
+        name: "kp.manage.booking_action_view_users",
+      }),
+    ).toHaveAttribute("href", "/user-management?company=company-beta");
   });
 
   it("offers undo accept instead of accept on a confirmed booking", async () => {
@@ -326,6 +341,39 @@ describe("the staff booking row actions", () => {
     });
   });
 
+  it("reloads the list when one selected booking cannot be accepted", async () => {
+    const accepted: string[] = [];
+    server.use(
+      http.post(
+        `${testBackendUrl}/api/kp/bookings/:bookingId/accept`,
+        ({ params }) => {
+          accepted.push(String(params.bookingId));
+          if (params.bookingId === acmeBookingId) {
+            return HttpResponse.json(acmeBooking);
+          }
+          return HttpResponse.json(
+            { statusCode: 409, code: "error.conflict" },
+            { status: 409 },
+          );
+        },
+      ),
+    );
+    const { user } = renderWithProviders(<BookingsTab eventId={testEventId} />);
+
+    await screen.findByText("Beta GmbH", {}, { timeout: 5000 });
+    await user.click(screen.getByLabelText("kp.manage.bookings_select_all"));
+    await user.click(
+      screen.getByRole("button", {
+        name: "kp.manage.bookings_accept_selected",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(accepted).toEqual([acmeBookingId, betaBookingId]),
+    );
+    await waitFor(() => expect(listRequests.count).toBe(2));
+  });
+
   it("saves an edited booth number through the booking patch", async () => {
     const patches: { bookingId: string; body: unknown }[] = [];
     server.use(
@@ -353,6 +401,28 @@ describe("the staff booking row actions", () => {
         { bookingId: acmeBookingId, body: { booth_nr: 12 } },
       ]),
     );
+  });
+
+  it("shows the stored booth number again when saving it failed", async () => {
+    server.use(
+      http.patch(`${testBackendUrl}/api/kp/bookings/:bookingId`, () =>
+        HttpResponse.json(
+          { statusCode: 409, code: "error.kp_booth_nr_taken" },
+          { status: 409 },
+        ),
+      ),
+    );
+    const { user } = renderWithProviders(<BookingsTab eventId={testEventId} />);
+
+    await screen.findByText("Beta GmbH", {}, { timeout: 5000 });
+    const boothInput = screen.getAllByLabelText(
+      "kp.manage.booking_booth_nr",
+    )[0];
+    const stored = (boothInput as HTMLInputElement).value;
+    await user.clear(boothInput);
+    await user.type(boothInput, "42{Enter}");
+
+    await waitFor(() => expect(boothInput).toHaveValue(stored));
   });
 
   it("downloads the booking export", async () => {

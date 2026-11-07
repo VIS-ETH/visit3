@@ -1,11 +1,8 @@
 {
   "common": {
     "or": "oder",
-    "yes": "Ja",
-    "no": "Nein",
     "ok": "OK",
-    "cancel": "Abbrechen",
-    "currency": "CHF"
+    "cancel": "Abbrechen"
   },
   "uploads": {
     "unavailable_title": "Uploads sind noch nicht verfügbar",
@@ -96,7 +93,7 @@
     "storage_download_failed": "Der Datei-Download ist fehlgeschlagen.",
     "storage_file_too_large": "Die hochgeladene Datei ist zu gross.",
     "storage_file_invalid_mime_type": "Dieser Dateityp ist nicht erlaubt.",
-    "event_banner_too_small": "Das Banner muss mindestens 800 Pixel breit sein.",
+    "event_banner_too_small": "Das Banner muss mindestens 800 Pixel breit und 100 Pixel hoch sein.",
     "storage_image_too_large": "Das Bild ist zu gross. Erlaubt sind höchstens 8000 Pixel pro Seite und 40 Megapixel.",
     "kp_registration_closed": "Die Anmeldung für dieses Event ist derzeit geschlossen.",
     "kp_zone_registration_closed": "Die Anmeldung für diese Standzone ist derzeit geschlossen.",
@@ -134,7 +131,8 @@
     "retry": "Erneut versuchen",
     "identity_provider_unavailable": "Der VIS-Anmeldedienst ist gerade nicht erreichbar. Bitte versuchen Sie es in ein paar Minuten erneut.",
     "kp_service_relation_invalid": "Dieser Service kann die gewählten Services nicht enthalten oder ausschliessen.",
-    "kp_services_excluded": "Einige der gewählten Services können nicht zusammen gebucht werden."
+    "kp_services_excluded": "Einige der gewählten Services können nicht zusammen gebucht werden.",
+    "load_failed": "Das konnte nicht geladen werden. Bitte versuchen Sie es erneut."
   },
   "validation": {
     "required": "Dieses Feld ist erforderlich.",
@@ -177,14 +175,12 @@
     }
   },
   "password": {
-    "wrong": "Falsches Passwort oder E-Mail",
     "min": "Das Passwort muss mindestens 8 Zeichen lang sein"
   },
   "company": {
     "login": "Unternehmensanmeldung"
   },
   "system-theme-follow": "Systemthema folgen",
-  "language-change": "Sprache ändern",
   "not_allowed": {
     "title": "Zugriff verweigert",
     "description": "Sie haben keine Berechtigung, um auf diese Seite zuzugreifen."
@@ -205,7 +201,6 @@
   "nav": {
     "company_portal_of": "Unternehmensportal von",
     "vis_short": "VIS",
-    "navigation": "Navigation",
     "home": "Startseite",
     "profile": "Profil",
     "company": "Unternehmen",

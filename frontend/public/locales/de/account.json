@@ -4,9 +4,6 @@
     "name": "Name",
     "email": "E-Mail",
     "phone": "Telefonnummer",
-    "company": "Unternehmen",
-    "company_section_title": "Unternehmensinformationen",
-    "company_name": "Unternehmensname",
     "load_error": "Profil konnte nicht geladen werden",
     "edit": {
       "button": "Einstellungen",
@@ -17,19 +14,7 @@
       "cancel": "Abbrechen",
       "save": "Speichern",
       "success_title": "Profil aktualisiert",
-      "success_message": "Ihr Profil wurde erfolgreich aktualisiert.",
-      "error_message": "Profil konnte nicht aktualisiert werden"
-    },
-    "company_edit": {
-      "button": "Einstellungen",
-      "title": "Unternehmen bearbeiten",
-      "name": "Unternehmensname",
-      "name_placeholder": "Unternehmensname eingeben",
-      "cancel": "Abbrechen",
-      "save": "Speichern",
-      "success_title": "Unternehmen aktualisiert",
-      "success_message": "Unternehmensinformationen wurden erfolgreich aktualisiert.",
-      "error_message": "Unternehmen konnte nicht aktualisiert werden"
+      "success_message": "Ihr Profil wurde erfolgreich aktualisiert."
     },
     "email_change": {
       "button": "Ändern",
@@ -62,7 +47,8 @@
   },
   "company_join": {
     "title": "Unternehmen beitreten",
-    "joining": "Sie wurden eingeladen, beizutreten",
+    "joining": "Sie wurden eingeladen, {{company}} beizutreten.",
+    "already_in_company": "Ihr Konto gehört bereits zu einem Unternehmen.",
     "button": "{{company}} beitreten",
     "invalid": "Ungültige Einladung",
     "login_required": "Melden Sie sich mit dem eingeladenen Konto an, um dem Unternehmen beizutreten.",
@@ -73,10 +59,11 @@
     "title": "Unternehmen",
     "profile_title": "Unternehmensprofil",
     "profile_complete_hint": "Alle Pflichtangaben für die Kontaktparty sind ausgefüllt.",
-    "profile_incomplete_hint": "{{missing}} Pflichtfelder fehlen noch.",
+    "profile_incomplete_hint_one": "{{count}} Pflichtfeld fehlt noch.",
+    "profile_incomplete_hint": "{{count}} Pflichtfelder fehlen noch.",
     "profile_link": "Profil bearbeiten",
     "unconfirmed_title": "Unternehmen noch nicht freigegeben",
-    "unconfirmed_description": "Die Kontaktparty-Organisatoren müssen Ihr Unternehmen noch freigeben. Sie können das Profil bereits vervollständigen und Kolleginnen und Kollegen einladen; die Anmeldung zur Kontaktparty ist nach der Freigabe möglich.",
+    "unconfirmed_description": "Die Kontaktparty-Organisatoren müssen Ihr Unternehmen noch freigeben. Sie können das Profil bereits vervollständigen; Einladungen an Kolleginnen und Kollegen sowie die Anmeldung zur Kontaktparty sind nach der Freigabe möglich.",
     "settings_button": "Einstellungen",
     "settings_title": "Unternehmen bearbeiten",
     "name_label": "Unternehmensname",
@@ -87,7 +74,8 @@
     "invite_email": "E-Mail-Adresse",
     "invite_email_placeholder": "kollege@beispiel.com",
     "invite_button": "Einladung senden",
-    "invite_success": "Einladung gesendet",
+    "invite_success": "Einladung an {{email}} gesendet",
+    "invite_unconfirmed": "Sie können Kolleginnen und Kollegen einladen, sobald die Organisatoren Ihr Unternehmen freigegeben haben.",
     "members_title": "Mitglieder",
     "no_members": "Keine Mitglieder gefunden."
   },

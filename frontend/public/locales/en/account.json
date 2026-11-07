@@ -4,9 +4,6 @@
     "name": "Name",
     "email": "Email",
     "phone": "Phone number",
-    "company": "Company",
-    "company_section_title": "Company information",
-    "company_name": "Company name",
     "load_error": "Failed to load profile",
     "edit": {
       "button": "Settings",
@@ -17,19 +14,7 @@
       "cancel": "Cancel",
       "save": "Save",
       "success_title": "Profile updated",
-      "success_message": "Your profile was updated successfully.",
-      "error_message": "Failed to update your profile"
-    },
-    "company_edit": {
-      "button": "Settings",
-      "title": "Edit company",
-      "name": "Company name",
-      "name_placeholder": "Enter company name",
-      "cancel": "Cancel",
-      "save": "Save",
-      "success_title": "Company updated",
-      "success_message": "Company information was updated successfully.",
-      "error_message": "Failed to update company"
+      "success_message": "Your profile was updated successfully."
     },
     "email_change": {
       "button": "Change",
@@ -62,7 +47,8 @@
   },
   "company_join": {
     "title": "Join company",
-    "joining": "You have been invited to join",
+    "joining": "You have been invited to join {{company}}.",
+    "already_in_company": "Your account already belongs to a company.",
     "button": "Join {{company}}",
     "invalid": "Invalid invite",
     "login_required": "Log in with the invited account to join this company.",
@@ -73,10 +59,11 @@
     "title": "Company",
     "profile_title": "Company profile",
     "profile_complete_hint": "All mandatory information for the Kontaktparty is filled in.",
-    "profile_incomplete_hint": "{{missing}} mandatory fields are still missing.",
+    "profile_incomplete_hint_one": "{{count}} mandatory field is still missing.",
+    "profile_incomplete_hint": "{{count}} mandatory fields are still missing.",
     "profile_link": "Edit profile",
     "unconfirmed_title": "Company not confirmed yet",
-    "unconfirmed_description": "The Kontaktparty organisers still need to approve your company. You can already complete the profile and invite colleagues; registering for the Kontaktparty becomes possible once the company is approved.",
+    "unconfirmed_description": "The Kontaktparty organisers still need to approve your company. You can already complete the profile; inviting colleagues and registering for the Kontaktparty become possible once the company is approved.",
     "settings_button": "Settings",
     "settings_title": "Edit company",
     "name_label": "Company name",
@@ -87,7 +74,8 @@
     "invite_email": "Email address",
     "invite_email_placeholder": "colleague@example.com",
     "invite_button": "Send invite",
-    "invite_success": "Invitation sent",
+    "invite_success": "Invitation sent to {{email}}",
+    "invite_unconfirmed": "You can invite colleagues once the organisers have approved your company.",
     "members_title": "Members",
     "no_members": "No members found."
   },

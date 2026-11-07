@@ -44,19 +44,11 @@ async def send(
     return (await client.get(f"{BASE}/{campaign_id}", headers=headers)).json()
 
 
-@pytest.fixture
-async def plain_staff_headers(
-    staff_user: User,
-    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
-    csrf_headers: dict[str, str],
-) -> dict[str, str]:
-    return {**await auth_headers(staff_user), **csrf_headers}
-
-
 async def test_staff_without_the_president_role_cannot_manage_campaigns(
-    client: AsyncClient, plain_staff_headers: dict[str, str]
+    client: AsyncClient,
+    staff_headers: dict[str, str],
 ):
-    response = await client.get(BASE, headers=plain_staff_headers)
+    response = await client.get(BASE, headers=staff_headers)
 
     assert response.status_code == 403
 

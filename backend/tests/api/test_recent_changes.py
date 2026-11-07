@@ -50,7 +50,8 @@ def names(items: object, key: str) -> list[str]:
 @pytest.fixture
 async def old_world(
     db_session: AsyncSession,
-    admin_user: User,
+    staff_user: User,
+    president_user: User,
     company_user: User,
     staff_headers: dict[str, str],
     company_headers: dict[str, str],
@@ -70,15 +71,16 @@ async def old_world(
         KpEventBooking,
         KpEventBookingService,
         ids=[
-            admin_user.id,
+            staff_user.id,
+            president_user.id,
             company_user.id,
-            company_user.company_id or admin_user.id,
+            company_user.company_id or staff_user.id,
             UUID(booking["id"]),
             *services.scalars().all(),
         ],
     )
     await mark_seen_at(
-        db_session, admin_user, datetime.now(timezone.utc) - timedelta(days=1)
+        db_session, staff_user, datetime.now(timezone.utc) - timedelta(days=1)
     )
     return {"booking_id": booking["id"]}
 
@@ -120,7 +122,9 @@ async def test_new_accounts_companies_and_bookings_are_listed(
     assert names(changes["new_users"], "email") == [NEWCOMER_EMAIL]
     assert names(changes["new_companies"], "name") == ["Neu AG"]
     assert names(changes["new_bookings"], "company_name") == ["Neu AG"]
+    assert names(changes["new_booking_events"], "id") == [kp_setup.event_id]
     assert changes["changed_bookings_total"] == 0
+    assert changes["changed_booking_events"] == []
 
 
 async def test_a_changed_booking_is_listed(
@@ -150,12 +154,32 @@ async def test_marking_changes_as_seen_clears_them(
     old_world: dict[str, str],
 ):
     await create_user(email=NEWCOMER_EMAIL)
+    viewed = await recent_changes(client, staff_headers)
 
-    marked = await client.post("/api/changes/seen", headers=staff_headers)
+    marked = await client.post(
+        "/api/changes/seen", json={"as_of": viewed["as_of"]}, headers=staff_headers
+    )
     changes = await recent_changes(client, staff_headers)
 
     assert marked.status_code == 204
     assert changes["new_users_total"] == 0
+
+
+async def test_changes_after_the_viewed_list_stay_unseen(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    create_user: Callable[..., Awaitable[User]],
+    old_world: dict[str, str],
+):
+    viewed = await recent_changes(client, staff_headers)
+    await create_user(email=NEWCOMER_EMAIL)
+
+    await client.post(
+        "/api/changes/seen", json={"as_of": viewed["as_of"]}, headers=staff_headers
+    )
+    changes = await recent_changes(client, staff_headers)
+
+    assert names(changes["new_users"], "email") == [NEWCOMER_EMAIL]
 
 
 async def test_the_user_list_filters_new_users(
@@ -179,9 +203,7 @@ async def test_the_company_list_filters_changed_companies(
 ):
     await create_user(email=NEWCOMER_EMAIL, company_name="Neu AG")
 
-    changed = await client.get(
-        "/api/companies?only_changes=true", headers=staff_headers
-    )
+    changed = await client.get("/api/companies?filter=new", headers=staff_headers)
     everything = await client.get("/api/companies", headers=staff_headers)
 
     assert names(changed.json()["items"], "name") == ["Neu AG"]

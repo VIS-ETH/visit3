@@ -2,7 +2,7 @@ import { File as NodeFile } from "node:buffer";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import BoothZonesTab from "../../components/BoothZonesTab";
+import BoothZonesTab from "../../components/kp-manage/BoothZonesTab";
 import type { StaffBoothZoneResponse } from "../../orval/generated/fastAPI.schemas";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
@@ -79,9 +79,6 @@ beforeEach(() => {
   layoutDeleted = false;
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(zonesUrl, () => HttpResponse.json([zone])),
     http.get(servicesUrl, () => HttpResponse.json([])),
     http.patch(

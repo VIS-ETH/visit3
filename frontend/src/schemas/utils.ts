@@ -27,3 +27,6 @@ export const zPhone = z.string().transform((arg, ctx) => {
   });
   return z.NEVER;
 });
+
+export const zEmail = (message = "validation.invalid_email") =>
+  z.string().trim().pipe(z.email(message));

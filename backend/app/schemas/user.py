@@ -97,6 +97,13 @@ class UserProfileFieldsInput(BaseModel):
     last_name: PersonName | None = None
     phone_number: str | None = Field(default=None, max_length=PHONE_MAX_LENGTH)
 
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def name_cannot_be_cleared(cls, value: str | None) -> str:
+        if value is None:
+            raise ValueError("name cannot be cleared")
+        return value
+
 
 class UpdateUserProfileInput(UserProfileFieldsInput):
     pass
@@ -143,10 +150,6 @@ class UpdateCompanyUserRequest(UpdateCompanyUserInput):
 class Token(BaseModel):
     access_token: str
     token_type: str
-
-
-class TokenData(BaseModel):
-    username: str | None = None
 
 
 class PasswordResetInput(BaseModel):

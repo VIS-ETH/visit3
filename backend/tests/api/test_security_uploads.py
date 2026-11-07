@@ -36,7 +36,7 @@ def storage_service(s3_client: FakeS3Client) -> StorageService:
 @pytest.fixture
 async def file_requirement(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     complete_company_profile: Callable[..., Awaitable[Response]],
@@ -54,7 +54,7 @@ async def file_requirement(
                 }
             ],
         },
-        headers=staff_headers,
+        headers=president_headers,
     )
     await complete_company_profile(company_headers)
     booking = await client.post(

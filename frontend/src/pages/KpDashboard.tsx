@@ -1,39 +1,37 @@
 import {
-  Alert,
   Badge,
   Button,
-  Divider,
   Group,
   Modal,
   Paper,
   Stack,
-  TextInput,
   Title,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconAlertCircle, IconCopy, IconPlus } from "@tabler/icons-react";
+import { IconCopy, IconPlus } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import DataTable, { type DataTableColumn } from "../components/DataTable";
+import ErrorAlert from "../components/ErrorAlert";
 import {
-  emptyEventSettingsValues,
-  kpWithSettingsSchema,
+  emptyKpFormValues,
   toKpWithSettingsRequest,
   type KpWithSettingsFormValues,
 } from "../schemas/eventSettingsSchema";
 import RecentChanges from "../components/home/RecentChanges";
-import CloneKpModal from "../components/kp/CloneKpModal";
-import EventSettingsFields from "../components/kp/EventSettingsFields";
+import CloneKpModal from "../components/kp-manage/CloneKpModal";
+import EventFormFields from "../components/kp-manage/EventFormFields";
+import { useEventForm } from "../components/kp-manage/use-event-form";
+import { useCurrentUser } from "../context/useCurrentUser";
+import { useAsyncAction } from "../hooks/use-async-action";
 import {
   EVENT_STATUS_COLORS,
   formatKpDateInput,
   getEventStatus,
   type EventStatus,
 } from "../utils/kp-utils";
-import { useTranslatedForm } from "../utils/translator";
 import {
   getGetLatestKpQueryKey,
   getListKpsQueryKey,
@@ -57,14 +55,6 @@ const formatTableDate = (dateString?: string) => {
   return `${day}.${month}.${year}`;
 };
 
-const dateFieldNames = [
-  "registrationOpen",
-  "registrationEnd",
-  "finalizationDeadline",
-  "nametagsDeadline",
-  "eventDate",
-] as const;
-
 const EVENT_STATUS_ORDER: EventStatus[] = [
   "registration_open",
   "upcoming",
@@ -75,37 +65,24 @@ const KpDashboard = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useCurrentUser();
+  const isPresident = user?.is_kp_president ?? false;
   const [modalOpened, { open: openModal, close: closeModal }] =
     useDisclosure(false);
 
-  const initialValues: KpWithSettingsFormValues = {
-    name: "",
-    registrationOpen: todayAsDateInput(),
-    registrationEnd: todayAsDateInput(),
-    finalizationDeadline: todayAsDateInput(),
-    nametagsDeadline: todayAsDateInput(),
-    eventDate: todayAsDateInput(),
-    ...emptyEventSettingsValues,
-  };
-  const form = useTranslatedForm<typeof kpWithSettingsSchema>(
-    kpWithSettingsSchema,
-    {
-      initialValues,
-    },
-  );
+  const today = todayAsDateInput();
+  const form = useEventForm({
+    ...emptyKpFormValues,
+    registrationOpen: today,
+    registrationEnd: today,
+    finalizationDeadline: today,
+    nametagsDeadline: today,
+    eventDate: today,
+  });
 
-  const getDateInputProps = (field: (typeof dateFieldNames)[number]) => {
-    const inputProps = form.getInputProps(field);
-
-    return {
-      ...inputProps,
-      onChange: (event: ChangeEvent<HTMLInputElement>) => {
-        inputProps.onChange(event);
-        for (const fieldName of dateFieldNames) {
-          form.validateField(fieldName);
-        }
-      },
-    };
+  const closeAndReset = () => {
+    form.reset();
+    closeModal();
   };
 
   const { data: events, isLoading, isError } = useListKps();
@@ -122,30 +99,22 @@ const KpDashboard = () => {
     past: t("kp.dashboard.status_past"),
   };
 
-  const { mutate: createEvent, isPending: isCreating } = useCreateKp({
-    mutation: {
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({ queryKey: getListKpsQueryKey() });
-        await queryClient.invalidateQueries({
-          queryKey: getGetLatestKpQueryKey(),
-        });
-        form.reset();
-        closeModal();
-
-        notifications.show({
-          color: "green",
-          title: t("kp.dashboard.create_success_title"),
-          message: t("kp.dashboard.create_success_message"),
-        });
-      },
+  const { mutateAsync: createKp } = useCreateKp();
+  const { run: createEvent, isRunning: isCreating } = useAsyncAction(
+    async (values: KpWithSettingsFormValues) => {
+      await createKp({ data: toKpWithSettingsRequest(values) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getListKpsQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: getGetLatestKpQueryKey() }),
+      ]);
+      closeAndReset();
+      notifications.show({
+        color: "green",
+        title: t("kp.dashboard.create_success_title"),
+        message: t("kp.dashboard.create_success_message"),
+      });
     },
-  });
-
-  const handleCreate = (values: KpWithSettingsFormValues) => {
-    createEvent({
-      data: toKpWithSettingsRequest(values),
-    });
-  };
+  );
 
   const columns: DataTableColumn<KpEventRow>[] = [
     {
@@ -203,25 +172,27 @@ const KpDashboard = () => {
 
   return (
     <Stack gap="md">
-      <RecentChanges latestEventId={latestEvent?.id ?? null} />
+      <RecentChanges />
       <Group justify="space-between" align="center">
         <Title order={2}>{t("kp.dashboard.title")}</Title>
-        <Group gap="sm">
-          <Button
-            variant="default"
-            leftSection={<IconCopy size={16} />}
-            disabled={!latestEvent}
-            onClick={openCopyModal}
-          >
-            {t("kp.dashboard.copy_button")}
-          </Button>
-          <Button leftSection={<IconPlus size={16} />} onClick={openModal}>
-            {t("kp.dashboard.create_new_button")}
-          </Button>
-        </Group>
+        {isPresident ? (
+          <Group gap="sm">
+            <Button
+              variant="default"
+              leftSection={<IconCopy size={16} />}
+              disabled={!latestEvent}
+              onClick={openCopyModal}
+            >
+              {t("kp.dashboard.copy_button")}
+            </Button>
+            <Button leftSection={<IconPlus size={16} />} onClick={openModal}>
+              {t("kp.dashboard.create_new_button")}
+            </Button>
+          </Group>
+        ) : null}
       </Group>
 
-      {latestEvent ? (
+      {isPresident && latestEvent ? (
         <CloneKpModal
           eventId={latestEvent.id}
           sourceEvents={events}
@@ -232,69 +203,18 @@ const KpDashboard = () => {
 
       <Modal
         opened={modalOpened}
-        onClose={closeModal}
+        onClose={isCreating ? () => undefined : closeAndReset}
         title={t("kp.dashboard.create_title")}
         size="lg"
         centered
       >
-        <form onSubmit={form.onSubmit(handleCreate)}>
+        <form onSubmit={form.onSubmit((values) => void createEvent(values))}>
           <Stack gap="sm">
-            <Group grow>
-              <TextInput
-                label={t("kp.dashboard.name")}
-                placeholder={t("kp.dashboard.name_input_placeholder")}
-                disabled={isCreating}
-                {...form.getInputProps("name")}
-              />
-              <TextInput
-                label={t("kp.dashboard.registration_open")}
-                placeholder={t("kp.dashboard.date_input_placeholder")}
-                description={t("kp.dashboard.date_input_hint")}
-                disabled={isCreating}
-                {...getDateInputProps("registrationOpen")}
-              />
-            </Group>
-            <Group grow>
-              <TextInput
-                label={t("kp.dashboard.registration_end")}
-                placeholder={t("kp.dashboard.date_input_placeholder")}
-                description={t("kp.dashboard.date_input_hint")}
-                disabled={isCreating}
-                {...getDateInputProps("registrationEnd")}
-              />
-              <TextInput
-                label={t("kp.dashboard.finalization_deadline")}
-                placeholder={t("kp.dashboard.date_input_placeholder")}
-                description={t("kp.dashboard.date_input_hint")}
-                disabled={isCreating}
-                {...getDateInputProps("finalizationDeadline")}
-              />
-            </Group>
-            <Group grow>
-              <TextInput
-                label={t("kp.dashboard.nametags_deadline")}
-                placeholder={t("kp.dashboard.date_input_placeholder")}
-                description={t("kp.dashboard.date_input_hint")}
-                disabled={isCreating}
-                {...getDateInputProps("nametagsDeadline")}
-              />
-              <TextInput
-                label={t("kp.dashboard.event_date")}
-                placeholder={t("kp.dashboard.date_input_placeholder")}
-                description={t("kp.dashboard.date_input_hint")}
-                disabled={isCreating}
-                {...getDateInputProps("eventDate")}
-              />
-            </Group>
-            <Divider />
-            <EventSettingsFields
-              disabled={isCreating}
-              getInputProps={(field) => form.getInputProps(field)}
-            />
+            <EventFormFields form={form} disabled={isCreating} />
             <Group justify="flex-end">
               <Button
                 variant="default"
-                onClick={closeModal}
+                onClick={closeAndReset}
                 disabled={isCreating}
               >
                 {t("common.cancel")}
@@ -302,7 +222,7 @@ const KpDashboard = () => {
               <Button
                 type="submit"
                 loading={isCreating}
-                disabled={isCreating || !form.isValid()}
+                disabled={!form.isValid()}
               >
                 {t("kp.dashboard.create_button")}
               </Button>
@@ -311,11 +231,7 @@ const KpDashboard = () => {
         </form>
       </Modal>
 
-      {isError ? (
-        <Alert icon={<IconAlertCircle />} color="red" title={t("server.error")}>
-          {t("kp.dashboard.error")}
-        </Alert>
-      ) : null}
+      {isError ? <ErrorAlert>{t("kp.dashboard.error")}</ErrorAlert> : null}
 
       {!isError ? (
         <Paper withBorder p="lg" radius="md">

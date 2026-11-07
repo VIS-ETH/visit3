@@ -1,9 +1,7 @@
 import {
-  Alert,
   Button,
   Center,
   Group,
-  Loader,
   Modal,
   Paper,
   Stack,
@@ -12,10 +10,11 @@ import {
   Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconAlertCircle, IconSettings } from "@tabler/icons-react";
+import { IconSettings } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  getGetCurrentUserQueryKey,
   getGetUserProfileQueryKey,
   useGetUserProfile,
   useUpdateUserProfile,
@@ -26,6 +25,9 @@ import { useTranslatedForm } from "../utils/translator";
 import { useState } from "react";
 import { getDisplayName } from "../utils/display";
 import EmailChangeModal from "../components/EmailChangeModal";
+import PageLoader from "../components/PageLoader";
+import ErrorAlert from "../components/ErrorAlert";
+import { useAsyncAction } from "../hooks/use-async-action";
 
 function normalizeProfileValue(value?: string | null) {
   const trimmed = value?.trim() ?? "";
@@ -78,22 +80,27 @@ const Profile = () => {
     },
   });
 
-  const { mutate: updateUserProfile, isPending: isUpdating } =
-    useUpdateUserProfile({
-      mutation: {
-        onSuccess: async () => {
-          await queryClient.invalidateQueries({
-            queryKey: getGetUserProfileQueryKey(),
-          });
-          setSettingsOpened(false);
-          notifications.show({
-            color: "green",
-            title: t("profile.edit.success_title"),
-            message: t("profile.edit.success_message"),
-          });
-        },
-      },
-    });
+  const { mutateAsync: updateUserProfile } = useUpdateUserProfile();
+
+  const { run: saveProfile, isRunning: isUpdating } = useAsyncAction(
+    async (changes: UpdateUserProfileRequest) => {
+      await updateUserProfile({ data: changes });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: getGetUserProfileQueryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: getGetCurrentUserQueryKey(),
+        }),
+      ]);
+      setSettingsOpened(false);
+      notifications.show({
+        color: "green",
+        title: t("profile.edit.success_title"),
+        message: t("profile.edit.success_message"),
+      });
+    },
+  );
 
   const openSettings = () => {
     const values = {
@@ -119,19 +126,13 @@ const Profile = () => {
   const disableSave = isUpdating || !hasChanges || !form.isValid();
 
   if (isLoading) {
-    return (
-      <Center py="xl">
-        <Loader />
-      </Center>
-    );
+    return <PageLoader />;
   }
 
   if (isError || !user) {
     return (
       <Center py="xl">
-        <Alert icon={<IconAlertCircle />} color="red" title={t("server.error")}>
-          {t("profile.load_error")}
-        </Alert>
+        <ErrorAlert>{t("profile.load_error")}</ErrorAlert>
       </Center>
     );
   }
@@ -175,20 +176,23 @@ const Profile = () => {
                 return;
               }
 
-              updateUserProfile({ data: changes });
+              void saveProfile(changes);
             })}
           >
             <Stack gap="md">
               <TextInput
                 label={t("profile.edit.first_name")}
+                disabled={isUpdating}
                 {...form.getInputProps("firstName")}
               />
               <TextInput
                 label={t("profile.edit.last_name")}
+                disabled={isUpdating}
                 {...form.getInputProps("lastName")}
               />
               <TextInput
                 label={t("profile.edit.phone_number")}
+                disabled={isUpdating}
                 {...form.getInputProps("phoneNumber")}
               />
 

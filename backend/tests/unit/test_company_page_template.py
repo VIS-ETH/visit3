@@ -49,7 +49,8 @@ def describe(tmp_path: Path, description: str) -> Any:
 
 def texts(node: Any) -> list[str]:
     if isinstance(node, dict):
-        found = [node["text"]] if isinstance(node.get("text"), str) else []
+        own = node.get("text")
+        found = [own.replace("\u200b", "")] if isinstance(own, str) else []
         return found + [text for value in node.values() for text in texts(value)]
     if isinstance(node, list):
         return [text for value in node for text in texts(value)]

@@ -17,12 +17,13 @@ from tests.api.conftest import (
 )
 
 
-async def test_staff_creates_event_with_booth_zone_and_service(
-    client: AsyncClient, staff_headers: dict[str, str]
+async def test_the_president_creates_an_event_with_booth_zone_and_service(
+    client: AsyncClient,
+    president_headers: dict[str, str],
 ):
     payload = kp_payload("Kontaktparty 2026")
 
-    event = await client.post("/api/kp/create", json=payload, headers=staff_headers)
+    event = await client.post("/api/kp/create", json=payload, headers=president_headers)
 
     assert event.status_code == 200
     event_id = event.json()["id"]
@@ -31,7 +32,7 @@ async def test_staff_creates_event_with_booth_zone_and_service(
     booth_zone = await client.post(
         f"/api/kp/events/{event_id}/booth-zones",
         json={"name": "Main hall", "capacity": 5},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert booth_zone.status_code == 200
@@ -41,7 +42,7 @@ async def test_staff_creates_event_with_booth_zone_and_service(
     service = await client.post(
         f"/api/kp/events/{event_id}/services",
         json={"name": "Electricity", "price": 5000},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert service.status_code == 200
@@ -161,7 +162,7 @@ async def test_booth_zone_without_inclusions_exposes_an_empty_list(
 
 async def test_available_services_expose_remaining_total_quantity(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     complete_company_profile: Callable[..., Awaitable[Response]],
@@ -174,7 +175,7 @@ async def test_available_services_expose_remaining_total_quantity(
             "max_quantity_per_booking": 3,
             "max_total_quantity": 5,
         },
-        headers=staff_headers,
+        headers=president_headers,
     )
     limited_id = limited.json()["id"]
     await complete_company_profile(company_headers)
@@ -248,7 +249,7 @@ async def test_included_service_quantity_only_charges_the_extra_units(
 
 async def test_deleting_booth_zone_with_active_booking_conflicts(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
@@ -256,7 +257,7 @@ async def test_deleting_booth_zone_with_active_booking_conflicts(
     await register_booking(company_headers, kp_setup)
 
     response = await client.delete(
-        f"/api/kp/booth-zones/{kp_setup.booth_zone_id}", headers=staff_headers
+        f"/api/kp/booth-zones/{kp_setup.booth_zone_id}", headers=president_headers
     )
 
     assert response.status_code == 409
@@ -265,7 +266,7 @@ async def test_deleting_booth_zone_with_active_booking_conflicts(
 
 async def test_updating_service_returns_the_new_requirements(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
 ):
     requirement = {
@@ -278,7 +279,7 @@ async def test_updating_service_returns_the_new_requirements(
     response = await client.patch(
         f"/api/kp/services/{kp_setup.service_id}",
         json={"requirements": [requirement]},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 200
@@ -287,7 +288,7 @@ async def test_updating_service_returns_the_new_requirements(
     ]
 
     reloaded = await client.get(
-        f"/api/kp/events/{kp_setup.event_id}/services", headers=staff_headers
+        f"/api/kp/events/{kp_setup.event_id}/services", headers=president_headers
     )
     stored = next(item for item in reloaded.json() if item["id"] == kp_setup.service_id)
     assert [item["name"] for item in stored["requirements"]] == [requirement["name"]]
@@ -295,7 +296,7 @@ async def test_updating_service_returns_the_new_requirements(
 
 async def test_deleting_service_booked_by_active_booking_conflicts(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
@@ -303,7 +304,7 @@ async def test_deleting_service_booked_by_active_booking_conflicts(
     await register_booking(company_headers, kp_setup)
 
     response = await client.delete(
-        f"/api/kp/services/{kp_setup.service_id}", headers=staff_headers
+        f"/api/kp/services/{kp_setup.service_id}", headers=president_headers
     )
 
     assert response.status_code == 409

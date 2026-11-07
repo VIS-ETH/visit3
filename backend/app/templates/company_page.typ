@@ -57,6 +57,8 @@
   }
 }
 
+#let breakable(value) = value.replace(regex("\\S{20}"), match => match.text + "\u{200B}")
+
 #let sidebar-label(label) = text(
   size: 6.5pt,
   weight: "bold",
@@ -66,7 +68,7 @@
 #let sidebar-row(label, value) = stack(
   spacing: 1.4mm,
   sidebar-label(label),
-  text(size: sidebar-value-size, value),
+  text(size: sidebar-value-size, if type(value) == str { breakable(value) } else { value }),
 )
 
 #let email-lines(address, width) = {
@@ -105,7 +107,7 @@
 #let number-or-dash(value) = if value == none [-] else [#str(value)]
 
 #let styled-run(run) = {
-  let body = text(run.at("text", default: ""))
+  let body = text(breakable(run.at("text", default: "")))
   if run.at("underline", default: false) { body = underline(body) }
   if run.at("strike", default: false) { body = strike(body) }
   if run.at("italic", default: false) { body = emph(body) }
@@ -154,10 +156,10 @@
   let company = field(entry, "company")
   set text(font: "Source Sans 3", size: body-size)
   set par(justify: true, leading: 0.7em, spacing: paragraph-spacing)
-  text(size: 15pt, weight: "bold", if brand == "" { company } else { brand })
+  text(size: 15pt, weight: "bold", breakable(if brand == "" { company } else { brand }))
   if brand != "" and brand != company {
     linebreak()
-    text(size: 9pt, fill: muted, company)
+    text(size: 9pt, fill: muted, breakable(company))
   }
   v(3mm)
   company-description(entry)

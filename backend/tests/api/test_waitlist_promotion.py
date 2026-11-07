@@ -31,6 +31,7 @@ class WaitlistWorld:
     first_headers: dict[str, str]
     second_headers: dict[str, str]
     staff_headers: dict[str, str]
+    president_headers: dict[str, str]
 
 
 @pytest.fixture
@@ -50,7 +51,7 @@ def company_headers_factory(
 
 async def create_zone(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     event_id: str,
     *,
     name: str,
@@ -60,7 +61,7 @@ async def create_zone(
     response = await client.post(
         f"/api/kp/events/{event_id}/booth-zones",
         json={"name": name, "color": color, "capacity": capacity},
-        headers=staff_headers,
+        headers=president_headers,
     )
     return response.json()["id"]
 
@@ -109,13 +110,14 @@ async def waitlist_world(
     client: AsyncClient,
     kp_setup: KpSetup,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     complete_company_profile: Callable[..., Awaitable[Response]],
     company_headers_factory: Callable[[str], Awaitable[dict[str, str]]],
 ) -> WaitlistWorld:
     upgrade_zone_id = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         name="Gold",
         color="#AABBCC",
@@ -123,7 +125,7 @@ async def waitlist_world(
     )
     spare_zone_id = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         name="Silver",
         color="#CCBBAA",
@@ -168,6 +170,7 @@ async def waitlist_world(
         first_headers=first_headers,
         second_headers=second_headers,
         staff_headers=staff_headers,
+        president_headers=president_headers,
     )
 
 
@@ -214,7 +217,7 @@ async def grow_capacity(client: AsyncClient, world: WaitlistWorld) -> Response:
     return await client.patch(
         f"/api/kp/booth-zones/{world.upgrade_zone_id}",
         json={"capacity": 2},
-        headers=world.staff_headers,
+        headers=world.president_headers,
     )
 
 
@@ -366,7 +369,7 @@ async def test_two_free_spots_promote_two_bookings(
     response = await client.patch(
         f"/api/kp/booth-zones/{waitlist_world.upgrade_zone_id}",
         json={"capacity": 3},
-        headers=waitlist_world.staff_headers,
+        headers=waitlist_world.president_headers,
     )
 
     assert response.status_code == 200
@@ -406,7 +409,7 @@ async def test_promotion_skips_a_closed_zone(
     await client.patch(
         f"/api/kp/booth-zones/{waitlist_world.upgrade_zone_id}",
         json={"registration_open": False},
-        headers=waitlist_world.staff_headers,
+        headers=waitlist_world.president_headers,
     )
 
     await cancel_holder(client, waitlist_world)
@@ -426,6 +429,7 @@ class StockWorld:
     waiting_booking_id: str
     waiting_headers: dict[str, str]
     staff_headers: dict[str, str]
+    president_headers: dict[str, str]
 
 
 @pytest.fixture
@@ -434,6 +438,7 @@ async def stock_world(
     db_session: AsyncSession,
     kp_setup: KpSetup,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     complete_company_profile: Callable[..., Awaitable[Response]],
     company_headers_factory: Callable[[str], Awaitable[dict[str, str]]],
@@ -449,7 +454,7 @@ async def stock_world(
     db_session.expunge_all()
     upgrade_zone_id = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         name="Gold",
         color="#AABBCC",
@@ -484,6 +489,7 @@ async def stock_world(
         waiting_booking_id=waiting_booking_id,
         waiting_headers=waiting_headers,
         staff_headers=staff_headers,
+        president_headers=president_headers,
     )
 
 
@@ -493,7 +499,7 @@ async def limit_service_stock(
     return await client.patch(
         f"/api/kp/services/{world.service_id}",
         json={"max_total_quantity": max_total_quantity},
-        headers=world.staff_headers,
+        headers=world.president_headers,
     )
 
 
@@ -501,7 +507,7 @@ async def free_upgrade_spot(client: AsyncClient, world: StockWorld) -> Response:
     return await client.patch(
         f"/api/kp/booth-zones/{world.upgrade_zone_id}",
         json={"capacity": 2},
-        headers=world.staff_headers,
+        headers=world.president_headers,
     )
 
 

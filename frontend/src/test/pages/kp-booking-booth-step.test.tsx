@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import KpBookingStepper from "../../pages/KpBookingStepper";
+import KpBookingStepper from "../../components/exhibitor-booking/KpBookingStepper";
 import {
   KpBookingStatus,
   KpServiceCategory,
@@ -35,7 +35,6 @@ const tablePrice = 4000;
 const chairPrice = 1500;
 const includedChairs = 2;
 
-const csrfUrl = `${testBackendUrl}/api/csrftoken`;
 const myBookingUrl = `${testBackendUrl}/api/kp/events/${eventId}/my-booking`;
 const zonesUrl = `${testBackendUrl}/api/kp/events/${eventId}/booth-zones/available`;
 const servicesUrl = `${testBackendUrl}/api/kp/events/${eventId}/services/available`;
@@ -164,7 +163,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   installCompanyProfileHandlers();
   server.use(
-    http.get(csrfUrl, () => HttpResponse.json({ token: "csrf-1" })),
     http.get(myBookingUrl, () => HttpResponse.json(null)),
     http.get(zonesUrl, () => HttpResponse.json([zone])),
     http.get(servicesUrl, () => HttpResponse.json([powerSocket, table, chair])),

@@ -5,7 +5,8 @@ import Profile from "../../pages/Profile";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
-import { renderWithProviders } from "../render";
+import { createTestQueryClient, renderWithProviders } from "../render";
+import { getGetCurrentUserQueryKey } from "../../orval/generated/user/user";
 
 const storedProfile = {
   id: "user-1",
@@ -26,9 +27,6 @@ beforeEach(() => {
   updateBodies = [];
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/user/profile`, () =>
       HttpResponse.json(storedProfile),
     ),
@@ -56,5 +54,30 @@ describe("Profile update payload", () => {
       expect(updateBodies).toHaveLength(1);
     });
     expect(updateBodies[0]).toEqual({ first_name: "Memo" });
+  });
+});
+
+describe("Profile update", () => {
+  it("refreshes the current user after saving", async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryDefaults(getGetCurrentUserQueryKey(), {
+      gcTime: Infinity,
+    });
+    queryClient.setQueryData(getGetCurrentUserQueryKey(), storedProfile);
+    const { user } = renderWithProviders(<Profile />, { queryClient });
+
+    await user.click(
+      await screen.findByRole("button", { name: "profile.edit.button" }),
+    );
+    const firstName = await screen.findByLabelText("profile.edit.first_name");
+    await user.clear(firstName);
+    await user.type(firstName, "Memo");
+    await user.click(screen.getByRole("button", { name: "profile.edit.save" }));
+
+    await waitFor(() => {
+      expect(
+        queryClient.getQueryState(getGetCurrentUserQueryKey())?.isInvalidated,
+      ).toBe(true);
+    });
   });
 });

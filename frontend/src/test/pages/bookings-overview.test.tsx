@@ -119,9 +119,6 @@ beforeEach(() => {
   summaryRequests = [];
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/list`, () =>
       HttpResponse.json([latestEvent, olderEvent]),
     ),
@@ -201,7 +198,7 @@ describe("the bookings overview", () => {
       "en",
       "common",
       "kp.bookings_overview.per_booth",
-      "CHF {{price}} per booth",
+      "{{price}} per booth",
     );
     renderWithProviders(<BookingsOverview />);
     await screen.findByText("CHF 4864.50", undefined, SLOW_WAIT);
@@ -243,7 +240,7 @@ describe("the bookings overview", () => {
       "en",
       "common",
       "kp.bookings_overview.per_unit",
-      "CHF {{price}} per {{unit}}",
+      "{{price}} per {{unit}}",
     );
     i18n.addResource(
       "en",
@@ -277,5 +274,22 @@ describe("the bookings overview", () => {
       name: /kp.bookings_overview.services_total/,
     });
     expect(within(totalRow).getByText("540.50")).toBeInTheDocument();
+  });
+
+  it("tells a failed summary apart from an empty one", async () => {
+    server.use(
+      http.get(
+        `${testBackendUrl}/api/kp/events/:eventId/bookings/summary`,
+        () => HttpResponse.json({ statusCode: 500 }, { status: 500 }),
+      ),
+    );
+    renderWithProviders(<BookingsOverview />);
+
+    expect(
+      await screen.findByText("error.load_failed", undefined, SLOW_WAIT),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("kp.bookings_overview.empty"),
+    ).not.toBeInTheDocument();
   });
 });

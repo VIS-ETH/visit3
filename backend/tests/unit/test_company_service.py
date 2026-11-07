@@ -18,7 +18,7 @@ from app.core.exceptions import (
 )
 from app.mail_templates.keys import MailTemplateKey
 from app.models.company import CompanyInvite
-from app.schemas.company import CompanySort
+from app.schemas.company import CompanyFilter, CompanySort
 from app.schemas.sorting import SortDirection
 from app.services.company_service import CompanyService
 
@@ -71,8 +71,7 @@ async def test_setup_company_rejects_unconfirmed_user(
     with pytest.raises(NotAllowed):
         await service.setup_company("Acme AG")
 
-    company_repo.create_company.assert_not_awaited()
-    company_repo.assign_user.assert_not_awaited()
+    company_repo.create_company_with_founder.assert_not_awaited()
 
 
 async def test_setup_company_rejects_user_already_assigned_to_company(
@@ -87,8 +86,7 @@ async def test_setup_company_rejects_user_already_assigned_to_company(
     with pytest.raises(NotAllowed):
         await service.setup_company("Acme AG")
 
-    company_repo.create_company.assert_not_awaited()
-    company_repo.assign_user.assert_not_awaited()
+    company_repo.create_company_with_founder.assert_not_awaited()
 
 
 async def test_setup_company_rejects_blank_name(company_service):
@@ -97,7 +95,7 @@ async def test_setup_company_rejects_blank_name(company_service):
     with pytest.raises(NotAllowed):
         await company_service.service.setup_company("   ")
 
-    company_service.company_repo.create_company.assert_not_awaited()
+    company_service.company_repo.create_company_with_founder.assert_not_awaited()
     company_service.company_repo.assign_user.assert_not_awaited()
 
 
@@ -107,24 +105,21 @@ async def test_setup_company_creates_company_and_assigns_user(
 ):
     company = make_company(name="Acme AG")
     company_service.company_repo.get_by_name.return_value = None
-    company_service.company_repo.create_company.return_value = company
+    company_service.company_repo.create_company_with_founder.return_value = company
 
     result = await company_service.service.setup_company("  Acme AG  ")
 
     assert result is company
     company_service.company_repo.get_by_name.assert_awaited_once_with("Acme AG")
-    company_service.company_repo.create_company.assert_awaited_once_with("Acme AG")
-    company_service.company_repo.assign_user.assert_awaited_once_with(
-        company_service.service.current_user,
-        company.id,
-        mark_new=False,
+    company_service.company_repo.create_company_with_founder.assert_awaited_once_with(
+        "Acme AG", company_service.service.current_user.id
     )
     company_service.mail_template_service.send_to_staff_notification.assert_awaited_once()
 
 
 async def test_confirm_company_rejects_company_user(company_service):
     with pytest.raises(NotAllowed):
-        await company_service.service.confirm_company(uuid4())
+        await company_service.service.confirm_company(uuid4(), "Acme AG")
 
     company_service.company_repo.confirm_company.assert_not_awaited()
 
@@ -139,7 +134,7 @@ async def test_confirm_company_confirms_and_mails_members(
 ):
     company = make_company(name="Acme AG")
     member = make_user(email="member@example.com", company_id=company.id)
-    company_repo.get_by_id.return_value = company
+    company_repo.lock_model_by_id.return_value = company
     company_repo.confirm_company.return_value = company
     company_repo.get_users.return_value = [member]
     company_repo.get_company_with_users.return_value = company
@@ -147,7 +142,7 @@ async def test_confirm_company_confirms_and_mails_members(
         company_repo, mail_template_service, storage_service, staff_user
     )
 
-    result = await service.confirm_company(company.id)
+    result = await service.confirm_company(company.id, " Acme AG ")
 
     assert result.id == company.id
     company_repo.confirm_company.assert_awaited_once_with(company)
@@ -165,13 +160,13 @@ async def test_confirm_company_keeps_an_already_confirmed_company(
     make_company,
 ):
     company = make_company(confirmed_at=datetime.now(timezone.utc))
-    company_repo.get_by_id.return_value = company
+    company_repo.lock_model_by_id.return_value = company
     company_repo.get_company_with_users.return_value = company
     service = CompanyService(
         company_repo, mail_template_service, storage_service, staff_user
     )
 
-    result = await service.confirm_company(company.id)
+    result = await service.confirm_company(company.id, company.name)
 
     assert result.confirmed_at == company.confirmed_at
 
@@ -187,7 +182,7 @@ async def test_create_invite_normalizes_email_creates_invite_and_sends_mail(
     make_user,
     make_company,
 ):
-    company = make_company(name="Acme AG")
+    company = make_company(name="Acme AG", confirmed_at=datetime.now(timezone.utc))
     user = make_user(company_id=company.id)
     invite = make_invite(
         token="invite-token",
@@ -199,7 +194,7 @@ async def test_create_invite_normalizes_email_creates_invite_and_sends_mail(
         "app.services.company_service.secrets.token_urlsafe",
         lambda length: "invite-token",
     )
-    company_repo.get_by_id.return_value = company
+    company_repo.lock_model_by_id.return_value = company
     company_repo.get_pending_invite.return_value = None
     company_repo.create_invite.return_value = invite
     service = CompanyService(company_repo, mail_template_service, storage_service, user)
@@ -231,9 +226,9 @@ async def test_create_invite_refuses_a_pending_invite(
     make_user,
     make_company,
 ):
-    company = make_company(name="Acme AG")
+    company = make_company(name="Acme AG", confirmed_at=datetime.now(timezone.utc))
     user = make_user(company_id=company.id)
-    company_repo.get_by_id.return_value = company
+    company_repo.lock_model_by_id.return_value = company
     company_repo.get_pending_invite.return_value = make_invite(
         token="pending-token",
         company_id=company.id,
@@ -409,7 +404,7 @@ async def test_update_company_name_delegates_to_repository(
     company = make_company(name="Old Name")
     user = make_user(company_id=company.id)
     updated = make_company(name="New Name")
-    company_repo.get_by_id.return_value = company
+    company_repo.lock_model_by_id.return_value = company
     company_repo.get_by_name.return_value = None
     company_repo.update_company_name.return_value = updated
     service = CompanyService(company_repo, mail_template_service, storage_service, user)
@@ -417,7 +412,9 @@ async def test_update_company_name_delegates_to_repository(
     result = await service.update_company_name("  New Name  ")
 
     assert result is updated
-    company_repo.update_company_name.assert_awaited_once_with(company, "New Name")
+    company_repo.update_company_name.assert_awaited_once_with(
+        company, "New Name", unconfirm=False
+    )
 
 
 async def test_update_company_name_rejects_name_of_another_company(
@@ -448,7 +445,7 @@ async def test_update_company_name_allows_keeping_own_name(
 ):
     company = make_company(name="Acme AG")
     user = make_user(company_id=company.id)
-    company_repo.get_by_id.return_value = company
+    company_repo.lock_model_by_id.return_value = company
     company_repo.get_by_name.return_value = company
     company_repo.update_company_name.return_value = company
     service = CompanyService(company_repo, mail_template_service, storage_service, user)
@@ -456,7 +453,9 @@ async def test_update_company_name_allows_keeping_own_name(
     result = await service.update_company_name("Acme AG")
 
     assert result is company
-    company_repo.update_company_name.assert_awaited_once_with(company, "Acme AG")
+    company_repo.update_company_name.assert_awaited_once_with(
+        company, "Acme AG", unconfirm=False
+    )
 
 
 async def test_update_company_renames_any_company_for_staff(
@@ -468,7 +467,7 @@ async def test_update_company_renames_any_company_for_staff(
 ):
     company = make_company(name="Old Name")
     updated = make_company(name="New Name")
-    company_repo.get_by_id.return_value = company
+    company_repo.lock_model_by_id.return_value = company
     company_repo.get_by_name.return_value = None
     company_repo.update_company_name.return_value = updated
     service = CompanyService(
@@ -478,7 +477,9 @@ async def test_update_company_renames_any_company_for_staff(
     result = await service.update_company(company.id, "  New Name  ")
 
     assert result is updated
-    company_repo.update_company_name.assert_awaited_once_with(company, "New Name")
+    company_repo.update_company_name.assert_awaited_once_with(
+        company, "New Name", unconfirm=False
+    )
 
 
 async def test_update_company_rejects_a_taken_name(
@@ -654,5 +655,13 @@ async def test_search_companies_reports_counts_and_paging(
         (item.name, item.users_count, item.bookings_count) for item in result.items
     ] == [("Acme AG", 2, 1)]
     company_repo.get_company_overviews.assert_awaited_once_with(
-        "acme", 10, 10, CompanySort.NAME, SortDirection.ASC, None
+        "acme",
+        10,
+        10,
+        CompanySort.NAME,
+        SortDirection.ASC,
+        CompanyFilter.ALL,
+        None,
+        None,
+        unconfirmed_first=True,
     )

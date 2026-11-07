@@ -25,17 +25,13 @@ class MailTemplateRepository(BaseRepository[MailTemplate]):
         template = await self.get_by_key(key)
         if template is None:
             return
-        try:
+        async with self.committing():
             await self.hard_delete(template)
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
 
     async def upsert(
         self, key: str, texts: MailTemplateTexts, updated_by_user_id: UUID
     ) -> MailTemplate:
-        try:
+        async with self.committing():
             template = await self.get_by_key(key) or MailTemplate(
                 key=key,
                 subject_de=texts.subject_de,
@@ -49,9 +45,5 @@ class MailTemplateRepository(BaseRepository[MailTemplate]):
             template.body_en = texts.body_en
             template.updated_by_user_id = updated_by_user_id
             self.session.add(template)
-            await self.session.commit()
-            await self.session.refresh(template)
-            return template
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        await self.session.refresh(template)
+        return template

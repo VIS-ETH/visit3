@@ -1,13 +1,5 @@
-import {
-  MantineProvider,
-  Alert,
-  Button,
-  Center,
-  Loader,
-  Stack,
-} from "@mantine/core";
-import { IconAlertCircle } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { MantineProvider, Button, Center, Group, Stack } from "@mantine/core";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Notifications } from "@mantine/notifications";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -19,7 +11,14 @@ import MailCampaigns from "./pages/MailCampaigns";
 import MailTemplates from "./pages/MailTemplates";
 import Industries from "./pages/admin/Industries";
 import BookingsOverview from "./pages/BookingsOverview";
-import { Navigate, Outlet, Route, Routes } from "react-router";
+import {
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router";
 import RootLayout from "./pages/root";
 import AuthLink from "./pages/AuthLink";
 import Login from "./pages/Login";
@@ -52,8 +51,19 @@ import {
   getGetCurrentUserQueryKey,
   useGetCurrentUser,
 } from "./orval/generated/user/user";
-import { getToken, refreshToken, subscribeToTokenStorage } from "./api/utils";
+import {
+  getToken,
+  getTokenSubject,
+  isImpersonating,
+  isLoggedOut,
+  refreshToken,
+  subscribeToTokenStorage,
+} from "./api/utils";
 import { getApiErrorStatus } from "./api/errors";
+import { loginPathWithNext, takeLoginNext } from "./utils/navigation";
+import { stopImpersonating } from "./components/admin/useImpersonate";
+import PageLoader from "./components/PageLoader";
+import ErrorAlert from "./components/ErrorAlert";
 import makeVisitTheme, {
   visitCssVariablesResolver,
 } from "./theme/makeVisitTheme";
@@ -62,9 +72,29 @@ import { colorSchemeManager } from "./theme/color-scheme-manager";
 const primaryColor = configOptions().primaryColor;
 const theme = makeVisitTheme(primaryColor);
 
+function LoginRedirect() {
+  const { pathname, search, hash } = useLocation();
+  return (
+    <Navigate to={loginPathWithNext(`${pathname}${search}${hash}`)} replace />
+  );
+}
+
+function PendingLoginRedirect() {
+  const { user } = useCurrentUser();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) return;
+    const next = takeLoginNext();
+    if (next) navigate(next, { replace: true });
+  }, [user, navigate]);
+
+  return null;
+}
+
 function StaffRoute() {
   const { user } = useCurrentUser();
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <LoginRedirect />;
   return user.is_staff || user.is_admin ? (
     <Outlet />
   ) : (
@@ -74,7 +104,7 @@ function StaffRoute() {
 
 function PresidentRoute() {
   const { user } = useCurrentUser();
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <LoginRedirect />;
   return user.is_kp_president ? (
     <Outlet />
   ) : (
@@ -84,7 +114,7 @@ function PresidentRoute() {
 
 function CompanyRoute() {
   const { user } = useCurrentUser();
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <LoginRedirect />;
   return user.company_id ? <Outlet /> : <Navigate to="/not-allowed" replace />;
 }
 
@@ -97,7 +127,7 @@ function ActivatedRoute() {
 
 function ConfirmedRoute() {
   const { user } = useCurrentUser();
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <LoginRedirect />;
   if (!user.email_confirmed)
     return <Navigate to="/unconfirmed-email" replace />;
   if (user.is_company && !user.company_id)
@@ -181,10 +211,15 @@ function SessionLoadError({ onRetry }: { onRetry: () => void }) {
   return (
     <Center h="100%" w="100%" py="xl">
       <Stack align="center" gap="md" maw={520} px="md">
-        <Alert icon={<IconAlertCircle />} color="red" title={t("error.title")}>
-          {t("error.session_load_failed")}
-        </Alert>
-        <Button onClick={onRetry}>{t("error.retry")}</Button>
+        <ErrorAlert>{t("error.session_load_failed")}</ErrorAlert>
+        <Group justify="center">
+          <Button onClick={onRetry}>{t("error.retry")}</Button>
+          {isImpersonating() ? (
+            <Button variant="light" onClick={stopImpersonating}>
+              {t("impersonation.stop")}
+            </Button>
+          ) : null}
+        </Group>
       </Stack>
     </Center>
   );
@@ -195,14 +230,25 @@ function AppWithAuth() {
   const [hasToken, setHasToken] = useState<boolean>(() => !!getToken());
   const [isFetchingAccessToken, setIsFetchingAccessToken] =
     useState<boolean>(!getToken());
+  const subjectRef = useRef(getTokenSubject());
 
   useEffect(() => {
     const onTokenChanged = () => {
+      subjectRef.current = getTokenSubject();
       setHasToken(!!getToken());
     };
 
     const unsubscribeFromOtherTabs = subscribeToTokenStorage(() => {
-      queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+      const subject = getTokenSubject();
+      if (subject === subjectRef.current) {
+        void queryClient.invalidateQueries({
+          queryKey: getGetCurrentUserQueryKey(),
+        });
+      } else if (subject) {
+        void queryClient.resetQueries();
+      } else {
+        queryClient.clear();
+      }
       onTokenChanged();
     });
 
@@ -214,7 +260,7 @@ function AppWithAuth() {
   }, [queryClient]);
 
   useEffect(() => {
-    if (hasToken) {
+    if (hasToken || isLoggedOut()) {
       setIsFetchingAccessToken(false);
       return;
     }
@@ -249,11 +295,7 @@ function AppWithAuth() {
   const contextUser = hasToken ? user : undefined;
 
   if (isFetchingAccessToken || (hasToken && isLoading)) {
-    return (
-      <Center>
-        <Loader />
-      </Center>
-    );
+    return <PageLoader />;
   }
 
   if (hasToken && isError && getApiErrorStatus(error) !== 401) {
@@ -268,6 +310,7 @@ function AppWithAuth() {
 
   return (
     <UserProvider user={contextUser} isLoading={isLoading}>
+      <PendingLoginRedirect />
       <AppRoutes />
     </UserProvider>
   );

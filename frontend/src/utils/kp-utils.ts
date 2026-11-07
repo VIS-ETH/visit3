@@ -2,6 +2,7 @@ import type {
   KpBookingStatus,
   KpResponse,
 } from "../orval/generated/fastAPI.schemas";
+import { formatDate } from "./date-format";
 
 export type EventStatus = "upcoming" | "registration_open" | "past";
 const DATE_INPUT_PATTERN = /^(\d{2})\.(\d{2})\.(\d{4})$/;
@@ -85,12 +86,12 @@ export function formatKpDisplayDate(dateString?: string) {
   if (!year || !month || !day) return "-";
 
   const date = new Date(Date.UTC(year, month - 1, day));
-  return new Intl.DateTimeFormat(undefined, {
+  return formatDate(date, {
     day: "numeric",
     month: "long",
     year: "numeric",
     timeZone: "UTC",
-  }).format(date);
+  });
 }
 
 export function isDeadlinePassed(deadline: string) {

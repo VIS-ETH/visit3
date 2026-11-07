@@ -28,7 +28,7 @@ async def test_rotated_token_stays_usable_inside_the_grace_window(
     user = await make_user(user_repository)
     token = await token_repository.create_refresh_token(user.id)
 
-    await token_repository.rotate_refresh_token(user.id, token)
+    await token_repository.rotate_refresh_token(token)
 
     assert await token_repository.get_active_refresh_token(token) is None
     assert await token_repository.get_refresh_token_for_rotation(token) is not None
@@ -40,7 +40,7 @@ async def test_rotated_token_expires_from_the_grace_window(
     user = await make_user(user_repository)
     token = await token_repository.create_refresh_token(user.id)
 
-    await token_repository.rotate_refresh_token(user.id, token)
+    await token_repository.rotate_refresh_token(token)
     await age_rotation(db_session, token, REFRESH_TOKEN_REUSE_GRACE * 2)
 
     assert await token_repository.get_refresh_token_for_rotation(token) is None
@@ -61,7 +61,7 @@ async def test_expired_token_gets_no_grace_window(
     user = await make_user(user_repository)
     token = await token_repository.create_refresh_token(user.id)
 
-    await token_repository.rotate_refresh_token(user.id, token)
+    await token_repository.rotate_refresh_token(token)
     await db_session.execute(
         update(RefreshToken)
         .where(col(RefreshToken.token) == hash_str(token))
@@ -83,6 +83,6 @@ async def test_rotation_only_affects_the_presented_token(
     first = await token_repository.create_refresh_token(user.id)
     second = await token_repository.create_refresh_token(user.id)
 
-    await token_repository.rotate_refresh_token(user.id, first)
+    await token_repository.rotate_refresh_token(first)
 
     assert await token_repository.get_active_refresh_token(second) is not None

@@ -226,11 +226,11 @@ async def test_an_unavailable_mail_service_leaves_nothing_pending(
 async def test_an_admin_email_change_for_staff_uses_the_same_confirmation(
     client: AsyncClient,
     staff_user: User,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     mail_stub: AsyncMock,
 ):
     response = await change_email(
-        client, staff_user, staff_headers, "new-staff@example.com"
+        client, staff_user, admin_headers, "new-staff@example.com"
     )
 
     assert response.status_code == 200

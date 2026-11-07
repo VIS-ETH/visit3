@@ -92,23 +92,23 @@ async def test_a_company_website_must_be_an_http_url(
 
 
 async def test_a_package_cannot_contain_a_service_that_excludes_it(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     package = await client.post(
         f"/api/kp/events/{kp_setup.event_id}/services",
         json={"name": "Package"},
-        headers=staff_headers,
+        headers=president_headers,
     )
     await client.patch(
         f"/api/kp/services/{kp_setup.service_id}",
         json={"excluded_service_ids": [package.json()["id"]]},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     response = await client.patch(
         f"/api/kp/services/{package.json()['id']}",
         json={"included_services": [{"service_id": kp_setup.service_id}]},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 400

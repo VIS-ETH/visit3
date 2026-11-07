@@ -62,6 +62,20 @@ class MimeSignature:
     markers: tuple[tuple[int, bytes], ...]
 
 
+MP4_BRANDS = (
+    b"isom",
+    b"iso2",
+    b"iso4",
+    b"iso5",
+    b"iso6",
+    b"mp41",
+    b"mp42",
+    b"avc1",
+    b"M4V ",
+    b"dash",
+    b"msnv",
+)
+
 MIME_SIGNATURES = (
     MimeSignature("image/png", ((0, b"\x89PNG\r\n\x1a\n"),)),
     MimeSignature("image/jpeg", ((0, b"\xff\xd8\xff"),)),
@@ -75,7 +89,7 @@ MIME_SIGNATURES = (
     MimeSignature("image/avif", ((4, b"ftypavif"),)),
     MimeSignature("video/quicktime", ((4, b"ftypqt"),)),
     MimeSignature("video/quicktime", ((4, b"moov"),)),
-    MimeSignature("video/mp4", ((4, b"ftyp"),)),
+    *(MimeSignature("video/mp4", ((4, b"ftyp" + brand),)) for brand in MP4_BRANDS),
     MimeSignature("video/webm", ((0, b"\x1a\x45\xdf\xa3"),)),
 )
 

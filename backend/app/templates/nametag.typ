@@ -4,8 +4,10 @@
 #let tag-height = 54mm
 #let gap = 4mm
 #let columns = data.columns
+#let preview = data.at("preview", default: false)
 
-#set page("a4", margin: 10mm)
+#set page("a4", margin: 10mm) if not preview
+#set page(width: auto, height: auto, margin: 0mm) if preview
 #set text(font: "DejaVu Sans")
 
 #let tag-value(tag, key) = {
@@ -32,7 +34,7 @@
   weight: "regular",
 ) = {
   place(top + left, dx: x, dy: y)[
-    #block(width: width, height: height)[
+    #block(width: width, height: height, clip: true)[
       #align(center + horizon)[
         #text(size: size, fill: rgb(fill), weight: weight)[#tag-value(tag, key)]
       ]
@@ -60,6 +62,8 @@
     #nametag-field(tag, "company", 12mm, 40mm, 66mm, 6mm, 9pt, "#333333")
   ]
 }
+
+#metadata(data.tags.len()) <nametags>
 
 #grid(
   columns: columns,

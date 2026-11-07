@@ -59,9 +59,11 @@ def storage_service(s3_client: FakeS3Client) -> StorageService:
 
 
 async def test_an_event_without_a_banner_has_none(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
-    response = await client.get(banner_url(kp_setup.event_id), headers=staff_headers)
+    response = await client.get(
+        banner_url(kp_setup.event_id), headers=president_headers
+    )
 
     assert response.status_code == 200
     assert response.json() is None
@@ -69,12 +71,12 @@ async def test_an_event_without_a_banner_has_none(
 
 async def test_the_upload_stores_three_webp_widths(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     s3_client: FakeS3Client,
 ):
     response = await upload(
-        client, staff_headers, kp_setup.event_id, raster(3200, 1000)
+        client, president_headers, kp_setup.event_id, raster(3200, 1000)
     )
 
     assert response.status_code == 200
@@ -98,11 +100,13 @@ async def test_the_upload_stores_three_webp_widths(
 
 async def test_a_narrow_upload_is_not_scaled_up(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     s3_client: FakeS3Client,
 ):
-    response = await upload(client, staff_headers, kp_setup.event_id, raster(1000, 400))
+    response = await upload(
+        client, president_headers, kp_setup.event_id, raster(1000, 400)
+    )
 
     banner = response.json()
     assert (banner["width"], banner["height"]) == (1000, 400)
@@ -121,7 +125,7 @@ async def test_a_narrow_upload_is_not_scaled_up(
 )
 async def test_the_upload_rejects_other_file_types(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     s3_client: FakeS3Client,
     content: bytes,
@@ -129,7 +133,7 @@ async def test_the_upload_rejects_other_file_types(
     content_type: str,
 ):
     response = await upload(
-        client, staff_headers, kp_setup.event_id, content, filename, content_type
+        client, president_headers, kp_setup.event_id, content, filename, content_type
     )
 
     assert response.status_code == 400
@@ -139,12 +143,12 @@ async def test_the_upload_rejects_other_file_types(
 
 async def test_the_upload_rejects_a_pixel_bomb(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     s3_client: FakeS3Client,
 ):
     response = await upload(
-        client, staff_headers, kp_setup.event_id, decompression_bomb(30_000)
+        client, president_headers, kp_setup.event_id, decompression_bomb(30_000)
     )
 
     assert response.status_code == 400
@@ -154,13 +158,13 @@ async def test_the_upload_rejects_a_pixel_bomb(
 
 async def test_the_upload_rejects_a_file_over_the_banner_limit(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     s3_client: FakeS3Client,
 ):
     oversized = raster(1600, 500) + b"\x00" * BANNER_MAX_BYTES
 
-    response = await upload(client, staff_headers, kp_setup.event_id, oversized)
+    response = await upload(client, president_headers, kp_setup.event_id, oversized)
 
     assert response.status_code in (400, 413)
     assert response.json()["code"] == "error.storage_file_too_large"
@@ -169,12 +173,12 @@ async def test_the_upload_rejects_a_file_over_the_banner_limit(
 
 async def test_the_upload_rejects_an_image_narrower_than_the_card(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     s3_client: FakeS3Client,
 ):
     response = await upload(
-        client, staff_headers, kp_setup.event_id, raster(BANNER_MIN_WIDTH - 1, 200)
+        client, president_headers, kp_setup.event_id, raster(BANNER_MIN_WIDTH - 1, 200)
     )
 
     assert response.status_code == 400
@@ -184,70 +188,82 @@ async def test_the_upload_rejects_an_image_narrower_than_the_card(
 
 async def test_a_new_upload_replaces_the_previous_banner(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     s3_client: FakeS3Client,
 ):
-    first = await upload(client, staff_headers, kp_setup.event_id, raster(2400, 800))
+    first = await upload(
+        client, president_headers, kp_setup.event_id, raster(2400, 800)
+    )
 
-    second = await upload(client, staff_headers, kp_setup.event_id, raster(1200, 600))
+    second = await upload(
+        client, president_headers, kp_setup.event_id, raster(1200, 600)
+    )
 
     assert second.status_code == 200
     first_keys = {source["url"] for source in first.json()["sources"]}
     second_keys = {source["url"] for source in second.json()["sources"]}
     assert first_keys.isdisjoint(second_keys)
     assert len(s3_client.objects) == 2
-    stored = await client.get(banner_url(kp_setup.event_id), headers=staff_headers)
+    stored = await client.get(banner_url(kp_setup.event_id), headers=president_headers)
     assert stored.json() == second.json()
 
 
 async def test_reset_restores_the_default_and_removes_the_files(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     s3_client: FakeS3Client,
 ):
-    await upload(client, staff_headers, kp_setup.event_id, raster(2400, 800))
+    await upload(client, president_headers, kp_setup.event_id, raster(2400, 800))
 
-    response = await client.delete(banner_url(kp_setup.event_id), headers=staff_headers)
-    repeated = await client.delete(banner_url(kp_setup.event_id), headers=staff_headers)
+    response = await client.delete(
+        banner_url(kp_setup.event_id), headers=president_headers
+    )
+    repeated = await client.delete(
+        banner_url(kp_setup.event_id), headers=president_headers
+    )
 
     assert response.status_code == 200
     assert repeated.status_code == 200
-    stored = await client.get(banner_url(kp_setup.event_id), headers=staff_headers)
+    stored = await client.get(banner_url(kp_setup.event_id), headers=president_headers)
     assert stored.json() is None
     assert s3_client.objects == {}
 
 
 async def test_a_cloned_event_keeps_the_banner_of_its_source(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     s3_client: FakeS3Client,
 ):
-    uploaded = await upload(client, staff_headers, kp_setup.event_id, raster(2400, 800))
+    uploaded = await upload(
+        client, president_headers, kp_setup.event_id, raster(2400, 800)
+    )
     clone = await client.post(
         f"/api/kp/events/{kp_setup.event_id}/clone",
         json=kp_payload("Cloned KP"),
-        headers=staff_headers,
+        headers=president_headers,
     )
     clone_id = clone.json()["id"]
 
-    await client.delete(banner_url(kp_setup.event_id), headers=staff_headers)
+    await client.delete(banner_url(kp_setup.event_id), headers=president_headers)
 
-    cloned = await client.get(banner_url(clone_id), headers=staff_headers)
+    cloned = await client.get(banner_url(clone_id), headers=president_headers)
     assert cloned.json() == uploaded.json()
     assert len(s3_client.objects) == len(BANNER_WIDTHS)
 
 
 async def test_the_latest_event_carries_its_banner(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
 ):
     before = await client.get("/api/kp/latest", headers=company_headers)
-    uploaded = await upload(client, staff_headers, kp_setup.event_id, raster(2400, 800))
+    uploaded = await upload(
+        client, president_headers, kp_setup.event_id, raster(2400, 800)
+    )
 
     after = await client.get("/api/kp/latest", headers=company_headers)
 

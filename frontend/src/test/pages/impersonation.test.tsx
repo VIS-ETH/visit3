@@ -43,9 +43,6 @@ beforeEach(() => {
   vi.mocked(reloadAt).mockClear();
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/users`, () =>
       HttpResponse.json({
         items: [companyUser],

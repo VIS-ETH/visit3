@@ -1,11 +1,3 @@
-"""KP event date checks and removal of the draft booking status
-
-Revision ID: 0025
-Revises: 0024
-Create Date: 2026-09-22 00:00:00.000000
-
-"""
-
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -34,8 +26,6 @@ EVENT_DATE_CHECKS = [
 ]
 
 BOOKING_TABLE = "kpeventbooking"
-# Partial indexes from 0024 whose predicates reference the status enum; they
-# must be dropped before the column type changes and recreated afterwards.
 ACTIVE_BOOKING_INDEXES = [
     (
         "ix_kpeventbooking_event_id_company_id_booth_zone_id",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
-import { KpBookingCompletion } from "../../components/KpBookingCompletion";
+import { KpBookingCompletion } from "../../components/exhibitor-booking/KpBookingCompletion";
 import { KpBookingStatus } from "../../orval/generated/fastAPI.schemas";
 import type { BookingResponse } from "../../orval/generated/fastAPI.schemas";
 import { renderWithProviders } from "../render";

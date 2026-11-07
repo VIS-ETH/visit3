@@ -1,25 +1,27 @@
 import logging
 import secrets
 from collections.abc import Sequence
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from urllib.parse import quote
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from app.core.auth_context import (
     require_admin_user,
     require_assigned_company_user,
-    require_company_profile_user,
     require_confirmed_company_user,
     require_staff_user,
 )
 from app.core.config import get_settings
+from app.core.dates import utc_now
 from app.core.exceptions import (
     CompanyGeneralEmailIsLogin,
     CompanyHasUpcomingBookings,
     CompanyInvitePending,
     CompanyNameTaken,
+    CompanyNotConfirmed,
     CompanyNotFound,
     CompanyUserNotFound,
+    ConcurrentChange,
     IndustryNotFound,
     MailUnavailable,
     NotAllowed,
@@ -27,7 +29,7 @@ from app.core.exceptions import (
     UserLastCompanyMember,
     UserNotFound,
 )
-from app.core.utils import bounded_filename, normalize_email, safe_suffix
+from app.core.utils import normalize_email
 from app.mail_templates.context import (
     CompanyAwaitingConfirmationContext,
     CompanyConfirmedContext,
@@ -45,6 +47,7 @@ from app.models.user import User
 from app.repositories.company_repository import CompanyRepository
 from app.schemas.company import (
     CompanyAssignedUserResult,
+    CompanyFilter,
     CompanyListResult,
     CompanyMemberResult,
     CompanyPageResult,
@@ -60,6 +63,7 @@ from app.services.change_service import changes_since
 from app.services.invite_service import InviteService
 from app.services.mail_template_service import MailTemplateService
 from app.services.storage_service import StorageService, UploadKind, UploadStream
+from app.services.stored_files import StoredFiles
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +100,7 @@ class CompanyService:
         self.storage_service = storage_service
         self.current_user = current_user
         self.invite_service = InviteService(company_repository)
+        self.stored_files = StoredFiles(storage_service, company_repository)
 
     async def get_company_users(self, company_id: UUID) -> Sequence[User]:
         require_staff_user(self.current_user)
@@ -121,7 +126,9 @@ class CompanyService:
 
     async def get_companies(self) -> Sequence[CompanyListResult]:
         require_staff_user(self.current_user)
-        return await self._company_overviews()
+        return self._company_overviews(
+            await self.company_repository.get_company_overviews()
+        )
 
     async def search_companies(
         self,
@@ -130,30 +137,39 @@ class CompanyService:
         page_size: int,
         sort: CompanySort = CompanySort.NAME,
         direction: SortDirection = SortDirection.ASC,
-        only_changes: bool = False,
+        company_filter: CompanyFilter = CompanyFilter.ALL,
+        company_id: UUID | None = None,
     ) -> CompanyPageResult:
         require_staff_user(self.current_user)
-        changed_since = changes_since(self.current_user) if only_changes else None
-        total = await self.company_repository.count_companies(query, changed_since)
-        items = await self._company_overviews(
-            query, (page - 1) * page_size, page_size, sort, direction, changed_since
+        since = (
+            changes_since(self.current_user)
+            if company_filter is CompanyFilter.NEW
+            else None
+        )
+        total = await self.company_repository.count_companies(
+            query, company_filter, since, company_id
+        )
+        rows = await self.company_repository.get_company_overviews(
+            query,
+            (page - 1) * page_size,
+            page_size,
+            sort,
+            direction,
+            company_filter,
+            since,
+            company_id,
+            unconfirmed_first=True,
         )
         return CompanyPageResult(
-            items=list(items), total=total, page=page, page_size=page_size
+            items=list(self._company_overviews(rows)),
+            total=total,
+            page=page,
+            page_size=page_size,
         )
 
-    async def _company_overviews(
-        self,
-        query: str | None = None,
-        offset: int | None = None,
-        limit: int | None = None,
-        sort: CompanySort = CompanySort.NAME,
-        direction: SortDirection = SortDirection.ASC,
-        changed_since: datetime | None = None,
+    def _company_overviews(
+        self, companies: Sequence[tuple[UUID, str, datetime | None, int, int, int]]
     ) -> Sequence[CompanyListResult]:
-        companies = await self.company_repository.get_company_overviews(
-            query, offset, limit, sort, direction, changed_since
-        )
         return [
             CompanyListResult(
                 id=company_id,
@@ -271,9 +287,8 @@ class CompanyService:
         existing = await self.company_repository.get_by_name(normalized)
         if existing:
             raise CompanyNameTaken(f"setup_company:name_taken:{normalized}")
-        company = await self.company_repository.create_company(normalized)
-        await self.company_repository.assign_user(
-            self.current_user, company.id, mark_new=False
+        company = await self.company_repository.create_company_with_founder(
+            normalized, self.current_user.id
         )
         logger.info(
             "Company created and joined: %s -> %s",
@@ -300,11 +315,16 @@ class CompanyService:
         except MailUnavailable:
             logger.exception("Staff notification failed for company %s", company.id)
 
-    async def confirm_company(self, company_id: UUID) -> CompanyWithUsersResult:
+    async def confirm_company(
+        self, company_id: UUID, reviewed_name: str
+    ) -> CompanyWithUsersResult:
         require_staff_user(self.current_user)
-        company = await self.company_repository.get_by_id(company_id)
+        company = await self.company_repository.lock_model_by_id(Company, company_id)
         if not company:
             raise CompanyNotFound(f"confirm_company:{company_id}")
+        if company.name != reviewed_name.strip():
+            await self.company_repository.session.rollback()
+            raise ConcurrentChange(f"confirm_company:renamed:{company_id}")
         if company.confirmed_at is None:
             confirmed = await self.company_repository.confirm_company(company)
             await self._send_company_confirmed(confirmed)
@@ -339,16 +359,22 @@ class CompanyService:
     async def create_invite(self, email: str) -> CompanyInvite:
         company_user = require_assigned_company_user(self.current_user)
         normalized = normalize_email(email)
-        company = await self.company_repository.get_by_id(company_user.company_id)
+        company = await self.company_repository.lock_model_by_id(
+            Company, company_user.company_id
+        )
         if not company:
             raise CompanyNotFound(f"create_invite:{company_user.company_id}")
+        if company.confirmed_at is None:
+            await self.company_repository.release_locks()
+            raise CompanyNotConfirmed(f"create_invite:{company.id}")
         pending = await self.company_repository.get_pending_invite(
             company.id, normalized
         )
         if pending is not None:
+            await self.company_repository.release_locks()
             raise CompanyInvitePending(f"create_invite:{company.id}:{normalized}")
         token = secrets.token_urlsafe(32)
-        expires_at = datetime.now(timezone.utc) + INVITE_EXPIRE
+        expires_at = utc_now() + INVITE_EXPIRE
         invite = await self.company_repository.create_invite(
             token=token,
             company_id=company.id,
@@ -401,49 +427,54 @@ class CompanyService:
 
     async def update_company_name(self, name: str) -> Company:
         company_user = require_assigned_company_user(self.current_user)
-        company = await self.company_repository.get_by_id(company_user.company_id)
+        company = await self.company_repository.lock_model_by_id(
+            Company, company_user.company_id
+        )
         if not company:
             logger.warning(
                 "Update company name failed - company not found: %s",
                 company_user.company_id,
             )
             raise CompanyNotFound(f"update_company_name:{company_user.company_id}")
-        previous_name = company.name
-        was_confirmed = company.confirmed_at is not None
-        renamed = await self._rename_company(company, name)
-        if was_confirmed and renamed.name != previous_name:
-            renamed = await self.company_repository.unconfirm_company(renamed)
+        unconfirm = company.confirmed_at is not None and name.strip() != company.name
+        renamed = await self._rename_company(company, name, unconfirm=unconfirm)
+        if unconfirm:
             await self._notify_company_awaiting_confirmation(renamed)
         return renamed
 
     async def update_company(self, company_id: UUID, name: str) -> Company:
         require_staff_user(self.current_user)
-        company = await self.company_repository.get_by_id(company_id)
+        company = await self.company_repository.lock_model_by_id(Company, company_id)
         if not company:
             raise CompanyNotFound(f"update_company:{company_id}")
         return await self._rename_company(company, name)
 
-    async def _rename_company(self, company: Company, name: str) -> Company:
+    async def _rename_company(
+        self, company: Company, name: str, *, unconfirm: bool = False
+    ) -> Company:
         normalized = name.strip()
+        previous_name = company.name
         if normalized == "":
+            await self.company_repository.release_locks()
             raise NotAllowed(f"rename_company:empty_name:{company.id}")
         existing = await self.company_repository.get_by_name(normalized)
         if existing is not None and existing.id != company.id:
+            await self.company_repository.release_locks()
             raise CompanyNameTaken(f"rename_company:name_taken:{normalized}")
 
         updated_company = await self.company_repository.update_company_name(
-            company, normalized
+            company, normalized, unconfirm=unconfirm
         )
         logger.info(
             "Company name updated by %s: %r -> %r",
             self.current_user.id,
-            company.name,
+            previous_name,
             normalized,
         )
         return updated_company
 
     async def get_my_company(self) -> MyCompanyResult:
-        company_user = require_company_profile_user(self.current_user)
+        company_user = require_assigned_company_user(self.current_user)
         company = await self.company_repository.get_by_id(company_user.company_id)
         if company is None:
             raise CompanyNotFound(f"my_company:{company_user.company_id}")
@@ -579,14 +610,14 @@ class CompanyService:
                 )
 
     async def get_my_profile(self) -> CompanyProfileResult:
-        company_user = require_company_profile_user(self.current_user)
+        company_user = require_assigned_company_user(self.current_user)
         profile = await self.company_repository.get_kp_profile(company_user.company_id)
         return await self._profile_result(company_user.company_id, profile)
 
     async def update_my_profile(
         self, profile_input: UpdateCompanyProfileInput
     ) -> CompanyProfileResult:
-        company_user = require_company_profile_user(self.current_user)
+        company_user = require_assigned_company_user(self.current_user)
         await self._validate_profile_input(company_user.company_id, profile_input)
         profile = await self.company_repository.upsert_kp_profile(
             company_user.company_id, profile_input
@@ -617,7 +648,7 @@ class CompanyService:
         content_length: int | None,
         content_type: str | None,
     ) -> CompanyProfileResult:
-        company_user = require_company_profile_user(self.current_user)
+        company_user = require_assigned_company_user(self.current_user)
         return await self._upload_profile_logo(
             company_user.company_id, filename, upload, content_length, content_type
         )
@@ -659,36 +690,20 @@ class CompanyService:
             allowed_mime_types=LOGO_MIME_TYPES,
         )
         old_stored_file = profile.logo_stored_file
-        suffix = safe_suffix(filename)
-        storage_key = f"company/{profile.company_id}/logo/{uuid4()}{suffix}"
-        stored_object = await self.storage_service.upload_bytes(
-            key=storage_key,
-            content=content,
-            filename=filename,
-            content_type=mime_type,
-        )
-        try:
-            stored_file = await self.company_repository.upsert_stored_file(
-                storage_key=stored_object.key,
-                original_filename=bounded_filename(filename),
-                mime_type=stored_object.mime_type,
-                size_bytes=stored_object.size_bytes,
-                sha256=stored_object.sha256,
-                etag=stored_object.etag,
-            )
-            updated = await self.company_repository.set_profile_logo_stored_file_id(
+        updated = await self.stored_files.save(
+            f"company/{profile.company_id}/logo",
+            filename,
+            content,
+            mime_type,
+            lambda stored_file: self.company_repository.set_profile_logo_stored_file_id(
                 profile, stored_file.id
-            )
-        except Exception:
-            await self.storage_service.delete_object(stored_object.key)
-            raise
-        if old_stored_file is not None:
-            await self.storage_service.delete_object(old_stored_file.storage_key)
-            await self.company_repository.delete_stored_file(old_stored_file)
+            ),
+        )
+        await self.stored_files.discard(old_stored_file)
         return await self._profile_result(company_id, updated)
 
     async def delete_my_profile_logo(self) -> CompanyProfileResult:
-        company_user = require_company_profile_user(self.current_user)
+        company_user = require_assigned_company_user(self.current_user)
         return await self._delete_profile_logo(company_user.company_id)
 
     async def delete_company_profile_logo(
@@ -706,6 +721,5 @@ class CompanyService:
         updated = await self.company_repository.set_profile_logo_stored_file_id(
             profile, None
         )
-        await self.storage_service.delete_object(stored_file.storage_key)
-        await self.company_repository.delete_stored_file(stored_file)
+        await self.stored_files.discard(stored_file)
         return await self._profile_result(company_id, updated)

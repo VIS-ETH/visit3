@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useSendConfirmationMail } from "../orval/generated/user/user";
 import IconTitle from "../components/IconTitle";
 import { useCurrentUser } from "../context/useCurrentUser";
+import { useAsyncAction } from "../hooks/use-async-action";
 
 const UnconfirmedEmail = () => {
   const { t } = useTranslation();
@@ -17,12 +18,11 @@ const UnconfirmedEmail = () => {
     if (user?.email_confirmed) navigate("/", { replace: true });
   }, [user?.email_confirmed, navigate]);
 
-  const { mutate: send, isPending } = useSendConfirmationMail({
-    mutation: {
-      onSuccess: () => {
-        setEmailSent(true);
-      },
-    },
+  const { mutateAsync: sendConfirmationMail } = useSendConfirmationMail();
+
+  const { run: send, isRunning } = useAsyncAction(async () => {
+    await sendConfirmationMail();
+    setEmailSent(true);
   });
 
   if (!user) {
@@ -57,13 +57,7 @@ const UnconfirmedEmail = () => {
           <Text ta="center" c="dimmed" maw={520}>
             {t("email.confirm.unconfirmed_description", { email: user.email })}
           </Text>
-          <Button
-            size="lg"
-            disabled={isPending}
-            onClick={() => {
-              send();
-            }}
-          >
+          <Button size="lg" loading={isRunning} onClick={() => void send()}>
             {t("email.confirm.button")}
           </Button>
         </Stack>

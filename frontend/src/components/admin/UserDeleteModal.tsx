@@ -1,10 +1,11 @@
-import { Alert, Button, Group, Modal, Stack, Text } from "@mantine/core";
-import { IconAlertCircle } from "@tabler/icons-react";
-import { notifications } from "@mantine/notifications";
+import { Button, Group, Modal, Stack, Text } from "@mantine/core";
+import { notifySuccess } from "../../utils/notify";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getApiErrorCode } from "../../api/errors";
+import { getInlineErrorCode, inlineErrorRequest } from "../../api/errors";
+import ErrorAlert from "../ErrorAlert";
+import { useAsyncAction } from "../../hooks/use-async-action";
 import type { UserResponse } from "../../orval/generated/fastAPI.schemas";
 import {
   getListUsersQueryKey,
@@ -25,30 +26,31 @@ const UserDeleteModal = ({ user, onClose }: UserDeleteModalProps) => {
     if (user) setErrorCode(null);
   }, [user]);
 
-  const { mutate: remove, isPending } = useDeleteUser({
-    mutation: {
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({
-          queryKey: getListUsersQueryKey(),
-        });
-        notifications.show({
-          color: "green",
-          message: t("user_management.delete_modal.deleted"),
-        });
-        onClose();
-      },
-      onError: (error) => {
-        setErrorCode(getApiErrorCode(error) ?? "server.error");
-      },
-    },
+  const { mutateAsync: deleteUser } = useDeleteUser({
+    request: inlineErrorRequest,
   });
+
+  const { run: remove, isRunning: isPending } = useAsyncAction(
+    async (userId: string) => {
+      setErrorCode(null);
+      await deleteUser({ userId });
+      await queryClient.invalidateQueries({
+        queryKey: getListUsersQueryKey(),
+      });
+      notifySuccess(t("user_management.delete_modal.deleted"));
+      onClose();
+    },
+    (error) => setErrorCode(getInlineErrorCode(error)),
+  );
 
   return (
     <Modal
       centered
       closeOnClickOutside={!isPending}
       closeOnEscape={!isPending}
-      onClose={onClose}
+      onClose={() => {
+        if (!isPending) onClose();
+      }}
       opened={user !== null}
       title={t("user_management.delete_modal.title")}
       withCloseButton={!isPending}
@@ -62,15 +64,7 @@ const UserDeleteModal = ({ user, onClose }: UserDeleteModalProps) => {
         <Text c="red" fw={600}>
           {t("user_management.delete_modal.irreversible")}
         </Text>
-        {errorCode ? (
-          <Alert
-            color="red"
-            icon={<IconAlertCircle />}
-            title={t("error.title")}
-          >
-            {t(errorCode)}
-          </Alert>
-        ) : null}
+        {errorCode ? <ErrorAlert>{t(errorCode)}</ErrorAlert> : null}
         <Group justify="flex-end" mt="md">
           <Button disabled={isPending} onClick={onClose} variant="default">
             {t("user_management.delete_modal.cancel")}
@@ -79,9 +73,7 @@ const UserDeleteModal = ({ user, onClose }: UserDeleteModalProps) => {
             color="red"
             loading={isPending}
             onClick={() => {
-              if (!user) return;
-              setErrorCode(null);
-              remove({ userId: user.id });
+              if (user) void remove(user.id);
             }}
           >
             {t("user_management.delete_modal.confirm")}

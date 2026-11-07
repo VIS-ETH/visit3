@@ -1,8 +1,8 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { notifications } from "@mantine/notifications";
 import serverData from "../utils/server-data";
-import i18n from "../i18";
-import { Fragment, createElement } from "react";
+import i18n from "../i18n";
+import { Fragment, createElement, type ReactNode } from "react";
 import {
   clearAuthState,
   getCsrfToken,
@@ -13,6 +13,7 @@ import {
   renewCsrfToken,
 } from "./utils";
 import { IconX } from "@tabler/icons-react";
+import { LOGIN_PATH, loginPathWithNext } from "../utils/navigation";
 const backend_url = serverData.backendUrl;
 
 const api = axios.create({
@@ -22,12 +23,10 @@ const api = axios.create({
 
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-    let token;
+    let token = getToken();
 
-    if (isTokenExpired()) {
+    if (token && isTokenExpired()) {
       token = await refreshToken();
-    } else {
-      token = getToken();
     }
 
     if (token) {
@@ -83,7 +82,6 @@ const ERROR_CODE_REDIRECTS: Record<string, string> = {
 };
 
 const CSRF_ERROR_CODE = "csrf.validation_failed";
-const LOGIN_PATH = "/login";
 
 declare module "axios" {
   interface AxiosRequestConfig {
@@ -97,9 +95,9 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 }
 
 const redirectToLogin = () => {
-  if (window.location.pathname !== LOGIN_PATH) {
-    window.location.href = LOGIN_PATH;
-  }
+  const { href, origin, pathname } = window.location;
+  if (pathname === LOGIN_PATH) return;
+  window.location.href = loginPathWithNext(href.slice(origin.length));
 };
 
 const PAYLOAD_TOO_LARGE = 413;
@@ -173,6 +171,17 @@ const getErrorMessage = (errorResponse: ErrorResponse | undefined): string => {
   return i18n.t("server.error");
 };
 
+const showError = (message: ReactNode) => {
+  notifications.show({
+    color: "red",
+    title: i18n.t("error.title"),
+    message,
+    icon: createElement(IconX, { size: 16 }),
+    withCloseButton: true,
+    withBorder: true,
+  });
+};
+
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -204,30 +213,30 @@ api.interceptors.response.use(
       }
     }
 
-    if (status === 401) {
-      if (request && !request.authRetried && getToken()) {
-        request.authRetried = true;
-        if (await refreshToken()) {
-          return api(request);
-        }
+    let refreshUnavailable = false;
+    if (status === 401 && request && !request.authRetried && getToken()) {
+      request.authRetried = true;
+      if (await refreshToken()) {
+        return api(request);
       }
+      refreshUnavailable = getToken() !== null;
+    }
+
+    if (refreshUnavailable) {
+      showError(i18n.t("error.network"));
+    } else if (status === 401) {
       clearAuthState();
       redirectToLogin();
     } else if (redirectTo) {
       window.location.href = redirectTo;
     } else if (!request?.quietStatuses?.includes(status)) {
-      notifications.show({
-        color: "red",
-        title: i18n.t("error.title"),
-        message: withReference(
+      showError(
+        withReference(
           getUploadErrorMessage(status, request) ??
             getErrorMessage(errorResponse),
           errorResponse?.requestId,
         ),
-        icon: createElement(IconX, { size: 16 }),
-        withCloseButton: true,
-        withBorder: true,
-      });
+      );
     }
 
     return Promise.reject(error);

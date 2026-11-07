@@ -1,18 +1,11 @@
-import {
-  Alert,
-  Center,
-  Group,
-  Loader,
-  Stack,
-  Text,
-  Title,
-} from "@mantine/core";
-import { IconAlertCircle } from "@tabler/icons-react";
+import { Group, Stack, Text, Title } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
 import BackButton from "../components/BackButton";
+import ErrorAlert from "../components/ErrorAlert";
+import PageLoader from "../components/PageLoader";
 import { useGetKpById } from "../orval/generated/kp/kp";
-import KpBookingStepper from "./KpBookingStepper.tsx";
+import KpBookingStepper from "../components/exhibitor-booking/KpBookingStepper";
 
 const KpBooking = () => {
   const { t } = useTranslation();
@@ -26,21 +19,13 @@ const KpBooking = () => {
     query: { enabled: Boolean(eventId) },
   });
 
-  if (isLoading) {
-    return (
-      <Center py="xl">
-        <Loader />
-      </Center>
-    );
-  }
+  if (isLoading) return <PageLoader />;
 
   if (!eventId || isError || !event) {
     return (
       <Stack gap="md">
         <BackButton to={eventId ? `/kp/${eventId}` : "/kp"} />
-        <Alert icon={<IconAlertCircle />} color="red" title={t("server.error")}>
-          {t("kp.booking.error")}
-        </Alert>
+        <ErrorAlert>{t("kp.booking.error")}</ErrorAlert>
       </Stack>
     );
   }

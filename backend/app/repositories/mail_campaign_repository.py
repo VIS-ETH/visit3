@@ -112,22 +112,14 @@ class MailCampaignRepository(BaseRepository[MailCampaign]):
         return result.scalar_one_or_none()
 
     async def save(self, campaign: MailCampaign) -> MailCampaign:
-        try:
+        async with self.committing():
             self.session.add(campaign)
-            await self.session.commit()
-            await self.session.refresh(campaign)
-            return campaign
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        await self.session.refresh(campaign)
+        return campaign
 
     async def soft_delete(self, campaign: MailCampaign) -> None:
-        try:
+        async with self.committing():
             self.delete(campaign)
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
 
     async def rollback(self) -> None:
         await self.session.rollback()
@@ -229,7 +221,7 @@ class MailCampaignRepository(BaseRepository[MailCampaign]):
         recipients: Sequence[MailCampaignRecipient],
         now: datetime,
     ) -> bool:
-        try:
+        async with self.committing():
             statement = (
                 update(MailCampaign)
                 .where(
@@ -239,14 +231,9 @@ class MailCampaignRepository(BaseRepository[MailCampaign]):
                 .values(recipients_resolved_at=now)
             )
             if not _changed(await self.session.execute(statement)):
-                await self.session.rollback()
                 return False
             self.session.add_all(recipients)
-            await self.session.commit()
-            return True
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        return True
 
     async def next_pending(self, campaign_id: UUID) -> MailCampaignRecipient | None:
         statement = (
@@ -335,11 +322,12 @@ class MailCampaignRepository(BaseRepository[MailCampaign]):
         )
 
     async def reset_failed(self, campaign_id: UUID) -> None:
-        await self._move_recipients(
-            campaign_id,
-            MailCampaignRecipientStatus.FAILED,
-            MailCampaignRecipientStatus.PENDING,
-            None,
+        await self._set_recipients(
+            col(MailCampaignRecipient.campaign_id) == campaign_id,
+            col(MailCampaignRecipient.status) == MailCampaignRecipientStatus.FAILED,
+            col(MailCampaignRecipient.error) != MailCampaignFailure.INTERRUPTED,
+            status=MailCampaignRecipientStatus.PENDING,
+            error=None,
         )
 
     async def count_recipients(

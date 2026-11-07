@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import BoothZonesTab from "../../components/BoothZonesTab";
+import BoothZonesTab from "../../components/kp-manage/BoothZonesTab";
 import type { StaffBoothZoneResponse } from "../../orval/generated/fastAPI.schemas";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
@@ -43,9 +43,6 @@ beforeEach(() => {
   updates = [];
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/${testEventId}/booth-zones`, () =>
       HttpResponse.json(zones),
     ),

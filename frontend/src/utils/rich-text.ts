@@ -21,6 +21,7 @@ const HIDDEN_TAGS = new Set([
   "object",
   "head",
 ]);
+const RAW_TEXT_TAGS = new Set(["script", "style"]);
 const LIST_TAGS = new Set(["ul", "ol"]);
 const BLOCK_TAGS = new Set([
   "p",
@@ -90,27 +91,55 @@ class EntryCollector {
   }
 }
 
-const walk = (node: Node, collector: EntryCollector, hidden: boolean) => {
-  if (node.nodeType === Node.TEXT_NODE) {
-    if (!hidden && node.textContent) collector.current.push(node.textContent);
-    return;
-  }
-  if (node.nodeType !== Node.ELEMENT_NODE) return;
-  const tag = (node as Element).localName;
-  collector.start(tag);
-  node.childNodes.forEach((child) =>
-    walk(child, collector, hidden || HIDDEN_TAGS.has(tag)),
-  );
-  if (tag !== "br") collector.end(tag);
+const tagPattern = () =>
+  /<!--[\s\S]*?-->|<[!?][^>]*>|<(\/?)([a-zA-Z][^\t\n\r\f />\0]*)(?:[^>"']|"[^"]*"|'[^']*')*>/g;
+
+let entityDecoder: HTMLTextAreaElement | null = null;
+
+const decodeEntities = (text: string) => {
+  if (!text.includes("&")) return text;
+  entityDecoder ??= new DOMParser()
+    .parseFromString("", "text/html")
+    .createElement("textarea");
+  entityDecoder.innerHTML = text;
+  return entityDecoder.value;
+};
+
+const rawTextEnd = (html: string, from: number, tag: string) => {
+  const end = html.slice(from).search(new RegExp(`</${tag}[\\s/>]`, "i"));
+  return end < 0 ? html.length : from + end;
 };
 
 const markupEntries = (html: string) => {
   const collector = new EntryCollector();
-  walk(
-    new DOMParser().parseFromString(html, "text/html").body,
-    collector,
-    false,
-  );
+  const pattern = tagPattern();
+  let hidden = 0;
+  let last = 0;
+  const addText = (text: string) => {
+    if (hidden === 0 && text) collector.current.push(decodeEntities(text));
+  };
+  for (let match = pattern.exec(html); match; match = pattern.exec(html)) {
+    addText(html.slice(last, match.index));
+    last = pattern.lastIndex;
+    const [token, closing, name] = match;
+    if (!name) continue;
+    const tag = name.toLowerCase();
+    if (closing) {
+      if (HIDDEN_TAGS.has(tag)) hidden = Math.max(hidden - 1, 0);
+      else collector.end(tag);
+    } else if (token.endsWith("/>")) {
+      if (tag === "br") collector.start(tag);
+    } else if (HIDDEN_TAGS.has(tag)) {
+      hidden += 1;
+      if (RAW_TEXT_TAGS.has(tag)) {
+        last = rawTextEnd(html, last, tag);
+        pattern.lastIndex = last;
+      }
+    } else {
+      collector.start(tag);
+    }
+  }
+  addText(html.slice(last));
   collector.flush();
   return collector.entries;
 };

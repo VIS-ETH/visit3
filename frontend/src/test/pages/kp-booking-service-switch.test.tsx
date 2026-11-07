@@ -4,7 +4,7 @@ import type { UserEvent } from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { Route, Routes } from "react-router";
 import KpBookingManage from "../../pages/KpBookingManage";
-import KpBookingStepper from "../../pages/KpBookingStepper";
+import KpBookingStepper from "../../components/exhibitor-booking/KpBookingStepper";
 import {
   KpBookingStatus,
   KpServiceCategory,
@@ -26,7 +26,7 @@ import {
 import {
   testBooking,
   testBookingId,
-  testEvent,
+  testOpenEvent,
   testEventId,
 } from "../fixtures/kp-booking";
 import { continueToSummaryStep } from "../fixtures/booking-wizard";
@@ -118,9 +118,6 @@ const openServicesStep = async (user: UserEvent) => {
 beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/${eventId}/my-booking`, () =>
       HttpResponse.json(null),
     ),
@@ -218,7 +215,7 @@ describe("single quantity services on the booking page", () => {
   beforeEach(() => {
     server.use(
       http.get(`${testBackendUrl}/api/kp/events/:eventId`, () =>
-        HttpResponse.json(testEvent),
+        HttpResponse.json(testOpenEvent),
       ),
       http.get(`${testBackendUrl}/api/kp/events/:eventId/my-booking`, () =>
         HttpResponse.json(testBooking),

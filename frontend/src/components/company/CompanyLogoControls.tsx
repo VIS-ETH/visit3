@@ -6,7 +6,7 @@ import {
   isAllowedLogoType,
   LOGO_UPLOAD_ACCEPT,
 } from "../../utils/upload-formats";
-import { useWarnOnLeave } from "../../utils/use-warn-on-leave";
+import { useWarnOnLeave } from "../../hooks/use-warn-on-leave";
 import RepickableFileButton from "../RepickableFileButton";
 
 const MAX_LOGO_SIZE_BYTES = 5 * 1024 * 1024;

@@ -1,5 +1,5 @@
-import { useNavigate, useParams } from "react-router";
-import { LoadingOverlay, PasswordInput, Stack } from "@mantine/core";
+import { Navigate, useParams } from "react-router";
+import { PasswordInput, Stack } from "@mantine/core";
 import { IconLock } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useTranslatedForm } from "../utils/translator";
@@ -11,12 +11,13 @@ import {
 } from "../orval/generated/auth/auth";
 import AuthCardLayout from "../components/AuthCardLayout";
 import AuthButton from "../components/AuthButton";
+import PageLoader from "../components/PageLoader";
+import { useAsyncAction } from "../hooks/use-async-action";
 
 const ResetPassword = () => {
   const { token } = useParams();
   const { t } = useTranslation();
   const [passwordReset, setPasswordReset] = useState(false);
-  const navigate = useNavigate();
 
   const {
     data: valid,
@@ -29,13 +30,16 @@ const ResetPassword = () => {
     },
   });
 
-  const { mutate: reset, isPending: resetPending } = useResetPassword({
-    mutation: {
-      onSuccess: () => {
-        setPasswordReset(true);
-      },
+  const { mutateAsync: resetPassword } = useResetPassword();
+
+  const { run: submitReset, isRunning: resetPending } = useAsyncAction(
+    async (resetToken: string, newPassword: string) => {
+      await resetPassword({
+        data: { token: resetToken, new_password: newPassword },
+      });
+      setPasswordReset(true);
     },
-  });
+  );
 
   const form = useTranslatedForm<typeof resetPasswordSchema>(
     resetPasswordSchema,
@@ -48,12 +52,11 @@ const ResetPassword = () => {
   );
 
   if (token === undefined) {
-    navigate("/login");
-    return;
+    return <Navigate to="/login" replace />;
   }
 
   if (validPending) {
-    return <LoadingOverlay />;
+    return <PageLoader />;
   }
 
   if (passwordReset || validError || !valid) {
@@ -79,11 +82,9 @@ const ResetPassword = () => {
       backTo="/login"
     >
       <form
-        onSubmit={form.onSubmit((values) => {
-          reset({
-            data: { token, new_password: values.password },
-          });
-        })}
+        onSubmit={form.onSubmit(
+          (values) => void submitReset(token, values.password),
+        )}
       >
         <Stack gap="md">
           <PasswordInput

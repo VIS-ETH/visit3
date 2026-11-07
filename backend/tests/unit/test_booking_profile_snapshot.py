@@ -49,7 +49,8 @@ def prepare_repository(
     kp_repo.get_by_id.return_value = event
     kp_repo.get_booth_zone_by_id.return_value = zone
     kp_repo.get_company_active_booking_for_event.return_value = None
-    kp_repo.lock_model_by_id.side_effect = [event, zone]
+    kp_repo.lock_model_by_id.return_value = event
+    kp_repo.lock_booth_zone.return_value = zone
     kp_repo.count_active_bookings_for_zone.return_value = 0
     kp_repo.create_booking.return_value = booking
     return booking

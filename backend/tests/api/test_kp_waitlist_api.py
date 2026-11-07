@@ -40,7 +40,7 @@ def make_company_headers(
 
 async def create_zone(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     event_id: str,
     *,
     name: str,
@@ -49,7 +49,7 @@ async def create_zone(
     response = await client.post(
         f"/api/kp/events/{event_id}/booth-zones",
         json={"name": name, "color": color, "capacity": FULL_ZONE_CAPACITY},
-        headers=staff_headers,
+        headers=president_headers,
     )
     return response.json()["id"]
 
@@ -119,15 +119,16 @@ async def waitlist_api_world(
     client: AsyncClient,
     kp_setup: KpSetup,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     complete_company_profile: Callable[..., Awaitable[Response]],
     make_company_headers: Callable[[str], Awaitable[dict[str, str]]],
 ) -> WaitlistApiWorld:
     full_zone_id = await create_zone(
-        client, staff_headers, kp_setup.event_id, name="Gold", color="#AABBCC"
+        client, president_headers, kp_setup.event_id, name="Gold", color="#AABBCC"
     )
     open_zone_id = await create_zone(
-        client, staff_headers, kp_setup.event_id, name="Silver", color="#CCBBAA"
+        client, president_headers, kp_setup.event_id, name="Silver", color="#CCBBAA"
     )
     second_headers = await make_company_headers("second")
     holder_headers = await make_company_headers("holder")

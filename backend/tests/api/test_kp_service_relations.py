@@ -9,7 +9,7 @@ from tests.api.conftest import KpSetup, kp_payload
 
 async def create_service(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     event_id: str,
     name: str,
     **overrides: Any,
@@ -17,7 +17,7 @@ async def create_service(
     response = await client.post(
         f"/api/kp/events/{event_id}/services",
         json={"name": name, **overrides},
-        headers=staff_headers,
+        headers=president_headers,
     )
     assert response.status_code == 200, response.json()
     return response.json()
@@ -53,21 +53,21 @@ def lines(booking: dict[str, Any]) -> dict[str, tuple[int, int, int]]:
 
 @pytest.fixture
 async def tables(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ) -> dict[str, dict[str, Any]]:
     normal = await create_service(
-        client, staff_headers, kp_setup.event_id, "Normal table", price=3000
+        client, president_headers, kp_setup.event_id, "Normal table", price=3000
     )
     no_normal = await create_service(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         "No normal table",
         excluded_service_ids=[normal["id"]],
     )
     standing = await create_service(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         "Standing table",
         price=4000,
@@ -78,12 +78,12 @@ async def tables(
 
 async def test_exclusions_are_listed_on_both_services(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     tables: dict[str, dict[str, Any]],
 ):
     response = await client.get(
-        f"/api/kp/events/{kp_setup.event_id}/services", headers=staff_headers
+        f"/api/kp/events/{kp_setup.event_id}/services", headers=president_headers
     )
 
     by_name = {service["name"]: service for service in response.json()}
@@ -100,18 +100,18 @@ async def test_exclusions_are_listed_on_both_services(
 
 async def test_clearing_exclusions_removes_both_directions(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     tables: dict[str, dict[str, Any]],
 ):
     await client.patch(
         f"/api/kp/services/{tables['normal']['id']}",
         json={"excluded_service_ids": []},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     response = await client.get(
-        f"/api/kp/events/{kp_setup.event_id}/services", headers=staff_headers
+        f"/api/kp/events/{kp_setup.event_id}/services", headers=president_headers
     )
 
     assert all(service["excluded_service_ids"] == [] for service in response.json())
@@ -132,7 +132,7 @@ async def test_clearing_exclusions_removes_both_directions(
 )
 async def test_invalid_relations_are_refused(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     tables: dict[str, dict[str, Any]],
     relation: str,
@@ -185,7 +185,7 @@ async def test_invalid_relations_are_refused(
     service_id, payload = payloads[relation]
 
     response = await client.patch(
-        f"/api/kp/services/{service_id}", json=payload, headers=staff_headers
+        f"/api/kp/services/{service_id}", json=payload, headers=president_headers
     )
 
     assert response.status_code == 400
@@ -194,21 +194,21 @@ async def test_invalid_relations_are_refused(
 
 async def test_a_relation_to_another_event_is_refused(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     tables: dict[str, dict[str, Any]],
 ):
     other_event = await client.post(
-        "/api/kp/create", json=kp_payload("Other KP"), headers=staff_headers
+        "/api/kp/create", json=kp_payload("Other KP"), headers=president_headers
     )
     foreign = await create_service(
-        client, staff_headers, other_event.json()["id"], "Foreign table"
+        client, president_headers, other_event.json()["id"], "Foreign table"
     )
 
     response = await client.patch(
         f"/api/kp/services/{tables['normal']['id']}",
         json={"excluded_service_ids": [foreign["id"]]},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 400
@@ -313,6 +313,7 @@ async def test_adding_a_package_later_books_its_contents_for_free(
 async def test_a_zone_switch_keeps_package_contents_free(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     complete_company_profile: Callable[..., Awaitable[Response]],
     kp_setup: KpSetup,
@@ -328,7 +329,7 @@ async def test_a_zone_switch_keeps_package_contents_free(
     target = await client.post(
         f"/api/kp/events/{kp_setup.event_id}/booth-zones",
         json={"name": "Side hall", "color": "#ABCDEF", "capacity": 2},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     response = await client.patch(
@@ -343,15 +344,15 @@ async def test_a_zone_switch_keeps_package_contents_free(
 
 async def test_deleting_a_service_drops_its_relations(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     tables: dict[str, dict[str, Any]],
 ):
     deleted = await client.delete(
-        f"/api/kp/services/{tables['no_normal']['id']}", headers=staff_headers
+        f"/api/kp/services/{tables['no_normal']['id']}", headers=president_headers
     )
     response = await client.get(
-        f"/api/kp/events/{kp_setup.event_id}/services", headers=staff_headers
+        f"/api/kp/events/{kp_setup.event_id}/services", headers=president_headers
     )
 
     assert deleted.status_code in (200, 204)
@@ -362,17 +363,17 @@ async def test_deleting_a_service_drops_its_relations(
 
 async def test_cloning_an_event_keeps_the_relations(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     tables: dict[str, dict[str, Any]],
 ):
     clone = await client.post(
         f"/api/kp/events/{kp_setup.event_id}/clone",
         json=kp_payload("Kontaktparty clone"),
-        headers=staff_headers,
+        headers=president_headers,
     )
     response = await client.get(
-        f"/api/kp/events/{clone.json()['id']}/services", headers=staff_headers
+        f"/api/kp/events/{clone.json()['id']}/services", headers=president_headers
     )
 
     by_name = {service["name"]: service for service in response.json()}

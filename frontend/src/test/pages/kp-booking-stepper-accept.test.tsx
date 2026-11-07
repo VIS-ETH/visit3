@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import KpBookingStepper from "../../pages/KpBookingStepper";
+import KpBookingStepper from "../../components/exhibitor-booking/KpBookingStepper";
 import {
   KpEventServiceRequirementType,
   KpServiceCategory,
@@ -107,9 +107,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   installCompanyProfileHandlers();
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/${eventId}/my-booking`, () =>
       HttpResponse.json(null),
     ),

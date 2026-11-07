@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 from uuid import uuid4
 
 from app.core.dates import local_today
-from app.core.maintenance import DAILY, create_scheduler, remind_incomplete_bookings
+from app.core.maintenance import HOURLY, create_scheduler, remind_incomplete_bookings
 from app.models.company import Company
 from app.models.kp_event import (
     KpBookingStatus,
@@ -157,4 +157,4 @@ async def test_a_reminded_booking_is_never_offered_again():
 def test_the_reminder_job_runs_daily():
     scheduler = create_scheduler()
 
-    assert (remind_incomplete_bookings, DAILY) in scheduler._tasks
+    assert (remind_incomplete_bookings, HOURLY) in scheduler._tasks

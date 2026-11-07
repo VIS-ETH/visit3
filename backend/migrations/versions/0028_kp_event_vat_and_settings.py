@@ -1,11 +1,3 @@
-"""KP event VAT rate, terms link and notification settings
-
-Revision ID: 0028
-Revises: 0027
-Create Date: 2026-09-22 00:00:00.000000
-
-"""
-
 from typing import Sequence, Union
 
 import sqlalchemy as sa

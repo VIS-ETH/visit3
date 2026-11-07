@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
-import { KpBookingRecap } from "../../components/KpBookingRecap";
+import { KpBookingRecap } from "../../components/exhibitor-booking/KpBookingRecap";
 import { KpBookingStatus } from "../../orval/generated/fastAPI.schemas";
 import type { BookingResponse } from "../../orval/generated/fastAPI.schemas";
 import i18n from "../i18n";

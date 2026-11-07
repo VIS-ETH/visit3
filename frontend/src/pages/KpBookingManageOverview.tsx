@@ -1,27 +1,22 @@
 import {
-  Alert,
   Button,
   Card,
-  Center,
   Group,
-  Loader,
   SimpleGrid,
   Stack,
   Text,
   Title,
 } from "@mantine/core";
-import {
-  IconAlertCircle,
-  IconChevronRight,
-  IconListDetails,
-} from "@tabler/icons-react";
+import { IconChevronRight, IconListDetails } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
-import { KpBookingRecap } from "../components/KpBookingRecap";
-import NametagCard from "../components/booking/NametagCard";
-import WaitlistCard from "../components/booking/WaitlistCard";
-import ZoneSwitchCard from "../components/booking/ZoneSwitchCard";
+import ErrorAlert from "../components/ErrorAlert";
+import PageLoader from "../components/PageLoader";
+import { KpBookingRecap } from "../components/exhibitor-booking/KpBookingRecap";
+import NametagCard from "../components/exhibitor-booking/NametagCard";
+import WaitlistCard from "../components/exhibitor-booking/WaitlistCard";
+import ZoneSwitchCard from "../components/exhibitor-booking/ZoneSwitchCard";
 import { useGetKpById, useGetMyBooking } from "../orval/generated/kp/kp";
 import { isManageableBooking } from "../utils/my-booking";
 
@@ -49,13 +44,7 @@ const KpBookingManageOverview = () => {
     query: { enabled: Boolean(eventId) },
   });
 
-  if (isLoadingEvent || isLoadingBooking) {
-    return (
-      <Center py="xl">
-        <Loader />
-      </Center>
-    );
-  }
+  if (isLoadingEvent || isLoadingBooking) return <PageLoader />;
 
   if (
     !eventId ||
@@ -68,9 +57,7 @@ const KpBookingManageOverview = () => {
     return (
       <Stack gap="md">
         <BackButton to={eventId ? `/kp/${eventId}` : "/kp"} />
-        <Alert icon={<IconAlertCircle />} color="red" title={t("server.error")}>
-          {t("kp.booking.error")}
-        </Alert>
+        <ErrorAlert>{t("kp.booking.error")}</ErrorAlert>
       </Stack>
     );
   }

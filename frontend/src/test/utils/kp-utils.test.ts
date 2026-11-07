@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import i18n from "i18next";
 import {
+  formatKpDisplayDate,
   formatKpIsoDateInput,
   getEventStatus,
   isDeadlinePassed,
@@ -172,5 +174,16 @@ describe("formatKpIsoDateInput", () => {
     expect(formatKpIsoDateInput(null)).toBe("");
     expect(formatKpIsoDateInput(undefined)).toBe("");
     expect(formatKpIsoDateInput("01.01.2026")).toBe("");
+  });
+});
+
+describe("formatKpDisplayDate", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+
+  it("uses the UI language, not the browser locale", async () => {
+    await i18n.changeLanguage("de");
+    expect(formatKpDisplayDate("2026-03-01")).toBe("1. März 2026");
   });
 });

@@ -66,6 +66,14 @@ describe("check-i18n-keys", () => {
     expect(output).toContain("fixture.only_in_en");
   });
 
+  it("reports locale keys that no source references", () => {
+    const { status, output } = runCheck(keysScript, "bad");
+
+    expect(status).toBe(1);
+    expect(output).toContain("Locale keys not referenced in the sources:");
+    expect(output).toContain("- fixture.only_in_en");
+  });
+
   it("accepts a fixture whose keys exist in both locales", () => {
     const { status, output } = runCheck(keysScript, "good");
 

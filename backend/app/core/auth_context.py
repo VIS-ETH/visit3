@@ -44,16 +44,6 @@ def require_confirmed_company_user(user: User) -> ConfirmedCompanyUser:
     return ConfirmedCompanyUser(user=user)
 
 
-def require_company_profile_user(user: User) -> AssignedCompanyUser:
-    if not user.is_company:
-        raise NotAllowed(f"require_company_profile:{user.id}")
-    if not user.email_confirmed:
-        raise EmailNotConfirmed(f"require_company_profile:{user.id}")
-    if user.company_id is None:
-        raise NotAllowed(f"require_company_profile:no_company:{user.id}")
-    return AssignedCompanyUser(user=user, company_id=user.company_id)
-
-
 def require_assigned_company_user(user: User) -> AssignedCompanyUser:
     require_confirmed_company_user(user)
     if user.company_id is None:

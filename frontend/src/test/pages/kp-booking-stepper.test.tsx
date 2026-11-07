@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
 import { Route, Routes, useLocation } from "react-router";
-import KpBookingStepper from "../../pages/KpBookingStepper";
+import KpBookingStepper from "../../components/exhibitor-booking/KpBookingStepper";
 import {
   KpBookingStatus,
   KpEventServiceRequirementType,
@@ -34,7 +34,6 @@ vi.setConfig({ testTimeout: SLOW_TEST_TIMEOUT });
 const eventId = "event-1";
 const bookingRoute = `/kp/${eventId}/booking`;
 
-const csrfUrl = `${testBackendUrl}/api/csrftoken`;
 const myBookingUrl = `${testBackendUrl}/api/kp/events/${eventId}/my-booking`;
 const zonesUrl = `${testBackendUrl}/api/kp/events/${eventId}/booth-zones/available`;
 const servicesUrl = `${testBackendUrl}/api/kp/events/${eventId}/services/available`;
@@ -213,7 +212,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   installCompanyProfileHandlers();
   server.use(
-    http.get(csrfUrl, () => HttpResponse.json({ token: "csrf-1" })),
     http.get(myBookingUrl, () => HttpResponse.json(myBookingResponse)),
     http.get(zonesUrl, () => HttpResponse.json([zone])),
     http.get(servicesUrl, () => HttpResponse.json([service])),

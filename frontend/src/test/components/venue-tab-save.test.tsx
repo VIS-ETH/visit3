@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import VenueTab from "../../components/kp/VenueTab";
+import VenueTab from "../../components/kp-manage/VenueTab";
 import type {
   BoothZoneResponse,
   ReplaceVenueZoneShapesRequest,
@@ -67,9 +67,6 @@ beforeEach(() => {
   shapesResponse = () => HttpResponse.json(testEditableLayout);
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId/venue-layouts`, () =>
       HttpResponse.json([testEditableLayout]),
     ),

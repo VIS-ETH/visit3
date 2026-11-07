@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
 import serverData from "../utils/server-data";
+import { clearLoggedOut } from "../api/utils";
 
 const AuthLink = () => {
   const { t } = useTranslation();
@@ -10,6 +11,7 @@ const AuthLink = () => {
 
   useEffect(() => {
     if (!token) return;
+    clearLoggedOut();
     window.location.replace(
       `${serverData.backendUrl}/api/auth/link/${encodeURIComponent(token)}`,
     );

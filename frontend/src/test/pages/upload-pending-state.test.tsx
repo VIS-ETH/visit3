@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { Route, Routes } from "react-router";
-import ExportsTab from "../../components/ExportsTab";
+import ExportsTab from "../../components/kp-manage/ExportsTab";
 import CompanyLogoField from "../../components/company/CompanyLogoField";
 import KpBookingManage from "../../pages/KpBookingManage";
 import { server } from "../server";
@@ -14,7 +14,7 @@ import {
   testBooking,
   testBookingId,
   testBookingServiceId,
-  testEvent,
+  testOpenEvent,
   testEventId,
   testFileRequirementId,
 } from "../fixtures/kp-booking";
@@ -58,11 +58,6 @@ const storedPdf = {
 
 beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
-  server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
-  );
 });
 
 describe("a booking requirement file", () => {
@@ -73,7 +68,7 @@ describe("a booking requirement file", () => {
     storedFile = null;
     server.use(
       http.get(`${testBackendUrl}/api/kp/events/:eventId`, () =>
-        HttpResponse.json(testEvent),
+        HttpResponse.json(testOpenEvent),
       ),
       http.get(`${testBackendUrl}/api/kp/events/:eventId/my-booking`, () =>
         HttpResponse.json(testBooking),

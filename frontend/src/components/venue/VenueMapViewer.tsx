@@ -16,13 +16,13 @@ import type {
   VenueMapLayoutResult,
 } from "../../orval/generated/fastAPI.schemas";
 import { useGetEventVenue } from "../../orval/generated/kp/kp";
-import { formatPrice } from "../../utils/price-utils";
 import { KpBoothZoneColorSwatch } from "../KpBoothZoneColorSwatch";
 import VenueMapCanvas, {
   type VenueCanvasBooth,
   type VenueCanvasShape,
 } from "./VenueMapCanvas";
 import { floorPlanImage } from "./floor-plans";
+import { formatMoney } from "../../utils/money";
 
 interface VenueBoothHighlight {
   zoneId: string;
@@ -179,7 +179,7 @@ const VenueMapViewer = ({
               {zoneCaption(zone)}
             </Text>
             <Text c="dimmed" size="xs">
-              CHF {formatPrice(zone.base_price)}
+              {formatMoney(zone.base_price)}
             </Text>
           </Group>
         ))}

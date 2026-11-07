@@ -16,7 +16,7 @@ async def test_delete_company_refused_while_upcoming_booking_exists(
     client: AsyncClient,
     company_user: User,
     company_headers: dict[str, str],
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
 ):
@@ -24,7 +24,7 @@ async def test_delete_company_refused_while_upcoming_booking_exists(
 
     response = await client.delete(
         f"/api/company/{company_user.company_id}/delete-keep-users",
-        headers=staff_headers,
+        headers=admin_headers,
     )
 
     assert response.status_code == 409
@@ -37,6 +37,7 @@ async def test_staff_booking_list_excludes_cascaded_company(
     company_user: User,
     company_headers: dict[str, str],
     staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
 ):
@@ -45,7 +46,7 @@ async def test_staff_booking_list_excludes_cascaded_company(
 
     deletion = await client.delete(
         f"/api/company/{company_user.company_id}/delete-with-users",
-        headers=staff_headers,
+        headers=admin_headers,
     )
     listing = await client.get(
         f"/api/kp/events/{kp_setup.event_id}/bookings",

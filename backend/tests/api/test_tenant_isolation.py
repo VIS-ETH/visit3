@@ -82,7 +82,7 @@ async def tenants(
     company_user: User,
     company_headers: dict[str, str],
     other_company_headers: dict[str, str],
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
 ) -> Tenants:
@@ -104,7 +104,7 @@ async def tenants(
     upgrade_zone = await client.post(
         f"/api/kp/events/{kp_setup.event_id}/booth-zones",
         json={"name": "Upgrade hall", "capacity": 1, "color": "#AABBCC"},
-        headers=staff_headers,
+        headers=president_headers,
     )
     booking_a = (await register_booking(company_headers, kp_setup)).json()
     booking_b = (await register_booking(other_company_headers, kp_setup)).json()

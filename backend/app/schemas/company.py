@@ -12,9 +12,16 @@ from app.models.company import (
     sanitize_description,
 )
 from app.schemas.industry import IndustryResult
+from app.schemas.limits import MAX_DB_INT
 from app.schemas.text import PROFILE_TEXT_LIMITS, CompanyName
 
 MAX_ADDITIONAL_EMAILS = 10
+
+
+class CompanyFilter(StrEnum):
+    ALL = "all"
+    UNCONFIRMED = "unconfirmed"
+    NEW = "new"
 
 
 class CompanySort(StrEnum):
@@ -27,16 +34,16 @@ class CreateCompanyInput(BaseModel):
     name: CompanyName
 
 
-class CreateCompanyRequest(CreateCompanyInput):
-    pass
-
-
 class UpdateCompanyInput(BaseModel):
     name: CompanyName
 
 
 class UpdateCompanyRequest(UpdateCompanyInput):
     pass
+
+
+class ConfirmCompanyRequest(BaseModel):
+    name: str
 
 
 class CompanyProfileFields(BaseModel):
@@ -52,8 +59,8 @@ class CompanyProfileFields(BaseModel):
         default_factory=lambda: [], max_length=MAX_ADDITIONAL_EMAILS
     )
     places_of_work: str = ""
-    employee_count_switzerland: int | None = Field(default=None, ge=0)
-    employee_count_worldwide: int | None = Field(default=None, ge=0)
+    employee_count_switzerland: int | None = Field(default=None, ge=0, le=MAX_DB_INT)
+    employee_count_worldwide: int | None = Field(default=None, ge=0, le=MAX_DB_INT)
     offers_internships: bool = False
     offers_part_time: bool = False
     offers_theses: bool = False
@@ -183,10 +190,6 @@ class InviteInfoResponse(InviteInfoResult):
 
 class CompanyAssignedUserResult(CompanyMemberResult):
     email_confirmed: bool
-
-
-class CompanyAssignedUserResponse(CompanyAssignedUserResult):
-    pass
 
 
 class CompanyBase(BaseModel):

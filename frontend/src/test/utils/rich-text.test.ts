@@ -70,4 +70,44 @@ describe("the visible length of a description", () => {
       "First line\nSecond & <third>".length,
     );
   });
+
+  it.each([
+    ["<p>a</p></p><p>b</p>", 3],
+    ["<p>a<p>b", 3],
+    ["<ul><li>a<ul><li>b<ul><li>c</li></ul></li></ul></li></ul>", 5],
+    ["<ul><li><p>a</p><p>b</p></li></ul>", 3],
+    ["<table><tr><td>a</td><td>b</td></tr></table>", 2],
+    ["<p>a</p><p></p><p></p><p>b</p>", 4],
+    ["<p>a<br><br><br>b</p>", 4],
+    ["<li>a</li><li>b</li>", 3],
+    ["<p>x &amp; y &lt;z&gt;</p>", 9],
+    ["<p>a</p>\n\n<p>b</p>", 3],
+    ["<div><p>a</p></div><p>b</p>", 3],
+    ["<p>a</p><ul><li></li></ul><p>b</p>", 3],
+    ["<p>😀👍🏽</p>", 3],
+    ["<p>a </p><p> </p><p>b</p>", 5],
+    ["<pre>a\n\nb</pre>", 3],
+    ["<h1>t</h1><p></p><h2>u</h2>", 4],
+    ["<p><b>a</b><i>b</i></p>", 2],
+    ["<ol><li>a</li></ol><p></p><ol><li>b</li></ol>", 4],
+    ["<p>a</p><br><p>b</p>", 3],
+    ["<blockquote><p>a</p><p></p><p>b</p></blockquote>", 4],
+    ["<ul><li>a</li><p>b</p><li>c</li></ul>", 5],
+    ["<p>a<script>xx</script>b</p>", 2],
+    ["<p>a</p><style>p{}</style>", 1],
+    ["<p><p></p></p><p>a</p>", 1],
+    ["  <p>a</p>", 1],
+    ["a\r\nb\n\nc", 5],
+    ["<p>a</p><ul><li>b</li></ul><p></p><p>c</p>", 6],
+    ["<ul><li><ul><li>x</li></ul></li></ul>", 1],
+    ["<p>a</p><p>​</p><p>b</p>", 5],
+    ["<p>a</p><p>　</p><p>b</p>", 4],
+    ["<p>a<div>b</div>c</p>", 5],
+    ["<p>a</p><!-- c --><p>b</p>", 3],
+    ["<p>a<br></p><p>b</p>", 3],
+    ["<p><br></p><p>b</p>", 1],
+    ["<ol><li>a<br><br>b</li></ol>", 4],
+  ])("counts %j like the backend", (input, length) => {
+    expect(richTextLength(input)).toBe(length);
+  });
 });

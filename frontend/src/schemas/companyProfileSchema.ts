@@ -5,7 +5,7 @@ import type {
   UpdateCompanyProfileRequest,
 } from "../orval/generated/fastAPI.schemas";
 import { richTextLength } from "../utils/rich-text";
-import { zPhone } from "./utils";
+import { zEmail, zPhone } from "./utils";
 
 const isHttpUrl = (value: string) =>
   URL.canParse(value) && ["http:", "https:"].includes(new URL(value).protocol);
@@ -16,13 +16,17 @@ const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
 
 const isBlank = (value: string) => value.trim().length === 0;
 
+const isEmail = (value: string) => zEmail().safeParse(value).success;
+
 const optionalEmail = z
   .string()
   .trim()
   .refine(
-    (value) => isBlank(value) || z.email().safeParse(value).success,
+    (value) => isBlank(value) || isEmail(value),
     "validation.invalid_email",
   );
+
+const MAX_EMPLOYEE_COUNT = 2147483647;
 
 const employeeCount = z.union(
   [
@@ -30,7 +34,8 @@ const employeeCount = z.union(
     z
       .number()
       .int("validation.invalid_integer")
-      .min(0, "validation.out_of_range"),
+      .min(0, "validation.out_of_range")
+      .max(MAX_EMPLOYEE_COUNT, "validation.out_of_range"),
   ],
   "validation.invalid_integer",
 );
@@ -61,10 +66,7 @@ export const companyProfileSchema = z.object({
   student_contact_email: optionalEmail,
   additional_emails: z
     .array(z.string())
-    .refine(
-      (values) => values.every((value) => z.email().safeParse(value).success),
-      "validation.invalid_email",
-    ),
+    .refine((values) => values.every(isEmail), "validation.invalid_email"),
   places_of_work: z.string().trim(),
   employee_count_switzerland: employeeCount,
   employee_count_worldwide: employeeCount,
@@ -190,25 +192,25 @@ export const toBookletPageRequest = (
   values: CompanyProfileFormValues,
 ): UpdateCompanyProfileRequest => {
   const request = toCompanyProfileRequest(values);
-  const hasValidEmail = companyProfileSchema.shape.general_email.safeParse(
-    values.general_email,
-  ).success;
-  const hasValidStudentEmail =
-    companyProfileSchema.shape.student_contact_email.safeParse(
-      values.student_contact_email,
-    ).success;
+  const { shape } = companyProfileSchema;
+  const isValid = (field: keyof typeof shape) =>
+    shape[field].safeParse(values[field]).success;
   return {
     description: request.description,
-    website: request.website,
+    website: isValid("website") ? request.website : null,
     brand_name: request.brand_name,
-    general_email: hasValidEmail ? request.general_email : null,
+    general_email: isValid("general_email") ? request.general_email : null,
     general_phone: request.general_phone,
-    student_contact_email: hasValidStudentEmail
+    student_contact_email: isValid("student_contact_email")
       ? request.student_contact_email
       : null,
     places_of_work: request.places_of_work,
-    employee_count_switzerland: request.employee_count_switzerland,
-    employee_count_worldwide: request.employee_count_worldwide,
+    employee_count_switzerland: isValid("employee_count_switzerland")
+      ? request.employee_count_switzerland
+      : null,
+    employee_count_worldwide: isValid("employee_count_worldwide")
+      ? request.employee_count_worldwide
+      : null,
     offers_internships: request.offers_internships,
     offers_part_time: request.offers_part_time,
     offers_theses: request.offers_theses,

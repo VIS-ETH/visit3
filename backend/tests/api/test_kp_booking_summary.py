@@ -44,6 +44,7 @@ def zero_totals() -> dict[str, Any]:
 async def test_the_summary_adds_up_the_active_booking_prices(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     create_user: Callable[..., Awaitable[User]],
     auth_headers: Callable[[User], Awaitable[dict[str, str]]],
@@ -53,8 +54,8 @@ async def test_the_summary_adds_up_the_active_booking_prices(
 ):
     gold = await client.post(
         f"/api/kp/events/{kp_setup.event_id}/booth-zones",
-        json={"name": "Gold", "color": "#AABBCC", "capacity": 0, "base_price": 30000},
-        headers=staff_headers,
+        json={"name": "Gold", "color": "#AABBCC", "capacity": 1, "base_price": 30000},
+        headers=president_headers,
     )
     _, registered_headers = await company_headers_for(
         "alpha", create_user, auth_headers, csrf_headers, complete_company_profile
@@ -72,7 +73,7 @@ async def test_the_summary_adds_up_the_active_booking_prices(
             "booth_zone_id": gold.json()["id"],
             "deadline": (local_today() + timedelta(days=3)).isoformat(),
         },
-        headers=staff_headers,
+        headers=president_headers,
     )
     await client.post(
         f"/api/kp/bookings/{offered.json()['id']}/accept-offer",
@@ -182,6 +183,7 @@ def price_sum(bookings: list[dict[str, Any]]) -> dict[str, int]:
 async def test_every_price_case_matches_the_booking_prices(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     create_user: Callable[..., Awaitable[User]],
     auth_headers: Callable[[User], Awaitable[dict[str, str]]],
@@ -201,14 +203,14 @@ async def test_every_price_case_matches_the_booking_prices(
                     {"service_id": kp_setup.service_id, "included_quantity": 1}
                 ],
             },
-            headers=staff_headers,
+            headers=president_headers,
         )
     ).json()["id"]
     full = (
         await client.post(
             f"{event_url}/booth-zones",
             json={"name": "Full", "color": "#010203", "capacity": 0},
-            headers=staff_headers,
+            headers=president_headers,
         )
     ).json()["id"]
 
@@ -253,7 +255,7 @@ async def test_every_price_case_matches_the_booking_prices(
     await client.patch(
         f"/api/kp/booth-zones/{kp_setup.booth_zone_id}",
         json={"base_price": 12500},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     bookings = (await client.get(f"{event_url}/bookings", headers=staff_headers)).json()
@@ -288,6 +290,7 @@ async def test_every_price_case_matches_the_booking_prices(
 async def test_zone_rows_show_price_and_occupancy(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     create_user: Callable[..., Awaitable[User]],
     auth_headers: Callable[[User], Awaitable[dict[str, str]]],
@@ -295,10 +298,10 @@ async def test_zone_rows_show_price_and_occupancy(
     complete_company_profile: Callable[..., Awaitable[Response]],
     register_booking: Callable[..., Awaitable[Response]],
 ):
-    closed = await client.post(
+    single = await client.post(
         f"/api/kp/events/{kp_setup.event_id}/booth-zones",
-        json={"name": "Closed", "color": "#010203", "capacity": 0, "base_price": 9900},
-        headers=staff_headers,
+        json={"name": "Single", "color": "#010203", "capacity": 1, "base_price": 9900},
+        headers=president_headers,
     )
     _, first_headers = await company_headers_for(
         "first", create_user, auth_headers, csrf_headers, complete_company_profile
@@ -320,10 +323,10 @@ async def test_zone_rows_show_price_and_occupancy(
         f"/api/kp/events/{kp_setup.event_id}/bookings/offer",
         json={
             "company_id": str(offered_user.company_id),
-            "booth_zone_id": closed.json()["id"],
+            "booth_zone_id": single.json()["id"],
             "deadline": (local_today() + timedelta(days=3)).isoformat(),
         },
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     body = (await summary(client, staff_headers, kp_setup.event_id)).json()
@@ -337,14 +340,14 @@ async def test_zone_rows_show_price_and_occupancy(
         "occupied": 1,
         "free": 4,
     }
-    assert {key: zones["Closed"][key] for key in keys} == {
+    assert {key: zones["Single"][key] for key in keys} == {
         "base_price": 9900,
-        "capacity": 0,
+        "capacity": 1,
         "count": 0,
         "occupied": 1,
         "free": 0,
     }
-    assert body["capacity"] == 5
+    assert body["capacity"] == 6
     assert body["occupied"] == 2
     assert body["free"] == 4
 
@@ -352,6 +355,7 @@ async def test_zone_rows_show_price_and_occupancy(
 async def test_a_pending_offer_is_listed_apart_from_the_booked_revenue(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     create_user: Callable[..., Awaitable[User]],
     auth_headers: Callable[[User], Awaitable[dict[str, str]]],
@@ -373,7 +377,7 @@ async def test_a_pending_offer_is_listed_apart_from_the_booked_revenue(
             "booth_zone_id": kp_setup.booth_zone_id,
             "deadline": (local_today() + timedelta(days=3)).isoformat(),
         },
-        headers=staff_headers,
+        headers=president_headers,
     )
     bookings = {
         booking["id"]: booking
@@ -403,6 +407,7 @@ async def test_a_pending_offer_is_listed_apart_from_the_booked_revenue(
 async def test_services_are_summed_over_the_booked_quantities(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     create_user: Callable[..., Awaitable[User]],
     auth_headers: Callable[[User], Awaitable[dict[str, str]]],
@@ -414,17 +419,17 @@ async def test_services_are_summed_over_the_booked_quantities(
     await client.patch(
         f"/api/kp/services/{kp_setup.service_id}",
         json={"max_total_quantity": 10},
-        headers=staff_headers,
+        headers=president_headers,
     )
     retired = await client.post(
         f"{event_url}/services",
         json={"name": "Retired", "price": 100},
-        headers=staff_headers,
+        headers=president_headers,
     )
     await client.patch(
         f"/api/kp/services/{retired.json()['id']}",
         json={"is_active": False},
-        headers=staff_headers,
+        headers=president_headers,
     )
     _, alpha_headers = await company_headers_for(
         "alpha", create_user, auth_headers, csrf_headers, complete_company_profile

@@ -1,19 +1,9 @@
-import {
-  Alert,
-  Center,
-  Group,
-  Loader,
-  Paper,
-  Select,
-  Stack,
-  Table,
-  Text,
-  Title,
-} from "@mantine/core";
-import { IconAlertCircle } from "@tabler/icons-react";
+import { Group, Paper, Select, Stack, Table, Text, Title } from "@mantine/core";
 import { Fragment, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import ErrorAlert from "../components/ErrorAlert";
 import { KpBoothZoneColorSwatch } from "../components/KpBoothZoneColorSwatch";
+import PageLoader from "../components/PageLoader";
 import {
   KpBookingStatus,
   KpServiceCategory,
@@ -23,6 +13,7 @@ import {
 import { useGetBookingsSummary, useListKps } from "../orval/generated/kp/kp";
 import { BOOKING_STATUS_LABEL_KEYS } from "../utils/kp-utils";
 import { formatPrice } from "../utils/price-utils";
+import { formatMoney } from "../utils/money";
 
 interface Occupancy {
   occupied: number;
@@ -86,7 +77,7 @@ const ServiceRow = ({ service }: { service: BookingServiceTotals }) => {
         <Text size="sm">{service.name}</Text>
         <Text size="xs" c="dimmed">
           {t("kp.bookings_overview.per_unit", {
-            price: formatPrice(service.unit_price),
+            price: formatMoney(service.unit_price),
             unit: service.unit_label ?? t("kp.bookings_overview.unit"),
           })}
         </Text>
@@ -196,13 +187,18 @@ const ServiceTotalsTable = ({
 
 const BookingsOverview = () => {
   const { t } = useTranslation();
-  const { data: events, isLoading: isLoadingEvents } = useListKps();
+  const {
+    data: events,
+    isLoading: isLoadingEvents,
+    isError: isEventsError,
+  } = useListKps();
   const [pickedEventId, setPickedEventId] = useState<string | null>(null);
   const eventId = pickedEventId ?? events?.at(0)?.id ?? "";
-  const { data: summary, isLoading: isLoadingSummary } = useGetBookingsSummary(
-    eventId,
-    { query: { enabled: Boolean(eventId) } },
-  );
+  const {
+    data: summary,
+    isLoading: isLoadingSummary,
+    isError: isSummaryError,
+  } = useGetBookingsSummary(eventId, { query: { enabled: Boolean(eventId) } });
 
   const sectionRow = (label: string) => (
     <Table.Tr>
@@ -233,13 +229,11 @@ const BookingsOverview = () => {
       </Group>
 
       {isLoadingEvents || isLoadingSummary ? (
-        <Center py="xl">
-          <Loader />
-        </Center>
+        <PageLoader />
+      ) : isEventsError || isSummaryError ? (
+        <ErrorAlert />
       ) : !summary ? (
-        <Alert icon={<IconAlertCircle />} color="gray">
-          {t("kp.bookings_overview.empty")}
-        </Alert>
+        <Text c="dimmed">{t("kp.bookings_overview.empty")}</Text>
       ) : (
         <>
           <Paper withBorder p="lg" radius="md">
@@ -247,14 +241,12 @@ const BookingsOverview = () => {
               <Text size="sm" c="dimmed">
                 {t("kp.bookings_overview.total")}
               </Text>
-              <Title order={1}>
-                {`CHF ${formatPrice(summary.total.price.gross)}`}
-              </Title>
+              <Title order={1}>{formatMoney(summary.total.price.gross)}</Title>
               <Text size="sm" c="dimmed">
                 {t("kp.bookings_overview.total_detail", {
-                  base: formatPrice(summary.total.base),
-                  services: formatPrice(summary.total.services),
-                  vat: formatPrice(summary.total.price.vat),
+                  base: formatMoney(summary.total.base),
+                  services: formatMoney(summary.total.services),
+                  vat: formatMoney(summary.total.price.vat),
                   rate: summary.vat_rate_percent,
                 })}
               </Text>
@@ -317,7 +309,7 @@ const BookingsOverview = () => {
                               <Text size="sm">{zone.name}</Text>
                               <Text size="xs" c="dimmed">
                                 {t("kp.bookings_overview.per_booth", {
-                                  price: formatPrice(zone.base_price),
+                                  price: formatMoney(zone.base_price),
                                 })}
                               </Text>
                             </div>

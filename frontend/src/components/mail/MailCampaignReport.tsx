@@ -11,11 +11,12 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
+import { notifySuccess } from "../../utils/notify";
 import { IconCopy, IconRefresh } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAsyncAction } from "../../hooks/use-async-action";
 import {
   MailCampaignRecipientStatus,
   MailCampaignStatus,
@@ -58,7 +59,7 @@ const MailCampaignReport = ({
   campaign,
   onDuplicated,
 }: MailCampaignReportProps) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -69,26 +70,20 @@ const MailCampaignReport = ({
     });
   };
 
-  const { mutate: retry, isPending: isRetrying } = useRetryMailCampaign({
-    mutation: {
-      onSuccess: async (updated) => {
-        await refresh(updated);
-        notifications.show({
-          color: "green",
-          message: t("mail_campaigns.retry_success"),
-        });
-      },
-    },
+  const { mutateAsync: retryCampaign } = useRetryMailCampaign();
+  const { mutateAsync: duplicateCampaign } = useDuplicateMailCampaign();
+  const { run: retry, isRunning: isRetrying } = useAsyncAction(async () => {
+    const updated = await retryCampaign({ campaignId: campaign.id });
+    await refresh(updated);
+    notifySuccess(t("mail_campaigns.retry_success"));
   });
-  const { mutate: duplicate, isPending: isDuplicating } =
-    useDuplicateMailCampaign({
-      mutation: {
-        onSuccess: async (copy) => {
-          await refresh(copy);
-          onDuplicated(copy);
-        },
-      },
-    });
+  const { run: duplicate, isRunning: isDuplicating } = useAsyncAction(
+    async () => {
+      const copy = await duplicateCampaign({ campaignId: campaign.id });
+      await refresh(copy);
+      onDuplicated(copy);
+    },
+  );
 
   const recipients = campaign.recipients.filter(
     (recipient) =>
@@ -123,7 +118,6 @@ const MailCampaignReport = ({
               {" · "}
               {formatZurichDateTime(
                 campaign.finished_at ?? campaign.started_at,
-                i18n.language,
               )}
             </Text>
           </div>
@@ -176,7 +170,8 @@ const MailCampaignReport = ({
                 variant="light"
                 leftSection={<IconRefresh size={16} />}
                 loading={isRetrying}
-                onClick={() => retry({ campaignId: campaign.id })}
+                disabled={isDuplicating}
+                onClick={() => void retry()}
               >
                 {t("mail_campaigns.retry", { count: campaign.counts.failed })}
               </Button>
@@ -185,7 +180,8 @@ const MailCampaignReport = ({
               variant="default"
               leftSection={<IconCopy size={16} />}
               loading={isDuplicating}
-              onClick={() => duplicate({ campaignId: campaign.id })}
+              disabled={isRetrying}
+              onClick={() => void duplicate()}
             >
               {t("mail_campaigns.duplicate")}
             </Button>
@@ -221,7 +217,6 @@ const MailCampaignReport = ({
                     <Table.Td style={{ whiteSpace: "nowrap" }}>
                       {formatZurichDateTime(
                         recipient.sent_at ?? recipient.last_attempt_at,
-                        i18n.language,
                       ) ?? "-"}
                     </Table.Td>
                     <Table.Td>

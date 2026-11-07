@@ -30,3 +30,27 @@ export function getSafeInternalPath(next: string | null): string | null {
 
   return `${target.pathname}${target.search}${target.hash}`;
 }
+
+export const LOGIN_PATH = "/login";
+
+export const loginPathWithNext = (next: string) => {
+  const safeNext = getSafeInternalPath(next);
+  return safeNext && safeNext !== "/"
+    ? `${LOGIN_PATH}?next=${encodeURIComponent(safeNext)}`
+    : LOGIN_PATH;
+};
+
+const LOGIN_NEXT_STORAGE_KEY = "login_next";
+
+export const rememberLoginNext = (next: string | null) => {
+  if (next) sessionStorage.setItem(LOGIN_NEXT_STORAGE_KEY, next);
+  else sessionStorage.removeItem(LOGIN_NEXT_STORAGE_KEY);
+};
+
+export const takeLoginNext = () => {
+  const next = getSafeInternalPath(
+    sessionStorage.getItem(LOGIN_NEXT_STORAGE_KEY),
+  );
+  sessionStorage.removeItem(LOGIN_NEXT_STORAGE_KEY);
+  return next;
+};

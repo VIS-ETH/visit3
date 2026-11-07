@@ -24,7 +24,7 @@ const MailCampaignList = ({
   onSelect,
   onCreate,
 }: MailCampaignListProps) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   return (
     <Paper withBorder p="md" radius="md">
@@ -63,7 +63,7 @@ const MailCampaignList = ({
                 {campaign.name}
               </Text>
               <Text size="xs" c="dimmed">
-                {formatZurichDateTime(campaignDate(campaign), i18n.language)}
+                {formatZurichDateTime(campaignDate(campaign))}
               </Text>
             </Stack>
           </Button>

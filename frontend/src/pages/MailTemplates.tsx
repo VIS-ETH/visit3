@@ -1,41 +1,43 @@
-import { Alert, Center, Grid, Loader, Stack, Text, Title } from "@mantine/core";
+import { Alert, Grid, Stack, Title } from "@mantine/core";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import BackButton from "../components/BackButton";
+import ErrorAlert from "../components/ErrorAlert";
+import PageLoader from "../components/PageLoader";
 import MailTemplateEditor from "../components/mail/MailTemplateEditor";
 import MailTemplateList from "../components/mail/MailTemplateList";
+import { useWarnOnLeave } from "../hooks/use-warn-on-leave";
 import { useListMailTemplates } from "../orval/generated/mail/mail";
 
 const MailTemplates = () => {
   const { t } = useTranslation();
   const { data: templates, isLoading, isError } = useListMailTemplates();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   const activeKey = selectedKey ?? templates?.[0]?.key ?? null;
+
+  useWarnOnLeave(isDirty);
+
+  const selectTemplate = (key: string) => {
+    if (key === activeKey) return;
+    if (isDirty && !window.confirm(t("mail_templates.discard_confirm"))) {
+      return;
+    }
+    setIsDirty(false);
+    setSelectedKey(key);
+  };
 
   return (
     <Stack gap="md">
       <BackButton to="/" />
 
-      <div>
-        <Title order={2}>{t("mail_templates.title")}</Title>
-        <Text c="dimmed" size="sm">
-          {t("mail_templates.description")}
-        </Text>
-      </div>
+      <Title order={2}>{t("mail_templates.title")}</Title>
 
-      {isError ? (
-        <Alert icon={<IconAlertCircle />} color="red" title={t("server.error")}>
-          {t("mail_templates.error")}
-        </Alert>
-      ) : null}
+      {isError ? <ErrorAlert>{t("mail_templates.error")}</ErrorAlert> : null}
 
-      {isLoading ? (
-        <Center py="xl">
-          <Loader />
-        </Center>
-      ) : null}
+      {isLoading ? <PageLoader /> : null}
 
       {templates && templates.length > 0 ? (
         <Grid gap="md" align="flex-start">
@@ -43,12 +45,16 @@ const MailTemplates = () => {
             <MailTemplateList
               templates={templates}
               activeKey={activeKey}
-              onSelect={setSelectedKey}
+              onSelect={selectTemplate}
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 8, lg: 9 }}>
             {activeKey ? (
-              <MailTemplateEditor key={activeKey} templateKey={activeKey} />
+              <MailTemplateEditor
+                key={activeKey}
+                templateKey={activeKey}
+                onDirtyChange={setIsDirty}
+              />
             ) : null}
           </Grid.Col>
         </Grid>

@@ -1,11 +1,3 @@
-"""KP venue layouts
-
-Revision ID: 0032
-Revises: 0031
-Create Date: 2026-09-22 00:00:00.000000
-
-"""
-
 from typing import Sequence, Union
 
 import sqlalchemy as sa

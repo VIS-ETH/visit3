@@ -1,10 +1,8 @@
 import {
   Badge,
   Button,
-  Center,
   Divider,
   Group,
-  Loader,
   Paper,
   Stack,
   Tabs,
@@ -13,7 +11,6 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import {
   IconArrowBackUp,
   IconMailForward,
@@ -58,7 +55,11 @@ import {
   type MailTemplateField,
   type MailTemplateLanguage,
 } from "../../utils/mail-template";
+import { notifySuccess } from "../../utils/notify";
 import { useTranslatedForm } from "../../utils/translator";
+import { useAsyncAction } from "../../hooks/use-async-action";
+import ErrorAlert from "../ErrorAlert";
+import PageLoader from "../PageLoader";
 import MailTemplateDefaults from "./MailTemplateDefaults";
 import MailTemplatePreview from "./MailTemplatePreview";
 import MailTemplateResetModal from "./MailTemplateResetModal";
@@ -67,10 +68,18 @@ const BODY_ROWS = 16;
 
 type FieldElement = HTMLInputElement | HTMLTextAreaElement;
 
-const MailTemplateEditor = ({ templateKey }: { templateKey: string }) => {
+interface MailTemplateEditorProps {
+  templateKey: string;
+  onDirtyChange?: (dirty: boolean) => void;
+}
+
+const MailTemplateEditor = ({
+  templateKey,
+  onDirtyChange,
+}: MailTemplateEditorProps) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: template, isLoading } = useGetMailTemplate(templateKey);
+  const { data: template, isError } = useGetMailTemplate(templateKey);
   const [language, setLanguage] = useState<MailTemplateLanguage>("de");
   const [focusedField, setFocusedField] = useState<MailTemplateField>("bodyDe");
   const [preview, setPreview] = useState<MailPreviewResponse | null>(null);
@@ -110,63 +119,62 @@ const MailTemplateEditor = ({ templateKey }: { templateKey: string }) => {
     applyTemplate(template);
   }, [template, applyTemplate]);
 
-  const { mutate: save, isPending: isSaving } = useUpdateMailTemplate({
-    mutation: {
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({
-          queryKey: getListMailTemplatesQueryKey(),
-        });
-        await queryClient.invalidateQueries({
-          queryKey: getGetMailTemplateQueryKey(templateKey),
-        });
-        notifications.show({
-          color: "green",
-          message: t("mail_templates.save_success"),
-        });
-        requestPreview({ key: templateKey });
-      },
-      onError: (error) => {
-        const invalid = getInvalidMailTemplateField(error);
-        if (!invalid) return;
-        setLanguage(mailTemplateLanguageOf(invalid.field));
-        form.setFieldError(
-          invalid.field,
-          invalid.variable
-            ? t("mail_templates.invalid_variable", {
-                variable: invalid.variable,
-              })
-            : t("mail_templates.invalid_field"),
-        );
-      },
-    },
-  });
+  const isDirty = form.isDirty();
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
-  const { mutate: reset, isPending: isResetting } = useResetMailTemplate({
-    mutation: {
-      onSuccess: async (data) => {
-        await queryClient.invalidateQueries({
-          queryKey: getListMailTemplatesQueryKey(),
-        });
-        await queryClient.invalidateQueries({
-          queryKey: getGetMailTemplateQueryKey(templateKey),
-        });
-        applyTemplate(data);
-        setResetOpened(false);
-        notifications.show({
-          color: "green",
-          message: t("mail_templates.reset_success"),
-        });
-      },
+  const refreshTemplate = () =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: getListMailTemplatesQueryKey(),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: getGetMailTemplateQueryKey(templateKey),
+      }),
+    ]);
+
+  const showInvalidField = (error: unknown) => {
+    const invalid = getInvalidMailTemplateField(error);
+    if (!invalid) return;
+    setLanguage(mailTemplateLanguageOf(invalid.field));
+    form.setFieldError(
+      invalid.field,
+      invalid.variable
+        ? t("mail_templates.invalid_variable", { variable: invalid.variable })
+        : t("mail_templates.invalid_field"),
+    );
+  };
+
+  const { mutateAsync: updateTemplate } = useUpdateMailTemplate();
+  const { run: save, isRunning: isSaving } = useAsyncAction(
+    async (values: MailTemplateFormValues) => {
+      const saved = await updateTemplate({
+        key: templateKey,
+        data: toMailTemplateRequest(values),
+      });
+      await refreshTemplate();
+      form.setInitialValues(values);
+      form.resetDirty(values);
+      notifySuccess(t("mail_templates.save_success"));
+      requestPreview({ key: saved.key });
     },
+    showInvalidField,
+  );
+
+  const { mutateAsync: resetTemplate } = useResetMailTemplate();
+  const { run: reset, isRunning: isResetting } = useAsyncAction(async () => {
+    const data = await resetTemplate({ key: templateKey });
+    await refreshTemplate();
+    applyTemplate(data);
+    setResetOpened(false);
+    notifySuccess(t("mail_templates.reset_success"));
   });
 
   const { mutate: testSend, isPending: isSending } = useTestSendMailTemplate({
     mutation: {
       onSuccess: () => {
-        notifications.show({
-          color: "green",
-          message: t("mail_templates.test_send_success"),
-        });
+        notifySuccess(t("mail_templates.test_send_success"));
       },
     },
   });
@@ -203,10 +211,6 @@ const MailTemplateEditor = ({ templateKey }: { templateKey: string }) => {
     }, 0);
   };
 
-  const handleSubmit = (values: MailTemplateFormValues) => {
-    save({ key: templateKey, data: toMailTemplateRequest(values) });
-  };
-
   const handleLanguageChange = (value: string | null) => {
     const next = MAIL_TEMPLATE_LANGUAGES.find(
       (candidate) => candidate === value,
@@ -216,19 +220,18 @@ const MailTemplateEditor = ({ templateKey }: { templateKey: string }) => {
     setFocusedField(mailTemplateFields(next).body);
   };
 
-  if (isLoading || !template) {
+  if (isError) return <ErrorAlert />;
+  if (!template) {
     return (
       <Paper withBorder p="lg" radius="md">
-        <Center py="xl">
-          <Loader />
-        </Center>
+        <PageLoader />
       </Paper>
     );
   }
 
   return (
     <Paper withBorder p="lg" radius="md">
-      <form onSubmit={form.onSubmit(handleSubmit)}>
+      <form onSubmit={form.onSubmit((values) => void save(values))}>
         <Stack gap="md">
           <Group justify="space-between" align="center">
             <Title order={4}>{template.key}</Title>
@@ -326,6 +329,7 @@ const MailTemplateEditor = ({ templateKey }: { templateKey: string }) => {
               variant="default"
               leftSection={<IconMailForward size={16} />}
               loading={isSending}
+              disabled={isDirty || isSaving}
               onClick={() => testSend({ key: templateKey })}
             >
               {t("mail_templates.test_send")}
@@ -334,6 +338,11 @@ const MailTemplateEditor = ({ templateKey }: { templateKey: string }) => {
               {t("mail_templates.save")}
             </Button>
           </Group>
+          {isDirty ? (
+            <Text c="dimmed" size="xs" ta="right">
+              {t("mail_templates.test_send_save_first")}
+            </Text>
+          ) : null}
 
           <Divider />
 
@@ -358,7 +367,7 @@ const MailTemplateEditor = ({ templateKey }: { templateKey: string }) => {
         opened={resetOpened}
         templateKey={templateKey}
         isPending={isResetting}
-        onConfirm={() => reset({ key: templateKey })}
+        onConfirm={() => void reset()}
         onClose={() => setResetOpened(false)}
       />
     </Paper>

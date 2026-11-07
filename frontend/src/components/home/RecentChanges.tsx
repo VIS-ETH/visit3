@@ -3,14 +3,14 @@ import {
   Badge,
   Button,
   Group,
-  Loader,
   Paper,
   SimpleGrid,
   Stack,
   Text,
   Title,
+  Tooltip,
 } from "@mantine/core";
-import { IconCalendarEvent, IconChecks } from "@tabler/icons-react";
+import { IconChecks } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,31 +20,39 @@ import {
   useGetRecentChanges,
   useMarkChangesSeen,
 } from "../../orval/generated/changes/changes";
-import type { ChangedBookingResult } from "../../orval/generated/fastAPI.schemas";
+import type {
+  ChangedBookingResult,
+  ChangedEventResult,
+} from "../../orval/generated/fastAPI.schemas";
 import { KpBookingStatusBadge } from "../KpBookingStatusBadge";
+import { formatDateTime } from "../../utils/date-format";
+import { useAsyncAction } from "../../hooks/use-async-action";
+import ErrorAlert from "../ErrorAlert";
+import PageLoader from "../PageLoader";
 
 const PREVIEW_COUNT = 5;
-
-const dateTimeFormat = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 const bookingChangesPath = (eventId: string) =>
   `/kp/${eventId}?tab=bookings&changes=1`;
 
-type ChangeItem = { key: string; label: ReactNode; detail: ReactNode };
+type ChangeItem = {
+  key: string;
+  label: string;
+  badge?: ReactNode;
+  info: string;
+};
+type ChangeLink = { path: string; label: string };
 
 const ChangeColumn = ({
   title,
   total,
   items,
-  allPath,
+  links,
 }: {
   title: string;
   total: number;
   items: ChangeItem[];
-  allPath: string | null;
+  links: ChangeLink[];
 }) => {
   const { t } = useTranslation();
 
@@ -63,21 +71,28 @@ const ChangeColumn = ({
           </Text>
         ) : (
           items.slice(0, PREVIEW_COUNT).map((item) => (
-            <Stack gap={0} key={item.key}>
-              <Text size="sm" truncate="end">
-                {item.label}
-              </Text>
-              <Text c="dimmed" size="xs" component="div">
-                {item.detail}
-              </Text>
-            </Stack>
+            <Tooltip key={item.key} label={item.info} openDelay={200}>
+              <Group gap={6} wrap="nowrap">
+                <Text size="sm" truncate="end">
+                  {item.label}
+                </Text>
+                {item.badge}
+              </Group>
+            </Tooltip>
           ))
         )}
-        {total > 0 && allPath ? (
-          <Anchor component={NavLink} size="sm" to={allPath}>
-            {t("changes.show_all", { total })}
-          </Anchor>
-        ) : null}
+        {total > 0
+          ? links.map((link) => (
+              <Anchor
+                component={NavLink}
+                key={link.path}
+                size="sm"
+                to={link.path}
+              >
+                {link.label}
+              </Anchor>
+            ))
+          : null}
       </Stack>
     </Paper>
   );
@@ -89,47 +104,46 @@ const bookingItem = (
 ): ChangeItem => ({
   key: booking.id,
   label: booking.company_name,
-  detail: (
-    <Group gap={6} wrap="nowrap">
-      <KpBookingStatusBadge status={booking.status} size="xs" />
-      <span>
-        {booking.event_name} · {booking.booth_zone_name} ·{" "}
-        {dateTimeFormat.format(new Date(at))}
-      </span>
-    </Group>
+  badge: <KpBookingStatusBadge status={booking.status} size="xs" />,
+  info: [booking.event_name, booking.booth_zone_name, formatDateTime(at)].join(
+    " · ",
   ),
 });
 
-const RecentChanges = ({ latestEventId }: { latestEventId: string | null }) => {
+const RecentChanges = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: changes, isLoading } = useGetRecentChanges();
-  const { mutate: markSeen, isPending: isMarking } = useMarkChangesSeen({
-    mutation: {
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({
-          queryKey: getGetRecentChangesQueryKey(),
-        });
-      },
+  const { data: changes, isPending, isError } = useGetRecentChanges();
+  const { mutateAsync: markChangesSeen } = useMarkChangesSeen();
+  const { run: markSeen, isRunning: isMarking } = useAsyncAction(
+    async (asOf: string) => {
+      await markChangesSeen({ data: { as_of: asOf } });
+      await queryClient.invalidateQueries({
+        queryKey: getGetRecentChangesQueryKey(),
+      });
     },
-  });
+  );
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <Paper withBorder p="lg" radius="md">
-        <Loader size="sm" />
+        <PageLoader />
       </Paper>
     );
   }
-  if (!changes) return null;
+  if (isError) return <ErrorAlert />;
 
-  const bookingEventId =
-    changes.new_bookings.at(0)?.event_id ??
-    changes.changed_bookings.at(0)?.event_id ??
-    latestEventId;
-  const bookingsPath = bookingEventId
-    ? bookingChangesPath(bookingEventId)
-    : null;
+  const bookingLinks = (
+    events: ChangedEventResult[],
+    total: number,
+  ): ChangeLink[] =>
+    events.map((event) => ({
+      path: bookingChangesPath(event.id),
+      label:
+        events.length > 1
+          ? t("changes.show_event", { event: event.name })
+          : t("changes.show_all", { total }),
+    }));
 
   return (
     <Paper withBorder p="lg" radius="md">
@@ -139,30 +153,18 @@ const RecentChanges = ({ latestEventId }: { latestEventId: string | null }) => {
             <Title order={3}>{t("changes.title")}</Title>
             <Text c="dimmed" size="sm">
               {t("changes.since", {
-                since: dateTimeFormat.format(new Date(changes.since)),
+                since: formatDateTime(changes.since),
               })}
             </Text>
           </Stack>
-          <Group gap="sm">
-            {bookingsPath ? (
-              <Button
-                component={NavLink}
-                leftSection={<IconCalendarEvent size={16} />}
-                to={bookingsPath}
-                variant="light"
-              >
-                {t("changes.open_bookings")}
-              </Button>
-            ) : null}
-            <Button
-              leftSection={<IconChecks size={16} />}
-              loading={isMarking}
-              onClick={() => markSeen()}
-              variant="default"
-            >
-              {t("changes.mark_seen")}
-            </Button>
-          </Group>
+          <Button
+            leftSection={<IconChecks size={16} />}
+            loading={isMarking}
+            onClick={() => void markSeen(changes.as_of)}
+            variant="default"
+          >
+            {t("changes.mark_seen")}
+          </Button>
         </Group>
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">
           <ChangeColumn
@@ -171,7 +173,10 @@ const RecentChanges = ({ latestEventId }: { latestEventId: string | null }) => {
             items={changes.new_bookings.map((booking) =>
               bookingItem(booking, booking.created_at),
             )}
-            allPath={bookingsPath}
+            links={bookingLinks(
+              changes.new_booking_events,
+              changes.new_bookings_total,
+            )}
           />
           <ChangeColumn
             title={t("changes.changed_bookings")}
@@ -179,7 +184,10 @@ const RecentChanges = ({ latestEventId }: { latestEventId: string | null }) => {
             items={changes.changed_bookings.map((booking) =>
               bookingItem(booking, booking.changed_at),
             )}
-            allPath={bookingsPath}
+            links={bookingLinks(
+              changes.changed_booking_events,
+              changes.changed_bookings_total,
+            )}
           />
           <ChangeColumn
             title={t("changes.new_companies")}
@@ -187,20 +195,22 @@ const RecentChanges = ({ latestEventId }: { latestEventId: string | null }) => {
             items={changes.new_companies.map((company) => ({
               key: company.id,
               label: company.name,
-              detail: (
-                <Group gap={6} wrap="nowrap">
-                  {company.confirmed_at === null ? (
-                    <Badge color="yellow" size="xs" variant="light">
-                      {t("company_management.unconfirmed")}
-                    </Badge>
-                  ) : null}
-                  <span>
-                    {dateTimeFormat.format(new Date(company.created_at))}
-                  </span>
-                </Group>
-              ),
+              badge:
+                company.confirmed_at === null ? (
+                  <Badge color="yellow" size="xs" variant="light">
+                    {t("company_management.unconfirmed")}
+                  </Badge>
+                ) : null,
+              info: formatDateTime(company.created_at) ?? "",
             }))}
-            allPath="/company-management?changes=1"
+            links={[
+              {
+                path: "/company-management?filter=new",
+                label: t("changes.show_all", {
+                  total: changes.new_companies_total,
+                }),
+              },
+            ]}
           />
           <ChangeColumn
             title={t("changes.new_users")}
@@ -210,14 +220,18 @@ const RecentChanges = ({ latestEventId }: { latestEventId: string | null }) => {
               label:
                 [user.first_name, user.last_name].filter(Boolean).join(" ") ||
                 user.email,
-              detail: [
-                user.company_name,
-                dateTimeFormat.format(new Date(user.created_at)),
-              ]
+              info: [user.company_name, formatDateTime(user.created_at)]
                 .filter(Boolean)
                 .join(" · "),
             }))}
-            allPath="/user-management?filter=new"
+            links={[
+              {
+                path: "/user-management?filter=new",
+                label: t("changes.show_all", {
+                  total: changes.new_users_total,
+                }),
+              },
+            ]}
           />
         </SimpleGrid>
       </Stack>

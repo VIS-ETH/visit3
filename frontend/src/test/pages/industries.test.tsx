@@ -25,9 +25,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
 
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/industries`, () =>
       HttpResponse.json(catalogue),
     ),
@@ -150,14 +147,26 @@ describe("the industry catalogue page", () => {
       await screen.findByLabelText("industries.name"),
       softwareIndustry.name,
     );
+    const dialog = await screen.findByRole("dialog");
     await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", {
-        name: "industries.add",
-      }),
+      within(dialog).getByRole("button", { name: "industries.add" }),
     );
 
     expect(
-      await screen.findByText("error.industry_name_exists"),
+      await within(dialog).findByText("error.industry_name_exists"),
     ).toBeInTheDocument();
+  });
+
+  it("shows an error instead of an empty catalogue when loading fails", async () => {
+    server.use(
+      http.get(`${testBackendUrl}/api/industries`, () =>
+        HttpResponse.json({ code: "error.internal" }, { status: 500 }),
+      ),
+    );
+
+    renderWithProviders(<Industries />);
+
+    expect(await screen.findByText("error.load_failed")).toBeInTheDocument();
+    expect(screen.queryByText("industries.empty")).not.toBeInTheDocument();
   });
 });

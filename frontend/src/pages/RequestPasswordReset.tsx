@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { TextInput, Stack } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { IconMailSearch } from "@tabler/icons-react";
 import { useDocumentTitle } from "@mantine/hooks";
 import { useTranslatedForm } from "../utils/translator";
@@ -9,25 +8,23 @@ import { useTranslation } from "react-i18next";
 import { useRequestPasswordReset } from "../orval/generated/auth/auth";
 import AuthCardLayout from "../components/AuthCardLayout";
 import AuthButton from "../components/AuthButton";
+import { useAsyncAction } from "../hooks/use-async-action";
+import { notifySuccess } from "../utils/notify";
 
 const RequestPasswordReset = () => {
   const { t } = useTranslation();
   useDocumentTitle(t("password_reset_request.title"));
-  const [emailSent, setEmailSent] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
 
-  const { mutate: requestPasswordReset, isPending } = useRequestPasswordReset({
-    mutation: {
-      onSuccess: () => {
-        setEmailSent(true);
-        notifications.show({
-          color: "green",
-          title: t("password_reset_request.title"),
-          message: t("password_reset_request.sent"),
-          autoClose: 4000,
-        });
-      },
+  const { mutateAsync: requestPasswordReset } = useRequestPasswordReset();
+
+  const { run: sendResetMail, isRunning } = useAsyncAction(
+    async (email: string) => {
+      await requestPasswordReset({ data: { email } });
+      setSentTo(email);
+      notifySuccess(t("password_reset_request.sent"));
     },
-  });
+  );
 
   const form = useTranslatedForm<typeof passwordResetRequestSchema>(
     passwordResetRequestSchema,
@@ -45,11 +42,9 @@ const RequestPasswordReset = () => {
       backTo="/login"
     >
       <form
-        onSubmit={form.onSubmit((values) => {
-          requestPasswordReset({
-            data: { email: values.email },
-          });
-        })}
+        onSubmit={form.onSubmit(
+          (values) => void sendResetMail(values.email.trim()),
+        )}
       >
         <Stack gap="md">
           <TextInput
@@ -62,8 +57,8 @@ const RequestPasswordReset = () => {
           />
           <AuthButton
             type="submit"
-            loading={isPending}
-            disabled={isPending || emailSent}
+            loading={isRunning}
+            disabled={isRunning || form.values.email.trim() === sentTo}
           >
             {t("password_reset_request.submit")}
           </AuthButton>

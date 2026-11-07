@@ -17,7 +17,7 @@ async def send_incomplete_booking_reminders(
             continue
         if not booking_completeness(booking):
             continue
-        reminded = await kp_repository.update_booking(
-            booking, UpdateBookingInput(reminder_sent_at=now)
-        )
-        await notify_best_effort(notifier.booking_incomplete_reminder(reminded))
+        if await notify_best_effort(notifier.booking_incomplete_reminder(booking)):
+            await kp_repository.update_booking(
+                booking, UpdateBookingInput(reminder_sent_at=now)
+            )

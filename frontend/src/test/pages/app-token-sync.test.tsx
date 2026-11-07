@@ -10,9 +10,9 @@ import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
 import { createTestQueryClient, renderWithProviders } from "../render";
 
-const csrfUrl = `${testBackendUrl}/api/csrftoken`;
 const refreshUrl = `${testBackendUrl}/api/auth/refresh`;
 const meUrl = `${testBackendUrl}/api/user/me`;
+const profileUrl = `${testBackendUrl}/api/user/profile`;
 
 const currentUser = {
   id: "user-1",
@@ -55,9 +55,8 @@ const renderApp = async () => {
 
 beforeEach(() => {
   meRequests = 0;
-  setToken(createToken(3600));
+  setToken(createToken(3600, "alice"));
   server.use(
-    http.get(csrfUrl, () => HttpResponse.json({ token: "csrf-1" })),
     http.post(refreshUrl, () => new HttpResponse(null, { status: 401 })),
     http.get(meUrl, () => {
       meRequests += 1;
@@ -67,16 +66,37 @@ beforeEach(() => {
 });
 
 describe("token sync between tabs", () => {
-  it("invalidates the current user query when another tab signs out", async () => {
+  it("drops the cached current user when another tab signs out", async () => {
     const queryClient = await renderApp();
 
     signOutInAnotherTab();
 
     await waitFor(() => {
       expect(
-        queryClient.getQueryState(getGetCurrentUserQueryKey())?.isInvalidated,
-      ).toBe(true);
+        queryClient.getQueryData(getGetCurrentUserQueryKey()),
+      ).toBeUndefined();
     });
+  });
+
+  it("drops the previous user's data when another tab signs in as someone else", async () => {
+    const subjectOf = (request: Request) =>
+      request.headers.get("Authorization")?.endsWith(bobToken)
+        ? "bob@example.com"
+        : "alice@example.com";
+    const bobToken = createToken(3600, "bob");
+    server.use(
+      http.get(profileUrl, ({ request }) =>
+        HttpResponse.json({ ...currentUser, email: subjectOf(request) }),
+      ),
+    );
+    renderWithProviders(<App />, { route: "/profile" });
+    expect(await screen.findByText("alice@example.com")).toBeInTheDocument();
+
+    localStorage.setItem("token", bobToken);
+    storageEventFromAnotherTab();
+
+    expect(await screen.findByText("bob@example.com")).toBeInTheDocument();
+    expect(screen.queryByText("alice@example.com")).not.toBeInTheDocument();
   });
 
   it("clears the impersonation when another tab signs out", async () => {

@@ -53,12 +53,12 @@ async def pass_nametags_deadline(db_session: AsyncSession, event_id: str) -> Non
 
 
 async def set_nametag_cap(
-    client: AsyncClient, staff_headers: dict[str, str], event_id: str, cap: int
+    client: AsyncClient, president_headers: dict[str, str], event_id: str, cap: int
 ) -> Response:
     return await client.patch(
         f"/api/kp/events/{event_id}",
         json={"max_nametags_per_booking": cap},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
 
@@ -120,12 +120,12 @@ async def test_an_empty_list_clears_the_nametags(
 
 async def test_more_nametags_than_the_event_allows_are_refused(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     booking_id: str,
 ):
-    await set_nametag_cap(client, staff_headers, kp_setup.event_id, 2)
+    await set_nametag_cap(client, president_headers, kp_setup.event_id, 2)
     await put_nametags(client, company_headers, booking_id, [ADA, GRACE])
 
     response = await put_nametags(
@@ -142,12 +142,12 @@ async def test_more_nametags_than_the_event_allows_are_refused(
 
 async def test_exactly_the_allowed_number_of_nametags_is_accepted(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     booking_id: str,
 ):
-    await set_nametag_cap(client, staff_headers, kp_setup.event_id, 2)
+    await set_nametag_cap(client, president_headers, kp_setup.event_id, 2)
 
     response = await put_nametags(client, company_headers, booking_id, [ADA, GRACE])
 

@@ -22,6 +22,11 @@ class ChangedCompanyResult(BaseModel):
     created_at: datetime
 
 
+class ChangedEventResult(BaseModel):
+    id: UUID
+    name: str
+
+
 class ChangedBookingResult(BaseModel):
     id: UUID
     event_id: UUID
@@ -36,15 +41,22 @@ class ChangedBookingResult(BaseModel):
 
 class RecentChangesResult(BaseModel):
     since: datetime
+    as_of: datetime
     new_users: list[ChangedUserResult]
     new_users_total: int
     new_companies: list[ChangedCompanyResult]
     new_companies_total: int
     new_bookings: list[ChangedBookingResult]
     new_bookings_total: int
+    new_booking_events: list[ChangedEventResult]
     changed_bookings: list[ChangedBookingResult]
     changed_bookings_total: int
+    changed_booking_events: list[ChangedEventResult]
 
 
 class RecentChangesResponse(RecentChangesResult):
     pass
+
+
+class MarkChangesSeenRequest(BaseModel):
+    as_of: datetime

@@ -1,11 +1,13 @@
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.dates import utc_now
 from app.core.deps import SessionLocal
 from app.core.grpc import grpc_client, mail_stub
 from app.core.scheduler import Scheduler
@@ -25,11 +27,13 @@ from app.services.mail_service import MailService
 from app.services.mail_template_service import MailTemplateService
 from app.services.notification_recipients import NotificationRecipients
 from app.services.storage_service import StorageService
+from app.services.stored_files import StoredFiles
+
+logger = logging.getLogger(__name__)
 
 MINUTELY = 60
 HOURLY = 3600
 UNCONFIRMED_ACCOUNT_MAX_AGE = timedelta(days=7)
-DAILY = 86400
 
 
 async def cleanup_expired_tokens() -> None:
@@ -57,9 +61,9 @@ async def cleanup_orphaned_stored_files() -> None:
         orphaned_files = await kp_repository.list_orphaned_stored_files(
             settings.STORAGE_ORPHAN_CLEANUP_MAX_AGE_HOURS
         )
+        stored_files = StoredFiles(storage_service, kp_repository)
         for stored_file in orphaned_files:
-            await storage_service.delete_object(stored_file.storage_key)
-            await kp_repository.delete_stored_file(stored_file)
+            await stored_files.discard(stored_file)
 
 
 def _booking_notifier(session: AsyncSession) -> MailBookingNotifier:
@@ -84,7 +88,7 @@ async def remind_incomplete_bookings() -> None:
         await send_incomplete_booking_reminders(
             KpRepository(session),
             _booking_notifier(session),
-            datetime.now(timezone.utc),
+            utc_now(),
         )
 
 
@@ -93,7 +97,7 @@ async def handle_booking_offers() -> None:
         await process_booking_offers(
             KpRepository(session),
             _booking_notifier(session),
-            datetime.now(timezone.utc),
+            utc_now(),
         )
 
 
@@ -111,7 +115,7 @@ def create_scheduler() -> Scheduler:
     scheduler.add(cleanup_expired_invites, interval=HOURLY)
     scheduler.add(purge_unconfirmed_accounts, interval=HOURLY)
     scheduler.add(cleanup_orphaned_stored_files, interval=HOURLY)
-    scheduler.add(remind_incomplete_bookings, interval=DAILY)
+    scheduler.add(remind_incomplete_bookings, interval=HOURLY)
     scheduler.add(handle_booking_offers, interval=HOURLY)
     scheduler.add(dispatch_mail_campaigns, interval=MINUTELY)
     return scheduler

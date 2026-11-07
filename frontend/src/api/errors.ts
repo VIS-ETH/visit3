@@ -10,19 +10,6 @@ export const getApiErrorCode = (error: unknown): string | undefined => {
   return typeof code === "string" ? code : undefined;
 };
 
-export const getApiErrorDetails = (
-  error: unknown,
-): Record<string, unknown> | undefined => {
-  if (!isAxiosError(error)) return undefined;
-
-  const data: unknown = error.response?.data;
-  if (typeof data !== "object" || data === null) return undefined;
-
-  const { details } = data as { details?: unknown };
-  if (typeof details !== "object" || details === null) return undefined;
-  return details as Record<string, unknown>;
-};
-
 export const getApiErrorStatus = (error: unknown): number | undefined => {
   if (!isAxiosError(error)) return undefined;
   return error.response?.status;
@@ -45,4 +32,18 @@ export const getApiFieldErrors = (
       ? [{ field, code }]
       : [];
   });
+};
+
+export const INLINE_ERROR_STATUSES: readonly number[] = [
+  400, 403, 404, 409, 422,
+];
+
+export const inlineErrorRequest = { quietStatuses: INLINE_ERROR_STATUSES };
+
+export const getInlineErrorCode = (error: unknown): string | null => {
+  const status = getApiErrorStatus(error);
+  if (status === undefined || !INLINE_ERROR_STATUSES.includes(status)) {
+    return null;
+  }
+  return getApiErrorCode(error) ?? "server.error";
 };

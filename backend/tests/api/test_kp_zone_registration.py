@@ -15,12 +15,14 @@ CLOSED_CODE = "error.kp_zone_registration_closed"
 
 
 async def create_zone(
-    client: AsyncClient, staff_headers: dict[str, str], event_id: str
+    client: AsyncClient,
+    president_headers: dict[str, str],
+    event_id: str,
 ) -> str:
     response = await client.post(
         f"/api/kp/events/{event_id}/booth-zones",
         json={"name": "Gold", "color": "#AABBCC", "capacity": 3},
-        headers=staff_headers,
+        headers=president_headers,
     )
     return response.json()["id"]
 
@@ -89,13 +91,15 @@ async def test_zones_are_open_by_default(
     }
 
 
-async def test_staff_can_close_and_reopen_a_zone(
+async def test_the_president_can_close_and_reopen_a_zone(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
 ):
-    closed = await set_zone_open(client, staff_headers, kp_setup.booth_zone_id, False)
+    closed = await set_zone_open(
+        client, president_headers, kp_setup.booth_zone_id, False
+    )
 
     assert closed.status_code == 200
     assert closed.json()["registration_open"] is False
@@ -103,19 +107,21 @@ async def test_staff_can_close_and_reopen_a_zone(
         kp_setup.booth_zone_id: False
     }
 
-    reopened = await set_zone_open(client, staff_headers, kp_setup.booth_zone_id, True)
+    reopened = await set_zone_open(
+        client, president_headers, kp_setup.booth_zone_id, True
+    )
 
     assert reopened.json()["registration_open"] is True
 
 
 async def test_registering_into_a_closed_zone_is_refused(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     complete_company_profile: Callable[..., Awaitable[Response]],
 ):
-    await set_zone_open(client, staff_headers, kp_setup.booth_zone_id, False)
+    await set_zone_open(client, president_headers, kp_setup.booth_zone_id, False)
 
     response = await register_into(
         client,
@@ -131,13 +137,13 @@ async def test_registering_into_a_closed_zone_is_refused(
 
 async def test_registering_into_an_open_zone_next_to_a_closed_one_works(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     complete_company_profile: Callable[..., Awaitable[Response]],
 ):
-    open_zone_id = await create_zone(client, staff_headers, kp_setup.event_id)
-    await set_zone_open(client, staff_headers, kp_setup.booth_zone_id, False)
+    open_zone_id = await create_zone(client, president_headers, kp_setup.event_id)
+    await set_zone_open(client, president_headers, kp_setup.booth_zone_id, False)
 
     response = await register_into(
         client,
@@ -154,13 +160,13 @@ async def test_registering_into_an_open_zone_next_to_a_closed_one_works(
 async def test_a_registration_exception_overrides_a_closed_zone(
     client: AsyncClient,
     db_session: AsyncSession,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
     complete_company_profile: Callable[..., Awaitable[Response]],
 ):
-    await set_zone_open(client, staff_headers, kp_setup.booth_zone_id, False)
+    await set_zone_open(client, president_headers, kp_setup.booth_zone_id, False)
     await grant_exception(db_session, kp_setup.event_id, company_user, 1)
 
     flags = await company_zone_flags(client, company_headers, kp_setup.event_id)
@@ -179,13 +185,13 @@ async def test_a_registration_exception_overrides_a_closed_zone(
 async def test_an_expired_registration_exception_keeps_the_zone_closed(
     client: AsyncClient,
     db_session: AsyncSession,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
     complete_company_profile: Callable[..., Awaitable[Response]],
 ):
-    await set_zone_open(client, staff_headers, kp_setup.booth_zone_id, False)
+    await set_zone_open(client, president_headers, kp_setup.booth_zone_id, False)
     await grant_exception(db_session, kp_setup.event_id, company_user, -1)
 
     response = await register_into(
@@ -219,13 +225,13 @@ async def booking_id(
 
 async def test_switching_into_a_closed_zone_is_refused(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     booking_id: str,
 ):
-    target_id = await create_zone(client, staff_headers, kp_setup.event_id)
-    await set_zone_open(client, staff_headers, target_id, False)
+    target_id = await create_zone(client, president_headers, kp_setup.event_id)
+    await set_zone_open(client, president_headers, target_id, False)
 
     response = await client.post(
         f"/api/kp/bookings/{booking_id}/switch-zone",
@@ -239,13 +245,13 @@ async def test_switching_into_a_closed_zone_is_refused(
 
 async def test_a_booking_in_a_closed_zone_can_still_switch_out(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     booking_id: str,
 ):
-    target_id = await create_zone(client, staff_headers, kp_setup.event_id)
-    await set_zone_open(client, staff_headers, kp_setup.booth_zone_id, False)
+    target_id = await create_zone(client, president_headers, kp_setup.event_id)
+    await set_zone_open(client, president_headers, kp_setup.booth_zone_id, False)
 
     response = await client.post(
         f"/api/kp/bookings/{booking_id}/switch-zone",
@@ -259,12 +265,12 @@ async def test_a_booking_in_a_closed_zone_can_still_switch_out(
 
 async def test_a_booking_in_a_closed_zone_stays_editable(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     booking_id: str,
 ):
-    await set_zone_open(client, staff_headers, kp_setup.booth_zone_id, False)
+    await set_zone_open(client, president_headers, kp_setup.booth_zone_id, False)
 
     response = await client.post(
         f"/api/kp/bookings/{booking_id}/services",
@@ -278,7 +284,7 @@ async def test_a_booking_in_a_closed_zone_stays_editable(
 
 async def test_joining_the_waitlist_of_a_closed_zone_is_refused(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     booking_id: str,
@@ -286,10 +292,10 @@ async def test_joining_the_waitlist_of_a_closed_zone_is_refused(
     full_zone = await client.post(
         f"/api/kp/events/{kp_setup.event_id}/booth-zones",
         json={"name": "Full", "color": "#010203", "capacity": 0},
-        headers=staff_headers,
+        headers=president_headers,
     )
     full_zone_id = full_zone.json()["id"]
-    await set_zone_open(client, staff_headers, full_zone_id, False)
+    await set_zone_open(client, president_headers, full_zone_id, False)
 
     response = await client.put(
         f"/api/kp/bookings/{booking_id}/upgrade-waitlist",

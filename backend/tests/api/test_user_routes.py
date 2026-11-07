@@ -70,7 +70,7 @@ async def test_profile_update_keeps_omitted_phone_number(
     assert body["phone_number"] == PHONE_NUMBER
 
 
-async def test_profile_update_clears_last_name_sent_as_null(
+async def test_profile_update_rejects_last_name_sent_as_null(
     client: AsyncClient, profile_headers: dict[str, str]
 ):
     response = await client.patch(
@@ -79,10 +79,8 @@ async def test_profile_update_clears_last_name_sent_as_null(
         headers=profile_headers,
     )
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["last_name"] is None
-    assert body["first_name"] == "Ada"
+    assert response.status_code == 422
+    assert response.json()["fieldErrors"][0]["field"] == "last_name"
 
 
 async def test_admin_user_update_rejects_email_sent_as_null(
@@ -164,9 +162,9 @@ async def test_plain_staff_is_not_flagged_as_kp_president(
 
 
 async def test_admin_is_flagged_as_kp_president(
-    client: AsyncClient, admin_user: User, staff_headers: dict[str, str]
+    client: AsyncClient, admin_headers: dict[str, str]
 ):
-    response = await client.get("/api/user/me", headers=staff_headers)
+    response = await client.get("/api/user/me", headers=admin_headers)
 
     assert response.status_code == 200
     assert response.json()["is_kp_president"] is True

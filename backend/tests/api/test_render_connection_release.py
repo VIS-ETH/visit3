@@ -51,11 +51,11 @@ async def test_a_company_preview_renders_without_holding_a_connection(
 
 async def test_an_admin_sample_renders_without_holding_a_connection(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     probe: ConnectionProbePdfService,
 ):
-    response = await client.post(preview_url(kp_setup.event_id), headers=staff_headers)
+    response = await client.post(preview_url(kp_setup.event_id), headers=admin_headers)
 
     assert response.status_code == 200
     assert probe.held_during_render == [False]

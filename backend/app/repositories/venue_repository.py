@@ -16,9 +16,6 @@ from app.schemas.venue import (
     VenueZoneShapeInput,
 )
 
-LAYOUT_RELATIONSHIPS = {"background_stored_file", "zone_shapes", "booths"}
-SHAPE_RELATIONSHIPS = {"layout", "booth_zone"}
-
 
 class VenueRepository(BaseRepository[KpVenueLayout]):
     def __init__(self, session: AsyncSession):
@@ -66,45 +63,33 @@ class VenueRepository(BaseRepository[KpVenueLayout]):
     async def create_layout(
         self, event_id: UUID, create_layout_input: CreateVenueLayoutInput
     ) -> KpVenueLayout:
-        try:
+        async with self.committing():
             layout = KpVenueLayout(
                 **create_layout_input.model_dump(), event_id=event_id
             )
-            self._validate_model(layout, exclude=LAYOUT_RELATIONSHIPS)
+            self._validate_model(layout)
             self.session.add(layout)
-            await self.session.commit()
-            return await self.get_layout_by_id(layout.id) or layout
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        return await self.get_layout_by_id(layout.id) or layout
 
     async def update_layout(
         self, layout: KpVenueLayout, update_layout_input: UpdateVenueLayoutInput
     ) -> KpVenueLayout:
-        try:
+        async with self.committing():
             layout.sqlmodel_update(update_layout_input.model_dump(exclude_unset=True))
-            self._validate_model(layout, exclude=LAYOUT_RELATIONSHIPS)
+            self._validate_model(layout)
             self.session.add(layout)
-            await self.session.commit()
-            return await self.get_layout_by_id(layout.id) or layout
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        return await self.get_layout_by_id(layout.id) or layout
 
     async def set_layout_background_stored_file_id(
         self, layout: KpVenueLayout, stored_file_id: UUID | None
     ) -> KpVenueLayout:
-        try:
+        async with self.committing():
             layout.background_stored_file_id = stored_file_id
             self.session.add(layout)
-            await self.session.commit()
-            return await self.get_layout_by_id(layout.id) or layout
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        return await self.get_layout_by_id(layout.id) or layout
 
     async def delete_layout(self, layout: KpVenueLayout) -> None:
-        try:
+        async with self.committing():
             await self.delete_where(
                 KpVenueZoneShape, col(KpVenueZoneShape.layout_id) == layout.id
             )
@@ -113,10 +98,6 @@ class VenueRepository(BaseRepository[KpVenueLayout]):
             )
             layout.background_stored_file_id = None
             self.delete(layout)
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
 
     async def list_zone_shapes(
         self, layout_ids: Sequence[UUID]
@@ -155,7 +136,7 @@ class VenueRepository(BaseRepository[KpVenueLayout]):
     async def replace_zone_shapes(
         self, layout: KpVenueLayout, shapes: Sequence[VenueZoneShapeInput]
     ) -> Sequence[KpVenueZoneShape]:
-        try:
+        async with self.committing():
             await self.hard_delete_where(
                 KpVenueZoneShape, col(KpVenueZoneShape.layout_id) == layout.id
             )
@@ -170,27 +151,19 @@ class VenueRepository(BaseRepository[KpVenueLayout]):
                         else None
                     ),
                 )
-                self._validate_model(shape, exclude=SHAPE_RELATIONSHIPS)
+                self._validate_model(shape)
                 self.session.add(shape)
-            await self.session.commit()
-            return await self.list_zone_shapes([layout.id])
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        return await self.list_zone_shapes([layout.id])
 
     async def replace_booths(
         self, layout: KpVenueLayout, booths: Sequence[VenueBoothInput]
     ) -> Sequence[KpVenueBooth]:
-        try:
+        async with self.committing():
             await self.hard_delete_where(
                 KpVenueBooth, col(KpVenueBooth.layout_id) == layout.id
             )
             for booth_input in booths:
                 booth = KpVenueBooth(layout_id=layout.id, **booth_input.model_dump())
-                self._validate_model(booth, exclude=SHAPE_RELATIONSHIPS)
+                self._validate_model(booth)
                 self.session.add(booth)
-            await self.session.commit()
-            return await self.list_booths([layout.id])
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        return await self.list_booths([layout.id])

@@ -49,9 +49,6 @@ beforeEach(() => {
   bookingResponse = completeBooking;
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId`, () =>
       HttpResponse.json(testEvent),
     ),

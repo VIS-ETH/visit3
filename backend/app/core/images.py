@@ -53,7 +53,10 @@ def image_size(content: bytes, mime_type: str) -> ImageSize | None:
         warnings.simplefilter("error", Image.DecompressionBombWarning)
         try:
             with Image.open(BytesIO(content)) as image:
-                return ImageSize(*image.size)
+                size = ImageSize(*image.size)
+                if size.within_limits:
+                    image.load()
+                return size
         except (Image.DecompressionBombError, Image.DecompressionBombWarning):
             return OVERSIZED
         except (UnidentifiedImageError, OSError, ValueError, SyntaxError):

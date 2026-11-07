@@ -2,7 +2,7 @@ from app.core.downloads import (
     content_disposition_attachment,
     sanitize_download_filename,
 )
-from app.routes.kp import _download
+from app.routes.kp.exports import _download
 
 
 def test_sanitize_download_filename_removes_header_and_path_dangers():

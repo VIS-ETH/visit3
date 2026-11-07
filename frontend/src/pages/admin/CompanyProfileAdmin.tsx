@@ -1,48 +1,22 @@
-import {
-  Alert,
-  Button,
-  Center,
-  Group,
-  Loader,
-  Stack,
-  Text,
-  Title,
-} from "@mantine/core";
-import { notifications } from "@mantine/notifications";
-import { IconAlertCircle } from "@tabler/icons-react";
+import { Center, Group, Stack, Title } from "@mantine/core";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
 import BackButton from "../../components/BackButton";
-import CompanyBillingFields from "../../components/company/CompanyBillingFields";
-import CompanyBookletPage from "../../components/company/CompanyBookletPage";
-import CompanyContactFields from "../../components/company/CompanyContactFields";
-import CompanyDetailsFields from "../../components/company/CompanyDetailsFields";
+import ErrorAlert from "../../components/ErrorAlert";
+import PageLoader from "../../components/PageLoader";
 import CompanyLogoFieldForStaff from "../../components/company/CompanyLogoFieldForStaff";
-import CompanyOfferFields from "../../components/company/CompanyOfferFields";
 import CompanyProfileBadge from "../../components/company/CompanyProfileBadge";
-import CompanyProfileMissingFields from "../../components/company/CompanyProfileMissingFields";
-import ProfileDraftNotice from "../../components/company/ProfileDraftNotice";
-import { useProfileDraft } from "../../components/company/use-profile-draft";
-import CompanyProfileSection from "../../components/company/CompanyProfileSection";
-import { showProfileFieldError } from "../../components/company/company-profile-fields";
+import CompanyProfileForm from "../../components/company/CompanyProfileForm";
 import {
   getGetCompanyProfileQueryKey,
   previewCompanyBookletPage,
+  updateCompanyProfile,
   useGetCompanyProfile,
   useGetCompanyUsers,
-  useUpdateCompanyProfile,
 } from "../../orval/generated/company/company";
+import type { UpdateCompanyProfileRequest } from "../../orval/generated/fastAPI.schemas";
 import { useListIndustryCatalogue } from "../../orval/generated/industry/industry";
-import {
-  companyProfileSchema,
-  emptyCompanyProfileFormValues,
-  toCompanyProfileFormValues,
-  toCompanyProfileRequest,
-  type CompanyProfileFormValues,
-} from "../../schemas/companyProfileSchema";
-import { useTranslatedForm } from "../../utils/translator";
 
 const CompanyProfileAdmin = () => {
   const { t } = useTranslation();
@@ -61,65 +35,23 @@ const CompanyProfileAdmin = () => {
     query: { enabled: companyId !== "" },
   });
 
-  const form = useTranslatedForm<typeof companyProfileSchema>(
-    companyProfileSchema,
-    { initialValues: emptyCompanyProfileFormValues },
-  );
-
-  const applyValues = useCallback(
-    (values: CompanyProfileFormValues) => {
-      form.setInitialValues(values);
-      form.setValues(values);
-      form.resetDirty(values);
-      form.clearErrors();
-    },
-    [form],
-  );
-
-  const { restored, clearDraft } = useProfileDraft(
-    form,
-    profile,
-    "staff",
-    applyValues,
-  );
-
-  const { mutate: save, isPending: isSaving } = useUpdateCompanyProfile({
-    mutation: {
-      onSuccess: async (updated) => {
-        queryClient.setQueryData(
-          getGetCompanyProfileQueryKey(companyId),
-          updated,
-        );
-        clearDraft();
-        applyValues(toCompanyProfileFormValues(updated));
-        notifications.show({
-          color: "green",
-          message: t("company_profile_form.save_success"),
-        });
-      },
-      onError: (error) => showProfileFieldError(form, error, t),
-    },
-  });
+  const save = async (request: UpdateCompanyProfileRequest) => {
+    const updated = await updateCompanyProfile(companyId, request);
+    queryClient.setQueryData(getGetCompanyProfileQueryKey(companyId), updated);
+    return updated;
+  };
 
   if (isLoading) {
-    return (
-      <Center py="xl">
-        <Loader />
-      </Center>
-    );
+    return <PageLoader />;
   }
 
   if (isError || !profile) {
     return (
       <Center py="xl">
-        <Alert color="red" icon={<IconAlertCircle />} title={t("error.title")}>
-          {t("company_profile_form.load_error")}
-        </Alert>
+        <ErrorAlert>{t("company_profile_form.load_error")}</ErrorAlert>
       </Center>
     );
   }
-
-  const isDirty = form.isDirty();
 
   return (
     <Center h="100%" w="100%" py="xl">
@@ -132,100 +64,24 @@ const CompanyProfileAdmin = () => {
           <CompanyProfileBadge complete={profile.profile_complete === true} />
         </Group>
 
-        {restored ? (
-          <ProfileDraftNotice
-            onDiscard={() => {
-              clearDraft();
-              applyValues(toCompanyProfileFormValues(profile));
-            }}
-          />
-        ) : null}
-
-        <CompanyProfileMissingFields
-          fields={profile.missing_profile_fields ?? []}
-        />
-
-        <form
-          onSubmit={form.onSubmit((values) =>
-            save({ companyId, data: toCompanyProfileRequest(values) }),
+        <CompanyProfileForm
+          profile={profile}
+          draftScope="staff"
+          bookletScope={companyId}
+          industries={industries}
+          members={members}
+          logoField={(disabled) => (
+            <CompanyLogoFieldForStaff
+              companyId={companyId}
+              logoUrl={profile.logo_url ?? null}
+              disabled={disabled}
+            />
           )}
-        >
-          <Stack gap="lg">
-            <CompanyProfileSection
-              title={t("company_profile_form.section_company")}
-            >
-              <CompanyLogoFieldForStaff
-                companyId={companyId}
-                logoUrl={profile.logo_url ?? null}
-                disabled={isSaving}
-              />
-              <CompanyDetailsFields
-                form={form}
-                disabled={isSaving}
-                industries={industries}
-              />
-            </CompanyProfileSection>
-
-            <CompanyProfileSection
-              title={t("company_profile_form.section_offers")}
-            >
-              <CompanyOfferFields form={form} disabled={isSaving} />
-            </CompanyProfileSection>
-
-            <CompanyProfileSection
-              title={t("company_profile_form.section_contact")}
-            >
-              <CompanyContactFields
-                form={form}
-                disabled={isSaving}
-                members={members}
-              />
-            </CompanyProfileSection>
-
-            <CompanyProfileSection
-              title={t("company_profile_form.section_booklet")}
-            >
-              <CompanyBookletPage
-                scope={companyId}
-                ready={
-                  form.getInitialValues() !== emptyCompanyProfileFormValues
-                }
-                values={form.values}
-                logoUrl={profile.logo_url ?? null}
-                render={(request, options) =>
-                  previewCompanyBookletPage(companyId, request, options)
-                }
-              />
-            </CompanyProfileSection>
-
-            <CompanyProfileSection
-              title={t("company_profile_form.section_billing")}
-            >
-              <CompanyBillingFields form={form} disabled={isSaving} />
-            </CompanyProfileSection>
-
-            <Group justify="flex-end" gap="sm" align="center">
-              {isDirty ? (
-                <Text c="dimmed" size="sm">
-                  {t("company_profile_form.unsaved")}
-                </Text>
-              ) : null}
-              <Button
-                variant="default"
-                disabled={!isDirty || isSaving}
-                onClick={() => {
-                  clearDraft();
-                  applyValues(toCompanyProfileFormValues(profile));
-                }}
-              >
-                {t("company_profile_form.discard")}
-              </Button>
-              <Button type="submit" loading={isSaving} disabled={isSaving}>
-                {t("company_profile_form.save")}
-              </Button>
-            </Group>
-          </Stack>
-        </form>
+          renderBooklet={(request, options) =>
+            previewCompanyBookletPage(companyId, request, options)
+          }
+          save={save}
+        />
       </Stack>
     </Center>
   );

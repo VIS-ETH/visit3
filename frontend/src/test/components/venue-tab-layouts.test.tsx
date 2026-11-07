@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import VenueTab from "../../components/kp/VenueTab";
+import VenueTab from "../../components/kp-manage/VenueTab";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
 import { testEventId } from "../fixtures/kp-booking";
-import { testEditableLayout, testLayoutId } from "../fixtures/venue";
+import {
+  testEditableLayout,
+  testLayoutId,
+  testMainZone,
+} from "../fixtures/venue";
 
 const layoutsUrl = `${testBackendUrl}/api/kp/events/${testEventId}/venue-layouts`;
 const layoutUrl = `${testBackendUrl}/api/kp/venue-layouts/${testLayoutId}`;
@@ -22,9 +26,6 @@ beforeEach(() => {
   deleteCalls = 0;
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(layoutsUrl, () => HttpResponse.json([testEditableLayout])),
     http.post(layoutsUrl, async ({ request }) => {
       createdPayload = await request.json();
@@ -163,5 +164,48 @@ describe("the venue layout list", () => {
     await waitFor(() => {
       expect(deleteCalls).toBe(1);
     });
+  });
+
+  it("keeps the unsaved drawing when another layout is deleted", async () => {
+    let layouts = ["Aula", "Bibliothek", "Cafeteria"].map((name, order) => ({
+      ...testEditableLayout,
+      id: `layout-${order}`,
+      name,
+      order,
+    }));
+    server.use(
+      http.get(layoutsUrl, () => HttpResponse.json(layouts)),
+      http.get(
+        `${testBackendUrl}/api/kp/events/${testEventId}/booth-zones`,
+        () => HttpResponse.json([{ ...testMainZone, included_services: [] }]),
+      ),
+      http.delete(
+        `${testBackendUrl}/api/kp/venue-layouts/:id`,
+        ({ params }) => {
+          layouts = layouts.filter((layout) => layout.id !== params.id);
+          return new HttpResponse(null, { status: 204 });
+        },
+      ),
+    );
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const { user } = renderWithProviders(<VenueTab eventId={testEventId} />);
+
+    await user.click(await screen.findByText("Bibliothek"));
+    await user.click(
+      await screen.findByRole("radio", { name: "kp.venue.tool_rect" }),
+    );
+    const map = screen.getByRole("group", { name: "kp.venue.map_label" });
+    fireEvent.pointerDown(map, { clientX: 100, clientY: 100, pointerId: 1 });
+    fireEvent.pointerMove(map, { clientX: 300, clientY: 250, pointerId: 1 });
+    fireEvent.pointerUp(map, { clientX: 300, clientY: 250, pointerId: 1 });
+    expect(screen.getByText("kp.venue.unsaved_changes")).toBeInTheDocument();
+
+    await user.click(
+      screen.getAllByRole("button", { name: "kp.venue.layout_delete" })[2],
+    );
+
+    await waitFor(() => expect(screen.queryByText("Cafeteria")).toBeNull());
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(screen.getByText("kp.venue.unsaved_changes")).toBeInTheDocument();
   });
 });

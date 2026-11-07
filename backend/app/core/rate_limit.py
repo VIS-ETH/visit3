@@ -88,6 +88,7 @@ class LoginThrottle:
         self.clock = clock
         self.max_keys = max_keys
         self._accounts: OrderedDict[str, tuple[int, float]] = OrderedDict()
+        self._in_flight: dict[str, int] = {}
         self._addresses = SlidingWindowRateLimiter(
             ip_max_failures, ip_window_seconds, clock, max_keys
         )
@@ -95,9 +96,22 @@ class LoginThrottle:
     def check(self, ip: str, email: str) -> None:
         if self._addresses.exhausted(ip):
             raise RateLimited(f"login:address:{ip}")
-        _, blocked_until = self._accounts.get(self._account(email), (0, 0.0))
-        if self.clock() < blocked_until:
-            raise RateLimited(f"login:account:{self._account(email)}")
+        key = self._account(email)
+        failures, blocked_until = self._accounts.get(key, (0, 0.0))
+        in_flight = self._in_flight.get(key, 0)
+        if self.clock() < blocked_until or (
+            in_flight and failures + in_flight >= self.failures_before_backoff
+        ):
+            raise RateLimited(f"login:account:{key}")
+        self._in_flight[key] = in_flight + 1
+
+    def release(self, email: str) -> None:
+        key = self._account(email)
+        remaining = self._in_flight.get(key, 0) - 1
+        if remaining > 0:
+            self._in_flight[key] = remaining
+        else:
+            self._in_flight.pop(key, None)
 
     def record_failure(self, ip: str, email: str) -> None:
         self._addresses.allow(ip)
@@ -121,6 +135,7 @@ class LoginThrottle:
 
     def reset(self) -> None:
         self._accounts.clear()
+        self._in_flight.clear()
         self._addresses.reset()
 
     def _account(self, email: str) -> str:

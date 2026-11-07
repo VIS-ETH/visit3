@@ -1,6 +1,7 @@
-import axios from "axios";
+import axios, { isAxiosError } from "axios";
 import serverData from "../utils/server-data";
 import { jwtDecode } from "jwt-decode";
+import { clearProfileDrafts } from "../components/company/profile-draft-storage";
 
 interface TokenPayload {
   sub: string;
@@ -47,6 +48,12 @@ export const renewCsrfToken = async () => {
   return await csrfRenewPromise;
 };
 
+const SESSION_REJECTED_STATUSES = [400, 401];
+
+const isSessionRejected = (error: unknown) =>
+  isAxiosError(error) &&
+  SESSION_REJECTED_STATUSES.includes(error.response?.status ?? 0);
+
 const fetchRefreshedToken = async (): Promise<string | null> => {
   try {
     const response = await axios.post(
@@ -61,8 +68,8 @@ const fetchRefreshedToken = async (): Promise<string | null> => {
     );
     setToken(response.data.access_token);
     return response.data.access_token;
-  } catch {
-    clearAuthState();
+  } catch (error) {
+    if (isSessionRejected(error)) clearAuthState();
     return null;
   }
 };
@@ -76,6 +83,18 @@ export const refreshToken = async () => {
 };
 
 const TOKEN_STORAGE_KEY = "token";
+const LOGGED_OUT_STORAGE_KEY = "logged_out";
+
+export const markLoggedOut = () => {
+  localStorage.setItem(LOGGED_OUT_STORAGE_KEY, "true");
+};
+
+export const clearLoggedOut = () => {
+  localStorage.removeItem(LOGGED_OUT_STORAGE_KEY);
+};
+
+export const isLoggedOut = () =>
+  localStorage.getItem(LOGGED_OUT_STORAGE_KEY) === "true";
 
 const notifyTokenChanged = () => {
   if (typeof window === "undefined") return;
@@ -83,6 +102,7 @@ const notifyTokenChanged = () => {
 };
 
 export const setToken = (token: string) => {
+  clearLoggedOut();
   localStorage.setItem(TOKEN_STORAGE_KEY, token);
   notifyTokenChanged();
 };
@@ -105,6 +125,15 @@ export const subscribeToTokenStorage = (onTokenChanged: () => void) => {
 
   window.addEventListener("storage", handler);
   return () => window.removeEventListener("storage", handler);
+};
+
+export const getTokenSubject = () => {
+  try {
+    const token = getToken();
+    return token ? jwtDecode<TokenPayload>(token).sub : null;
+  } catch {
+    return null;
+  }
 };
 
 export const isTokenExpired = () => {
@@ -152,4 +181,5 @@ export const clearAuthState = () => {
   clearCsrfToken();
   clearImpersonation();
   clearToken();
+  clearProfileDrafts();
 };

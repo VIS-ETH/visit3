@@ -2,7 +2,7 @@ from typing import Annotated
 
 from pydantic import AfterValidator, BeforeValidator, Field
 
-from app.core.utils import reject_control_characters, strip_text
+from app.core.utils import clean_name, strip_text
 
 NAME_MAX_LENGTH = 100
 COMPANY_NAME_MAX_LENGTH = 200
@@ -22,19 +22,19 @@ PROFILE_TEXT_LIMITS = {
 }
 
 
-def _strip(value: object) -> object:
+def strip_if_text(value: object) -> object:
     return strip_text(value) if isinstance(value, str) else value
 
 
 CompanyName = Annotated[
     str,
     Field(max_length=COMPANY_NAME_MAX_LENGTH),
-    BeforeValidator(_strip),
-    AfterValidator(reject_control_characters),
+    BeforeValidator(strip_if_text),
+    AfterValidator(clean_name),
 ]
 PersonName = Annotated[
     str,
     Field(min_length=1, max_length=NAME_MAX_LENGTH),
-    BeforeValidator(_strip),
-    AfterValidator(reject_control_characters),
+    BeforeValidator(strip_if_text),
+    AfterValidator(clean_name),
 ]

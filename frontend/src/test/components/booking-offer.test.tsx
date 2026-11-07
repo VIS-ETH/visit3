@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import BookingsTab from "../../components/BookingsTab";
-import BookingOfferCard from "../../components/bookings/BookingOfferCard";
-import BookingStatusTimeline from "../../components/bookings/BookingStatusTimeline";
-import OfferBookingModal from "../../components/bookings/OfferBookingModal";
+import BookingsTab from "../../components/kp-manage/BookingsTab";
+import BookingOfferCard from "../../components/staff-bookings/BookingOfferCard";
+import BookingStatusTimeline from "../../components/staff-bookings/BookingStatusTimeline";
+import OfferBookingModal from "../../components/staff-bookings/OfferBookingModal";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
@@ -31,9 +31,6 @@ beforeEach(() => {
   deadlineRequests = [];
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/company/management/companies`, () =>
       HttpResponse.json([
         {

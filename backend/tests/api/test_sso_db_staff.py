@@ -247,16 +247,16 @@ async def test_an_admin_finds_a_new_member_and_grants_staff(
     auth_service: AuthService,
     keycloak: FakeKeycloak,
     db_session: AsyncSession,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
 ):
     refresh_token = await auth_service.login_keycloak_user(claims(()), "kc-refresh-1")
     member = await sso_user(db_session)
 
     listed = await client.get(
-        "/api/users", params={"query": EMAIL}, headers=staff_headers
+        "/api/users", params={"query": EMAIL}, headers=admin_headers
     )
     granted = await client.patch(
-        f"/api/users/{member.id}", json={"is_staff": True}, headers=staff_headers
+        f"/api/users/{member.id}", json={"is_staff": True}, headers=admin_headers
     )
     refreshed = await refresh(client, csrf_headers, refresh_token)
     await auth_service.login_keycloak_user(claims(()), "kc-refresh-9")

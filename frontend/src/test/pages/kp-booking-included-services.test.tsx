@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import KpBookingStepper from "../../pages/KpBookingStepper";
+import KpBookingStepper from "../../components/exhibitor-booking/KpBookingStepper";
 import {
   KpBookingStatus,
   KpServiceCategory,
@@ -32,7 +32,6 @@ const serviceId = "service-1";
 const unitPriceCents = 2500;
 const includedQuantity = 2;
 
-const csrfUrl = `${testBackendUrl}/api/csrftoken`;
 const myBookingUrl = `${testBackendUrl}/api/kp/events/${eventId}/my-booking`;
 const zonesUrl = `${testBackendUrl}/api/kp/events/${eventId}/booth-zones/available`;
 const servicesUrl = `${testBackendUrl}/api/kp/events/${eventId}/services/available`;
@@ -110,6 +109,19 @@ const registeredBooking: BookingResponse = {
   price: { net: 0, vat: 0, gross: 0 },
 };
 
+const tableService: ServiceResponse = {
+  ...service,
+  id: "service-table",
+  name: "Table",
+};
+
+const tableZone: BoothZoneWithAvailabilityResponse = {
+  ...zoneDefaults,
+  id: "zone-table",
+  name: "Table Hall",
+  included_services: [{ service_id: tableService.id, included_quantity: 1 }],
+};
+
 let availableServices: ServiceResponse[] = [service];
 
 const quantityInput = () =>
@@ -179,9 +191,10 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   installCompanyProfileHandlers();
   server.use(
-    http.get(csrfUrl, () => HttpResponse.json({ token: "csrf-1" })),
     http.get(myBookingUrl, () => HttpResponse.json(null)),
-    http.get(zonesUrl, () => HttpResponse.json([includedZone, plainZone])),
+    http.get(zonesUrl, () =>
+      HttpResponse.json([includedZone, plainZone, tableZone]),
+    ),
     http.get(servicesUrl, () => HttpResponse.json(availableServices)),
   );
 });
@@ -252,6 +265,24 @@ describe("included services in the booking wizard", () => {
     expect(
       screen.queryByText("kp.booking.service_line_total"),
     ).not.toBeInTheDocument();
+  });
+
+  it("replaces the included items when switching between zones with inclusions", async () => {
+    availableServices = [service, tableService];
+    const quantities = () =>
+      screen
+        .getAllByLabelText<HTMLInputElement>("kp.booking.service_quantity")
+        .map((input) => input.value);
+    const { user } = renderWithProviders(<KpBookingStepper event={event} />);
+
+    await confirmProfileStep(user);
+    await openServicesStep(user, includedZone);
+    expect(quantities()).toEqual(["2", "0"]);
+
+    await backToZones(user);
+    await openServicesStep(user, tableZone);
+
+    expect(quantities()).toEqual(["0", "1"]);
   });
 
   it("shows the remaining stock and caps the quantity at it", async () => {

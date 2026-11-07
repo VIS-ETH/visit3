@@ -1,7 +1,7 @@
 import {
   isServiceCategory,
   type FilterService,
-} from "../components/bookings/service-filter";
+} from "../components/staff-bookings/service-filter";
 import {
   KpServiceCategory,
   MailCampaignSegment,
@@ -12,6 +12,7 @@ import {
   type MailCampaignResponse,
 } from "../orval/generated/fastAPI.schemas";
 import type { MailCampaignFormValues } from "../schemas/mailCampaignSchema";
+import { formatDate } from "./date-format";
 
 export const ZURICH_TIME_ZONE = "Europe/Zurich";
 
@@ -180,16 +181,9 @@ export function isFutureZurichInput(value: string, now: Date = new Date()) {
   return value > zurichDateTimeInput(now);
 }
 
-export function formatZurichDateTime(
-  value: string | null | undefined,
-  language: string,
-) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat(language, {
+export const formatZurichDateTime = (value: string | null | undefined) =>
+  formatDate(value, {
     timeZone: ZURICH_TIME_ZONE,
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(date);
-}
+  });

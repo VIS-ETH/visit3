@@ -152,7 +152,7 @@ async def test_concurrent_ticks_send_every_mail_once(
 ):
     campaign_id = await scheduled_campaign(client, president_headers, campaign_world)
 
-    async def slow_send(*_: object) -> None:
+    async def slow_send(*_: object, **__: object) -> None:
         for _ in range(3):
             await asyncio.sleep(0)
 
@@ -209,7 +209,7 @@ async def test_failed_deliveries_are_logged_and_can_be_retried(
     campaign_world: CampaignWorld,
     mail_stub: AsyncMock,
 ):
-    async def reject_newcomer(message: Any) -> None:
+    async def reject_newcomer(message: Any, **_: object) -> None:
         if recipients_of(message) == [NEWCOMER_GENERAL]:
             raise RuntimeError("notifications api down")
 

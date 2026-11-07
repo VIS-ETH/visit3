@@ -1,18 +1,10 @@
-import {
-  Alert,
-  Center,
-  Grid,
-  Loader,
-  Paper,
-  Stack,
-  Text,
-  Title,
-} from "@mantine/core";
-import { IconAlertCircle } from "@tabler/icons-react";
+import { Grid, Paper, Stack, Title } from "@mantine/core";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
 import BackButton from "../components/BackButton";
+import ErrorAlert from "../components/ErrorAlert";
+import PageLoader from "../components/PageLoader";
 import MailCampaignEditor from "../components/mail/MailCampaignEditor";
 import MailCampaignList from "../components/mail/MailCampaignList";
 import MailCampaignReport from "../components/mail/MailCampaignReport";
@@ -46,7 +38,7 @@ const MailCampaigns = () => {
           : false,
     },
   });
-  const { data: events } = useListKps();
+  const { data: events, isError: isEventsError } = useListKps();
   const [searchParams] = useSearchParams();
   const companyId = searchParams.get("company");
   const [selected, setSelected] = useState<string | null>(
@@ -55,7 +47,7 @@ const MailCampaigns = () => {
 
   const activeId =
     selected === NEW_CAMPAIGN ? null : (selected ?? campaigns?.[0]?.id ?? null);
-  const { data: campaign, isLoading: isLoadingCampaign } = useGetMailCampaign(
+  const { data: campaign, isError: isCampaignError } = useGetMailCampaign(
     activeId ?? "",
     {
       query: {
@@ -75,13 +67,12 @@ const MailCampaigns = () => {
 
   const loading = (
     <Paper withBorder p="lg" radius="md">
-      <Center py="xl">
-        <Loader />
-      </Center>
+      <PageLoader />
     </Paper>
   );
 
   const content = () => {
+    if (isEventsError) return <ErrorAlert />;
     if (!events) return loading;
     if (activeId === null) {
       return (
@@ -96,7 +87,8 @@ const MailCampaigns = () => {
         />
       );
     }
-    if (isLoadingCampaign || campaign?.id !== activeId) return loading;
+    if (isCampaignError) return <ErrorAlert />;
+    if (campaign?.id !== activeId) return loading;
     if (isEditableCampaign(campaign.status)) {
       return (
         <MailCampaignEditor
@@ -117,24 +109,11 @@ const MailCampaigns = () => {
   return (
     <Stack gap="md">
       <BackButton to="/" />
-      <div>
-        <Title order={2}>{t("mail_campaigns.title")}</Title>
-        <Text c="dimmed" size="sm">
-          {t("mail_campaigns.description")}
-        </Text>
-      </div>
+      <Title order={2}>{t("mail_campaigns.title")}</Title>
 
-      {isError ? (
-        <Alert icon={<IconAlertCircle />} color="red" title={t("server.error")}>
-          {t("mail_campaigns.error")}
-        </Alert>
-      ) : null}
+      {isError ? <ErrorAlert>{t("mail_campaigns.error")}</ErrorAlert> : null}
 
-      {isLoading ? (
-        <Center py="xl">
-          <Loader />
-        </Center>
-      ) : null}
+      {isLoading ? <PageLoader /> : null}
 
       {campaigns ? (
         <Grid gap="md" align="flex-start">

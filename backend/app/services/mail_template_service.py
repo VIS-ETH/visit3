@@ -4,7 +4,12 @@ from collections.abc import Sequence
 
 from app.core.exceptions import MailTemplateInvalid, MailUnavailable
 from app.core.request_id import current_request_id
-from app.mail_templates.context import SAMPLE_CONTEXTS, MailContext, allowed_variables
+from app.mail_templates.context import (
+    REQUIRED_BODY_VARIABLES,
+    SAMPLE_CONTEXTS,
+    MailContext,
+    allowed_variables,
+)
 from app.mail_templates.defaults import MAIL_TEMPLATE_DEFAULTS
 from app.mail_templates.keys import MailTemplateKey
 from app.mail_templates.renderer import (
@@ -12,6 +17,7 @@ from app.mail_templates.renderer import (
     render_fragment,
     render_mail,
     unknown_variables,
+    used_variables,
 )
 from app.mail_templates.texts import MailTemplateTexts
 from app.repositories.mail_repository import MailTemplateRepository
@@ -44,6 +50,14 @@ def validate_texts(key: MailTemplateKey, texts: MailTemplateTexts) -> None:
                 unknown[0],
             )
         render_fragment(source, sample, identifier, field)
+    required = REQUIRED_BODY_VARIABLES.get(key)
+    if required is None:
+        return
+    for field, source in (("body_de", texts.body_de), ("body_en", texts.body_en)):
+        if required not in used_variables(source, identifier, field):
+            raise MailTemplateInvalid(
+                identifier, f"missing variable '{required}' in {field}", field, required
+            )
 
 
 def texts_are_valid(key: MailTemplateKey, texts: MailTemplateTexts) -> bool:
@@ -101,8 +115,6 @@ class MailTemplateService:
         if not recipients:
             return
         rendered = await self.render(key, context)
-        # The notifications API rejects multipart bodies ("multipart mail not
-        # supported"), so only the plain-text rendering can be delivered.
         message = self.mail_service.construct_mail(
             recipients, rendered.subject, plain_text=rendered.text
         )

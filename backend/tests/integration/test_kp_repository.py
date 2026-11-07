@@ -396,7 +396,7 @@ async def test_requirement_file_link_upsert_replaces_stored_file(
     db_session.add(booking_service)
     await db_session.commit()
     await db_session.refresh(booking_service)
-    first_file = await kp_repository.upsert_stored_file(
+    first_file = await kp_repository.create_stored_file(
         storage_key="old.pdf",
         original_filename="old.pdf",
         mime_type="application/pdf",
@@ -404,7 +404,7 @@ async def test_requirement_file_link_upsert_replaces_stored_file(
         sha256="a" * 64,
         etag="old",
     )
-    second_file = await kp_repository.upsert_stored_file(
+    second_file = await kp_repository.create_stored_file(
         storage_key="new.pdf",
         original_filename="new.pdf",
         mime_type="application/pdf",
@@ -439,7 +439,7 @@ async def test_requirement_text_answer_upsert_replaces_file_answer(
         db_session,
         requirement_type=KpEventServiceRequirementType.TEXT,
     )
-    stored_file = await kp_repository.upsert_stored_file(
+    stored_file = await kp_repository.create_stored_file(
         storage_key="old.txt",
         original_filename="old.txt",
         mime_type="text/plain",
@@ -480,7 +480,7 @@ async def test_requirement_file_link_upsert_replaces_text_answer(
         requirement.id,
         "Initial notes.",
     )
-    stored_file = await kp_repository.upsert_stored_file(
+    stored_file = await kp_repository.create_stored_file(
         storage_key="new.pdf",
         original_filename="new.pdf",
         mime_type="application/pdf",
@@ -522,7 +522,7 @@ async def test_requirement_answer_requires_exactly_one_text_or_file(
     )
     stored_file = None
     if with_file:
-        stored_file = await kp_repository.upsert_stored_file(
+        stored_file = await kp_repository.create_stored_file(
             storage_key="invalid.pdf",
             original_filename="invalid.pdf",
             mime_type="application/pdf",
@@ -1095,7 +1095,7 @@ async def test_delete_service_soft_deletes_requirements_and_frees_image(
         event.id,
         CreateServiceInput(name="Chairs"),
     )
-    image = await kp_repository.upsert_stored_file(
+    image = await kp_repository.create_stored_file(
         storage_key="service-image.png",
         original_filename="image.png",
         mime_type="image/png",
@@ -1300,7 +1300,7 @@ async def test_soft_deleted_nametag_background_frees_the_event(
 ):
     event = await kp_repository.create_kp(make_kp_input())
     files = [
-        await kp_repository.upsert_stored_file(
+        await kp_repository.create_stored_file(
             storage_key=f"replaced-{index}.png",
             original_filename=f"replaced-{index}.png",
             mime_type="image/png",
@@ -1326,7 +1326,7 @@ async def test_nametag_background_stays_unique_per_event(
 ):
     event = await kp_repository.create_kp(make_kp_input())
     files = [
-        await kp_repository.upsert_stored_file(
+        await kp_repository.create_stored_file(
             storage_key=f"background-{index}.png",
             original_filename=f"background-{index}.png",
             mime_type="image/png",
@@ -1359,7 +1359,7 @@ async def test_zone_layout_file_is_not_cleaned_up_as_an_orphan(
         event.id,
         CreateBoothZoneInput(name="Main"),
     )
-    layout_file = await kp_repository.upsert_stored_file(
+    layout_file = await kp_repository.create_stored_file(
         storage_key="zone-layout.png",
         original_filename="layout.png",
         mime_type="image/png",

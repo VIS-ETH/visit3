@@ -34,8 +34,6 @@ const LEGITIMATE_SPELLINGS = [
   "zuerst",
 ];
 
-// One German term per concept, so the same thing is not called differently
-// on different pages.
 const PREFERRED_TERMS = [
   { avoid: /Firm(a|en)/, use: "Unternehmen" },
   { avoid: /Leistung/, use: "Service" },

@@ -57,13 +57,15 @@ async def staff_zone_names(
 
 @pytest.fixture
 async def zone_world(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient,
+    president_headers: dict[str, str],
+    kp_setup: KpSetup,
 ) -> ZoneWorld:
     side_id = await create_zone(
-        client, staff_headers, kp_setup.event_id, "Side hall", "#ABCDEF"
+        client, president_headers, kp_setup.event_id, "Side hall", "#ABCDEF"
     )
     annex_id = await create_zone(
-        client, staff_headers, kp_setup.event_id, "Annex", "#123456"
+        client, president_headers, kp_setup.event_id, "Annex", "#123456"
     )
     return ZoneWorld(
         event_id=kp_setup.event_id,
@@ -74,11 +76,11 @@ async def zone_world(
 
 
 async def test_reorder_returns_the_zones_in_the_new_order(
-    client: AsyncClient, staff_headers: dict[str, str], zone_world: ZoneWorld
+    client: AsyncClient, president_headers: dict[str, str], zone_world: ZoneWorld
 ):
     new_order = [zone_world.side_id, zone_world.annex_id, zone_world.main_id]
 
-    response = await reorder(client, staff_headers, zone_world.event_id, new_order)
+    response = await reorder(client, president_headers, zone_world.event_id, new_order)
 
     assert response.status_code == 200
     assert [zone["id"] for zone in response.json()] == new_order
@@ -86,11 +88,14 @@ async def test_reorder_returns_the_zones_in_the_new_order(
 
 
 async def test_staff_listing_follows_the_new_order(
-    client: AsyncClient, staff_headers: dict[str, str], zone_world: ZoneWorld
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
+    zone_world: ZoneWorld,
 ):
     await reorder(
         client,
-        staff_headers,
+        president_headers,
         zone_world.event_id,
         [zone_world.annex_id, zone_world.main_id, zone_world.side_id],
     )
@@ -104,12 +109,12 @@ async def test_staff_listing_follows_the_new_order(
 
 async def test_companies_see_the_zones_in_the_new_order(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     zone_world: ZoneWorld,
 ):
     new_order = [zone_world.side_id, zone_world.main_id, zone_world.annex_id]
-    await reorder(client, staff_headers, zone_world.event_id, new_order)
+    await reorder(client, president_headers, zone_world.event_id, new_order)
 
     response = await client.get(
         f"/api/kp/events/{zone_world.event_id}/booth-zones/available",
@@ -122,12 +127,12 @@ async def test_companies_see_the_zones_in_the_new_order(
 
 async def test_venue_map_lists_the_zones_in_the_new_order(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     zone_world: ZoneWorld,
 ):
     new_order = [zone_world.annex_id, zone_world.side_id, zone_world.main_id]
-    await reorder(client, staff_headers, zone_world.event_id, new_order)
+    await reorder(client, president_headers, zone_world.event_id, new_order)
 
     response = await client.get(
         f"/api/kp/events/{zone_world.event_id}/venue", headers=company_headers
@@ -138,11 +143,14 @@ async def test_venue_map_lists_the_zones_in_the_new_order(
 
 
 async def test_capacity_export_follows_the_new_order(
-    client: AsyncClient, staff_headers: dict[str, str], zone_world: ZoneWorld
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
+    zone_world: ZoneWorld,
 ):
     await reorder(
         client,
-        staff_headers,
+        president_headers,
         zone_world.event_id,
         [zone_world.side_id, zone_world.annex_id, zone_world.main_id],
     )
@@ -159,11 +167,14 @@ async def test_capacity_export_follows_the_new_order(
 
 
 async def test_zones_with_the_same_order_are_listed_by_name(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
+    kp_setup: KpSetup,
 ):
     for name, color in (("Zeta", "#000011"), ("Alpha", "#000022")):
         await create_zone(
-            client, staff_headers, kp_setup.event_id, name, color, order=100
+            client, president_headers, kp_setup.event_id, name, color, order=100
         )
 
     assert await staff_zone_names(client, staff_headers, kp_setup.event_id) == [
@@ -174,16 +185,19 @@ async def test_zones_with_the_same_order_are_listed_by_name(
 
 
 async def test_a_new_zone_is_listed_after_the_reordered_zones(
-    client: AsyncClient, staff_headers: dict[str, str], zone_world: ZoneWorld
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
+    zone_world: ZoneWorld,
 ):
     await reorder(
         client,
-        staff_headers,
+        president_headers,
         zone_world.event_id,
         [zone_world.side_id, zone_world.annex_id, zone_world.main_id],
     )
 
-    await create_zone(client, staff_headers, zone_world.event_id, "Aula", "#654321")
+    await create_zone(client, president_headers, zone_world.event_id, "Aula", "#654321")
 
     assert await staff_zone_names(client, staff_headers, zone_world.event_id) == [
         "Side hall",
@@ -229,19 +243,23 @@ async def test_a_new_zone_is_listed_after_the_reordered_zones(
 async def test_invalid_orders_are_rejected_without_changes(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     zone_world: ZoneWorld,
     build_order: Callable[[ZoneWorld, str], list[str]],
 ):
     other_event = await client.post(
-        "/api/kp/create", json=kp_payload("Other party"), headers=staff_headers
+        "/api/kp/create", json=kp_payload("Other party"), headers=president_headers
     )
     foreign_id = await create_zone(
-        client, staff_headers, other_event.json()["id"], "Foreign", "#FEDCBA"
+        client, president_headers, other_event.json()["id"], "Foreign", "#FEDCBA"
     )
     before = await staff_zone_names(client, staff_headers, zone_world.event_id)
 
     response = await reorder(
-        client, staff_headers, zone_world.event_id, build_order(zone_world, foreign_id)
+        client,
+        president_headers,
+        zone_world.event_id,
+        build_order(zone_world, foreign_id),
     )
 
     assert response.status_code == 400
@@ -250,21 +268,24 @@ async def test_invalid_orders_are_rejected_without_changes(
 
 
 async def test_deleted_zones_cannot_be_ordered(
-    client: AsyncClient, staff_headers: dict[str, str], zone_world: ZoneWorld
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
+    zone_world: ZoneWorld,
 ):
     await client.delete(
-        f"/api/kp/booth-zones/{zone_world.annex_id}", headers=staff_headers
+        f"/api/kp/booth-zones/{zone_world.annex_id}", headers=president_headers
     )
 
     rejected = await reorder(
         client,
-        staff_headers,
+        president_headers,
         zone_world.event_id,
         [zone_world.annex_id, zone_world.side_id, zone_world.main_id],
     )
     accepted = await reorder(
         client,
-        staff_headers,
+        president_headers,
         zone_world.event_id,
         [zone_world.side_id, zone_world.main_id],
     )
@@ -278,9 +299,9 @@ async def test_deleted_zones_cannot_be_ordered(
 
 
 async def test_reordering_an_unknown_event_is_not_found(
-    client: AsyncClient, staff_headers: dict[str, str]
+    client: AsyncClient, president_headers: dict[str, str]
 ):
-    response = await reorder(client, staff_headers, str(uuid4()), [])
+    response = await reorder(client, president_headers, str(uuid4()), [])
 
     assert response.status_code == 404
     assert response.json()["code"] == "error.kp_event_not_found"
@@ -325,20 +346,23 @@ async def test_staff_without_president_role_cannot_reorder_zones(
 
 
 async def test_a_clone_keeps_the_zone_order_and_reopens_closed_zones(
-    client: AsyncClient, staff_headers: dict[str, str], zone_world: ZoneWorld
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
+    zone_world: ZoneWorld,
 ):
     new_order = [zone_world.side_id, zone_world.annex_id, zone_world.main_id]
-    await reorder(client, staff_headers, zone_world.event_id, new_order)
+    await reorder(client, president_headers, zone_world.event_id, new_order)
     await client.patch(
         f"/api/kp/booth-zones/{zone_world.side_id}",
         json={"registration_open": False},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     clone = await client.post(
         f"/api/kp/events/{zone_world.event_id}/clone",
         json=kp_payload("Kontaktparty clone"),
-        headers=staff_headers,
+        headers=president_headers,
     )
     zones = await client.get(
         f"/api/kp/events/{clone.json()['id']}/booth-zones", headers=staff_headers

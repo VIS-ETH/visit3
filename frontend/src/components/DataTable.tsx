@@ -1,7 +1,5 @@
 import {
-  Center,
   Group,
-  Loader,
   Pagination,
   Select,
   Table,
@@ -12,6 +10,8 @@ import {
 import { IconSearch } from "@tabler/icons-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { sortRows, useSort, type SortValue } from "../utils/sort";
+import ErrorAlert from "./ErrorAlert";
+import PageLoader from "./PageLoader";
 import SortableHeader from "./SortableHeader";
 
 export type DataTableColumn<T> = {
@@ -40,6 +40,7 @@ type DataTableProps<T> = {
   emptyLabel: string;
   getRowKey: (item: T) => string;
   isLoading?: boolean;
+  isError?: boolean;
   minWidth?: number;
   onRowClick?: (item: T) => void;
   pageSizeOptions?: number[];
@@ -50,18 +51,13 @@ type DataTableProps<T> = {
 
 const defaultPageSizeOptions = [10, 25, 50];
 
-export const DataTableEmptyCell = ({ label = "-" }: { label?: ReactNode }) => (
-  <Text c="dimmed" size="sm">
-    {label}
-  </Text>
-);
-
 const DataTable = <T,>({
   columns,
   data,
   emptyLabel,
   getRowKey,
   isLoading = false,
+  isError = false,
   minWidth = 700,
   onRowClick,
   pageSizeOptions = defaultPageSizeOptions,
@@ -80,8 +76,8 @@ const DataTable = <T,>({
     const matching = normalizedSearch
       ? rows.filter((row) =>
           columns.some((column) =>
-            column.searchableValue
-              ?.(row)
+            column
+              .searchableValue?.(row)
               .toLowerCase()
               .includes(normalizedSearch),
           ),
@@ -111,13 +107,8 @@ const DataTable = <T,>({
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  if (isLoading) {
-    return (
-      <Center py="md">
-        <Loader />
-      </Center>
-    );
-  }
+  if (isLoading) return <PageLoader />;
+  if (isError) return <ErrorAlert />;
 
   return (
     <>

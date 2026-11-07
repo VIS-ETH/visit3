@@ -1,63 +1,49 @@
 import {
-  ActionIcon,
-  Alert,
-  Badge,
   Center,
   Group,
-  Loader,
   Pagination,
   Paper,
-  Select,
   Stack,
-  Switch,
   Table,
   Text,
-  TextInput,
   Title,
-  Tooltip,
 } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
-import { notifications } from "@mantine/notifications";
-import {
-  IconAlertCircle,
-  IconCheck,
-  IconCircleCheck,
-  IconId,
-  IconMail,
-  IconPencil,
-  IconSearch,
-  IconTrash,
-  IconUsers,
-  IconX,
-} from "@tabler/icons-react";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate } from "react-router";
+import { getApiErrorStatus } from "../api/errors";
 import CompanyBookingActions from "../components/admin/CompanyBookingActions";
 import CompanyDeleteModal from "../components/admin/CompanyDeleteModal";
-import BookingNewAdditionsBadge from "../components/bookings/BookingNewAdditionsBadge";
 import CompanyMembersDrawer from "../components/admin/CompanyMembersDrawer";
+import CompanyFilters from "../components/company-management/CompanyFilters";
+import CompanyNameCell from "../components/company-management/CompanyNameCell";
+import CompanyRowActions from "../components/company-management/CompanyRowActions";
+import { useCompanyBookingEvent } from "../components/company-management/use-company-booking-event";
+import { useCompanyListParams } from "../components/company-management/use-company-list-params";
+import { useSearchPage } from "../components/company-management/use-search-page";
+import ErrorAlert from "../components/ErrorAlert";
+import PageLoader from "../components/PageLoader";
 import SortableHeader from "../components/SortableHeader";
 import { useCurrentUser } from "../context/useCurrentUser";
+import { useAsyncAction } from "../hooks/use-async-action";
 import {
+  confirmCompany,
   getSearchCompaniesQueryKey,
-  useConfirmCompany,
+  updateCompany,
   useSearchCompanies,
-  useUpdateCompany,
 } from "../orval/generated/company/company";
 import type {
   CompanyListResult,
   CompanySort,
-  StaffBookingResponse,
 } from "../orval/generated/fastAPI.schemas";
-import { useListEventBookings, useListKps } from "../orval/generated/kp/kp";
-import { isActiveBookingStatus } from "../utils/booking-status";
-import { getEventStatus } from "../utils/kp-utils";
+import { notifyError, notifySuccess } from "../utils/notify";
 import { useSort } from "../utils/sort";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const PAGE_SIZE = 25;
+const CONFLICT = 409;
 
 const CompanyManagement = () => {
   const { t } = useTranslation();
@@ -67,55 +53,29 @@ const CompanyManagement = () => {
   const isAdmin = user?.is_admin ?? false;
   const canMail = user?.is_kp_president ?? false;
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const onlyChanges = searchParams.get("changes") === "1";
-  const setOnlyChanges = (value: boolean) => {
-    setPage(1);
-    setSearchParams(
-      (current) => {
-        const next = new URLSearchParams(current);
-        if (value) next.set("changes", "1");
-        else next.delete("changes");
-        return next;
-      },
-      { replace: true },
-    );
-  };
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useSearchPage(debouncedSearch);
+  const { filter, setFilter, companyId, clearCompany } = useCompanyListParams(
+    () => setPage(1),
+  );
   const { sort, toggleSort } = useSort<CompanySort>(
     { field: "name", direction: "asc" },
     () => setPage(1),
   );
   const [renamedId, setRenamedId] = useState<string | null>(null);
-  const [renamedName, setRenamedName] = useState("");
   const [membersCompany, setMembersCompany] =
     useState<CompanyListResult | null>(null);
   const [deletedCompany, setDeletedCompany] =
     useState<CompanyListResult | null>(null);
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch]);
-
-  const { data: events, isLoading: isLoadingEvents } = useListKps();
-  const [pickedEventId, setPickedEventId] = useState<string | null>(null);
-  const latestEvent = events?.at(0);
-  const upcomingEvent =
-    latestEvent && getEventStatus(latestEvent) !== "past" ? latestEvent : null;
-  const bookingEvent =
-    events?.find((event) => event.id === pickedEventId) ??
-    upcomingEvent ??
-    null;
-  const { data: eventBookings } = useListEventBookings(bookingEvent?.id ?? "", {
-    query: { enabled: bookingEvent !== null },
-  });
-  const activeBookingByCompanyId = new Map<string, StaffBookingResponse>(
-    (eventBookings ?? [])
-      .filter((booking) => isActiveBookingStatus(booking.status))
-      .map((booking) => [booking.company_id, booking]),
-  );
+  const {
+    events,
+    isLoadingEvents,
+    bookingEvent,
+    pickEvent,
+    activeBookingByCompanyId,
+  } = useCompanyBookingEvent();
 
   const mailCompany = (companyId: string) => {
     const params = new URLSearchParams({ company: companyId });
@@ -123,60 +83,58 @@ const CompanyManagement = () => {
     void navigate(`/admin/mail-campaigns?${params.toString()}`);
   };
 
-  const bookingActionsFor = (companyId: string) => {
-    const booking = activeBookingByCompanyId.get(companyId);
-    if (!booking || !bookingEvent) return null;
-    return (
-      <CompanyBookingActions booking={booking} eventId={bookingEvent.id} />
-    );
-  };
-
-  const { data, isLoading, isError } = useSearchCompanies(
+  const { data, isLoading, isError, isPlaceholderData } = useSearchCompanies(
     {
       query: debouncedSearch.trim() || undefined,
       page,
       page_size: PAGE_SIZE,
       sort: sort?.field,
       direction: sort?.direction,
-      only_changes: onlyChanges || undefined,
+      filter,
+      company: companyId ?? undefined,
     },
     { query: { placeholderData: keepPreviousData } },
   );
 
-  const { mutate: rename, isPending: isRenaming } = useUpdateCompany({
-    mutation: {
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({
-          queryKey: getSearchCompaniesQueryKey(),
-        });
-        setRenamedId(null);
-        notifications.show({
-          color: "green",
-          message: t("company_management.renamed"),
-        });
-      },
-    },
-  });
+  const refreshCompanies = () =>
+    queryClient.invalidateQueries({ queryKey: getSearchCompaniesQueryKey() });
 
-  const { mutate: confirmCompany, isPending: isConfirming } = useConfirmCompany(
-    {
-      mutation: {
-        onSuccess: async () => {
-          await queryClient.invalidateQueries({
-            queryKey: getSearchCompaniesQueryKey(),
-          });
-          notifications.show({
-            color: "green",
-            message: t("company_management.confirmed_notice"),
-          });
-        },
-      },
+  const { run: rename, isRunning: isRenaming } = useAsyncAction(
+    async (companyId: string, name: string) => {
+      await updateCompany(companyId, { name });
+      await refreshCompanies();
+      setRenamedId(null);
+      notifySuccess(t("company_management.renamed"));
+    },
+  );
+
+  const { run: confirm, isRunning: isConfirming } = useAsyncAction(
+    async (company: CompanyListResult) => {
+      await confirmCompany(
+        company.id,
+        { name: company.name },
+        { quietStatuses: [CONFLICT] },
+      );
+      await refreshCompanies();
+      notifySuccess(t("company_management.confirmed_notice"));
+    },
+    (error) => {
+      if (getApiErrorStatus(error) !== CONFLICT) return;
+      void refreshCompanies();
+      notifyError(t("company_management.confirm_conflict"));
     },
   );
 
   const items = data?.items ?? [];
+  const companyFilterLabel = companyId
+    ? (items.find((company) => company.id === companyId)?.name ?? companyId)
+    : null;
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  useEffect(() => {
+    if (data && !isPlaceholderData && page > totalPages) setPage(totalPages);
+  }, [data, isPlaceholderData, page, totalPages, setPage]);
 
   return (
     <Center h="100%" w="100%" py="xl">
@@ -200,263 +158,116 @@ const CompanyManagement = () => {
           onClose={() => setDeletedCompany(null)}
         />
 
-        <Group justify="space-between" align="flex-end">
-          <TextInput
-            flex={1}
-            leftSection={<IconSearch size={16} />}
-            maw={360}
-            onChange={(event) => setSearch(event.currentTarget.value)}
-            placeholder={t("company_management.search_placeholder")}
-            value={search}
-          />
-          <Switch
-            checked={onlyChanges}
-            label={t("changes.only_changes")}
-            mb={8}
-            onChange={(event) => setOnlyChanges(event.currentTarget.checked)}
-          />
-          <Select
-            label={t("kp.bookings_overview.event")}
-            data={(events ?? []).map((event) => ({
-              value: event.id,
-              label: event.name,
-            }))}
-            value={bookingEvent?.id ?? null}
-            onChange={setPickedEventId}
-            allowDeselect={false}
-            disabled={isLoadingEvents}
-            w={{ base: "100%", sm: 280 }}
-          />
-        </Group>
+        <CompanyFilters
+          search={search}
+          onSearchChange={setSearch}
+          filter={filter}
+          onFilterChange={setFilter}
+          companyFilterLabel={companyFilterLabel}
+          onClearCompany={clearCompany}
+          events={events}
+          eventId={bookingEvent?.id ?? null}
+          onEventChange={pickEvent}
+          isLoadingEvents={isLoadingEvents}
+        />
 
         {isError ? (
-          <Alert
-            color="red"
-            icon={<IconAlertCircle />}
-            title={t("server.error")}
-          >
-            {t("company_management.error")}
-          </Alert>
+          <ErrorAlert>{t("company_management.error")}</ErrorAlert>
+        ) : isLoading ? (
+          <PageLoader />
         ) : (
           <Paper withBorder p="lg" radius="md">
-            {isLoading ? (
-              <Center py="md">
-                <Loader />
-              </Center>
-            ) : items.length === 0 ? (
+            {items.length === 0 ? (
               <Text c="dimmed">
                 {t("company_management.no_companies_description")}
               </Text>
             ) : (
-              <>
-                <Table.ScrollContainer minWidth={700}>
-                  <Table highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <SortableHeader
-                          field="name"
-                          label={t("company_management.company_name")}
-                          sort={sort}
-                          onSort={toggleSort}
-                        />
-                        <SortableHeader
-                          field="members"
-                          label={t("company_management.users_count")}
-                          sort={sort}
-                          onSort={toggleSort}
-                        />
-                        <SortableHeader
-                          field="bookings"
-                          label={t("company_management.bookings_count")}
-                          sort={sort}
-                          onSort={toggleSort}
-                        />
-                        {bookingEvent ? (
-                          <Table.Th>{bookingEvent.name}</Table.Th>
-                        ) : null}
-                        <Table.Th>{t("company_management.actions")}</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {items.map((company) => (
+              <Table.ScrollContainer minWidth={700}>
+                <Table highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <SortableHeader
+                        field="name"
+                        label={t("company_management.company_name")}
+                        sort={sort}
+                        onSort={toggleSort}
+                      />
+                      <SortableHeader
+                        field="members"
+                        label={t("company_management.users_count")}
+                        sort={sort}
+                        onSort={toggleSort}
+                      />
+                      <SortableHeader
+                        field="bookings"
+                        label={t("company_management.bookings_count")}
+                        sort={sort}
+                        onSort={toggleSort}
+                      />
+                      {bookingEvent ? (
+                        <Table.Th>{bookingEvent.name}</Table.Th>
+                      ) : null}
+                      <Table.Th>{t("company_management.actions")}</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {items.map((company) => {
+                      const booking = activeBookingByCompanyId.get(company.id);
+                      return (
                         <Table.Tr key={company.id}>
                           <Table.Td>
-                            {renamedId === company.id ? (
-                              <Group gap="xs" wrap="nowrap">
-                                <TextInput
-                                  aria-label={t("company_management.rename")}
-                                  disabled={isRenaming}
-                                  onChange={(event) =>
-                                    setRenamedName(event.currentTarget.value)
-                                  }
-                                  value={renamedName}
-                                />
-                                <ActionIcon
-                                  aria-label={t(
-                                    "company_management.rename_save",
-                                  )}
-                                  color="green"
-                                  disabled={
-                                    isRenaming || renamedName.trim() === ""
-                                  }
-                                  onClick={() =>
-                                    rename({
-                                      companyId: company.id,
-                                      data: { name: renamedName.trim() },
-                                    })
-                                  }
-                                  variant="light"
-                                >
-                                  <IconCheck size={16} />
-                                </ActionIcon>
-                                <ActionIcon
-                                  aria-label={t(
-                                    "company_management.rename_cancel",
-                                  )}
-                                  disabled={isRenaming}
-                                  onClick={() => setRenamedId(null)}
-                                  variant="subtle"
-                                >
-                                  <IconX size={16} />
-                                </ActionIcon>
-                              </Group>
-                            ) : (
-                              <Group gap="xs" wrap="nowrap">
-                                <Text>{company.name}</Text>
-                                {company.confirmed_at === null ? (
-                                  <Badge
-                                    color="yellow"
-                                    size="sm"
-                                    variant="light"
-                                  >
-                                    {t("company_management.unconfirmed")}
-                                  </Badge>
-                                ) : null}
-                                {company.new_members_count ? (
-                                  <BookingNewAdditionsBadge />
-                                ) : null}
-                                <ActionIcon
-                                  aria-label={t("company_management.rename")}
-                                  onClick={() => {
-                                    setRenamedId(company.id);
-                                    setRenamedName(company.name);
-                                  }}
-                                  variant="subtle"
-                                >
-                                  <IconPencil size={16} />
-                                </ActionIcon>
-                              </Group>
-                            )}
+                            <CompanyNameCell
+                              company={company}
+                              isEditing={renamedId === company.id}
+                              isSaving={isRenaming}
+                              onCancel={() => setRenamedId(null)}
+                              onEdit={() => setRenamedId(company.id)}
+                              onSave={(name) => void rename(company.id, name)}
+                            />
                           </Table.Td>
                           <Table.Td>{company.users_count}</Table.Td>
                           <Table.Td>{company.bookings_count}</Table.Td>
                           {bookingEvent ? (
-                            <Table.Td>{bookingActionsFor(company.id)}</Table.Td>
+                            <Table.Td>
+                              {booking ? (
+                                <CompanyBookingActions
+                                  booking={booking}
+                                  eventId={bookingEvent.id}
+                                />
+                              ) : null}
+                            </Table.Td>
                           ) : null}
                           <Table.Td>
-                            <Group gap="xs" wrap="nowrap">
-                              {company.confirmed_at === null ? (
-                                <Tooltip
-                                  label={t("company_management.confirm")}
-                                  withArrow
-                                >
-                                  <ActionIcon
-                                    aria-label={t("company_management.confirm")}
-                                    color="green"
-                                    disabled={isConfirming}
-                                    onClick={() =>
-                                      confirmCompany({ companyId: company.id })
-                                    }
-                                    variant="light"
-                                  >
-                                    <IconCircleCheck size={16} />
-                                  </ActionIcon>
-                                </Tooltip>
-                              ) : null}
-                              <Tooltip
-                                label={t("company_management.view_users")}
-                                withArrow
-                              >
-                                <ActionIcon
-                                  aria-label={t(
-                                    "company_management.view_users",
-                                  )}
-                                  onClick={() => setMembersCompany(company)}
-                                  variant="light"
-                                >
-                                  <IconUsers size={16} />
-                                </ActionIcon>
-                              </Tooltip>
-                              <Tooltip
-                                label={t("company_management.edit_profile")}
-                                withArrow
-                              >
-                                <ActionIcon
-                                  aria-label={t(
-                                    "company_management.edit_profile",
-                                  )}
-                                  onClick={() =>
-                                    navigate(
-                                      `/company-management/${company.id}/profile`,
-                                    )
-                                  }
-                                  variant="light"
-                                >
-                                  <IconId size={16} />
-                                </ActionIcon>
-                              </Tooltip>
-                              {canMail ? (
-                                <Tooltip
-                                  label={t("company_management.send_mail")}
-                                  withArrow
-                                >
-                                  <ActionIcon
-                                    aria-label={t(
-                                      "company_management.send_mail",
-                                    )}
-                                    onClick={() => mailCompany(company.id)}
-                                    variant="light"
-                                  >
-                                    <IconMail size={16} />
-                                  </ActionIcon>
-                                </Tooltip>
-                              ) : null}
-                              {isAdmin ? (
-                                <Tooltip
-                                  label={t("company_management.delete")}
-                                  withArrow
-                                >
-                                  <ActionIcon
-                                    aria-label={t("company_management.delete")}
-                                    color="red"
-                                    onClick={() => setDeletedCompany(company)}
-                                    variant="light"
-                                  >
-                                    <IconTrash size={16} />
-                                  </ActionIcon>
-                                </Tooltip>
-                              ) : null}
-                            </Group>
+                            <CompanyRowActions
+                              company={company}
+                              canDelete={isAdmin}
+                              canMail={canMail}
+                              isConfirming={isConfirming}
+                              onConfirm={() => void confirm(company)}
+                              onDelete={() => setDeletedCompany(company)}
+                              onMail={() => mailCompany(company.id)}
+                              onShowMembers={() => setMembersCompany(company)}
+                            />
                           </Table.Td>
                         </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                </Table.ScrollContainer>
-
-                <Group justify="space-between" mt="sm">
-                  <Text c="dimmed" size="sm">
-                    {t("company_management.total", { total })}
-                  </Text>
-                  <Pagination
-                    onChange={setPage}
-                    total={totalPages}
-                    value={page}
-                    withEdges
-                  />
-                </Group>
-              </>
+                      );
+                    })}
+                  </Table.Tbody>
+                </Table>
+              </Table.ScrollContainer>
             )}
+
+            <Group justify="space-between" mt="sm">
+              <Text c="dimmed" size="sm">
+                {t("company_management.total", { count: total })}
+              </Text>
+              <Pagination
+                onChange={setPage}
+                total={totalPages}
+                value={page}
+                withEdges
+              />
+            </Group>
           </Paper>
         )}
       </Stack>

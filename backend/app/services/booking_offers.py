@@ -18,7 +18,7 @@ def days_between(start: date | None, end: date) -> int:
 def week_reminder_due(booking: KpEventBooking, deadline: date, today: date) -> bool:
     return (
         booking.offer_week_reminder_sent_at is None
-        and days_between(today, deadline) == WEEK_REMINDER_DAYS
+        and DAY_REMINDER_DAYS < days_between(today, deadline) <= WEEK_REMINDER_DAYS
         and days_between(booking.offer_made_on, deadline) > WEEK_REMINDER_DAYS
     )
 
@@ -26,7 +26,7 @@ def week_reminder_due(booking: KpEventBooking, deadline: date, today: date) -> b
 def day_reminder_due(booking: KpEventBooking, deadline: date, today: date) -> bool:
     return (
         booking.offer_day_reminder_sent_at is None
-        and days_between(today, deadline) == DAY_REMINDER_DAYS
+        and 0 <= days_between(today, deadline) <= DAY_REMINDER_DAYS
         and days_between(booking.offer_made_on, deadline) > DAY_REMINDER_DAYS
     )
 
@@ -37,8 +37,16 @@ async def expire_offer(
     booking: KpEventBooking,
     now: datetime,
 ) -> None:
+    locked = await kp_repository.lock_booking(booking.id)
+    if (
+        locked is None
+        or locked.status != KpBookingStatus.OFFERED
+        or locked.is_offer_open()
+    ):
+        await kp_repository.release_locks()
+        return
     expired = await kp_repository.update_booking(
-        booking,
+        locked,
         UpdateBookingInput(status=KpBookingStatus.EXPIRED, status_changed_at=now),
     )
     await promote_waitlist(
@@ -55,19 +63,19 @@ async def remind_offer(
 ) -> None:
     today = local_today()
     if week_reminder_due(booking, deadline, today):
-        reminded = await kp_repository.update_booking(
-            booking, UpdateBookingInput(offer_week_reminder_sent_at=now)
-        )
-        await notify_best_effort(
-            notifier.booking_offer_week_reminder(reminded, deadline)
-        )
+        if await notify_best_effort(
+            notifier.booking_offer_week_reminder(booking, deadline)
+        ):
+            await kp_repository.update_booking(
+                booking, UpdateBookingInput(offer_week_reminder_sent_at=now)
+            )
     elif day_reminder_due(booking, deadline, today):
-        reminded = await kp_repository.update_booking(
-            booking, UpdateBookingInput(offer_day_reminder_sent_at=now)
-        )
-        await notify_best_effort(
-            notifier.booking_offer_day_reminder(reminded, deadline)
-        )
+        if await notify_best_effort(
+            notifier.booking_offer_day_reminder(booking, deadline)
+        ):
+            await kp_repository.update_booking(
+                booking, UpdateBookingInput(offer_day_reminder_sent_at=now)
+            )
 
 
 async def process_booking_offers(

@@ -115,8 +115,12 @@ function loadLocaleKeys(locale) {
 }
 
 const sourceFiles = sourceDirs.flatMap((dir) => (fs.existsSync(dir) ? walk(dir) : []));
+const testDir = path.join(rootDir, "src", "test");
 const usedKeys = new Set();
 const dynamicKeys = new Set();
+const stringLiterals = new Set();
+const DYNAMIC_NAMESPACES = ["error.", "validation."];
+const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
 
 function rememberKey(key) {
   if (key.includes("${")) {
@@ -128,6 +132,11 @@ function rememberKey(key) {
 
 for (const filePath of sourceFiles) {
   const source = fs.readFileSync(filePath, "utf8");
+  if (!filePath.startsWith(testDir + path.sep)) {
+    for (const match of source.matchAll(/["'`]([A-Za-z0-9_.-]+)["'`]/g)) {
+      stringLiterals.add(match[1]);
+    }
+  }
   for (const key of collectTranslationUsages(source)) {
     rememberKey(key);
   }
@@ -177,14 +186,26 @@ const hasLocaleMismatch = Object.values(missingLocaleKeysByLocale).some(
   (keys) => keys.length > 0,
 );
 
+const dynamicPrefixes = [...dynamicKeys].map((key) => key.split("${")[0]);
+const isKeyUsed = (key) => {
+  const baseKey = key.replace(PLURAL_SUFFIX, "");
+  return (
+    usedKeys.has(baseKey) ||
+    stringLiterals.has(baseKey) ||
+    DYNAMIC_NAMESPACES.some((prefix) => key.startsWith(prefix)) ||
+    dynamicPrefixes.some((prefix) => prefix && key.startsWith(prefix))
+  );
+};
+const unusedKeys = [...allLocaleKeys].filter((key) => !isKeyUsed(key)).sort();
+
 console.log(`i18n-keys: skipped ${dynamicKeys.size} dynamic translation keys.`);
 
-if (!hasMissingKeys && !hasLocaleMismatch) {
+if (!hasMissingKeys && !hasLocaleMismatch && unusedKeys.length === 0) {
   console.log("i18n-keys: all referenced translation keys exist in en/de locale files.");
   process.exit(0);
 }
 
-console.error("i18n-keys: missing translation keys detected.");
+console.error("i18n-keys: missing or unused translation keys detected.");
 for (const [locale, keys] of Object.entries(missingByLocale)) {
   if (keys.length === 0) continue;
   console.error(`\nReferenced keys missing in ${locale}:`);
@@ -197,6 +218,13 @@ for (const [locale, keys] of Object.entries(missingLocaleKeysByLocale)) {
   if (keys.length === 0) continue;
   console.error(`\nLocale keys missing in ${locale}:`);
   for (const key of keys) {
+    console.error(`- ${key}`);
+  }
+}
+
+if (unusedKeys.length > 0) {
+  console.error("\nLocale keys not referenced in the sources:");
+  for (const key of unusedKeys) {
     console.error(`- ${key}`);
   }
 }

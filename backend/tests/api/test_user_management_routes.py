@@ -17,18 +17,10 @@ OTHER_COMPANY_EMAIL = "beta@example.com"
 
 
 @pytest.fixture
-async def non_admin_staff_headers(
-    staff_user: User,
-    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
-    csrf_headers: dict[str, str],
-) -> dict[str, str]:
-    return {**await auth_headers(staff_user), **csrf_headers}
-
-
-@pytest.fixture
 async def population(
     company_user: User,
     staff_user: User,
+    admin_user: User,
     create_user: Callable[..., Awaitable[User]],
 ) -> list[User]:
     pending = await create_user(
@@ -40,7 +32,7 @@ async def population(
     other = await create_user(
         email=OTHER_COMPANY_EMAIL, password=None, company_name=OTHER_COMPANY_NAME
     )
-    return [company_user, staff_user, pending, other]
+    return [company_user, staff_user, pending, other, admin_user]
 
 
 async def emails(response: Response) -> list[str]:
@@ -209,6 +201,38 @@ async def test_user_search_covers_email_name_and_company(
     assert response.json()["total"] == len(expected)
 
 
+async def test_user_list_filters_by_company(
+    client: AsyncClient,
+    population: list[User],
+    staff_headers: dict[str, str],
+):
+    other = population[3]
+
+    response = await client.get(
+        f"/api/users?company={other.company_id}", headers=staff_headers
+    )
+
+    assert response.status_code == 200
+    assert await emails(response) == [OTHER_COMPANY_EMAIL]
+    assert response.json()["total"] == 1
+
+
+async def test_user_list_company_filter_combines_with_search(
+    client: AsyncClient,
+    population: list[User],
+    staff_headers: dict[str, str],
+):
+    other = population[3]
+
+    response = await client.get(
+        f"/api/users?company={other.company_id}&query=acme", headers=staff_headers
+    )
+
+    assert response.status_code == 200
+    assert await emails(response) == []
+    assert response.json()["total"] == 0
+
+
 async def test_user_list_carries_the_company_of_each_user(
     client: AsyncClient, company_user: User, staff_headers: dict[str, str]
 ):
@@ -219,11 +243,9 @@ async def test_user_list_carries_the_company_of_each_user(
 
 
 async def test_single_user_is_readable_by_staff(
-    client: AsyncClient, company_user: User, non_admin_staff_headers: dict[str, str]
+    client: AsyncClient, company_user: User, staff_headers: dict[str, str]
 ):
-    response = await client.get(
-        f"/api/users/{company_user.id}", headers=non_admin_staff_headers
-    )
+    response = await client.get(f"/api/users/{company_user.id}", headers=staff_headers)
 
     assert response.status_code == 200
     assert response.json()["email"] == company_user.email
@@ -242,7 +264,7 @@ async def test_reading_an_unknown_user_is_not_found(
 async def test_staff_resends_the_confirmation_mail(
     client: AsyncClient,
     create_user: Callable[..., Awaitable[User]],
-    non_admin_staff_headers: dict[str, str],
+    staff_headers: dict[str, str],
     mail_stub: AsyncMock,
 ):
     user = await create_user(
@@ -250,7 +272,7 @@ async def test_staff_resends_the_confirmation_mail(
     )
 
     response = await client.post(
-        f"/api/users/{user.id}/resend-confirmation", headers=non_admin_staff_headers
+        f"/api/users/{user.id}/resend-confirmation", headers=staff_headers
     )
 
     assert response.status_code == 200
@@ -294,7 +316,7 @@ async def test_staff_reassigns_a_user_to_another_company(
     client: AsyncClient,
     company_user: User,
     create_user: Callable[..., Awaitable[User]],
-    non_admin_staff_headers: dict[str, str],
+    staff_headers: dict[str, str],
 ):
     other = await create_user(
         email=OTHER_COMPANY_EMAIL, password=None, company_name=OTHER_COMPANY_NAME
@@ -303,7 +325,7 @@ async def test_staff_reassigns_a_user_to_another_company(
     response = await client.patch(
         f"/api/users/{company_user.id}",
         json={"company_id": str(other.company_id)},
-        headers=non_admin_staff_headers,
+        headers=staff_headers,
     )
 
     assert response.status_code == 200
@@ -313,12 +335,12 @@ async def test_staff_reassigns_a_user_to_another_company(
 async def test_staff_cannot_update_a_privileged_user(
     client: AsyncClient,
     admin_user: User,
-    non_admin_staff_headers: dict[str, str],
+    staff_headers: dict[str, str],
 ):
     response = await client.patch(
         f"/api/users/{admin_user.id}",
         json={"email": "hijacked@example.com"},
-        headers=non_admin_staff_headers,
+        headers=staff_headers,
     )
 
     assert response.status_code == 403
@@ -328,12 +350,12 @@ async def test_staff_cannot_update_a_privileged_user(
 async def test_admin_updates_a_privileged_user(
     client: AsyncClient,
     staff_user: User,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
 ):
     response = await client.patch(
         f"/api/users/{staff_user.id}",
         json={"email": "new-staff@example.com"},
-        headers=staff_headers,
+        headers=admin_headers,
     )
 
     assert response.status_code == 200

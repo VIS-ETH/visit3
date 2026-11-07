@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import KpBookingStepper from "../../pages/KpBookingStepper";
+import KpBookingStepper from "../../components/exhibitor-booking/KpBookingStepper";
 import { KpBookingStatus } from "../../orval/generated/fastAPI.schemas";
 import type {
   BookingResponse,
@@ -79,9 +79,6 @@ const registerUrl = `${testBackendUrl}/api/kp/events/${eventId}/bookings/registe
 beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/${eventId}/my-booking`, () =>
       HttpResponse.json(null),
     ),
@@ -238,5 +235,19 @@ describe("booking wizard company profile step", () => {
         services: [],
       });
     }, SLOW_WAIT);
+  });
+
+  it("shows an error instead of a loader when the profile fails to load", async () => {
+    server.use(
+      http.get(`${testBackendUrl}/api/company/me/profile`, () =>
+        HttpResponse.json({ code: "server.error" }, { status: 500 }),
+      ),
+    );
+    renderWithProviders(<KpBookingStepper event={event} />);
+
+    expect(
+      await screen.findByText("error.load_failed", undefined, SLOW_WAIT),
+    ).toBeInTheDocument();
+    expect(document.querySelector(".mantine-Loader-root")).toBeNull();
   });
 });

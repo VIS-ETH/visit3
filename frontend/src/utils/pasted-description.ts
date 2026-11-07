@@ -7,6 +7,8 @@ const MARKDOWN_INLINE =
   /(\*\*|__)(?=\S)(.+?)(?<=\S)\1|(?<![\w*])\*(?=\S)([^*]+?)(?<=\S)\*(?![\w*])|(?<![\w_])_(?=\S)([^_]+?)(?<=\S)_(?![\w_])/gu;
 const NUMBER_LINE = /^(\s*)\d{1,3}[.)]\s+(.*)$/;
 const NESTED_INDENT = /^(?: {2,}|\t)/;
+const LEADING_SPACE = /^\s/;
+const URL_TEXT = /\b(?:https?:\/\/|www\.)\S+/giu;
 const BLANK_TEXT = /^\s*$/;
 const STRAY_LISTS = "ul > ul, ul > ol, ol > ul, ol > ol";
 const BLOCKS = new Set([
@@ -118,9 +120,18 @@ export const cleanPastedHtml = (html: string) => {
   return doc.body.innerHTML;
 };
 
+const urlRanges = (text: string) =>
+  Array.from(text.matchAll(URL_TEXT), (match) => [
+    match.index,
+    match.index + match[0].length,
+  ]);
+
 const appendMarkdown = (doc: Document, parent: HTMLElement, text: string) => {
+  const urls = urlRanges(text);
   let last = 0;
   for (const match of text.matchAll(MARKDOWN_INLINE)) {
+    if (urls.some(([start, end]) => match.index >= start && match.index < end))
+      continue;
     parent.append(text.slice(last, match.index));
     const strong = match[2] !== undefined;
     const element = doc.createElement(strong ? "strong" : "em");
@@ -131,20 +142,38 @@ const appendMarkdown = (doc: Document, parent: HTMLElement, text: string) => {
   parent.append(text.slice(last));
 };
 
+const numberedLater = (lines: string[]) => {
+  const later = lines.map(() => false);
+  for (let index = lines.length - 2; index >= 0; index -= 1) {
+    const next = lines[index + 1];
+    later[index] =
+      !BLANK_TEXT.test(next) && (NUMBER_LINE.test(next) || later[index + 1]);
+  }
+  return later;
+};
+
 export const plainTextToDom = (text: string) => {
   const doc = document.implementation.createHTMLDocument();
   const root = doc.createElement("div");
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  const listFollows = numberedLater(lines);
   let builder = new ListBuilder(doc);
   let current: HTMLElement | null = null;
-  for (const line of text.replace(/\r\n?/g, "\n").split("\n")) {
+  let inItem = false;
+  lines.forEach((line, index) => {
     if (BLANK_TEXT.test(line)) {
       current = null;
+      inItem = false;
       builder = new ListBuilder(doc);
-      continue;
+      return;
     }
     const heading = HEADING_LINE.exec(line.trim());
     const bullet = heading ? null : BULLET_LINE.exec(line);
-    const number = heading || bullet ? null : NUMBER_LINE.exec(line);
+    const numbered = heading || bullet ? null : NUMBER_LINE.exec(line);
+    const number =
+      numbered && (builder.lists.length > 0 || listFollows[index])
+        ? numbered
+        : null;
     const item = bullet ?? number;
     if (heading) {
       const paragraph = doc.createElement("p");
@@ -153,22 +182,25 @@ export const plainTextToDom = (text: string) => {
       paragraph.append(strong);
       root.append(paragraph);
       current = null;
+      inItem = false;
       builder = new ListBuilder(doc);
     } else if (item) {
       const level = NESTED_INDENT.test(item[1]) ? 2 : 1;
       current = builder.add(level, bullet ? "UL" : "OL", (list) =>
         root.append(list),
       );
+      inItem = true;
       appendMarkdown(doc, current, item[2].trim());
-    } else if (current) {
+    } else if (current && (!inItem || LEADING_SPACE.test(line))) {
       current.append(doc.createElement("br"));
       appendMarkdown(doc, current, line.trim());
     } else {
       current = doc.createElement("p");
+      inItem = false;
       appendMarkdown(doc, current, line.trim());
       root.append(current);
       builder = new ListBuilder(doc);
     }
-  }
+  });
   return root;
 };

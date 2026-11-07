@@ -1,5 +1,5 @@
-from collections.abc import Sequence
-from datetime import datetime, timezone
+from collections.abc import AsyncGenerator, Sequence
+from contextlib import asynccontextmanager
 from typing import Any, Generic, TypeVar, cast
 from uuid import UUID
 
@@ -10,6 +10,7 @@ from sqlalchemy.sql.elements import ColumnElement, UnaryExpression
 from sqlmodel import SQLModel, col, select, update
 from sqlmodel import delete as sql_delete
 
+from app.core.dates import utc_now
 from app.models.base import AppBase, BaseEntity
 from app.schemas.sorting import SortDirection
 
@@ -33,6 +34,15 @@ class BaseRepository(Generic[T]):
         self.model = model
         self.session = session
 
+    @asynccontextmanager
+    async def committing(self) -> AsyncGenerator[None]:
+        try:
+            yield
+            await self.session.commit()
+        except Exception:
+            await self.session.rollback()
+            raise
+
     async def end_read_transaction(self) -> None:
         if self.session.in_transaction():
             await self.session.commit()
@@ -47,12 +57,8 @@ class BaseRepository(Generic[T]):
     def _not_deleted(self, model: type[AppBase]) -> ColumnElement[bool]:
         return col(model.deleted_at).is_(None)
 
-    def _validate_model(
-        self, instance: ModelT, *, exclude: set[str] | None = None
-    ) -> ModelT:
-        validated = instance.__class__.model_validate(
-            instance.model_dump(exclude=exclude or set())
-        )
+    def _validate_model(self, instance: ModelT) -> ModelT:
+        validated = instance.__class__.model_validate(instance.model_dump())
         for field_name, value in validated.model_dump().items():
             setattr(instance, field_name, value)
         return instance
@@ -79,6 +85,9 @@ class BaseRepository(Generic[T]):
         result = await self.session.execute(statement)
         return cast(T | None, result.scalar_one_or_none())
 
+    async def release_locks(self) -> None:
+        await self.session.commit()
+
     async def lock_model_by_id(
         self, model: type[ModelT], entity_id: UUID
     ) -> ModelT | None:
@@ -86,18 +95,14 @@ class BaseRepository(Generic[T]):
             raise TypeError(
                 f"{model.__name__} does not inherit from BaseEntity and has no id field"
             )
-        statement = select(model).where(col(model.id) == entity_id).with_for_update()
+        statement = (
+            select(model)
+            .where(col(model.id) == entity_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         result = await self.session.execute(statement)
         return cast(ModelT | None, result.scalar_one_or_none())
-
-    async def get_by_ids(self, ids: list[UUID]) -> Sequence[T]:
-        if not issubclass(self.model, BaseEntity):
-            raise TypeError(
-                f"{self.model.__name__} does not inherit from BaseEntity and has no id field"
-            )
-        statement = select(self.model).where(col(self.model.id).in_(ids))
-        result = await self.session.execute(statement)
-        return cast(Sequence[T], result.scalars().all())
 
     def delete(self, instance: AppBase) -> None:
         instance.mark_deleted()
@@ -120,9 +125,7 @@ class BaseRepository(Generic[T]):
     async def delete_where(
         self, model: type[AppBase], *conditions: ColumnElement[bool]
     ) -> None:
-        await self.update_where(
-            model, *conditions, deleted_at=datetime.now(timezone.utc)
-        )
+        await self.update_where(model, *conditions, deleted_at=utc_now())
 
     async def hard_delete_where(
         self, model: type[SQLModel], *conditions: ColumnElement[bool]

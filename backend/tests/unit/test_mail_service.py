@@ -5,7 +5,7 @@ from google.protobuf.json_format import MessageToDict
 
 from app.core.config import get_settings
 from app.services import mail_service as mail_module
-from app.services.mail_service import MailService
+from app.services.mail_service import SEND_TIMEOUT_SECONDS, MailService
 
 
 def test_construct_mail_builds_plain_text_message():
@@ -64,7 +64,7 @@ async def test_send_mail_delegates_to_grpc_stub():
 
     await service.send_mail(message)
 
-    stub.SendMail.assert_awaited_once_with(message)
+    stub.SendMail.assert_awaited_once_with(message, timeout=SEND_TIMEOUT_SECONDS)
 
 
 PROBE = "ä ö ü Ä Ö Ü ß é € 🎉"

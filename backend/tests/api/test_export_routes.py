@@ -1,8 +1,10 @@
 import csv
 import io
 import re
+import struct
 import zipfile
-from collections.abc import Awaitable, Callable
+from base64 import b64decode
+from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -11,11 +13,13 @@ from urllib.parse import unquote
 from uuid import UUID
 
 import pytest
+from fastapi import FastAPI
 from httpx import AsyncClient, Response
 from openpyxl import Workbook, load_workbook
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
+from app.core import deps
 from app.core.dates import local_today
 from app.models.company import KpCompanyProfile
 from app.models.industry import Industry
@@ -27,8 +31,11 @@ from app.models.kp_event import (
 )
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
+from app.services.export_service import NAMETAG_PREVIEW_SAMPLE
+from app.services.pdf_service import PdfService, RenderedImage
 from tests.api.conftest import (
     PNG_UPLOAD,
+    KpSetup,
     company_profile_payload,
     first_member_id,
     kp_payload,
@@ -252,6 +259,7 @@ async def export_world(
     company_user: User,
     company_headers: dict[str, str],
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     other_company_user: User,
     auth_headers: Callable[[User], Awaitable[dict[str, str]]],
     csrf_headers: dict[str, str],
@@ -259,7 +267,7 @@ async def export_world(
     other_headers = {**await auth_headers(other_company_user), **csrf_headers}
     event = ok(
         await client.post(
-            "/api/kp/create", json=kp_payload(EVENT_NAME), headers=staff_headers
+            "/api/kp/create", json=kp_payload(EVENT_NAME), headers=president_headers
         )
     )
     event_id = event.json()["id"]
@@ -274,7 +282,7 @@ async def export_world(
                 "booth_size": 12.5,
                 "color": "#112233",
             },
-            headers=staff_headers,
+            headers=president_headers,
         )
     )
     side_zone = ok(
@@ -287,7 +295,7 @@ async def export_world(
                 "booth_size": 6.0,
                 "color": "#445566",
             },
-            headers=staff_headers,
+            headers=president_headers,
         )
     )
     service = ok(
@@ -299,7 +307,7 @@ async def export_world(
                 "max_quantity_per_booking": 2,
                 "requirements": [TEXT_REQUIREMENT, FILE_REQUIREMENT],
             },
-            headers=staff_headers,
+            headers=president_headers,
         )
     )
     service_id = service.json()["id"]
@@ -922,3 +930,85 @@ async def test_single_nametag_pdf_download(
     assert response.headers["content-type"] == PDF_MEDIA_TYPE
     assert response.content.startswith(b"%PDF")
     assert ascii_name == f"{ASCII_PREFIX}-Ada-Lovelace-nametag.pdf"
+
+
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+class RecordingPdfService(PdfService):
+    def __init__(self) -> None:
+        self.renders: list[dict[str, Any]] = []
+
+    async def render_png(self, **kwargs: Any) -> RenderedImage:
+        self.renders.append(kwargs)
+        return await super().render_png(**kwargs)
+
+
+@pytest.fixture
+def recording_pdf_service(api_app: FastAPI) -> Iterator[RecordingPdfService]:
+    service = RecordingPdfService()
+    api_app.dependency_overrides[deps.get_pdf_service] = lambda: service
+    yield service
+    api_app.dependency_overrides.pop(deps.get_pdf_service, None)
+
+
+def preview_png(response: Response) -> bytes:
+    assert response.status_code == 200, response.text
+    png = b64decode(response.json()["png_base64"])
+    assert png.startswith(PNG_SIGNATURE)
+    return png
+
+
+async def test_nametag_preview_renders_one_tag_of_the_event(
+    client: AsyncClient,
+    export_world: ExportWorld,
+    recording_pdf_service: RecordingPdfService,
+):
+    response = await export(client, export_world, "nametags/preview")
+
+    width, height = struct.unpack(">II", preview_png(response)[16:24])
+    assert (width, height) == (390, 234)
+    render = recording_pdf_service.renders[-1]
+    assert render["data"]["tags"] == [
+        {
+            "full_name": "Grace Hopper",
+            "position": "Admiral",
+            "company": OWN_COMPANY,
+        }
+    ]
+    assert render["files"] == {"background.png": PNG_UPLOAD[1]}
+
+
+async def test_nametag_preview_uses_sample_data_without_name_tags(
+    client: AsyncClient,
+    staff_headers: dict[str, str],
+    kp_setup: KpSetup,
+    recording_pdf_service: RecordingPdfService,
+):
+    ok(
+        await client.post(
+            f"/api/kp/events/{kp_setup.event_id}/exports/nametags/background",
+            files={"file": PNG_UPLOAD},
+            headers=staff_headers,
+        )
+    )
+
+    response = await client.get(
+        f"/api/kp/events/{kp_setup.event_id}/exports/nametags/preview",
+        headers=staff_headers,
+    )
+
+    preview_png(response)
+    assert recording_pdf_service.renders[-1]["data"]["tags"] == [NAMETAG_PREVIEW_SAMPLE]
+
+
+async def test_nametag_preview_needs_a_background(
+    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+):
+    response = await client.get(
+        f"/api/kp/events/{kp_setup.event_id}/exports/nametags/preview",
+        headers=staff_headers,
+    )
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "error.kp_export_background_not_found"

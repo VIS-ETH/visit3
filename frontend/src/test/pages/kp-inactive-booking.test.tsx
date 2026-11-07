@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { Route, Routes } from "react-router";
-import KpBookingStepper from "../../pages/KpBookingStepper";
+import KpBookingStepper from "../../components/exhibitor-booking/KpBookingStepper";
 import KpCompanyView from "../../pages/KpCompanyView";
 import type {
   BookingResponse,
@@ -47,9 +47,6 @@ beforeEach(() => {
   myBooking = testBooking;
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId`, () =>
       HttpResponse.json(testOpenEvent),
     ),

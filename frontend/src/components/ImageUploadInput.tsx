@@ -66,7 +66,7 @@ const ImageUploadInput = ({
     }
     setFileName(nextFile.name);
     onFileChange?.(nextFile);
-    onChange(await readFileAsDataUrl(nextFile));
+    onChange(await readFileAsDataUrl(nextFile).catch(() => ""));
   };
 
   const handleClear = () => {

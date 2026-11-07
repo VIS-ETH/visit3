@@ -55,9 +55,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   server.use(
     emptyVenueHandler,
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(
       `${testBackendUrl}/api/kp/staff/events/:eventId/bookings/:bookingId/requirement-files`,
       () => HttpResponse.json({ files: {} }),

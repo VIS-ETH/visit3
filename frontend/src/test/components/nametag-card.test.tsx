@@ -1,11 +1,12 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
-import NametagCard from "../../components/booking/NametagCard";
+import { delay, http, HttpResponse } from "msw";
+import NametagCard from "../../components/exhibitor-booking/NametagCard";
 import {
   KpBookingStatus,
   type BookingResponse,
   type KpResponse,
+  type NameTagInput,
   type NameTagResponse,
 } from "../../orval/generated/fastAPI.schemas";
 import { server } from "../server";
@@ -68,12 +69,7 @@ beforeAll(() => {
 beforeEach(() => {
   nametags = [curieNametag, eulerNametag];
   localStorage.setItem("token", createToken(3600));
-  server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
-    http.get(nametagsUrl, () => HttpResponse.json(nametags)),
-  );
+  server.use(http.get(nametagsUrl, () => HttpResponse.json(nametags)));
 });
 
 describe("the booking nametag editor", () => {
@@ -311,5 +307,41 @@ describe("the booking nametag editor", () => {
     expect(
       await screen.findByText("kp.nametags.load_error", undefined, SLOW_WAIT),
     ).toBeInTheDocument();
+  });
+
+  it("keeps edits typed while the save is in flight", async () => {
+    server.use(
+      http.put(nametagsUrl, async ({ request }) => {
+        const body = (await request.json()) as { name_tags: NameTagInput[] };
+        await delay(500);
+        nametags = body.name_tags.map((tag, index) => ({
+          ...tag,
+          id: `tag-${index}`,
+          booking_id: testBookingId,
+        }));
+        return HttpResponse.json(nametags);
+      }),
+    );
+    const { user } = renderCard();
+
+    const position = await screen.findByDisplayValue(
+      curieNametag.position,
+      undefined,
+      SLOW_WAIT,
+    );
+    await user.clear(position);
+    await user.type(position, "HR");
+    await user.click(screen.getByRole("button", { name: "kp.nametags.save" }));
+    await user.type(screen.getByDisplayValue(curieNametag.first_name), "-Anne");
+
+    await waitFor(() => expect(nametags[0]?.position).toBe("HR"), SLOW_WAIT);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "kp.nametags.save" }),
+      ).not.toHaveAttribute("data-loading"),
+    );
+    expect(screen.getByDisplayValue("Marie-Anne")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("HR")).toBeInTheDocument();
+    expect(screen.getByText("kp.nametags.unsaved")).toBeInTheDocument();
   });
 });

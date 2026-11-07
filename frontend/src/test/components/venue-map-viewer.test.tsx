@@ -27,12 +27,7 @@ beforeAll(() => {
 beforeEach(() => {
   venueResponse = testVenueMap;
   localStorage.setItem("token", createToken(3600));
-  server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
-    http.get(venueUrl, () => HttpResponse.json(venueResponse)),
-  );
+  server.use(http.get(venueUrl, () => HttpResponse.json(venueResponse)));
 });
 
 describe("the venue map viewer", () => {

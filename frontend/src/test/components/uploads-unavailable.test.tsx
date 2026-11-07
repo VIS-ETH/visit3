@@ -14,19 +14,11 @@ import { renderWithProviders } from "../render";
 import {
   testBooking,
   testBookingId,
-  testEvent,
+  testOpenEvent,
   testEventId,
 } from "../fixtures/kp-booking";
 import { SLOW_TEST_TIMEOUT, SLOW_WAIT } from "../timeouts";
-
-vi.hoisted(() => {
-  const element = document.getElementById("server-data");
-  if (element === null) throw new Error("server data missing");
-  element.textContent = JSON.stringify({
-    ...JSON.parse(element.textContent ?? "{}"),
-    uploadsUnavailable: "true",
-  });
-});
+import serverData from "../../utils/server-data";
 
 vi.setConfig({ testTimeout: SLOW_TEST_TIMEOUT });
 
@@ -42,19 +34,18 @@ const recordUpload = ({ request }: { request: Request }) => {
 };
 
 beforeEach(() => {
+  serverData.uploadsUnavailable = "true";
   uploadRequests = [];
   openFileDialog = vi.spyOn(HTMLInputElement.prototype, "click");
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.post(`${testBackendUrl}/api/*`, recordUpload),
     http.put(`${testBackendUrl}/api/*`, recordUpload),
   );
 });
 
 afterEach(() => {
+  delete serverData.uploadsUnavailable;
   openFileDialog.mockRestore();
 });
 
@@ -127,7 +118,7 @@ describe("uploads while they are unavailable", () => {
   it("keeps a booking requirement file from uploading", async () => {
     server.use(
       http.get(`${testBackendUrl}/api/kp/events/:eventId`, () =>
-        HttpResponse.json(testEvent),
+        HttpResponse.json(testOpenEvent),
       ),
       http.get(`${testBackendUrl}/api/kp/events/:eventId/my-booking`, () =>
         HttpResponse.json(testBooking),

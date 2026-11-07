@@ -28,9 +28,6 @@ beforeEach(() => {
   logoutRequests = 0;
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.post(logoutUrl, () => {
       logoutRequests += 1;
       return HttpResponse.json({});

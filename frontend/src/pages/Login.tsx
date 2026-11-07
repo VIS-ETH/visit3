@@ -1,17 +1,18 @@
-import { TextInput, PasswordInput, Stack, Divider, Alert } from "@mantine/core";
-import { IconAlertCircle, IconLock, IconMailSearch } from "@tabler/icons-react";
+import { TextInput, PasswordInput, Stack, Divider } from "@mantine/core";
+import { IconLock, IconMailSearch } from "@tabler/icons-react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useDocumentTitle } from "@mantine/hooks";
 import { useTranslatedForm } from "../utils/translator";
 import { loginSchema } from "../schemas/loginSchema";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { clearAuthState, setToken } from "../api/utils";
-import type { Token } from "../orval/generated/fastAPI.schemas";
+import { clearAuthState, clearLoggedOut, setToken } from "../api/utils";
 import { useKeycloakInit, useLoginUser } from "../orval/generated/auth/auth";
 import AuthCardLayout from "../components/AuthCardLayout";
 import AuthButton from "../components/AuthButton";
-import { getSafeNextPath } from "../utils/navigation";
+import ErrorAlert from "../components/ErrorAlert";
+import { useAsyncAction } from "../hooks/use-async-action";
+import { getSafeNextPath, rememberLoginNext } from "../utils/navigation";
 
 const CALLBACK_ERROR_CODES = new Set([
   "auth.email_taken_locally",
@@ -34,16 +35,18 @@ const Login = () => {
   const nextPath = getSafeNextPath(location.search);
   const callbackErrorKey = getCallbackErrorKey(location.search);
 
-  const { mutate: login, isPending } = useLoginUser({
-    mutation: {
-      onSuccess: (data: Token) => {
-        clearAuthState();
-        queryClient.clear();
-        setToken(data.access_token);
-        navigate(nextPath ?? "/");
-      },
+  const { mutateAsync: login } = useLoginUser();
+
+  const { run: submitLogin, isRunning: isLoggingIn } = useAsyncAction(
+    async (username: string, password: string) => {
+      const data = await login({ data: { username, password } });
+      clearAuthState();
+      queryClient.clear();
+      rememberLoginNext(null);
+      setToken(data.access_token);
+      navigate(nextPath ?? "/");
     },
-  });
+  );
 
   const { refetch, isFetching } = useKeycloakInit({
     query: { enabled: false },
@@ -54,7 +57,9 @@ const Login = () => {
 
     if (data) {
       clearAuthState();
+      clearLoggedOut();
       queryClient.clear();
+      rememberLoginNext(nextPath);
       window.location.replace(data);
     }
   };
@@ -67,30 +72,13 @@ const Login = () => {
   });
 
   return (
-    <AuthCardLayout
-      title={t("company.login")}
-      maxWidth={620}
-    >
-      {callbackErrorKey ? (
-        <Alert
-          icon={<IconAlertCircle />}
-          color="red"
-          title={t("error.title")}
-          w="100%"
-        >
-          {t(callbackErrorKey)}
-        </Alert>
-      ) : null}
+    <AuthCardLayout title={t("company.login")} maxWidth={620}>
+      {callbackErrorKey ? <ErrorAlert>{t(callbackErrorKey)}</ErrorAlert> : null}
 
       <form
-        onSubmit={form.onSubmit((values) => {
-          login({
-            data: {
-              username: values.username,
-              password: values.password,
-            },
-          });
-        })}
+        onSubmit={form.onSubmit(
+          (values) => void submitLogin(values.username.trim(), values.password),
+        )}
       >
         <Stack gap="md">
           <TextInput
@@ -109,7 +97,11 @@ const Login = () => {
             leftSection={<IconLock size={16} />}
             {...form.getInputProps("password")}
           />
-          <AuthButton type="submit" loading={isPending} disabled={isPending}>
+          <AuthButton
+            type="submit"
+            loading={isLoggingIn}
+            disabled={isLoggingIn}
+          >
             {t("login.title")}
           </AuthButton>
         </Stack>

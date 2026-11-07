@@ -36,6 +36,7 @@ async def soft_delete_company(db_session: AsyncSession, company_id: UUID) -> Non
 async def test_staff_sees_zone_of_cancelled_booking_in_deleted_zone(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
@@ -43,7 +44,7 @@ async def test_staff_sees_zone_of_cancelled_booking_in_deleted_zone(
     booking = await register_booking(company_headers, kp_setup)
     cancelled = await cancel_booking(client, company_headers, booking.json()["id"])
     deleted = await client.delete(
-        f"/api/kp/booth-zones/{kp_setup.booth_zone_id}", headers=staff_headers
+        f"/api/kp/booth-zones/{kp_setup.booth_zone_id}", headers=president_headers
     )
 
     response = await client.get(
@@ -59,6 +60,7 @@ async def test_staff_sees_zone_of_cancelled_booking_in_deleted_zone(
 async def test_staff_booking_detail_keeps_the_deleted_zone(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
@@ -67,7 +69,7 @@ async def test_staff_booking_detail_keeps_the_deleted_zone(
     booking_id = booking.json()["id"]
     await cancel_booking(client, company_headers, booking_id)
     await client.delete(
-        f"/api/kp/booth-zones/{kp_setup.booth_zone_id}", headers=staff_headers
+        f"/api/kp/booth-zones/{kp_setup.booth_zone_id}", headers=president_headers
     )
 
     response = await client.get(
@@ -82,6 +84,7 @@ async def test_staff_booking_detail_keeps_the_deleted_zone(
 async def test_exports_still_render_bookings_in_a_deleted_zone(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
@@ -89,7 +92,7 @@ async def test_exports_still_render_bookings_in_a_deleted_zone(
     booking = await register_booking(company_headers, kp_setup)
     await cancel_booking(client, company_headers, booking.json()["id"])
     await client.delete(
-        f"/api/kp/booth-zones/{kp_setup.booth_zone_id}", headers=staff_headers
+        f"/api/kp/booth-zones/{kp_setup.booth_zone_id}", headers=president_headers
     )
 
     response = await client.get(
@@ -154,7 +157,7 @@ async def test_exports_still_render_industries_of_a_deleted_industry(
 
 
 async def add_service_requirement(
-    client: AsyncClient, staff_headers: dict[str, str], service_id: str
+    client: AsyncClient, president_headers: dict[str, str], service_id: str
 ) -> Response:
     return await client.patch(
         f"/api/kp/services/{service_id}",
@@ -167,13 +170,14 @@ async def add_service_requirement(
                 }
             ]
         },
-        headers=staff_headers,
+        headers=president_headers,
     )
 
 
 async def test_staff_sees_service_of_cancelled_booking_with_deleted_service(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
@@ -182,7 +186,7 @@ async def test_staff_sees_service_of_cancelled_booking_with_deleted_service(
     booking_id = booking.json()["id"]
     await cancel_booking(client, company_headers, booking_id)
     deleted = await client.delete(
-        f"/api/kp/services/{kp_setup.service_id}", headers=staff_headers
+        f"/api/kp/services/{kp_setup.service_id}", headers=president_headers
     )
 
     listed = await client.get(
@@ -207,17 +211,18 @@ async def test_staff_sees_service_of_cancelled_booking_with_deleted_service(
 async def test_exports_still_render_services_of_a_deleted_service(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
 ):
     requirement = await add_service_requirement(
-        client, staff_headers, kp_setup.service_id
+        client, president_headers, kp_setup.service_id
     )
     booking = await register_booking(company_headers, kp_setup)
     await cancel_booking(client, company_headers, booking.json()["id"])
     await client.delete(
-        f"/api/kp/services/{kp_setup.service_id}", headers=staff_headers
+        f"/api/kp/services/{kp_setup.service_id}", headers=president_headers
     )
 
     bookings_export = await client.get(

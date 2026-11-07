@@ -95,7 +95,7 @@ def storage_service(s3_client: FakeS3Client) -> StorageService:
 @pytest.fixture
 async def image_requirement(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     complete_company_profile: Callable[..., Awaitable[Response]],
@@ -113,7 +113,7 @@ async def image_requirement(
                 }
             ],
         },
-        headers=staff_headers,
+        headers=president_headers,
     )
     await complete_company_profile(company_headers)
     booking = await client.post(
@@ -230,12 +230,12 @@ async def test_nametag_background_rejects_a_pdf(
 
 @pytest.fixture
 async def venue_layout_id(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ) -> str:
     response = await client.post(
         f"/api/kp/events/{kp_setup.event_id}/venue-layouts",
         json={"name": "Einstein"},
-        headers=staff_headers,
+        headers=president_headers,
     )
     return response.json()["id"]
 
@@ -254,7 +254,7 @@ def venue_background_url(layout_id: str) -> str:
 async def test_venue_background_stores_the_sniffed_image_type(
     client: AsyncClient,
     s3_client: FakeS3Client,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     venue_layout_id: str,
     upload: tuple[str, bytes, str],
     mime_type: str,
@@ -262,7 +262,7 @@ async def test_venue_background_stores_the_sniffed_image_type(
     response = await client.put(
         venue_background_url(venue_layout_id),
         files={"file": upload},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 200
@@ -282,14 +282,14 @@ async def test_venue_background_stores_the_sniffed_image_type(
 async def test_venue_background_rejects_a_file_that_is_not_a_raster_image(
     client: AsyncClient,
     s3_client: FakeS3Client,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     venue_layout_id: str,
     upload: tuple[str, bytes, str],
 ):
     response = await client.put(
         venue_background_url(venue_layout_id),
         files={"file": upload},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 400
@@ -300,19 +300,19 @@ async def test_venue_background_rejects_a_file_that_is_not_a_raster_image(
 async def test_venue_background_replaces_the_previous_object(
     client: AsyncClient,
     s3_client: FakeS3Client,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     venue_layout_id: str,
 ):
     first = await client.put(
         venue_background_url(venue_layout_id),
         files={"file": ("plan.png", PNG_BYTES, "image/png")},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     response = await client.put(
         venue_background_url(venue_layout_id),
         files={"file": ("plan.webp", WEBP_BYTES, "image/webp")},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert first.status_code == 200
@@ -327,17 +327,17 @@ async def test_venue_background_replaces_the_previous_object(
 async def test_venue_background_is_deleted_with_its_object(
     client: AsyncClient,
     s3_client: FakeS3Client,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     venue_layout_id: str,
 ):
     await client.put(
         venue_background_url(venue_layout_id),
         files={"file": ("plan.png", PNG_BYTES, "image/png")},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     response = await client.delete(
-        venue_background_url(venue_layout_id), headers=staff_headers
+        venue_background_url(venue_layout_id), headers=president_headers
     )
 
     assert response.status_code == 200
@@ -349,21 +349,21 @@ async def test_venue_background_is_deleted_with_its_object(
 async def test_deleting_a_layout_removes_its_background_object(
     client: AsyncClient,
     s3_client: FakeS3Client,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     venue_layout_id: str,
 ):
     await client.put(
         venue_background_url(venue_layout_id),
         files={"file": ("plan.png", PNG_BYTES, "image/png")},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     response = await client.delete(
-        f"/api/kp/venue-layouts/{venue_layout_id}", headers=staff_headers
+        f"/api/kp/venue-layouts/{venue_layout_id}", headers=president_headers
     )
     layouts = await client.get(
-        f"/api/kp/events/{kp_setup.event_id}/venue-layouts", headers=staff_headers
+        f"/api/kp/events/{kp_setup.event_id}/venue-layouts", headers=president_headers
     )
 
     assert response.status_code == 200
@@ -385,7 +385,7 @@ def zone_layout_url(booth_zone_id: str) -> str:
 async def test_zone_layout_accepts_an_image_and_a_pdf(
     client: AsyncClient,
     s3_client: FakeS3Client,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     upload: tuple[str, bytes, str],
     mime_type: str,
@@ -393,7 +393,7 @@ async def test_zone_layout_accepts_an_image_and_a_pdf(
     response = await client.put(
         zone_layout_url(kp_setup.booth_zone_id),
         files={"file": upload},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 200
@@ -411,14 +411,14 @@ async def test_zone_layout_accepts_an_image_and_a_pdf(
 async def test_zone_layout_rejects_a_file_that_is_neither_image_nor_pdf(
     client: AsyncClient,
     s3_client: FakeS3Client,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     upload: tuple[str, bytes, str],
 ):
     response = await client.put(
         zone_layout_url(kp_setup.booth_zone_id),
         files={"file": upload},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 400
@@ -429,19 +429,19 @@ async def test_zone_layout_rejects_a_file_that_is_neither_image_nor_pdf(
 async def test_zone_layout_replaces_the_previous_object(
     client: AsyncClient,
     s3_client: FakeS3Client,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
 ):
     first = await client.put(
         zone_layout_url(kp_setup.booth_zone_id),
         files={"file": ("layout.png", PNG_BYTES, "image/png")},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     response = await client.put(
         zone_layout_url(kp_setup.booth_zone_id),
         files={"file": ("layout.pdf", PDF_BYTES, "application/pdf")},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert first.status_code == 200
@@ -452,17 +452,17 @@ async def test_zone_layout_replaces_the_previous_object(
 async def test_zone_layout_is_deleted_with_its_object(
     client: AsyncClient,
     s3_client: FakeS3Client,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
 ):
     await client.put(
         zone_layout_url(kp_setup.booth_zone_id),
         files={"file": ("layout.png", PNG_BYTES, "image/png")},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     response = await client.delete(
-        zone_layout_url(kp_setup.booth_zone_id), headers=staff_headers
+        zone_layout_url(kp_setup.booth_zone_id), headers=president_headers
     )
 
     assert response.status_code == 200
@@ -474,16 +474,17 @@ async def test_deleting_a_zone_removes_its_layout_object(
     client: AsyncClient,
     s3_client: FakeS3Client,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
 ):
     await client.put(
         zone_layout_url(kp_setup.booth_zone_id),
         files={"file": ("layout.png", PNG_BYTES, "image/png")},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     response = await client.delete(
-        f"/api/kp/booth-zones/{kp_setup.booth_zone_id}", headers=staff_headers
+        f"/api/kp/booth-zones/{kp_setup.booth_zone_id}", headers=president_headers
     )
     zones = await client.get(
         f"/api/kp/events/{kp_setup.event_id}/booth-zones", headers=staff_headers

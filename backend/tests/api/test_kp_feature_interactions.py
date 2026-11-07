@@ -166,15 +166,15 @@ async def rival(
 @pytest.fixture
 async def gold_offer(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
     ready_company: None,
 ) -> tuple[str, str]:
-    gold_id = await create_zone(client, staff_headers, kp_setup.event_id)
+    gold_id = await create_zone(client, president_headers, kp_setup.event_id)
     response = await offer(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         company_user.company_id,
         gold_id,
@@ -202,6 +202,7 @@ async def waitlist_for(
 async def test_a_cancelled_offer_in_a_closed_zone_is_not_given_to_the_waitlist(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     gold_offer: tuple[str, str],
@@ -209,7 +210,7 @@ async def test_a_cancelled_offer_in_a_closed_zone_is_not_given_to_the_waitlist(
 ):
     gold_id, offered_id = gold_offer
     waiting_id = await waitlist_for(client, rival, kp_setup, gold_id)
-    await close_zone(client, staff_headers, gold_id)
+    await close_zone(client, president_headers, gold_id)
 
     cancelled = await set_status(client, company_headers, offered_id, "CANCELLED")
     waiting = await staff_booking(client, staff_headers, kp_setup.event_id, waiting_id)
@@ -222,6 +223,7 @@ async def test_an_exception_lets_the_waitlist_take_a_cancelled_offer_in_a_closed
     client: AsyncClient,
     db_session: AsyncSession,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     gold_offer: tuple[str, str],
@@ -229,7 +231,7 @@ async def test_an_exception_lets_the_waitlist_take_a_cancelled_offer_in_a_closed
 ):
     gold_id, offered_id = gold_offer
     waiting_id = await waitlist_for(client, rival, kp_setup, gold_id)
-    await close_zone(client, staff_headers, gold_id)
+    await close_zone(client, president_headers, gold_id)
     db_session.add(
         KpEventRegistrationException(
             event_id=UUID(kp_setup.event_id),
@@ -248,16 +250,17 @@ async def test_an_exception_lets_the_waitlist_take_a_cancelled_offer_in_a_closed
 async def test_a_clone_copies_zones_but_no_bookings_or_offers(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     gold_offer: tuple[str, str],
 ):
     gold_id, offered_id = gold_offer
-    await close_zone(client, staff_headers, gold_id)
+    await close_zone(client, president_headers, gold_id)
 
     clone = await client.post(
         f"/api/kp/events/{kp_setup.event_id}/clone",
         json=kp_payload("Kontaktparty clone"),
-        headers=staff_headers,
+        headers=president_headers,
     )
     clone_id = clone.json()["id"]
     bookings = await client.get(
@@ -278,7 +281,7 @@ async def test_a_clone_copies_zones_but_no_bookings_or_offers(
 
 async def test_reordering_zones_keeps_an_offered_booking(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     gold_offer: tuple[str, str],
@@ -288,7 +291,7 @@ async def test_reordering_zones_keeps_an_offered_booking(
     reordered = await client.put(
         f"/api/kp/events/{kp_setup.event_id}/booth-zones/order",
         json={"booth_zone_ids": [gold_id, kp_setup.booth_zone_id]},
-        headers=staff_headers,
+        headers=president_headers,
     )
     mine = await client.get(
         f"/api/kp/events/{kp_setup.event_id}/my-booking", headers=company_headers
@@ -311,7 +314,7 @@ async def test_reordering_zones_keeps_an_offered_booking(
 async def test_an_offer_reaches_a_company_whose_general_email_is_its_login(
     client: AsyncClient,
     db_session: AsyncSession,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
@@ -327,7 +330,7 @@ async def test_an_offer_reaches_a_company_whose_general_email_is_its_login(
 
     offered = await offer(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         company_user.company_id,
         kp_setup.booth_zone_id,
@@ -365,6 +368,7 @@ async def test_the_student_email_reaches_an_offered_booking_and_the_booklet(
     client: AsyncClient,
     db_session: AsyncSession,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
@@ -375,11 +379,11 @@ async def test_the_student_email_reaches_an_offered_booking_and_the_booklet(
         student_contact_email=STUDENT_EMAIL,
     )
     await client.put("/api/company/me/profile", json=payload, headers=company_headers)
-    gold_id = await create_zone(client, staff_headers, kp_setup.event_id)
+    gold_id = await create_zone(client, president_headers, kp_setup.event_id)
 
     offered = await offer(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         company_user.company_id,
         gold_id,
@@ -423,14 +427,14 @@ async def test_a_pending_offer_cannot_switch_zones_but_can_be_declined(
 
 async def test_an_accepted_offer_cannot_switch_into_a_closed_zone(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     gold_offer: tuple[str, str],
 ):
     _, offered_id = gold_offer
     await accept_offer(client, company_headers, offered_id)
-    await close_zone(client, staff_headers, kp_setup.booth_zone_id)
+    await close_zone(client, president_headers, kp_setup.booth_zone_id)
 
     switched = await client.post(
         f"/api/kp/bookings/{offered_id}/switch-zone",
@@ -444,19 +448,19 @@ async def test_an_accepted_offer_cannot_switch_into_a_closed_zone(
 
 async def test_an_offer_into_a_zone_of_another_event_is_refused(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
     ready_company: None,
 ):
     other = await client.post(
-        "/api/kp/create", json=kp_payload("Other party"), headers=staff_headers
+        "/api/kp/create", json=kp_payload("Other party"), headers=president_headers
     )
-    foreign_zone = await create_zone(client, staff_headers, other.json()["id"])
+    foreign_zone = await create_zone(client, president_headers, other.json()["id"])
 
     response = await offer(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         company_user.company_id,
         foreign_zone,
@@ -469,14 +473,14 @@ async def test_an_offer_into_a_zone_of_another_event_is_refused(
 
 async def test_an_offer_into_an_unknown_zone_or_event_is_not_found(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
     ready_company: None,
 ):
     unknown_zone = await offer(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         company_user.company_id,
         str(uuid4()),
@@ -484,7 +488,7 @@ async def test_an_offer_into_an_unknown_zone_or_event_is_not_found(
     )
     unknown_event = await offer(
         client,
-        staff_headers,
+        president_headers,
         str(uuid4()),
         company_user.company_id,
         kp_setup.booth_zone_id,
@@ -497,7 +501,7 @@ async def test_an_offer_into_an_unknown_zone_or_event_is_not_found(
 
 async def test_a_company_that_cancelled_before_can_receive_an_offer(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
@@ -508,7 +512,7 @@ async def test_a_company_that_cancelled_before_can_receive_an_offer(
 
     response = await offer(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         company_user.company_id,
         kp_setup.booth_zone_id,
@@ -539,7 +543,7 @@ def freeze_now(monkeypatch: pytest.MonkeyPatch) -> Callable[[datetime], None]:
 @pytest.fixture
 async def closed_event(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     freeze_now: Callable[[datetime], None],
     ready_company: None,
 ) -> KpSetup:
@@ -554,16 +558,16 @@ async def closed_event(
             "nametags_deadline": "2026-11-06",
             "event_date": "2026-11-20",
         },
-        headers=staff_headers,
+        headers=president_headers,
     )
     event_id = event.json()["id"]
-    zone_id = await create_zone(client, staff_headers, event_id, capacity=3)
+    zone_id = await create_zone(client, president_headers, event_id, capacity=3)
     return KpSetup(event_id=event_id, booth_zone_id=zone_id, service_id="")
 
 
 async def test_offers_use_the_zurich_day_after_registration_closed(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     company_user: User,
     closed_event: KpSetup,
@@ -573,7 +577,7 @@ async def test_offers_use_the_zurich_day_after_registration_closed(
     )
     yesterday = await offer(
         client,
-        staff_headers,
+        president_headers,
         closed_event.event_id,
         company_user.company_id,
         closed_event.booth_zone_id,
@@ -581,7 +585,7 @@ async def test_offers_use_the_zurich_day_after_registration_closed(
     )
     today = await offer(
         client,
-        staff_headers,
+        president_headers,
         closed_event.event_id,
         company_user.company_id,
         closed_event.booth_zone_id,
@@ -601,7 +605,7 @@ async def test_offers_use_the_zurich_day_after_registration_closed(
 )
 async def test_an_offer_can_be_accepted_until_the_end_of_its_zurich_day(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     company_user: User,
     closed_event: KpSetup,
@@ -613,7 +617,7 @@ async def test_an_offer_can_be_accepted_until_the_end_of_its_zurich_day(
     deadline = FROZEN_DAY + timedelta(days=1)
     offered = await offer(
         client,
-        staff_headers,
+        president_headers,
         closed_event.event_id,
         company_user.company_id,
         closed_event.booth_zone_id,
@@ -630,14 +634,14 @@ async def test_an_offer_can_be_accepted_until_the_end_of_its_zurich_day(
 
 async def test_a_cancelled_offer_cannot_be_rebooked_after_registration_closed(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     company_user: User,
     closed_event: KpSetup,
 ):
     offered = await offer(
         client,
-        staff_headers,
+        president_headers,
         closed_event.event_id,
         company_user.company_id,
         closed_event.booth_zone_id,
@@ -680,6 +684,7 @@ async def test_an_offered_place_counts_against_the_zone_capacity(
 async def test_moving_the_deadline_of_a_regular_booking_is_refused(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
@@ -691,7 +696,7 @@ async def test_moving_the_deadline_of_a_regular_booking_is_refused(
     moved = await client.patch(
         f"/api/kp/bookings/{booking_id}/offer",
         json={"deadline": in_days(3).isoformat()},
-        headers=staff_headers,
+        headers=president_headers,
     )
     cancelled = await set_status(client, company_headers, booking_id, "CANCELLED")
 
@@ -702,7 +707,7 @@ async def test_moving_the_deadline_of_a_regular_booking_is_refused(
 
 async def test_an_offer_is_stored_when_the_mail_service_fails(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
@@ -713,7 +718,7 @@ async def test_an_offer_is_stored_when_the_mail_service_fails(
 
     offered = await offer(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         company_user.company_id,
         kp_setup.booth_zone_id,

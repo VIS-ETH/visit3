@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
-import KpBookingZoneCard from "../../components/KpBookingZoneCard";
+import KpBookingZoneCard from "../../components/exhibitor-booking/KpBookingZoneCard";
 import { isZoneBookable } from "../../utils/booth-zones";
 import i18n from "../i18n";
 import { renderWithProviders } from "../render";

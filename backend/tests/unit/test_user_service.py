@@ -87,18 +87,18 @@ async def test_update_current_user_profile_rejects_invalid_phone(user_service):
     user_service.user_repo.update_user.assert_not_awaited()
 
 
-async def test_logout_user_revokes_refresh_token(user_service, unconfirmed_user):
+async def test_logout_user_revokes_the_refresh_token_family(user_service):
     await user_service.service.logout_user("refresh-token")
 
-    user_service.token_repo.revoke_refresh_token.assert_awaited_once_with(
-        unconfirmed_user.id, "refresh-token"
+    user_service.token_repo.revoke_refresh_token_family.assert_awaited_once_with(
+        "refresh-token"
     )
 
 
 async def test_logout_user_without_token_is_noop(user_service):
     await user_service.service.logout_user(None)
 
-    user_service.token_repo.revoke_refresh_token.assert_not_awaited()
+    user_service.token_repo.revoke_refresh_token_family.assert_not_awaited()
 
 
 async def test_update_company_user_rejects_email_of_another_user(

@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
-import WaitlistCard from "../../components/booking/WaitlistCard";
+import { delay, http, HttpResponse } from "msw";
+import WaitlistCard from "../../components/exhibitor-booking/WaitlistCard";
 import {
   KpBookingStatus,
   type BookingUpgradeWaitlistEntryResponse,
@@ -69,9 +69,6 @@ beforeEach(() => {
   waitlistRequests = 0;
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(waitlistUrl, () => {
       waitlistRequests += 1;
       return HttpResponse.json(waitlist);
@@ -99,7 +96,11 @@ describe("the waitlist card", () => {
     renderCard();
 
     expect(
-      await screen.findByText(`${testMainZone.booth_size} m²`, undefined, SLOW_WAIT),
+      await screen.findByText(
+        `${testMainZone.booth_size} m²`,
+        undefined,
+        SLOW_WAIT,
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByText("kp.waitlist.zone_full")).not.toBeInTheDocument();
   });
@@ -153,6 +154,52 @@ describe("the waitlist card", () => {
     expect(notificationsShow).toHaveBeenCalledWith(
       expect.objectContaining({ message: "kp.waitlist.removed" }),
     );
+  });
+
+  it("keeps a removed zone removed while the waitlist refetches", async () => {
+    const payloads: unknown[] = [];
+    server.use(
+      http.get(waitlistUrl, async () => {
+        waitlistRequests += 1;
+        if (waitlistRequests > 1) await delay(800);
+        return HttpResponse.json(waitlist);
+      }),
+      http.put(waitlistUrl, async ({ request }) => {
+        const body = (await request.json()) as {
+          target_booth_zone_ids: string[];
+        };
+        payloads.push(body);
+        waitlist = [einsteinEntry, polymensaEntry].filter((entry) =>
+          body.target_booth_zone_ids.includes(entry.target_booth_zone_id),
+        );
+        return HttpResponse.json(waitlist);
+      }),
+    );
+    const { user } = renderCard();
+
+    await screen.findByText(testMainZone.name, undefined, SLOW_WAIT);
+    await user.click(actions("kp.waitlist.remove")[0]);
+    await waitFor(() => expect(payloads).toHaveLength(1), SLOW_WAIT);
+    await waitFor(
+      () => {
+        expect(screen.queryByText(testMainZone.name)).not.toBeInTheDocument();
+      },
+      { timeout: 400 },
+    );
+    await waitFor(() => {
+      expect(actions("kp.waitlist.remove")[0]).toBeEnabled();
+    }, SLOW_WAIT);
+    await user.click(actions("kp.waitlist.remove")[0]);
+
+    await waitFor(() => {
+      expect(payloads).toEqual([
+        { target_booth_zone_ids: [testSideZone.id] },
+        { target_booth_zone_ids: [] },
+      ]);
+    }, SLOW_WAIT);
+    expect(
+      await screen.findByText("kp.waitlist.empty", undefined, SLOW_WAIT),
+    ).toBeInTheDocument();
   });
 
   it("shows the error code when the backend rejects the new order", async () => {

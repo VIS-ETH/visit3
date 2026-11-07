@@ -8,7 +8,6 @@ from fastapi import FastAPI
 from httpx import AsyncClient, Response
 
 from app.core import deps
-from app.models.user import User
 from app.services.booklet_service import BOOKLET_BACKGROUND_MAX_BYTES
 from app.services.pdf_service import PdfService, RenderedImage
 from app.services.typst_runner import TypstRenderAborted
@@ -80,15 +79,6 @@ def overloaded_pdf_service(api_app: FastAPI) -> Iterator[Callable[[bool], None]]
     api_app.dependency_overrides.pop(deps.get_pdf_service, None)
 
 
-@pytest.fixture
-async def plain_staff_headers(
-    staff_user: User,
-    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
-    csrf_headers: dict[str, str],
-) -> dict[str, str]:
-    return {**await auth_headers(staff_user), **csrf_headers}
-
-
 async def stored_background(
     client: AsyncClient, headers: dict[str, str], event_id: str
 ) -> Any:
@@ -106,24 +96,24 @@ async def stored_background(
 )
 async def test_an_unusable_background_is_rejected_and_never_stored(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     storage_service: AsyncMock,
     content: bytes,
     code: str,
 ):
-    response = await upload(client, staff_headers, kp_setup.event_id, content)
+    response = await upload(client, admin_headers, kp_setup.event_id, content)
 
     assert response.status_code == 400
     assert response.json()["code"] == code
     storage_service.upload_bytes.assert_not_awaited()
-    assert await stored_background(client, staff_headers, kp_setup.event_id) is None
+    assert await stored_background(client, admin_headers, kp_setup.event_id) is None
 
 
 @pytest.mark.parametrize("abort_inspection", [True, False])
 async def test_a_background_too_complex_to_render_is_rejected_and_never_stored(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     storage_service: AsyncMock,
     overloaded_pdf_service: Callable[[bool], None],
@@ -131,23 +121,23 @@ async def test_a_background_too_complex_to_render_is_rejected_and_never_stored(
 ):
     overloaded_pdf_service(abort_inspection)
 
-    response = await upload(client, staff_headers, kp_setup.event_id, make_pdf())
+    response = await upload(client, admin_headers, kp_setup.event_id, make_pdf())
 
     assert response.status_code == 400
     assert response.json()["code"] == "error.booklet_background_too_complex"
     storage_service.upload_bytes.assert_not_awaited()
-    assert await stored_background(client, staff_headers, kp_setup.event_id) is None
+    assert await stored_background(client, admin_headers, kp_setup.event_id) is None
 
 
 async def test_an_admin_preview_that_renders_too_long_is_reported(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     overloaded_pdf_service: Callable[[bool], None],
 ):
     overloaded_pdf_service(False)
 
-    response = await client.post(preview_url(kp_setup.event_id), headers=staff_headers)
+    response = await client.post(preview_url(kp_setup.event_id), headers=admin_headers)
 
     assert response.status_code == 503
     assert response.json()["code"] == "error.booklet_page_render_timeout"
@@ -155,13 +145,13 @@ async def test_an_admin_preview_that_renders_too_long_is_reported(
 
 async def test_a_background_over_the_size_limit_is_rejected(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     storage_service: AsyncMock,
 ):
     oversized = make_pdf() + b"\n%" + b"x" * BOOKLET_BACKGROUND_MAX_BYTES
 
-    response = await upload(client, staff_headers, kp_setup.event_id, oversized)
+    response = await upload(client, admin_headers, kp_setup.event_id, oversized)
 
     assert response.status_code == 400
     assert response.json()["code"] == "error.booklet_background_too_large"
@@ -170,14 +160,14 @@ async def test_a_background_over_the_size_limit_is_rejected(
 
 async def test_an_a5_background_is_stored_and_offered_for_download(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     storage_service: AsyncMock,
 ):
     content = make_pdf()
 
-    response = await upload(client, staff_headers, kp_setup.event_id, content)
-    stored = await stored_background(client, staff_headers, kp_setup.event_id)
+    response = await upload(client, admin_headers, kp_setup.event_id, content)
+    stored = await stored_background(client, admin_headers, kp_setup.event_id)
 
     assert response.status_code == 200
     assert stored["filename"] == "booklet.pdf"
@@ -190,39 +180,39 @@ async def test_an_a5_background_is_stored_and_offered_for_download(
 
 
 async def test_nothing_is_offered_for_download_without_a_background(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, admin_headers: dict[str, str], kp_setup: KpSetup
 ):
-    assert await stored_background(client, staff_headers, kp_setup.event_id) is None
+    assert await stored_background(client, admin_headers, kp_setup.event_id) is None
 
 
 async def test_reset_returns_to_the_built_in_design(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     storage_service: AsyncMock,
 ):
-    await upload(client, staff_headers, kp_setup.event_id, make_pdf())
+    await upload(client, admin_headers, kp_setup.event_id, make_pdf())
     storage_key = storage_service.upload_bytes.await_args.kwargs["key"]
 
     response = await client.delete(
-        background_url(kp_setup.event_id), headers=staff_headers
+        background_url(kp_setup.event_id), headers=admin_headers
     )
 
     assert response.status_code == 200
-    assert await stored_background(client, staff_headers, kp_setup.event_id) is None
+    assert await stored_background(client, admin_headers, kp_setup.event_id) is None
     storage_service.delete_object.assert_awaited_with(storage_key)
 
 
 async def test_replacing_a_background_deletes_the_old_file(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     storage_service: AsyncMock,
 ):
-    await upload(client, staff_headers, kp_setup.event_id, make_pdf())
+    await upload(client, admin_headers, kp_setup.event_id, make_pdf())
     first_key = storage_service.upload_bytes.await_args.kwargs["key"]
 
-    await upload(client, staff_headers, kp_setup.event_id, make_pdf(fill="#eeeeee"))
+    await upload(client, admin_headers, kp_setup.event_id, make_pdf(fill="#eeeeee"))
 
     storage_service.delete_object.assert_awaited_with(first_key)
 
@@ -238,7 +228,7 @@ async def test_replacing_a_background_deletes_the_old_file(
 )
 async def test_only_admins_manage_the_booklet_design(
     client: AsyncClient,
-    plain_staff_headers: dict[str, str],
+    staff_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     method: str,
@@ -247,7 +237,7 @@ async def test_only_admins_manage_the_booklet_design(
     url = f"/api/kp/events/{kp_setup.event_id}/booklet/{path}"
     files = {"file": ("booklet.pdf", make_pdf(), "application/pdf")}
 
-    for headers in (plain_staff_headers, company_headers):
+    for headers in (staff_headers, company_headers):
         response = await client.request(
             method, url, headers=headers, files=files if method == "PUT" else None
         )
@@ -256,11 +246,11 @@ async def test_only_admins_manage_the_booklet_design(
 
 async def test_the_admin_preview_renders_sample_data_without_a_background(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     recording_pdf_service: RecordingPdfService,
 ):
-    response = await client.post(preview_url(kp_setup.event_id), headers=staff_headers)
+    response = await client.post(preview_url(kp_setup.event_id), headers=admin_headers)
 
     assert response.status_code == 200
     assert b64decode(response.json()["png_base64"]).startswith(PNG_SIGNATURE)
@@ -271,16 +261,16 @@ async def test_the_admin_preview_renders_sample_data_without_a_background(
 
 async def test_the_admin_preview_uses_the_uploaded_background(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     storage_service: AsyncMock,
     recording_pdf_service: RecordingPdfService,
 ):
     content = make_pdf(fill="#123456")
-    await upload(client, staff_headers, kp_setup.event_id, content)
+    await upload(client, admin_headers, kp_setup.event_id, content)
     storage_service.download_bytes.return_value = content
 
-    response = await client.post(preview_url(kp_setup.event_id), headers=staff_headers)
+    response = await client.post(preview_url(kp_setup.event_id), headers=admin_headers)
 
     assert response.status_code == 200
     render = recording_pdf_service.renders[-1]
@@ -290,7 +280,7 @@ async def test_the_admin_preview_uses_the_uploaded_background(
 
 async def test_the_company_preview_uses_the_background_of_its_event(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     storage_service: AsyncMock,
@@ -299,7 +289,7 @@ async def test_the_company_preview_uses_the_background_of_its_event(
 ):
     await register_booking(company_headers, kp_setup)
     content = make_pdf(fill="#123456")
-    await upload(client, staff_headers, kp_setup.event_id, content)
+    await upload(client, admin_headers, kp_setup.event_id, content)
     storage_service.download_bytes.return_value = content
 
     response = await client.post(
@@ -316,21 +306,22 @@ async def test_the_company_preview_uses_the_background_of_its_event(
 
 async def test_a_cloned_event_keeps_the_background_of_its_source(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     storage_service: AsyncMock,
 ):
-    await upload(client, staff_headers, kp_setup.event_id, make_pdf())
+    await upload(client, admin_headers, kp_setup.event_id, make_pdf())
     clone = await client.post(
         f"/api/kp/events/{kp_setup.event_id}/clone",
         json=kp_payload("Cloned KP"),
-        headers=staff_headers,
+        headers=president_headers,
     )
     clone_id = clone.json()["id"]
 
-    await client.delete(background_url(kp_setup.event_id), headers=staff_headers)
+    await client.delete(background_url(kp_setup.event_id), headers=admin_headers)
 
-    assert (await stored_background(client, staff_headers, clone_id))[
+    assert (await stored_background(client, admin_headers, clone_id))[
         "filename"
     ] == "booklet.pdf"
     storage_service.delete_object.assert_not_awaited()

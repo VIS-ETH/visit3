@@ -5,14 +5,11 @@ from app.routes.company import (
     upload_company_profile_logo,
     upload_my_company_profile_logo,
 )
-from app.routes.kp import (
-    upload_booking_requirement_file,
-    upload_booklet_background,
-    upload_booth_zone_layout_file,
-    upload_event_banner,
-    upload_nametag_export_background,
-    upload_service_image,
-)
+from app.routes.kp.booth_zones import upload_booth_zone_layout_file
+from app.routes.kp.exports import upload_nametag_export_background
+from app.routes.kp.media import upload_booklet_background, upload_event_banner
+from app.routes.kp.requirements import upload_booking_requirement_file
+from app.routes.kp.services import upload_service_image
 from app.routes.venue import upload_venue_layout_background
 from app.services.event_banner_service import BANNER_MAX_BYTES
 from app.services.storage_service import UploadKind, upload_limit_bytes

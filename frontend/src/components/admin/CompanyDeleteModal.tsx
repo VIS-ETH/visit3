@@ -1,10 +1,10 @@
-import { Alert, Button, Group, Modal, Stack, Text } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
-import { IconAlertCircle } from "@tabler/icons-react";
+import { Button, Group, Modal, Stack, Text } from "@mantine/core";
+import { notifySuccess } from "../../utils/notify";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getApiErrorCode } from "../../api/errors";
+import ErrorAlert from "../ErrorAlert";
 import {
   getSearchCompaniesQueryKey,
   useDeleteCompanyKeepUsers,
@@ -30,10 +30,7 @@ const CompanyDeleteModal = ({ company, onClose }: CompanyDeleteModalProps) => {
       await queryClient.invalidateQueries({
         queryKey: getSearchCompaniesQueryKey(),
       });
-      notifications.show({
-        color: "green",
-        message: t("company_management.delete_modal.deleted"),
-      });
+      notifySuccess(t("company_management.delete_modal.deleted"));
       onClose();
     },
     onError: (error: unknown) => {
@@ -41,10 +38,18 @@ const CompanyDeleteModal = ({ company, onClose }: CompanyDeleteModalProps) => {
     },
   };
 
+  const requestOptions = { quietStatuses: [409] };
+
   const { mutate: deleteKeepUsers, isPending: isDeletingKeepUsers } =
-    useDeleteCompanyKeepUsers({ mutation: mutationOptions });
+    useDeleteCompanyKeepUsers({
+      mutation: mutationOptions,
+      request: requestOptions,
+    });
   const { mutate: deleteWithUsers, isPending: isDeletingWithUsers } =
-    useDeleteCompanyWithUsers({ mutation: mutationOptions });
+    useDeleteCompanyWithUsers({
+      mutation: mutationOptions,
+      request: requestOptions,
+    });
 
   const isPending = isDeletingKeepUsers || isDeletingWithUsers;
   const hasUsers = (company?.usersCount ?? 0) > 0;
@@ -68,15 +73,7 @@ const CompanyDeleteModal = ({ company, onClose }: CompanyDeleteModalProps) => {
         <Text c="red" fw={600}>
           {t("company_management.delete_modal.irreversible")}
         </Text>
-        {errorCode ? (
-          <Alert
-            color="red"
-            icon={<IconAlertCircle />}
-            title={t("error.title")}
-          >
-            {t(errorCode)}
-          </Alert>
-        ) : null}
+        {errorCode ? <ErrorAlert>{t(errorCode)}</ErrorAlert> : null}
         <Group justify="flex-end" mt="md">
           <Button disabled={isPending} onClick={onClose} variant="default">
             {t("company_management.delete_modal.cancel")}

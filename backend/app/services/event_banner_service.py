@@ -9,7 +9,6 @@ from PIL import Image, ImageOps
 from app.core.auth_context import require_kp_president_user
 from app.core.exceptions import (
     EventBannerTooSmall,
-    KpEventNotFound,
     StorageDeleteFailed,
     StorageFileTooLarge,
 )
@@ -18,6 +17,7 @@ from app.models.storage import StoredFile
 from app.models.user import User
 from app.repositories.kp_repository import KpRepository
 from app.schemas.kp import EventBannerResult, EventBannerSource, KpLatestResult
+from app.services.event_lookup import require_event
 from app.services.storage_service import (
     StorageService,
     StoredObject,
@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 BANNER_WIDTHS = (800, 1200, 2000)
 BANNER_MIN_WIDTH = BANNER_WIDTHS[0]
+BANNER_MIN_HEIGHT = 100
 BANNER_MAX_BYTES = 5 * 1024 * 1024
 BANNER_MIME_TYPES = {"image/png", "image/jpeg", "image/webp"}
 BANNER_CONTEXT = "event_banner"
@@ -55,8 +56,8 @@ def render_variants(content: bytes, identifier: str) -> list[BannerVariant]:
         oriented = ImageOps.exif_transpose(source)
         mode = "RGBA" if oriented.has_transparency_data else "RGB"
         image = oriented.convert(mode)
-    if image.width < BANNER_MIN_WIDTH:
-        raise EventBannerTooSmall(f"{identifier}:width:{image.width}")
+    if image.width < BANNER_MIN_WIDTH or image.height < BANNER_MIN_HEIGHT:
+        raise EventBannerTooSmall(f"{identifier}:size:{image.width}x{image.height}")
     variants: list[BannerVariant] = []
     for width in banner_widths(image.width):
         resized = ImageOps.contain(image, (width, image.height), RESAMPLING)
@@ -78,10 +79,9 @@ class EventBannerService:
         self.current_user = current_user
 
     async def _get_event(self, event_id: UUID) -> KpEvent:
-        event = await self.kp_repository.get_by_id(event_id)
-        if event is None:
-            raise KpEventNotFound(f"{BANNER_CONTEXT}:{event_id}")
-        return event
+        return await require_event(
+            self.kp_repository, event_id, f"{BANNER_CONTEXT}:{event_id}"
+        )
 
     async def _result(self, banner: KpEventBanner) -> EventBannerResult:
         sources = [
@@ -224,6 +224,9 @@ class EventBannerService:
         banner = await self.kp_repository.get_banner(banner_id)
         if banner is None:
             return
-        keys = [variant.stored_file.storage_key for variant in banner.variants]
-        if await self._delete_objects(keys):
-            await self.kp_repository.delete_banner(banner)
+        deleted = [
+            variant
+            for variant in banner.variants
+            if await self._delete_objects([variant.stored_file.storage_key])
+        ]
+        await self.kp_repository.delete_banner(banner, deleted)

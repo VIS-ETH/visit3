@@ -10,11 +10,10 @@ import {
   hasNewAdditions,
 } from "../../utils/booking-status";
 import { KpBookingStatusBadge } from "../KpBookingStatusBadge";
-import BookingConfirmModal from "../bookings/BookingConfirmModal";
-import BookingNewAdditionsBadge from "../bookings/BookingNewAdditionsBadge";
-import { useBookingActions } from "../bookings/useBookingActions";
-
-type CompanyBookingAction = "accept" | "undo_accept";
+import BookingActionModals, {
+  type BookingActionKind,
+} from "../staff-bookings/BookingActionModals";
+import BookingNewAdditionsBadge from "../staff-bookings/BookingNewAdditionsBadge";
 
 const CompanyBookingActions = ({
   booking,
@@ -24,19 +23,9 @@ const CompanyBookingActions = ({
   eventId: string;
 }) => {
   const { t } = useTranslation();
-  const actions = useBookingActions(eventId);
-  const [activeAction, setActiveAction] = useState<CompanyBookingAction | null>(
+  const [activeAction, setActiveAction] = useState<BookingActionKind | null>(
     null,
   );
-
-  const runAction = async (run: () => Promise<void>) => {
-    try {
-      await run();
-    } catch {
-      return;
-    }
-    setActiveAction(null);
-  };
 
   return (
     <Group gap="xs" wrap="nowrap">
@@ -72,28 +61,11 @@ const CompanyBookingActions = ({
       >
         {t("company_management.view_booking")}
       </Button>
-      <BookingConfirmModal
-        body={t("kp.manage.booking_accept_body")}
-        color="green"
-        isPending={actions.isAccepting}
+      <BookingActionModals
+        booking={booking}
+        eventId={eventId}
+        kind={activeAction}
         onClose={() => setActiveAction(null)}
-        onConfirm={() => {
-          void runAction(() => actions.acceptBooking(booking.id));
-        }}
-        opened={activeAction === "accept"}
-        submitLabel={t("kp.manage.booking_accept_submit")}
-        title={t("kp.manage.booking_accept_title")}
-      />
-      <BookingConfirmModal
-        body={t("kp.manage.booking_undo_accept_body")}
-        isPending={actions.isUndoingAccept}
-        onClose={() => setActiveAction(null)}
-        onConfirm={() => {
-          void runAction(() => actions.undoAcceptBooking(booking.id));
-        }}
-        opened={activeAction === "undo_accept"}
-        submitLabel={t("kp.manage.booking_undo_accept_submit")}
-        title={t("kp.manage.booking_undo_accept_title")}
       />
     </Group>
   );

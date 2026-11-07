@@ -25,11 +25,13 @@ NO_REASON = "-"
 ContextBuilder = Callable[[BookingContext], MailContext]
 
 
-async def notify_best_effort(notification: Coroutine[Any, Any, None]) -> None:
+async def notify_best_effort(notification: Coroutine[Any, Any, None]) -> bool:
     try:
         await notification
     except Exception:
         logger.exception("Booking notification failed")
+        return False
+    return True
 
 
 class BookingNotifier(Protocol):
@@ -107,12 +109,20 @@ class MailBookingNotifier:
         key: MailTemplateKey,
         build: ContextBuilder = same_context,
     ) -> None:
-        for user in self._recipients(booking):
-            login_url = await self.auth_service.create_login_link(
-                user, booking_path(booking)
-            )
-            context = self._context(booking, user, login_url)
-            await self.mail_template_service.send(key, [user.email], build(context))
+        failures: list[Exception] = []
+        recipients = self._recipients(booking)
+        for user in recipients:
+            try:
+                login_url = await self.auth_service.create_login_link(
+                    user, booking_path(booking)
+                )
+                context = self._context(booking, user, login_url)
+                await self.mail_template_service.send(key, [user.email], build(context))
+            except Exception as error:
+                logger.exception("Booking mail %s failed for %s", key, user.id)
+                failures.append(error)
+        if recipients and len(failures) == len(recipients):
+            raise failures[-1]
 
     async def booking_registered(self, booking: KpEventBooking) -> None:
         await self._send_to_company(booking, MailTemplateKey.BOOKING_REGISTERED)

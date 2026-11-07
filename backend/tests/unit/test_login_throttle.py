@@ -23,10 +23,16 @@ def throttle(clock: Clock) -> LoginThrottle:
     )
 
 
+def attempt(limiter: LoginThrottle, ip: str, email: str) -> None:
+    limiter.check(ip, email)
+    limiter.release(email)
+
+
 def fail(limiter: LoginThrottle, times: int, ip: str, email: str) -> None:
     for _ in range(times):
         limiter.check(ip, email)
         limiter.record_failure(ip, email)
+        limiter.release(email)
 
 
 def test_an_account_backs_off_after_repeated_failures():
@@ -36,7 +42,7 @@ def test_an_account_backs_off_after_repeated_failures():
 
     with pytest.raises(RateLimited):
         limiter.check("10.0.0.2", "ada@example.com")
-    limiter.check("10.0.0.2", "bob@example.com")
+    attempt(limiter, "10.0.0.2", "bob@example.com")
 
 
 def test_the_backoff_doubles_and_is_capped():
@@ -50,11 +56,11 @@ def test_the_backoff_doubles_and_is_capped():
     with pytest.raises(RateLimited):
         limiter.check("10.0.0.1", "ada@example.com")
     clock.now += 1
-    limiter.check("10.0.0.1", "ada@example.com")
+    attempt(limiter, "10.0.0.1", "ada@example.com")
     for _ in range(5):
         limiter.record_failure("10.0.0.1", "ada@example.com")
     clock.now += 120
-    limiter.check("10.0.0.1", "ada@example.com")
+    attempt(limiter, "10.0.0.1", "ada@example.com")
 
 
 def test_a_successful_login_clears_the_account_failures():
@@ -64,7 +70,7 @@ def test_a_successful_login_clears_the_account_failures():
     limiter.record_success("ada@example.com")
     fail(limiter, 2, "10.0.0.1", "ada@example.com")
 
-    limiter.check("10.0.0.1", "ada@example.com")
+    attempt(limiter, "10.0.0.1", "ada@example.com")
 
 
 def test_one_address_cannot_spray_many_accounts():
@@ -75,9 +81,9 @@ def test_one_address_cannot_spray_many_accounts():
 
     with pytest.raises(RateLimited):
         limiter.check("10.0.0.1", "fresh@example.com")
-    limiter.check("10.0.0.2", "fresh@example.com")
+    attempt(limiter, "10.0.0.2", "fresh@example.com")
     clock.now += 900
-    limiter.check("10.0.0.1", "fresh@example.com")
+    attempt(limiter, "10.0.0.1", "fresh@example.com")
 
 
 def test_account_keys_ignore_case():
@@ -97,7 +103,7 @@ def test_a_failure_after_the_address_window_expired_is_recorded():
 
     fail(limiter, 1, "10.0.0.1", "bob@example.com")
 
-    limiter.check("10.0.0.1", "bob@example.com")
+    attempt(limiter, "10.0.0.1", "bob@example.com")
 
 
 def test_the_address_still_blocks_after_an_expired_window():
@@ -110,3 +116,14 @@ def test_the_address_still_blocks_after_an_expired_window():
 
     with pytest.raises(RateLimited):
         limiter.check("10.0.0.1", "fresh@example.com")
+
+
+def test_concurrent_attempts_cannot_exceed_the_failure_budget():
+    limiter = throttle(Clock())
+    fail(limiter, 2, "10.0.0.1", "ada@example.com")
+    limiter.check("10.0.0.1", "ada@example.com")
+
+    with pytest.raises(RateLimited):
+        limiter.check("10.0.0.2", "ada@example.com")
+    limiter.release("ada@example.com")
+    attempt(limiter, "10.0.0.2", "ada@example.com")

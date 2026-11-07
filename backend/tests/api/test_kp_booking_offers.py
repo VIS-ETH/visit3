@@ -35,7 +35,7 @@ def in_days(days: int) -> date:
 
 async def create_zone(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     event_id: str,
     *,
     name: str,
@@ -45,7 +45,7 @@ async def create_zone(
     response = await client.post(
         f"/api/kp/events/{event_id}/booth-zones",
         json={"name": name, "color": color, "capacity": capacity},
-        headers=staff_headers,
+        headers=president_headers,
     )
     return response.json()["id"]
 
@@ -135,11 +135,11 @@ async def profile_ready(
 
 @pytest.fixture
 async def gold_id(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ) -> str:
     return await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         name="Gold",
         color="#AABBCC",
@@ -150,7 +150,7 @@ async def gold_id(
 @pytest.fixture
 async def offered(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
     gold_id: str,
@@ -158,7 +158,7 @@ async def offered(
 ) -> dict[str, object]:
     response = await offer(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         company_user.company_id,
         gold_id,
@@ -202,13 +202,13 @@ async def test_an_offer_is_pending_and_holds_the_spot(
 
 async def test_an_offer_does_not_need_a_complete_profile(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
 ):
     response = await offer(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         company_user.company_id,
         kp_setup.booth_zone_id,
@@ -271,14 +271,14 @@ async def test_accepting_needs_the_same_profile_confirmation_as_registering(
 
 async def test_accepting_needs_the_same_profile_fields_as_registering(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
 ):
     pending = await offer(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         company_user.company_id,
         kp_setup.booth_zone_id,
@@ -476,7 +476,7 @@ async def test_the_expiry_job_keeps_an_offer_on_its_deadline_day(
 async def test_moving_the_deadline_restarts_the_reminders(
     client: AsyncClient,
     db_session: AsyncSession,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     offered: dict[str, object],
 ):
     booking = await stored_booking(db_session, str(offered["id"]))
@@ -488,7 +488,7 @@ async def test_moving_the_deadline_restarts_the_reminders(
     response = await client.patch(
         f"/api/kp/bookings/{offered['id']}/offer",
         json={"deadline": in_days(20).isoformat()},
-        headers=staff_headers,
+        headers=president_headers,
     )
     moved = await stored_booking(db_session, str(offered["id"]))
 
@@ -501,7 +501,7 @@ async def test_moving_the_deadline_restarts_the_reminders(
 
 async def test_an_accepted_offer_keeps_no_editable_deadline(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     offered: dict[str, object],
 ):
@@ -510,7 +510,7 @@ async def test_an_accepted_offer_keeps_no_editable_deadline(
     response = await client.patch(
         f"/api/kp/bookings/{offered['id']}/offer",
         json={"deadline": in_days(20).isoformat()},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 409
@@ -520,14 +520,14 @@ async def test_an_accepted_offer_keeps_no_editable_deadline(
 @pytest.mark.parametrize("days_from_today", [-1, 30])
 async def test_an_offer_deadline_must_lie_between_today_and_the_event(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
     days_from_today: int,
 ):
     response = await offer(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         company_user.company_id,
         kp_setup.booth_zone_id,
@@ -540,14 +540,14 @@ async def test_an_offer_deadline_must_lie_between_today_and_the_event(
 
 async def test_an_offer_is_refused_when_the_company_already_booked(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
     offered: dict[str, object],
 ):
     response = await offer(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         company_user.company_id,
         kp_setup.booth_zone_id,
@@ -587,7 +587,7 @@ async def test_a_pending_offer_cannot_be_edited_like_a_booking(
 
 async def test_offering_a_place_asks_the_company_to_confirm_by_the_deadline(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_user: User,
     kp_setup: KpSetup,
     mail_stub: AsyncMock,
@@ -596,7 +596,7 @@ async def test_offering_a_place_asks_the_company_to_confirm_by_the_deadline(
 
     await offer(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         company_user.company_id,
         kp_setup.booth_zone_id,
@@ -661,6 +661,7 @@ async def test_staff_without_president_role_cannot_offer_or_move_deadlines(
 async def test_a_pending_offer_is_left_out_of_participant_exports(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     kp_setup: KpSetup,
     company_user: User,
 ):
@@ -674,11 +675,11 @@ async def test_a_pending_offer_is_left_out_of_participant_exports(
                 {"service_id": kp_setup.service_id, "included_quantity": 1}
             ],
         },
-        headers=staff_headers,
+        headers=president_headers,
     )
     await offer(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         company_user.company_id,
         included_zone.json()["id"],

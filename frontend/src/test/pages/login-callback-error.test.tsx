@@ -8,9 +8,6 @@ import { renderWithProviders } from "../render";
 
 beforeEach(() => {
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.post(`${testBackendUrl}/api/auth/refresh`, () =>
       HttpResponse.json(null, { status: 401 }),
     ),

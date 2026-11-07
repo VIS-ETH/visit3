@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import BookingsTab from "../../components/BookingsTab";
+import BookingsTab from "../../components/kp-manage/BookingsTab";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
 import { testEventId } from "../fixtures/kp-booking";
 import { KpServiceCategory } from "../../orval/generated/fastAPI.schemas";
+import { formatDateTime } from "../../utils/date-format";
 import {
   acmeBooking,
   staffBookings,
@@ -20,9 +21,6 @@ const companyOrder = () =>
 beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId/bookings`, () =>
       HttpResponse.json(staffBookings),
     ),
@@ -199,6 +197,38 @@ describe("the staff bookings table", () => {
     await user.click(screen.getByText("kp.manage.booking_status"));
 
     expect(companyOrder()).toEqual(["Acme AG", "Beta GmbH", "Zeta SA"]);
+  });
+
+  it("shows the registration date and sorts by it", async () => {
+    const registeredAt: Record<string, string> = {
+      "Acme AG": "2026-01-20T08:00:00Z",
+      "Beta GmbH": "2026-01-05T08:00:00Z",
+      "Zeta SA": "2026-01-10T08:00:00Z",
+    };
+    server.use(
+      http.get(`${testBackendUrl}/api/kp/events/:eventId/bookings`, () =>
+        HttpResponse.json(
+          staffBookings.map((booking) => ({
+            ...booking,
+            created_at: registeredAt[booking.company.name],
+          })),
+        ),
+      ),
+    );
+    const { user } = renderWithProviders(<BookingsTab eventId={testEventId} />);
+
+    await screen.findByText("Beta GmbH", {}, { timeout: 5000 });
+    expect(
+      screen.getByText(formatDateTime(registeredAt["Acme AG"]) ?? ""),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByText("kp.manage.booking_registered_at"));
+
+    expect(companyOrder()).toEqual(["Beta GmbH", "Zeta SA", "Acme AG"]);
+
+    await user.click(screen.getByText("kp.manage.booking_registered_at"));
+
+    expect(companyOrder()).toEqual(["Acme AG", "Zeta SA", "Beta GmbH"]);
   });
 
   it("renders every row when the list carries no download urls", async () => {

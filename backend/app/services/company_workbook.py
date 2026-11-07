@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from app.core.dates import LOCAL_TIMEZONE, local_today
+from app.core.dates import local_today, naive_local
 from app.core.rich_text import rich_text_plain
 from app.models.company import KpCompanyLanguage
 from app.models.kp_event import (
@@ -260,11 +260,7 @@ def _columns(headers: Sequence[str], kinds: Sequence[ColumnKind]) -> list[XlsxCo
 
 
 def _local(moment: datetime | None) -> datetime | None:
-    if moment is None:
-        return None
-    if moment.tzinfo is None:
-        return moment
-    return moment.astimezone(LOCAL_TIMEZONE).replace(tzinfo=None)
+    return None if moment is None else naive_local(moment)
 
 
 def _francs(cents: int) -> float:

@@ -22,6 +22,8 @@ import { useRegisterUser } from "../orval/generated/auth/auth";
 import AuthCardLayout from "../components/AuthCardLayout";
 import AuthButton from "../components/AuthButton";
 import { getSafeNextPath } from "../utils/navigation";
+import { useAsyncAction } from "../hooks/use-async-action";
+import type { RegisterUserRequest } from "../orval/generated/fastAPI.schemas";
 
 const Register = () => {
   const { t } = useTranslation();
@@ -30,13 +32,14 @@ const Register = () => {
   const nextPath = getSafeNextPath(location.search);
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
-  const { mutate: register, isPending } = useRegisterUser({
-    mutation: {
-      onSuccess: (_user, variables) => {
-        setRegisteredEmail(variables.data.email);
-      },
+  const { mutateAsync: register } = useRegisterUser();
+
+  const { run: submitRegistration, isRunning } = useAsyncAction(
+    async (data: RegisterUserRequest) => {
+      await register({ data });
+      setRegisteredEmail(data.email);
     },
-  });
+  );
 
   const form = useTranslatedForm<typeof registerSchema>(registerSchema, {
     initialValues: {
@@ -89,14 +92,12 @@ const Register = () => {
       ) : (
         <form
           onSubmit={form.onSubmit((values) => {
-            register({
-              data: {
-                email: values.email,
-                password: values.password,
-                first_name: values.firstName.trim(),
-                last_name: values.lastName.trim(),
-                phone_number: values.phoneNumber?.trim() ?? undefined,
-              },
+            void submitRegistration({
+              email: values.email.trim(),
+              password: values.password,
+              first_name: values.firstName.trim(),
+              last_name: values.lastName.trim(),
+              phone_number: values.phoneNumber?.trim() ?? undefined,
             });
           })}
         >
@@ -152,7 +153,7 @@ const Register = () => {
               leftSection={<IconLock size={16} />}
               {...form.getInputProps("confirmPassword")}
             />
-            <AuthButton type="submit" loading={isPending} disabled={isPending}>
+            <AuthButton type="submit" loading={isRunning} disabled={isRunning}>
               {t("register.button")}
             </AuthButton>
           </Stack>

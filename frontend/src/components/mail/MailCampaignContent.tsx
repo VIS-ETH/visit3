@@ -30,7 +30,7 @@ import {
 import {
   SERVICE_CATEGORY_LABEL_KEYS,
   servicesByCategory,
-} from "../bookings/service-filter";
+} from "../staff-bookings/service-filter";
 
 const BODY_ROWS = 12;
 

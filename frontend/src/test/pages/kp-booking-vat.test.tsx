@@ -5,9 +5,9 @@ import { http, HttpResponse } from "msw";
 import { Route, Routes } from "react-router";
 import KpBookingConfirmation from "../../pages/KpBookingConfirmation";
 import KpBookingManageOverview from "../../pages/KpBookingManageOverview";
-import KpBookingStepper from "../../pages/KpBookingStepper";
+import KpBookingStepper from "../../components/exhibitor-booking/KpBookingStepper";
 import KpCompanyView from "../../pages/KpCompanyView";
-import { KpBookingRecap } from "../../components/KpBookingRecap";
+import { KpBookingRecap } from "../../components/exhibitor-booking/KpBookingRecap";
 import {
   KpBookingStatus,
   KpServiceCategory,
@@ -111,9 +111,6 @@ const openSummary = async (user: UserEvent) => {
 beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/${eventId}`, () =>
       HttpResponse.json(event),
     ),
@@ -199,7 +196,7 @@ describe("vat on the company event view", () => {
         SLOW_WAIT,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText("common.currency 1135.05")).toBeInTheDocument();
+    expect(screen.getByText("CHF 1135.05")).toBeInTheDocument();
   });
 });
 

@@ -10,6 +10,7 @@ import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
 import { renderWithProviders } from "../render";
 import { testEvent } from "../fixtures/kp-booking";
+import { presidentUser, staffUser } from "../fixtures/users";
 import { SLOW_TEST_TIMEOUT, SLOW_WAIT } from "../timeouts";
 
 vi.setConfig({ testTimeout: SLOW_TEST_TIMEOUT });
@@ -37,13 +38,13 @@ const EventPage = () => {
   return <p data-testid="event-page">{id}</p>;
 };
 
-const renderDashboard = () =>
+const renderDashboard = (currentUser = presidentUser) =>
   renderWithProviders(
     <Routes>
       <Route path="/kp" element={<KpDashboard />} />
       <Route path="/kp/:id" element={<EventPage />} />
     </Routes>,
-    { route: "/kp" },
+    { route: "/kp", currentUser },
   );
 
 const openCopyModal = async (user: UserEvent) => {
@@ -75,9 +76,6 @@ beforeEach(() => {
   cloneRequests = [];
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/list`, () =>
       HttpResponse.json([olderEvent, latestEvent]),
     ),
@@ -156,5 +154,43 @@ describe("the copy Kontaktparty button", () => {
         { sourceId: olderEvent.id, name: "KP 2027" },
       ]),
     );
+  });
+
+  it("forgets the entered values and errors when the form is cancelled", async () => {
+    const { user } = renderDashboard();
+    let dialog = await openCopyModal(user);
+
+    await user.type(
+      within(dialog).getByLabelText("kp.dashboard.event_date"),
+      "99.99.9999",
+    );
+    expect(
+      await within(dialog).findAllByText("kp.dashboard.invalid_date"),
+    ).not.toHaveLength(0);
+    await user.click(
+      within(dialog).getByRole("button", { name: "common.cancel" }),
+    );
+
+    dialog = await openCopyModal(user);
+    expect(
+      within(dialog).getByLabelText("kp.dashboard.event_date"),
+    ).toHaveValue("");
+    expect(
+      within(dialog).queryAllByText("kp.dashboard.invalid_date"),
+    ).toHaveLength(0);
+  });
+
+  it("hides the create and copy buttons from plain staff", async () => {
+    renderDashboard(staffUser);
+
+    expect(
+      await screen.findByText(latestEvent.name, undefined, SLOW_WAIT),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "kp.dashboard.copy_button" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "kp.dashboard.create_new_button" }),
+    ).not.toBeInTheDocument();
   });
 });

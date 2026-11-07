@@ -3,7 +3,10 @@ import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { Route, Routes } from "react-router";
 import KpBookingDetails from "../../pages/KpBookingDetails";
-import type { StaffUpdateBookingRequest } from "../../orval/generated/fastAPI.schemas";
+import type {
+  StaffBookingResponse,
+  StaffUpdateBookingRequest,
+} from "../../orval/generated/fastAPI.schemas";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { createToken } from "../jwt";
@@ -81,9 +84,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   server.use(
     emptyVenueHandler,
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(
       `${testBackendUrl}/api/kp/events/:eventId/bookings/:bookingId`,
       () => HttpResponse.json(acmeBooking),
@@ -271,5 +271,67 @@ describe("the staff booking edit panel", () => {
     expect(
       await screen.findByText("error.kp_service_quantity_invalid"),
     ).toBeInTheDocument();
+  });
+
+  it("sends a whole booth number even when a decimal is typed", async () => {
+    servePatch();
+    const { user } = renderDetails();
+
+    await waitForPanel();
+    const boothNr = screen.getByRole("textbox", {
+      name: "kp.manage.booking_edit_booth_nr",
+    });
+    await user.clear(boothNr);
+    await user.type(boothNr, "4.5");
+    await user.click(saveButton());
+
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(Number.isInteger(patches[0].booth_nr)).toBe(true);
+  });
+
+  it("keeps unsaved edits when the booking reloads after another action", async () => {
+    let current: StaffBookingResponse = {
+      ...acmeBooking,
+      added_after_confirmation: [
+        {
+          booking_service_id: acmeBooking.services?.[0]?.id ?? "",
+          quantity: 1,
+        },
+      ] as StaffBookingResponse["added_after_confirmation"],
+    };
+    server.use(
+      http.get(
+        `${testBackendUrl}/api/kp/events/:eventId/bookings/:bookingId`,
+        () => HttpResponse.json(current),
+      ),
+      http.post(
+        `${testBackendUrl}/api/kp/bookings/:bookingId/acknowledge-additions`,
+        () => {
+          current = { ...current, added_after_confirmation: [] };
+          return HttpResponse.json(current);
+        },
+      ),
+    );
+    const { user } = renderDetails();
+
+    await waitForPanel();
+    const note = screen.getByLabelText("kp.manage.booking_edit_status_note");
+    await user.type(note, "Call them back on Monday");
+    await user.click(
+      screen.getByRole("button", {
+        name: "kp.manage.booking_additions_acknowledge",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", {
+          name: "kp.manage.booking_additions_acknowledge",
+        }),
+      ).toBeNull(),
+    );
+    expect(
+      screen.getByLabelText("kp.manage.booking_edit_status_note"),
+    ).toHaveValue("Call them back on Monday");
   });
 });

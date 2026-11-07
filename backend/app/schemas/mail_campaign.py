@@ -1,10 +1,11 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Annotated, Self
 from uuid import UUID
 
 from pydantic import AfterValidator, BaseModel, BeforeValidator, Field, model_validator
 
-from app.core.utils import reject_control_characters, strip_text
+from app.core.dates import as_utc
+from app.core.utils import reject_control_characters
 from app.mail_templates.renderer import MAX_TEMPLATE_CHARACTERS
 from app.mail_templates.texts import MailTemplateTexts
 from app.models.kp_event import KpServiceCategory
@@ -17,6 +18,7 @@ from app.models.mail import (
     MailCampaignStatus,
 )
 from app.schemas.mail import MAX_SUBJECT_CHARACTERS
+from app.schemas.text import strip_if_text
 
 MAX_CAMPAIGN_NAME_CHARACTERS = 200
 MAX_AUDIENCE_ZONES = 100
@@ -24,30 +26,22 @@ MAX_AUDIENCE_COMPANIES = 2000
 MAX_AUDIENCE_SERVICES = 200
 
 
-def _strip(value: object) -> object:
-    return strip_text(value) if isinstance(value, str) else value
-
-
 def _unique[T](values: list[T]) -> list[T]:
     return list(dict.fromkeys(values))
 
 
-def _assume_utc(value: datetime) -> datetime:
-    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
-
-
-UtcDatetime = Annotated[datetime, AfterValidator(_assume_utc)]
+UtcDatetime = Annotated[datetime, AfterValidator(as_utc)]
 
 CampaignName = Annotated[
     str,
     Field(min_length=1, max_length=MAX_CAMPAIGN_NAME_CHARACTERS),
-    BeforeValidator(_strip),
+    BeforeValidator(strip_if_text),
     AfterValidator(reject_control_characters),
 ]
 CampaignSubject = Annotated[
     str,
     Field(max_length=MAX_SUBJECT_CHARACTERS),
-    BeforeValidator(_strip),
+    BeforeValidator(strip_if_text),
     AfterValidator(reject_control_characters),
 ]
 CampaignBody = Annotated[str, Field(max_length=MAX_TEMPLATE_CHARACTERS)]

@@ -75,12 +75,12 @@ async def test_impersonation_logs_both_user_ids(
     client: AsyncClient,
     company_user: User,
     admin_user: User,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     captured: pytest.LogCaptureFixture,
 ):
     await client.get(
         "/api/user/me",
-        headers={**staff_headers, "X-Impersonate-User-Id": str(company_user.id)},
+        headers={**admin_headers, "X-Impersonate-User-Id": str(company_user.id)},
     )
 
     messages = _messages(captured)

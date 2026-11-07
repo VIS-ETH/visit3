@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { Route, Routes } from "react-router";
-import OfferResponseCard from "../../components/booking/OfferResponseCard";
+import OfferResponseCard from "../../components/exhibitor-booking/OfferResponseCard";
 import KpCompanyView from "../../pages/KpCompanyView";
 import {
   KpBookingStatus,
@@ -53,9 +53,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   installCompanyProfileHandlers();
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.post(
       `${testBackendUrl}/api/kp/bookings/:bookingId/accept-offer`,
       async ({ request }) => {

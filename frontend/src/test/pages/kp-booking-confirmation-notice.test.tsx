@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
+import { act, screen, waitFor } from "@testing-library/react";
+import { delay, http, HttpResponse } from "msw";
 import { Route, Routes } from "react-router";
 import KpBookingConfirmation from "../../pages/KpBookingConfirmation";
 import { server } from "../server";
@@ -34,17 +34,21 @@ const renderConfirmation = (fromBookingProcess: boolean) =>
     },
   );
 
+let slowBooking = false;
+
 beforeEach(() => {
+  slowBooking = false;
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/kp/events/:eventId`, () =>
       HttpResponse.json(testOpenEvent),
     ),
-    http.get(`${testBackendUrl}/api/kp/events/:eventId/my-booking`, () =>
-      HttpResponse.json(testBooking),
+    http.get(
+      `${testBackendUrl}/api/kp/events/:eventId/my-booking`,
+      async () => {
+        if (slowBooking) await delay(500);
+        return HttpResponse.json(testBooking);
+      },
     ),
   );
 });
@@ -72,5 +76,26 @@ describe("the notice after a completed booking", () => {
       SLOW_WAIT,
     );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("the booking summary", () => {
+  it("keeps the summary while the booking reloads", async () => {
+    const { queryClient } = renderConfirmation(false);
+    await screen.findByRole(
+      "heading",
+      { name: /kp\.booking\.summary_title/ },
+      SLOW_WAIT,
+    );
+
+    slowBooking = true;
+    await act(async () => {
+      void queryClient.invalidateQueries();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+
+    expect(
+      screen.getByRole("heading", { name: /kp\.booking\.summary_title/ }),
+    ).toBeInTheDocument();
   });
 });

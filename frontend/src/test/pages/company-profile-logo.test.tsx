@@ -62,9 +62,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   installBookletPageHandler();
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/industries`, () => HttpResponse.json([])),
     http.get(`${testBackendUrl}/api/company/me/members`, () =>
       HttpResponse.json([companyUser]),

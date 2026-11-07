@@ -17,7 +17,9 @@ import {
   staffUser,
 } from "../fixtures/admin";
 import { createToken } from "../jwt";
-import { renderWithProviders } from "../render";
+import { createTestQueryClient, renderWithProviders } from "../render";
+import { getGetCurrentUserQueryKey } from "../../orval/generated/user/user";
+import UserEditDrawer from "../../components/admin/UserEditDrawer";
 import { notificationsShow } from "../notifications";
 import { server } from "../server";
 
@@ -52,9 +54,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
 
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/users`, ({ request }) => {
       const url = new URL(request.url);
       listRequests.push(url);
@@ -135,6 +134,48 @@ describe("the user management page", () => {
     expect(
       screen.getByPlaceholderText("user_management.search_placeholder"),
     ).toHaveValue("Acme AG");
+  });
+
+  it("lists only the members of the company from the link until cleared", async () => {
+    const companyRequests: string[] = [];
+    server.use(
+      http.get(
+        `${testBackendUrl}/api/company/:companyId/with-users`,
+        ({ params }) => {
+          companyRequests.push(String(params.companyId));
+          return HttpResponse.json({ ...acmeCompany, users: [] });
+        },
+      ),
+    );
+    const { user } = renderWithProviders(
+      <UserProvider user={adminUser} isLoading={false}>
+        <UserManagement />
+      </UserProvider>,
+      { route: `/user-management?company=${acmeCompany.id}` },
+    );
+
+    await waitFor(() => {
+      expect(lastListRequest().searchParams.get("company")).toBe(
+        acmeCompany.id,
+      );
+    });
+    expect(
+      await screen.findByText("user_management.company_filter"),
+    ).toBeInTheDocument();
+    expect(companyRequests).toEqual([acmeCompany.id]);
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "user_management.clear_company_filter",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(lastListRequest().searchParams.has("company")).toBe(false);
+    });
+    expect(
+      screen.queryByText("user_management.company_filter"),
+    ).not.toBeInTheDocument();
   });
 
   it("sends the debounced search term as a query parameter", async () => {
@@ -406,9 +447,83 @@ describe("the user management page", () => {
       }),
     );
 
+    const dialog = await screen.findByRole("dialog");
     expect(
-      await screen.findByText("error.user_last_company_member"),
+      await within(dialog).findByText("error.user_last_company_member"),
     ).toBeInTheDocument();
+    expect(notificationsShow).not.toHaveBeenCalled();
+  });
+
+  it("goes back a page after deleting the only user on the last page", async () => {
+    const lastUser = { ...orphanUser, id: "last-user", email: "last@x.ch" };
+    server.use(
+      http.get(`${testBackendUrl}/api/users`, ({ request }) => {
+        const page = new URL(request.url).searchParams.get("page");
+        const onLastPage = page === "2" && !deletedIds.includes(lastUser.id);
+        return HttpResponse.json({
+          items: page === "2" ? (onLastPage ? [lastUser] : []) : listItems,
+          total: deletedIds.length > 0 ? 25 : 26,
+          page: Number(page),
+          page_size: 25,
+        });
+      }),
+    );
+    const { user } = renderPage();
+    await memberRow();
+
+    await user.click(screen.getByRole("button", { name: "2" }));
+    const cell = await screen.findByText(lastUser.email);
+    await user.click(
+      within(cell.closest("tr")!).getByRole("button", {
+        name: "user_management.delete",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: "user_management.delete_modal.confirm",
+      }),
+    );
+
+    expect(await screen.findByText(memberUser.email)).toBeInTheDocument();
+  });
+
+  it("does not offer impersonating another admin", async () => {
+    listItems = [{ ...orphanUser, is_admin: true, email: "admin2@x.ch" }];
+    renderPage();
+
+    const cell = await screen.findByText("admin2@x.ch");
+    expect(
+      within(cell.closest("tr")!).getByRole("button", {
+        name: "user_management.impersonate",
+      }),
+    ).toBeDisabled();
+  });
+
+  it("refreshes the current user after editing the own account", async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryDefaults(getGetCurrentUserQueryKey(), {
+      gcTime: Infinity,
+    });
+    queryClient.setQueryData(getGetCurrentUserQueryKey(), adminUser);
+    const { user } = renderWithProviders(
+      <UserEditDrawer user={adminUser} onClose={() => {}} canEditPrivileges />,
+      { queryClient, currentUser: adminUser },
+    );
+
+    const firstName = await screen.findByLabelText(
+      "user_management.edit.first_name",
+    );
+    await user.clear(firstName);
+    await user.type(firstName, "Renamed");
+    await user.click(
+      screen.getByRole("button", { name: "user_management.edit.save" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        queryClient.getQueryState(getGetCurrentUserQueryKey())?.isInvalidated,
+      ).toBe(true);
+    });
   });
 });
 

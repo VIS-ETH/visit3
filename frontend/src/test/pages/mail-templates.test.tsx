@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse, type DefaultBodyType } from "msw";
 import MailTemplates from "../../pages/MailTemplates";
@@ -19,11 +19,6 @@ let activeTemplate = testMailTemplate;
 
 const templateByKey = (key: string) =>
   key === testOtherTemplateKey ? testOtherMailTemplate : activeTemplate;
-
-const formatDate = (value: string) =>
-  new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
-    new Date(value),
-  );
 
 let updateBodies: unknown[] = [];
 let testSendKeys: string[] = [];
@@ -52,9 +47,6 @@ beforeEach(() => {
   updateResponse = () => HttpResponse.json(testMailTemplate);
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/mail-templates`, () =>
       HttpResponse.json([activeTemplate, testOtherMailTemplate]),
     ),
@@ -96,7 +88,7 @@ const findSubject = () =>
   screen.findByLabelText("mail_templates.subject", {}, { timeout: 5000 });
 
 describe("the mail templates page", () => {
-  it("lists every template with its state and update date", async () => {
+  it("lists every template with its state", async () => {
     renderPage();
 
     const customized = await screen.findByRole(
@@ -105,14 +97,11 @@ describe("the mail templates page", () => {
       { timeout: 5000 },
     );
     expect(customized).toHaveTextContent("mail_templates.customized");
-    expect(customized).toHaveTextContent(
-      formatDate(String(testMailTemplate.updated_at)),
-    );
 
     const untouched = screen.getByRole("button", {
       name: new RegExp(testOtherTemplateKey),
     });
-    expect(untouched).toHaveTextContent("mail_templates.never_updated");
+    expect(untouched).not.toHaveTextContent("mail_templates.customized");
   });
 
   it("flags a stored template that is no longer valid", async () => {
@@ -338,7 +327,7 @@ describe("the mail templates page", () => {
     });
     expect(
       screen.getByRole("button", { name: new RegExp(testTemplateKey) }),
-    ).toHaveTextContent("mail_templates.never_updated");
+    ).not.toHaveTextContent("mail_templates.customized");
   });
 
   it("keeps the template when the reset is cancelled", async () => {
@@ -392,5 +381,68 @@ describe("the mail templates page", () => {
     await waitFor(() => {
       expect(testSendKeys).toEqual([testTemplateKey]);
     });
+  });
+
+  it("shows an error when the template fails to load", async () => {
+    server.use(
+      http.get(`${testBackendUrl}/api/mail-templates/:key`, () =>
+        HttpResponse.json({ statusCode: 500 }, { status: 500 }),
+      ),
+    );
+    renderPage();
+
+    expect(
+      await screen.findByText("error.load_failed", {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(document.querySelector(".mantine-Loader-root")).toBeNull();
+  });
+
+  it("sends a test mail only once the edits are saved", async () => {
+    const { user } = renderPage();
+
+    await user.type(await findSubject(), " neu");
+
+    const testSend = screen.getByRole("button", {
+      name: "mail_templates.test_send",
+    });
+    expect(testSend).toBeDisabled();
+    expect(
+      screen.getByText("mail_templates.test_send_save_first"),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "mail_templates.save" }),
+    );
+    await waitFor(() => expect(testSend).toBeEnabled());
+    await user.click(testSend);
+
+    await waitFor(() => {
+      expect(testSendKeys).toEqual([testTemplateKey]);
+    });
+  });
+
+  it("asks before switching away from unsaved edits", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const { user } = renderPage();
+    const subject = await findSubject();
+    await user.type(subject, " neu");
+    const other = screen.getByRole("button", {
+      name: new RegExp(testOtherTemplateKey),
+    });
+
+    await user.click(other);
+
+    expect(confirmSpy).toHaveBeenCalledWith("mail_templates.discard_confirm");
+    expect(subject).toHaveValue(`${testMailTemplate.subject_de} neu`);
+
+    confirmSpy.mockReturnValue(true);
+    await user.click(other);
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("mail_templates.subject")).toHaveValue(
+        testOtherMailTemplate.subject_de,
+      ),
+    );
+    confirmSpy.mockRestore();
   });
 });

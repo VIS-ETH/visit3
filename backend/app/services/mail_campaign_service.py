@@ -325,6 +325,7 @@ class MailCampaignService:
     async def send_now(self, campaign_id: UUID) -> MailCampaignResult:
         self._authorize()
         campaign = await self._campaign(campaign_id)
+        await self._event(campaign.event_id)
         await self._validate(campaign_texts(campaign), campaign.id)
         now = utc_now()
         started = await self.repository.transition(
@@ -348,6 +349,7 @@ class MailCampaignService:
         if scheduled_at <= utc_now():
             raise MailCampaignScheduleInPast(f"mail_campaign:{campaign_id}:schedule")
         campaign = await self._locked_editable(campaign_id)
+        await self._event(campaign.event_id)
         await self._validate(campaign_texts(campaign), campaign.id)
         campaign.status = MailCampaignStatus.SCHEDULED
         campaign.scheduled_at = scheduled_at

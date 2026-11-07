@@ -18,12 +18,7 @@ const transformOf = () =>
 
 beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
-  server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
-    http.get(venueUrl, () => HttpResponse.json(testVenueMap)),
-  );
+  server.use(http.get(venueUrl, () => HttpResponse.json(testVenueMap)));
 });
 
 describe("the venue map zones", () => {

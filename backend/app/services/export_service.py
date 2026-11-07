@@ -1,16 +1,16 @@
 import tempfile
+from base64 import b64encode
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from shutil import copyfile
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from app.core.auth_context import require_staff_user
 from app.core.downloads import sanitize_download_filename
 from app.core.exceptions import (
     ExportRenderTimeout,
     KpBookingNotFound,
-    KpEventNotFound,
     KpExportBackgroundNotFound,
     KpExportEmpty,
     KpNameTagNotFound,
@@ -29,6 +29,7 @@ from app.schemas.kp import (
     NametagExportCompanyResult,
     NametagExportPersonResult,
     NametagExportTargetsResult,
+    NametagPreviewResult,
 )
 from app.services.booking_completeness import booking_completeness
 from app.services.booth_zone_view import free_spots
@@ -38,14 +39,22 @@ from app.services.company_workbook import (
     company_workbook_sheets,
 )
 from app.services.csv_service import CsvService
+from app.services.event_lookup import require_event
 from app.services.pdf_service import PdfService
 from app.services.pricing import price_breakdown
 from app.services.storage_service import StorageService, UploadKind, UploadStream
+from app.services.stored_files import StoredFiles
 from app.services.typst_runner import TypstRenderAborted
 from app.services.xlsx_service import XlsxService
 
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 NAMETAG_TEMPLATE_NAME = "nametag.typ"
+NAMETAG_METADATA_LABEL = "nametags"
+NAMETAG_PREVIEW_SAMPLE = {
+    "full_name": "Max Muster",
+    "position": "Software Engineer",
+    "company": "Beispiel AG",
+}
 
 NAMETAG_BACKGROUND_MIME_TYPES = {"image/png", "image/jpeg"}
 NAMETAG_BACKGROUND_CONTEXT = "nametag_background"
@@ -142,6 +151,7 @@ class ExportService:
     ) -> None:
         self.kp_repository = kp_repository
         self.storage_service = storage_service
+        self.stored_files = StoredFiles(storage_service, kp_repository)
         self.pdf_service = pdf_service
         self.csv_service = csv_service
         self.xlsx_service = xlsx_service
@@ -184,10 +194,9 @@ class ExportService:
         }
 
     async def _get_event_or_raise(self, event_id: UUID) -> KpEvent:
-        event = await self.kp_repository.get_by_id(event_id)
-        if event is None:
-            raise KpEventNotFound(f"export:event_not_found:{event_id}")
-        return event
+        return await require_event(
+            self.kp_repository, event_id, f"export:event_not_found:{event_id}"
+        )
 
     async def _list_event_bookings(
         self, event_id: UUID
@@ -326,9 +335,11 @@ class ExportService:
         content_type: str | None,
     ) -> KpEventNametagBackground:
         require_staff_user(self.current_user)
-        event = await self.kp_repository.get_by_id(event_id)
-        if event is None:
-            raise KpEventNotFound(f"nametag_background:event_not_found:{event_id}")
+        await require_event(
+            self.kp_repository,
+            event_id,
+            f"nametag_background:event_not_found:{event_id}",
+        )
         content = await self.storage_service.read_upload(
             upload,
             content_length=content_length,
@@ -340,38 +351,17 @@ class ExportService:
         old_stored_file = (
             existing_background.stored_file if existing_background is not None else None
         )
-        old_storage_key = old_stored_file.storage_key if old_stored_file else None
-        suffix = self._background_suffix(mime_type)
-        storage_key = (
-            f"kp/events/{event_id}/exports/nametag-background/{uuid4()}{suffix}"
+        background = await self.stored_files.save(
+            f"kp/events/{event_id}/exports/nametag-background",
+            filename,
+            content,
+            mime_type,
+            lambda stored_file: self.kp_repository.upsert_nametag_background(
+                event_id=event_id, stored_file_id=stored_file.id
+            ),
+            suffix=self._background_suffix(mime_type),
         )
-        stored_object = await self.storage_service.upload_bytes(
-            key=storage_key,
-            content=content,
-            filename=filename,
-            content_type=mime_type,
-        )
-        try:
-            stored_file = await self.kp_repository.upsert_stored_file(
-                storage_key=stored_object.key,
-                original_filename=filename,
-                mime_type=stored_object.mime_type,
-                size_bytes=stored_object.size_bytes,
-                sha256=stored_object.sha256,
-                etag=stored_object.etag,
-                stored_file=None,
-            )
-            background = await self.kp_repository.upsert_nametag_background(
-                event_id=event_id,
-                stored_file_id=stored_file.id,
-            )
-        except Exception:
-            await self.storage_service.delete_object(stored_object.key)
-            raise
-        if old_storage_key is not None and old_storage_key != stored_object.key:
-            await self.storage_service.delete_object(old_storage_key)
-        if old_stored_file is not None:
-            await self.kp_repository.delete_stored_file(old_stored_file)
+        await self.stored_files.discard(old_stored_file)
         return background
 
     async def get_nametag_background(
@@ -432,9 +422,9 @@ class ExportService:
         self, event_id: UUID, columns: int | None = None
     ) -> RenderedExport:
         require_staff_user(self.current_user)
-        event = await self.kp_repository.get_by_id(event_id)
-        if event is None:
-            raise KpEventNotFound(f"nametag_export:event_not_found:{event_id}")
+        event = await require_event(
+            self.kp_repository, event_id, f"nametag_export:event_not_found:{event_id}"
+        )
         background_bytes, background = await self._get_background_bytes(event_id)
         name_tags = await self.kp_repository.list_name_tags_for_event(event_id)
         return await self._render_nametags_pdf(
@@ -444,6 +434,34 @@ class ExportService:
             f"{event.name}-nametags.pdf",
             columns,
         )
+
+    async def preview_event_nametag(self, event_id: UUID) -> NametagPreviewResult:
+        require_staff_user(self.current_user)
+        await require_event(
+            self.kp_repository, event_id, f"nametag_preview:event_not_found:{event_id}"
+        )
+        background_bytes, background = await self._get_background_bytes(event_id)
+        name_tags = await self.kp_repository.list_name_tags_for_event(event_id)
+        tag = self._name_tag_data(name_tags[0]) if name_tags else NAMETAG_PREVIEW_SAMPLE
+        background_name = (
+            f"background{self._background_suffix(background.stored_file.mime_type)}"
+        )
+        await self.kp_repository.end_read_transaction()
+        try:
+            rendered = await self.pdf_service.render_png(
+                template_name=NAMETAG_TEMPLATE_NAME,
+                data={
+                    "background_path": background_name,
+                    "columns": 1,
+                    "tags": [tag],
+                    "preview": True,
+                },
+                files={background_name: background_bytes},
+                metadata_label=NAMETAG_METADATA_LABEL,
+            )
+        except TypstRenderAborted:
+            raise ExportRenderTimeout("nametag_preview:render_timeout") from None
+        return NametagPreviewResult(png_base64=b64encode(rendered.png).decode("ascii"))
 
     async def render_booking_nametags(
         self, booking_id: UUID, columns: int | None = None

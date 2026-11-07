@@ -29,6 +29,8 @@ class _PlainTextExtractor(HTMLParser):
         self._chunks: list[str] = []
         self._link_urls: list[str] = []
         self._link_texts: list[str] = []
+        self._lists: list[int | None] = []
+        self._cells_in_row = 0
         self._skipped = 0
 
     def _append(self, text: str) -> None:
@@ -43,8 +45,24 @@ class _PlainTextExtractor(HTMLParser):
         elif tag == "a":
             self._link_urls.append(dict(attrs).get("href") or "")
             self._link_texts.append("")
+        elif tag in ("td", "th"):
+            if self._cells_in_row:
+                self._append(" | ")
+            self._cells_in_row += 1
+        elif tag == "li":
+            self._append("\n" + self._list_marker())
         elif tag in BLOCK_TAGS:
+            if tag in ("ul", "ol"):
+                self._lists.append(0 if tag == "ol" else None)
+            elif tag == "tr":
+                self._cells_in_row = 0
             self._append("\n")
+
+    def _list_marker(self) -> str:
+        if not self._lists or self._lists[-1] is None:
+            return "- "
+        self._lists[-1] += 1
+        return f"{self._lists[-1]}. "
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag in BLOCK_TAGS:
@@ -54,10 +72,10 @@ class _PlainTextExtractor(HTMLParser):
         if tag in SKIPPED_TAGS:
             self._skipped = max(self._skipped - 1, 0)
         elif tag == "a" and self._link_urls:
-            url = self._link_urls.pop()
-            label = self._link_texts.pop().strip()
-            self._append(f"{label} ({url})" if url else label)
-        elif tag in BLOCK_TAGS:
+            self._append(_link(self._link_texts.pop(), self._link_urls.pop()))
+        elif tag in BLOCK_TAGS and tag != "li":
+            if tag in ("ul", "ol") and self._lists:
+                self._lists.pop()
             self._append("\n")
 
     def handle_data(self, data: str) -> None:
@@ -65,7 +83,16 @@ class _PlainTextExtractor(HTMLParser):
             self._append(data)
 
     def collected(self) -> str:
-        return "".join(self._chunks) + "".join(self._link_texts)
+        while self._link_urls:
+            self._append(_link(self._link_texts.pop(), self._link_urls.pop()))
+        return "".join(self._chunks)
+
+
+def _link(label: str, url: str) -> str:
+    label = label.strip()
+    if not url or url == label:
+        return label or url
+    return f"{label} ({url})" if label else url
 
 
 def _collapse(raw: str) -> str:

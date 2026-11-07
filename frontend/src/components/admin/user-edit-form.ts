@@ -3,7 +3,7 @@ import type {
   UpdateCompanyUserRequest,
   UserResponse,
 } from "../../orval/generated/fastAPI.schemas";
-import { zPhone } from "../../schemas/utils";
+import { zEmail, zPhone } from "../../schemas/utils";
 
 export const adminUserSchema = z.object({
   first_name: z.string().trim(),
@@ -15,10 +15,7 @@ export const adminUserSchema = z.object({
       (value) => value.length === 0 || zPhone.safeParse(value).success,
       "register.phoneNumber.invalid",
     ),
-  email: z
-    .email("validation.invalid_email")
-    .trim()
-    .min(1, "validation.required"),
+  email: zEmail(),
   company_id: z.string(),
   is_staff: z.boolean(),
   is_admin: z.boolean(),

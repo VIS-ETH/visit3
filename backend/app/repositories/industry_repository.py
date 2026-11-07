@@ -21,37 +21,25 @@ class IndustryRepository(BaseRepository[Industry]):
         return await self._get_by_field(col(Industry.name), name)
 
     async def create_industry(self, name: str) -> Industry:
-        try:
+        async with self.committing():
             industry = Industry(name=name)
-            self._validate_model(industry, exclude={"profile_links", "snapshot_links"})
+            self._validate_model(industry)
             self.session.add(industry)
-            await self.session.commit()
-            await self.session.refresh(industry)
-            return industry
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        await self.session.refresh(industry)
+        return industry
 
     async def rename_industry(self, industry: Industry, name: str) -> Industry:
-        try:
+        async with self.committing():
             industry.name = name
-            self._validate_model(industry, exclude={"profile_links", "snapshot_links"})
+            self._validate_model(industry)
             self.session.add(industry)
-            await self.session.commit()
-            await self.session.refresh(industry)
-            return industry
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        await self.session.refresh(industry)
+        return industry
 
     async def delete_industry(self, industry: Industry) -> None:
-        try:
+        async with self.committing():
             await self.delete_where(
                 KpCompanyProfileIndustryLink,
                 col(KpCompanyProfileIndustryLink.industry_id) == industry.id,
             )
             self.delete(industry)
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e

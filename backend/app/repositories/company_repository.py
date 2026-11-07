@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -10,8 +10,8 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.selectable import Select
 from sqlmodel import col, select
 
-from app.core.dates import local_today
-from app.core.exceptions import CompanyNameTaken
+from app.core.dates import local_today, utc_now
+from app.core.exceptions import CompanyNameTaken, UserAlreadyInCompany
 from app.core.utils import hash_str, normalize_email
 from app.models.company import Company, CompanyInvite, KpCompanyProfile
 from app.models.industry import Industry, KpCompanyProfileIndustryLink
@@ -25,34 +25,55 @@ from app.models.kp_event import (
     KpEventRegistrationException,
     NameTag,
 )
-from app.models.storage import StoredFile
 from app.models.user import User
 from app.repositories.base import BaseRepository, ordered, rel
 from app.repositories.change_repository import company_changed_since
-from app.schemas.company import CompanySort, UpdateCompanyProfileInput
+from app.repositories.stored_file_queries import StoredFileQueries
+from app.schemas.company import (
+    CompanyFilter,
+    CompanySort,
+    UpdateCompanyProfileInput,
+)
 from app.schemas.sorting import SortDirection
 
 
-class CompanyRepository(BaseRepository[Company]):
+class CompanyRepository(BaseRepository[Company], StoredFileQueries):
     def __init__(self, session: AsyncSession):
         super().__init__(Company, session)
 
     async def create_company(self, name: str) -> Company:
         try:
-            company = Company(name=name)
-            self.session.add(company)
-            await self.session.commit()
-            await self.session.refresh(company)
-            return company
+            async with self.committing():
+                company = Company(name=name)
+                self.session.add(company)
         except IntegrityError:
-            await self.session.rollback()
             raise CompanyNameTaken(f"create_company:{name}") from None
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        await self.session.refresh(company)
+        return company
+
+    async def create_company_with_founder(self, name: str, founder_id: UUID) -> Company:
+        try:
+            async with self.committing():
+                founder = await self.lock_model_by_id(User, founder_id)
+                if founder is None or founder.company_id is not None:
+                    raise UserAlreadyInCompany(f"create_company:{founder_id}")
+                company = Company(name=name)
+                self.session.add(company)
+                await self.session.flush()
+                founder.company_id = company.id
+                self.session.add(founder)
+        except IntegrityError:
+            raise CompanyNameTaken(f"create_company:{name}") from None
+        await self.session.refresh(company)
+        return company
 
     async def get_by_name(self, name: str) -> Optional[Company]:
-        return await self._get_by_field(col(Company.name), name)
+        statement = select(Company).where(
+            self._not_deleted(Company),
+            func.lower(col(Company.name)) == name.lower(),
+        )
+        result = await self.session.execute(statement)
+        return result.scalars().first()
 
     async def get_users(self, company: Company) -> Sequence[User]:
         statement = (
@@ -72,11 +93,6 @@ class CompanyRepository(BaseRepository[Company]):
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
-    async def get_companies(self) -> Sequence[Company]:
-        statement = select(Company)
-        result = await self.session.execute(statement)
-        return result.scalars().all()
-
     async def count_users(self, company_id: UUID) -> int:
         statement = select(func.count(col(User.id))).where(
             col(User.company_id) == company_id, self._not_deleted(User)
@@ -85,22 +101,34 @@ class CompanyRepository(BaseRepository[Company]):
         return result.scalar_one()
 
     def _matching_companies(
-        self, query: str | None, changed_since: datetime | None = None
+        self,
+        query: str | None,
+        company_filter: CompanyFilter = CompanyFilter.ALL,
+        changed_since: datetime | None = None,
+        company_id: UUID | None = None,
     ) -> Select[tuple[Company]]:
         term = (query or "").strip()
         conditions = (
             [col(Company.name).icontains(term, autoescape=True)] if term else []
         )
-        if changed_since is not None:
+        if company_filter is CompanyFilter.UNCONFIRMED:
+            conditions.append(col(Company.confirmed_at).is_(None))
+        if company_filter is CompanyFilter.NEW and changed_since is not None:
             conditions.append(company_changed_since(changed_since))
+        if company_id is not None:
+            conditions.append(col(Company.id) == company_id)
         return select(Company).where(self._not_deleted(Company), *conditions)
 
     async def count_companies(
-        self, query: str | None, changed_since: datetime | None = None
+        self,
+        query: str | None,
+        company_filter: CompanyFilter = CompanyFilter.ALL,
+        changed_since: datetime | None = None,
+        company_id: UUID | None = None,
     ) -> int:
-        statement = self._matching_companies(query, changed_since).with_only_columns(
-            func.count(col(Company.id))
-        )
+        statement = self._matching_companies(
+            query, company_filter, changed_since, company_id
+        ).with_only_columns(func.count(col(Company.id)))
         result = await self.session.execute(statement)
         return result.scalar_one()
 
@@ -111,7 +139,10 @@ class CompanyRepository(BaseRepository[Company]):
         limit: int | None = None,
         sort: CompanySort = CompanySort.NAME,
         direction: SortDirection = SortDirection.ASC,
+        company_filter: CompanyFilter = CompanyFilter.ALL,
         changed_since: datetime | None = None,
+        company_id: UUID | None = None,
+        unconfirmed_first: bool = False,
     ) -> Sequence[tuple[UUID, str, datetime | None, int, int, int]]:
         users_count = (
             select(func.count(col(User.id)))
@@ -144,8 +175,9 @@ class CompanyRepository(BaseRepository[Company]):
             CompanySort.MEMBERS: users_count,
             CompanySort.BOOKINGS: bookings_count,
         }[sort]
+        pinned = [col(Company.confirmed_at).is_not(None)] if unconfirmed_first else []
         statement = (
-            self._matching_companies(query, changed_since)
+            self._matching_companies(query, company_filter, changed_since, company_id)
             .with_only_columns(
                 col(Company.id),
                 col(Company.name),
@@ -155,6 +187,7 @@ class CompanyRepository(BaseRepository[Company]):
                 new_members_count,
             )
             .order_by(
+                *pinned,
                 *ordered([sort_key], direction),
                 func.lower(col(Company.name)),
                 col(Company.id),
@@ -210,32 +243,20 @@ class CompanyRepository(BaseRepository[Company]):
     async def upsert_kp_profile(
         self, company_id: UUID, profile_input: UpdateCompanyProfileInput
     ) -> KpCompanyProfile:
-        try:
+        async with self.committing():
             profile = await self.get_kp_profile(company_id)
             if profile is None:
                 profile = KpCompanyProfile(company_id=company_id)
 
             profile.sqlmodel_update(profile_input.model_dump(exclude={"industry_ids"}))
-            self._validate_model(
-                profile,
-                exclude={
-                    "company",
-                    "kp_contact_user",
-                    "logo_stored_file",
-                    "industry_links",
-                },
-            )
+            self._validate_model(profile)
             if profile.is_complete and profile.profile_completed_at is None:
-                profile.profile_completed_at = datetime.now(timezone.utc)
+                profile.profile_completed_at = utc_now()
             self.session.add(profile)
             await self.session.flush()
             await self._replace_profile_industries(profile, profile_input.industry_ids)
             await self._fill_blank_snapshot_fields(profile)
-            await self.session.commit()
-            return await self.get_kp_profile(company_id) or profile
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        return await self.get_kp_profile(company_id) or profile
 
     async def _fill_blank_snapshot_fields(self, profile: KpCompanyProfile) -> None:
         active_booking_ids = select(col(KpEventBooking.id)).where(
@@ -286,65 +307,22 @@ class CompanyRepository(BaseRepository[Company]):
     async def set_profile_logo_stored_file_id(
         self, profile: KpCompanyProfile, stored_file_id: UUID | None
     ) -> KpCompanyProfile:
-        try:
+        async with self.committing():
             profile.logo_stored_file_id = stored_file_id
             self.session.add(profile)
-            await self.session.commit()
-            return await self.get_kp_profile(profile.company_id) or profile
-        except Exception as e:
-            await self.session.rollback()
-            raise e
-
-    async def upsert_stored_file(
-        self,
-        storage_key: str,
-        original_filename: str,
-        mime_type: str,
-        size_bytes: int,
-        sha256: str,
-        etag: str | None,
-    ) -> StoredFile:
-        try:
-            stored_file = StoredFile(
-                storage_key=storage_key,
-                original_filename=original_filename,
-                mime_type=mime_type,
-                size_bytes=size_bytes,
-                sha256=sha256,
-                etag=etag,
-            )
-            self._validate_model(stored_file)
-            self.session.add(stored_file)
-            await self.session.commit()
-            await self.session.refresh(stored_file)
-            return stored_file
-        except Exception as e:
-            await self.session.rollback()
-            raise e
-
-    async def delete_stored_file(self, stored_file: StoredFile) -> None:
-        try:
-            await self.session.delete(stored_file)
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        return await self.get_kp_profile(profile.company_id) or profile
 
     async def delete_company_with_users(self, company: Company):
-        try:
+        async with self.committing():
             await self._delete_company_owned_rows(company.id)
             await self.delete_where(
                 User,
                 col(User.company_id) == company.id,
             )
             self.delete(company)
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
 
     async def delete_company_keep_users(self, company: Company):
-        try:
+        async with self.committing():
             await self._delete_company_owned_rows(company.id)
             await self.update_where(
                 User,
@@ -353,10 +331,6 @@ class CompanyRepository(BaseRepository[Company]):
                 new_in_company_since=None,
             )
             self.delete(company)
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
 
     async def has_bookings_for_upcoming_events(self, company_id: UUID) -> bool:
         statement = (
@@ -373,6 +347,7 @@ class CompanyRepository(BaseRepository[Company]):
         return result.scalars().first() is not None
 
     async def is_last_member_of_booked_company(self, company_id: UUID) -> bool:
+        await self.lock_model_by_id(Company, company_id)
         if await self.count_users(company_id) > 1:
             return False
         return await self.has_bookings_for_upcoming_events(company_id)
@@ -433,16 +408,16 @@ class CompanyRepository(BaseRepository[Company]):
             col(KpEventBooking.company_id) == company_id,
         )
 
-    async def update_company_name(self, company: Company, name: str) -> Company:
-        try:
+    async def update_company_name(
+        self, company: Company, name: str, *, unconfirm: bool = False
+    ) -> Company:
+        async with self.committing():
             company.name = name
+            if unconfirm:
+                company.confirmed_at = None
             self.session.add(company)
-            await self.session.commit()
-            await self.session.refresh(company)
-            return company
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        await self.session.refresh(company)
+        return company
 
     async def _load_user_company(self, user: User) -> User:
         statement = (
@@ -454,55 +429,30 @@ class CompanyRepository(BaseRepository[Company]):
         result = await self.session.execute(statement)
         return result.scalar_one_or_none() or user
 
-    async def assign_user(
-        self, user: User, company_id: UUID, mark_new: bool = True
-    ) -> User:
-        try:
+    async def assign_user(self, user: User, company_id: UUID) -> User:
+        async with self.committing():
             user.company_id = company_id
-            user.new_in_company_since = datetime.now(timezone.utc) if mark_new else None
+            user.new_in_company_since = utc_now()
             self.session.add(user)
-            await self.session.commit()
-            return await self._load_user_company(user)
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        return await self._load_user_company(user)
 
     async def confirm_company(self, company: Company) -> Company:
-        try:
-            company.confirmed_at = datetime.now(timezone.utc)
+        async with self.committing():
+            company.confirmed_at = utc_now()
             self.session.add(company)
-            await self.session.commit()
-            await self.session.refresh(company)
-            return company
-        except Exception as e:
-            await self.session.rollback()
-            raise e
-
-    async def unconfirm_company(self, company: Company) -> Company:
-        try:
-            company.confirmed_at = None
-            self.session.add(company)
-            await self.session.commit()
-            await self.session.refresh(company)
-            return company
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        await self.session.refresh(company)
+        return company
 
     async def acknowledge_new_members(self, company: Company) -> None:
-        try:
+        async with self.committing():
             await self.update_where(
                 User,
                 col(User.company_id) == company.id,
                 new_in_company_since=None,
             )
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
 
     async def remove_user_from_company(self, user: User, company: Company) -> User:
-        try:
+        async with self.committing():
             profile = await self.get_kp_profile(company.id)
             if profile is not None and profile.kp_contact_user_id == user.id:
                 profile.kp_contact_user_id = None
@@ -511,11 +461,7 @@ class CompanyRepository(BaseRepository[Company]):
             user.company_id = None
             user.new_in_company_since = None
             self.session.add(user)
-            await self.session.commit()
-            return await self._load_user_company(user)
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        return await self._load_user_company(user)
 
     async def create_invite(
         self,
@@ -525,7 +471,7 @@ class CompanyRepository(BaseRepository[Company]):
         expires_at: datetime,
         invited_by_user_id: UUID | None = None,
     ) -> CompanyInvite:
-        try:
+        async with self.committing():
             invite = CompanyInvite(
                 token=hash_str(token),
                 company_id=company_id,
@@ -533,14 +479,10 @@ class CompanyRepository(BaseRepository[Company]):
                 expires_at=expires_at,
                 invited_by_user_id=invited_by_user_id,
             )
-            self._validate_model(invite, exclude={"company"})
+            self._validate_model(invite)
             self.session.add(invite)
-            await self.session.commit()
-            await self.session.refresh(invite)
-            return invite
-        except Exception as e:
-            await self.session.rollback()
-            raise e
+        await self.session.refresh(invite)
+        return invite
 
     async def get_pending_invite(
         self, company_id: UUID, invited_email: str
@@ -549,7 +491,7 @@ class CompanyRepository(BaseRepository[Company]):
             col(CompanyInvite.company_id) == company_id,
             col(CompanyInvite.invited_email) == invited_email,
             col(CompanyInvite.is_used) == False,
-            col(CompanyInvite.expires_at) > datetime.now(timezone.utc),
+            col(CompanyInvite.expires_at) > utc_now(),
         )
         result = await self.session.execute(statement)
         return result.scalars().first()
@@ -562,43 +504,27 @@ class CompanyRepository(BaseRepository[Company]):
         return result.scalar_one_or_none()
 
     async def revoke_open_invites_by(self, user_id: UUID) -> None:
-        try:
+        async with self.committing():
             await self.hard_delete_where(
                 CompanyInvite,
                 col(CompanyInvite.invited_by_user_id) == user_id,
                 col(CompanyInvite.is_used) == False,
             )
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
 
     async def delete_invite(self, invite: CompanyInvite) -> None:
-        try:
+        async with self.committing():
             await self.hard_delete(invite)
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
 
     async def mark_invite_used(self, invite: CompanyInvite):
-        try:
+        async with self.committing():
             invite.is_used = True
             self.session.add(invite)
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e
 
     async def cleanup_expired_invites(self) -> None:
-        try:
-            now = datetime.now(timezone.utc)
+        async with self.committing():
+            now = utc_now()
             await self.hard_delete_where(
                 CompanyInvite,
                 (col(CompanyInvite.expires_at) < now)
                 | (col(CompanyInvite.is_used) == True),
             )
-            await self.session.commit()
-        except Exception as e:
-            await self.session.rollback()
-            raise e

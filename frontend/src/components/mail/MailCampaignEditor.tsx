@@ -13,7 +13,6 @@ import {
   Title,
 } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
-import { notifications } from "@mantine/notifications";
 import {
   IconAlertCircle,
   IconCalendarTime,
@@ -64,7 +63,11 @@ import {
   zurichDateTimeInput,
 } from "../../utils/mail-campaign";
 import { getInvalidMailTemplateField } from "../../utils/mail-template";
+import { isServiceCategory } from "../staff-bookings/service-filter";
+import { notifySuccess } from "../../utils/notify";
 import { useTranslatedForm } from "../../utils/translator";
+import { useAsyncAction } from "../../hooks/use-async-action";
+import ErrorAlert from "../ErrorAlert";
 import MailCampaignAudienceBuilder from "./MailCampaignAudienceBuilder";
 import MailCampaignConfirmModal from "./MailCampaignConfirmModal";
 import MailCampaignContent from "./MailCampaignContent";
@@ -95,7 +98,7 @@ const MailCampaignEditor = ({
   onSaved,
   onDeleted,
 }: MailCampaignEditorProps) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const form = useTranslatedForm(mailCampaignSchema, {
     initialValues: campaign
@@ -111,7 +114,6 @@ const MailCampaignEditor = ({
       : nextFullHourInput(),
   );
   const [sampleCompanyId, setSampleCompanyId] = useState<string | null>(null);
-  const [isWorking, setIsWorking] = useState(false);
 
   const { data: variables } = useListMailCampaignVariables();
 
@@ -175,16 +177,11 @@ const MailCampaignEditor = ({
   const { mutateAsync: remove } = useDeleteMailCampaign();
   const { mutateAsync: send } = useSendMailCampaign();
   const { mutateAsync: schedule } = useScheduleMailCampaign();
-  const { mutateAsync: unschedule, isPending: isUnscheduling } =
-    useUnscheduleMailCampaign();
+  const { mutateAsync: unschedule } = useUnscheduleMailCampaign();
   const { mutate: testSend, isPending: isTestSending } =
     useTestSendMailCampaign({
       mutation: {
-        onSuccess: () =>
-          notifications.show({
-            color: "green",
-            message: t("mail_campaigns.test_send_success"),
-          }),
+        onSuccess: () => notifySuccess(t("mail_campaigns.test_send_success")),
       },
     });
 
@@ -220,23 +217,15 @@ const MailCampaignEditor = ({
     }
   };
 
-  const run = async (
-    task: () => Promise<MailCampaignResponse>,
-    message: string,
-  ) => {
-    setIsWorking(true);
-    try {
+  const { run, isRunning: isSaving } = useAsyncAction(
+    async (task: () => Promise<MailCampaignResponse>, message: string) => {
       const saved = await task();
       await refresh(saved);
       setAction(null);
-      notifications.show({ color: "green", message });
+      notifySuccess(message);
       onSaved(saved);
-    } catch {
-      return;
-    } finally {
-      setIsWorking(false);
-    }
-  };
+    },
+  );
 
   const handleSave = () => run(persist, t("mail_campaigns.save_success"));
 
@@ -285,37 +274,30 @@ const MailCampaignEditor = ({
       t("mail_campaigns.schedule_success"),
     );
 
-  const cancelSchedule = async () => {
-    if (!campaign) return;
-    const saved = await unschedule({ campaignId: campaign.id });
-    await refresh(saved);
-    onSaved(saved);
-  };
+  const { run: cancelSchedule, isRunning: isUnscheduling } = useAsyncAction(
+    async () => {
+      if (!campaign) return;
+      const saved = await unschedule({ campaignId: campaign.id });
+      await refresh(saved);
+      onSaved(saved);
+    },
+  );
 
-  const confirmDelete = async () => {
-    if (!campaign) return;
-    setIsWorking(true);
-    try {
+  const { run: confirmDelete, isRunning: isDeleting } = useAsyncAction(
+    async () => {
+      if (!campaign) return;
       await remove({ campaignId: campaign.id });
       await refresh();
       setAction(null);
-      notifications.show({
-        color: "green",
-        message: t("mail_campaigns.delete_success"),
-      });
+      notifySuccess(t("mail_campaigns.delete_success"));
       onDeleted();
-    } catch {
-      return;
-    } finally {
-      setIsWorking(false);
-    }
-  };
+    },
+  );
+
+  const isWorking = isSaving || isDeleting || isUnscheduling;
 
   const scheduleIsValid = isFutureZurichInput(scheduleValue);
-  const scheduledAt = formatZurichDateTime(
-    campaign?.scheduled_at,
-    i18n.language,
-  );
+  const scheduledAt = formatZurichDateTime(campaign?.scheduled_at);
 
   return (
     <Paper withBorder p="lg" radius="md">
@@ -342,6 +324,7 @@ const MailCampaignEditor = ({
                   size="xs"
                   variant="default"
                   loading={isUnscheduling}
+                  disabled={isWorking}
                   onClick={() => void cancelSchedule()}
                 >
                   {t("mail_campaigns.unschedule")}
@@ -366,18 +349,27 @@ const MailCampaignEditor = ({
               disabled={isWorking}
               {...form.getInputProps("eventId")}
               onChange={(value) => {
-                form.setFieldValue("eventId", value ?? "");
-                form.setFieldValue("boothZoneIds", []);
+                if (!value || value === values.eventId) return;
+                form.setValues({
+                  eventId: value,
+                  boothZoneIds: [],
+                  bookedServices:
+                    values.bookedServices.filter(isServiceCategory),
+                });
               }}
             />
           </SimpleGrid>
 
           <Divider label={t("mail_campaigns.section.audience")} />
           <MailCampaignAudienceBuilder form={form} disabled={isWorking} />
-          <MailCampaignRecipients
-            audience={audience}
-            isFetching={audienceQuery.isFetching}
-          />
+          {audienceQuery.isError ? (
+            <ErrorAlert />
+          ) : (
+            <MailCampaignRecipients
+              audience={audience}
+              isFetching={audienceQuery.isFetching}
+            />
+          )}
 
           <Divider label={t("mail_campaigns.section.content")} />
           <MailCampaignContent
@@ -420,6 +412,8 @@ const MailCampaignEditor = ({
                   })
                 : t("mail_templates.invalid_field")}
             </Alert>
+          ) : renderQuery.isError ? (
+            <ErrorAlert />
           ) : null}
           {renderQuery.isFetching && !renderQuery.data ? (
             <Loader size="sm" />

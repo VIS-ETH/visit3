@@ -1,22 +1,20 @@
 import {
-  Alert,
   Anchor,
   Button,
-  Center,
   Group,
-  Loader,
   Modal,
   Stack,
   Text,
   Title,
 } from "@mantine/core";
-import { IconAlertCircle } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
+import ErrorAlert from "../components/ErrorAlert";
+import PageLoader from "../components/PageLoader";
 import { useGetKpById, useGetMyBooking } from "../orval/generated/kp/kp";
-import { KpBookingRecap } from "../components/KpBookingRecap";
+import { KpBookingRecap } from "../components/exhibitor-booking/KpBookingRecap";
 import { isManageableBooking } from "../utils/my-booking";
 
 const KP_BOOKING_HELP_EMAIL = "info@kontaktparty.ch";
@@ -48,7 +46,6 @@ const KpBookingConfirmation = () => {
   const {
     data: booking,
     isLoading: isLoadingBooking,
-    isFetching: isFetchingBooking,
     isError: isBookingError,
   } = useGetMyBooking(eventId, {
     query: { enabled: Boolean(eventId) },
@@ -59,7 +56,7 @@ const KpBookingConfirmation = () => {
       navigate("/kp", { replace: true });
       return;
     }
-    if (isLoadingEvent || isLoadingBooking || isFetchingBooking) return;
+    if (isLoadingEvent || isLoadingBooking) return;
     if (
       isEventError ||
       isBookingError ||
@@ -73,7 +70,6 @@ const KpBookingConfirmation = () => {
     normalizedBookingId,
     isLoadingEvent,
     isLoadingBooking,
-    isFetchingBooking,
     isEventError,
     isBookingError,
     event,
@@ -81,15 +77,8 @@ const KpBookingConfirmation = () => {
     navigate,
   ]);
 
-  const showBookingLoader =
-    isLoadingEvent || isLoadingBooking || isFetchingBooking;
-
-  if (showBookingLoader) {
-    return (
-      <Center py="xl">
-        <Loader />
-      </Center>
-    );
+  if (isLoadingEvent || isLoadingBooking) {
+    return <PageLoader />;
   }
 
   if (
@@ -103,14 +92,7 @@ const KpBookingConfirmation = () => {
     return (
       <Stack gap="md">
         <BackButton to={eventId ? `/kp/${eventId}/booking` : "/kp"} />
-        <Alert
-          radius="md"
-          icon={<IconAlertCircle />}
-          color="red"
-          title={t("server.error")}
-        >
-          {t("kp.booking.error")}
-        </Alert>
+        <ErrorAlert>{t("kp.booking.error")}</ErrorAlert>
       </Stack>
     );
   }
@@ -119,7 +101,10 @@ const KpBookingConfirmation = () => {
     return <Navigate to={`/kp/${eventId}`} replace />;
   }
 
-  const supportSubject = `[${event.name}] - Booking #${booking.booking_number}`;
+  const supportSubject = t("kp.booking.confirmation_help_subject", {
+    event: event.name,
+    bookingNumber: booking.booking_number,
+  });
 
   return (
     <Stack gap="md">

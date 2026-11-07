@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import KpBookingStepper from "../../pages/KpBookingStepper";
+import KpBookingStepper from "../../components/exhibitor-booking/KpBookingStepper";
 import type { KpResponse } from "../../orval/generated/fastAPI.schemas";
 import mainHall from "../../assets/venue/main-hall.webp";
 import redHall from "../../assets/venue/red-hall.webp";
@@ -47,9 +47,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
   installCompanyProfileHandlers();
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${eventUrl}/my-booking`, () => HttpResponse.json(null)),
     http.get(`${eventUrl}/venue`, () => {
       venueRequests += 1;

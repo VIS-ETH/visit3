@@ -1,80 +1,30 @@
-import {
-  ActionIcon,
-  Alert,
-  Button,
-  Center,
-  Divider,
-  Group,
-  Loader,
-  MultiSelect,
-  NumberInput,
-  Paper,
-  SegmentedControl,
-  Select,
-  Stack,
-  Switch,
-  Text,
-  TextInput,
-  Textarea,
-  Title,
-} from "@mantine/core";
-import { notifications } from "@mantine/notifications";
-import { IconAlertCircle, IconPlus, IconTrash } from "@tabler/icons-react";
+import { Button, Divider, Group, Paper, Stack, Title } from "@mantine/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
-import ImageUploadInput from "../components/ImageUploadInput";
+import ErrorAlert from "../components/ErrorAlert";
+import PageLoader from "../components/PageLoader";
+import ServiceDetailsFields from "../components/service-form/ServiceDetailsFields";
+import ServiceRelationsFields from "../components/service-form/ServiceRelationsFields";
+import ServiceRequirementsEditor from "../components/service-form/ServiceRequirementsEditor";
 import {
-  KpEventServiceRequirementType,
-  KpServiceCategory,
-} from "../orval/generated/fastAPI.schemas";
+  emptyServiceFormValues,
+  toServiceFormValues,
+  toServiceRequest,
+} from "../components/service-form/service-form-values";
+import { useServiceImage } from "../components/service-form/use-service-image";
 import {
   getListServicesQueryKey,
   useCreateService,
-  useDeleteServiceImage,
   useListServices,
   useUpdateService,
-  useUploadServiceImage,
 } from "../orval/generated/kp/kp";
+import { useAsyncAction } from "../hooks/use-async-action";
 import { serviceSchema } from "../schemas/kpSchema";
-import {
-  centsToCurrencyAmount,
-  currencyAmountToCents,
-} from "../utils/price-utils";
+import { notifySuccess } from "../utils/notify";
 import { useTranslatedForm } from "../utils/translator";
-import { useWarnOnLeave } from "../utils/use-warn-on-leave";
-
-type ServiceRequirementFormValue = {
-  id?: string;
-  type: string;
-  name: string;
-  description: string;
-  order: number;
-};
-
-const emptyRequirement = (): ServiceRequirementFormValue => ({
-  type: KpEventServiceRequirementType.file,
-  name: "",
-  description: "",
-  order: 100,
-});
-
-const emptyServiceFormValues = {
-  name: "",
-  description: "",
-  category: KpServiceCategory.SERVICE as string,
-  unitLabel: "",
-  imageUrl: "",
-  price: 0,
-  maxPerBooking: 1,
-  maxTotal: 0,
-  isActive: true,
-  requirements: [],
-  includedServices: [] as { serviceId: string; quantity: number }[],
-  excludedServiceIds: [] as string[],
-};
 
 const KpServiceForm = () => {
   const { t } = useTranslation();
@@ -85,219 +35,83 @@ const KpServiceForm = () => {
     serviceId?: string;
   }>();
   const isEditing = Boolean(serviceId);
-  const [serviceImageFile, setServiceImageFile] = useState<File | null>(null);
-  const [serviceImageCleared, setServiceImageCleared] = useState(false);
+  const [createdServiceId, setCreatedServiceId] = useState<string | null>(null);
   const servicesPath = `/kp/${eventId}?tab=services`;
-  const { data: services, isLoading } = useListServices(eventId ?? "");
+  const { data: services, isLoading, isError } = useListServices(eventId ?? "");
   const service = services?.find((item) => item.id === serviceId);
-
+  const image = useServiceImage();
   const initialisedServiceIdRef = useRef<string | null>(null);
 
   const form = useTranslatedForm<typeof serviceSchema>(serviceSchema, {
     initialValues: emptyServiceFormValues,
   });
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({
-      queryKey: getListServicesQueryKey(eventId ?? ""),
-    });
-
-  const { mutateAsync: create, isPending: isCreating } = useCreateService();
-
-  const { mutateAsync: update, isPending: isUpdating } = useUpdateService();
-  const { mutateAsync: uploadServiceImage, isPending: isUploadingImage } =
-    useUploadServiceImage();
-  const { mutateAsync: deleteServiceImage, isPending: isDeletingImage } =
-    useDeleteServiceImage();
-
-  const isSaving =
-    isCreating || isUpdating || isUploadingImage || isDeletingImage;
-  useWarnOnLeave(isUploadingImage);
+  const { mutateAsync: create } = useCreateService();
+  const { mutateAsync: update } = useUpdateService();
 
   useEffect(() => {
     if (!service || initialisedServiceIdRef.current === service.id) return;
     initialisedServiceIdRef.current = service.id;
-    form.setValues({
-      name: service.name,
-      description: service.description,
-      category: service.category,
-      unitLabel: service.unit_label ?? "",
-      imageUrl: service.image_url ?? "",
-      price: centsToCurrencyAmount(service.price),
-      maxPerBooking: service.max_quantity_per_booking,
-      maxTotal: service.max_total_quantity,
-      isActive: service.is_active,
-      requirements: service.requirements.map((requirement) => ({
-        id: requirement.id,
-        type: requirement.type,
-        name: requirement.name,
-        description: requirement.description,
-        order: requirement.order,
-      })),
-      includedServices: (service.included_services ?? []).map((included) => ({
-        serviceId: included.service_id,
-        quantity: included.included_quantity,
-      })),
-      excludedServiceIds: service.excluded_service_ids ?? [],
-    });
+    form.setValues(toServiceFormValues(service));
     form.resetDirty();
     form.clearErrors();
-    setServiceImageFile(null);
-    setServiceImageCleared(false);
-  }, [service, form]);
+    image.reset();
+  }, [service, form, image]);
 
-  const categoryOptions = [
-    {
-      value: KpServiceCategory.SERVICE,
-      label: t("kp.manage.service_category_service"),
-    },
-    {
-      value: KpServiceCategory.BOOTH_ELEMENT,
-      label: t("kp.manage.service_category_booth_element"),
-    },
-  ];
-
-  const requirementTypeOptions = [
-    {
-      value: KpEventServiceRequirementType.text,
-      label: t("kp.manage.requirement_type_text"),
-    },
-    {
-      value: KpEventServiceRequirementType.file,
-      label: t("kp.manage.requirement_type_file"),
-    },
-    {
-      value: KpEventServiceRequirementType.image,
-      label: t("kp.manage.requirement_type_image"),
-    },
-    {
-      value: KpEventServiceRequirementType.pdf,
-      label: t("kp.manage.requirement_type_pdf"),
-    },
-    {
-      value: KpEventServiceRequirementType.video,
-      label: t("kp.manage.requirement_type_video"),
-    },
-  ];
-
-  const otherServices = (services ?? []).filter(
-    (item) => item.id !== serviceId,
-  );
-  const otherServiceById = new Map(
-    otherServices.map((item) => [item.id, item]),
-  );
-  const includedOptionsForRow = (index: number) => {
-    const takenIds = new Set(
-      form.values.includedServices
-        .filter((_, position) => position !== index)
-        .map((included) => included.serviceId),
-    );
-    return otherServices
-      .filter(
-        (item) =>
-          !takenIds.has(item.id) &&
-          !form.values.excludedServiceIds.includes(item.id),
-      )
-      .map((item) => ({ value: item.id, label: item.name }));
-  };
-  const excludedOptions = otherServices
-    .filter(
-      (item) =>
-        !form.values.includedServices.some(
-          (included) => included.serviceId === item.id,
-        ),
-    )
-    .map((item) => ({ value: item.id, label: item.name }));
-
-  const handleSave = form.onSubmit(async (values) => {
-    if (!eventId) return;
-    const requirements = values.requirements.map((requirement) => ({
-      ...requirement,
-      type: requirement.type as KpEventServiceRequirementType,
-    }));
-    const data = {
-      name: values.name.trim(),
-      description: values.description,
-      category: values.category as KpServiceCategory,
-      unit_label: values.unitLabel.trim() || null,
-      price: currencyAmountToCents(values.price),
-      max_quantity_per_booking: values.maxPerBooking,
-      max_total_quantity: values.maxTotal,
-      is_active: values.isActive,
-      requirements,
-      included_services: values.includedServices.map((included) => ({
-        service_id: included.serviceId,
-        included_quantity: included.quantity,
-      })),
-      excluded_service_ids: values.excludedServiceIds,
-    };
-
-    const saveImage = async (nextServiceId: string) => {
-      if (serviceImageFile) {
-        await uploadServiceImage({
-          serviceId: nextServiceId,
-          data: { file: serviceImageFile },
-        });
-        return;
-      }
-      if (serviceImageCleared && service?.image_url) {
-        await deleteServiceImage({ serviceId: nextServiceId });
-      }
-    };
-
-    if (serviceId) {
-      const updated = await update({ serviceId, data });
-      await saveImage(updated.id);
-      await invalidate();
-      notifications.show({
-        color: "green",
-        message: t("kp.manage.service_updated"),
+  const { run: save, isRunning: isSaving } = useAsyncAction(
+    async (values: typeof form.values) => {
+      if (!eventId) return;
+      const data = toServiceRequest(values);
+      const targetId = serviceId ?? createdServiceId;
+      const saved = targetId
+        ? await update({ serviceId: targetId, data })
+        : await create({ eventId, data });
+      setCreatedServiceId(saved.id);
+      await image.save(saved.id, Boolean(service?.image_url));
+      await queryClient.invalidateQueries({
+        queryKey: getListServicesQueryKey(eventId),
       });
-      navigate(servicesPath);
-      return;
-    }
-    const created = await create({ eventId, data });
-    await saveImage(created.id);
-    await invalidate();
-    notifications.show({
-      color: "green",
-      message: t("kp.manage.service_created"),
-    });
-    navigate(servicesPath);
-  });
+      notifySuccess(
+        isEditing
+          ? t("kp.manage.service_updated")
+          : t("kp.manage.service_created"),
+      );
+      void navigate(servicesPath);
+    },
+  );
 
   if (!eventId) {
     return (
       <Stack gap="md">
         <BackButton to="/kp" />
-        <Alert icon={<IconAlertCircle />} color="red">
-          {t("kp.manage.not_found")}
-        </Alert>
+        <ErrorAlert>{t("kp.manage.not_found")}</ErrorAlert>
       </Stack>
     );
   }
 
-  if (isEditing && isLoading) {
+  if (isLoading) {
     return (
       <Stack gap="md">
         <BackButton to={servicesPath} />
-        <Center py="xl">
-          <Loader />
-        </Center>
+        <PageLoader />
       </Stack>
     );
   }
 
-  if (isEditing && !service) {
+  if (isError || (isEditing && !service)) {
     return (
       <Stack gap="md">
         <BackButton to={servicesPath} />
-        <Alert icon={<IconAlertCircle />} color="red">
-          {t("kp.manage.service_not_found")}
-        </Alert>
+        <ErrorAlert>
+          {isError ? undefined : t("kp.manage.service_not_found")}
+        </ErrorAlert>
       </Stack>
     );
   }
+
+  const otherServices = (services ?? []).filter(
+    (item) => item.id !== serviceId && item.id !== createdServiceId,
+  );
 
   return (
     <Stack gap="md">
@@ -310,237 +124,28 @@ const KpServiceForm = () => {
         </Title>
       </Group>
 
-      <form id="kp-service-form" onSubmit={handleSave}>
+      <form
+        id="kp-service-form"
+        onSubmit={form.onSubmit((values) => {
+          void save(values);
+        })}
+      >
         <Paper withBorder p="lg" radius="md">
           <Stack gap="md">
-            <TextInput
-              label={t("kp.manage.service_name")}
+            <ServiceDetailsFields
+              form={form}
               disabled={isSaving}
-              {...form.getInputProps("name")}
+              onImageUrlChange={image.changeUrl}
+              onImageFileChange={image.chooseFile}
             />
-            <Textarea
-              label={t("kp.manage.service_description")}
-              disabled={isSaving}
-              {...form.getInputProps("description")}
-            />
-            <Stack gap={4}>
-              <Text fw={500} size="sm">
-                {t("kp.manage.service_category")}
-              </Text>
-              <SegmentedControl
-                data={categoryOptions}
-                disabled={isSaving}
-                fullWidth
-                {...form.getInputProps("category")}
-              />
-            </Stack>
-            <TextInput
-              label={t("kp.manage.service_unit_label")}
-              description={t("kp.manage.service_unit_label_description")}
-              disabled={isSaving}
-              {...form.getInputProps("unitLabel")}
-            />
-            <ImageUploadInput
-              label={t("kp.manage.service_image")}
-              previewAlt={t("kp.manage.service_image_preview")}
-              uploadLabel={t("kp.manage.service_image_upload")}
-              replaceLabel={t("kp.manage.service_image_replace")}
-              previewLabel={t("kp.manage.service_image_open_preview")}
-              clearLabel={t("kp.manage.service_image_clear")}
-              currentFileLabel={t("kp.manage.service_image_current_file")}
-              invalidFileMessage={t("kp.manage.service_image_file_invalid")}
-              allowedFormatsLabel={t("kp.manage.service_image_allowed_formats")}
-              disabled={isSaving}
-              value={form.values.imageUrl}
-              onChange={(value) => {
-                form.setFieldValue("imageUrl", value);
-                setServiceImageCleared(!value.trim());
-              }}
-              onFileChange={(file) => {
-                setServiceImageFile(file);
-                if (file) setServiceImageCleared(false);
-              }}
-              error={form.errors.imageUrl}
-            />
-            <Group grow>
-              <NumberInput
-                label={t("kp.manage.service_price")}
-                min={0}
-                decimalScale={2}
-                fixedDecimalScale
-                disabled={isSaving}
-                {...form.getInputProps("price")}
-              />
-              <NumberInput
-                label={t("kp.manage.service_max_per_booking")}
-                min={1}
-                disabled={isSaving}
-                {...form.getInputProps("maxPerBooking")}
-              />
-            </Group>
-            <Group grow>
-              <NumberInput
-                label={t("kp.manage.service_max_total")}
-                min={0}
-                disabled={isSaving}
-                {...form.getInputProps("maxTotal")}
-              />
-              <Switch
-                label={t("kp.manage.service_active")}
-                disabled={isSaving}
-                mt="xl"
-                {...form.getInputProps("isActive", { type: "checkbox" })}
-              />
-            </Group>
-
             <Divider label={t("kp.manage.service_contains")} />
-            <Stack gap="sm">
-              <Text c="dimmed" size="sm">
-                {t("kp.manage.service_contains_description")}
-              </Text>
-              {form.values.includedServices.map((included, index) => (
-                <Group align="flex-end" gap="xs" key={index} wrap="nowrap">
-                  <Select
-                    data={includedOptionsForRow(index)}
-                    disabled={isSaving}
-                    flex={1}
-                    label={t("kp.manage.zone_included_service")}
-                    searchable
-                    {...form.getInputProps(
-                      `includedServices.${index}.serviceId`,
-                    )}
-                  />
-                  <NumberInput
-                    allowDecimal={false}
-                    clampBehavior="strict"
-                    disabled={isSaving}
-                    label={t("kp.manage.zone_included_quantity")}
-                    min={1}
-                    max={
-                      otherServiceById.get(included.serviceId)
-                        ?.max_quantity_per_booking ?? 999
-                    }
-                    w={140}
-                    {...form.getInputProps(
-                      `includedServices.${index}.quantity`,
-                    )}
-                  />
-                  <ActionIcon
-                    aria-label={t("kp.manage.service_contains_remove")}
-                    color="red"
-                    disabled={isSaving}
-                    mb={4}
-                    onClick={() =>
-                      form.removeListItem("includedServices", index)
-                    }
-                    variant="subtle"
-                  >
-                    <IconTrash size={16} />
-                  </ActionIcon>
-                </Group>
-              ))}
-              <Button
-                disabled={
-                  isSaving ||
-                  form.values.includedServices.length >= otherServices.length
-                }
-                leftSection={<IconPlus size={16} />}
-                onClick={() =>
-                  form.insertListItem("includedServices", {
-                    serviceId: "",
-                    quantity: 1,
-                  })
-                }
-                variant="light"
-                w="fit-content"
-              >
-                {t("kp.manage.service_contains_add")}
-              </Button>
-              <MultiSelect
-                clearable
-                data={excludedOptions}
-                description={t("kp.manage.service_excludes_description")}
-                disabled={isSaving}
-                label={t("kp.manage.service_excludes")}
-                searchable
-                {...form.getInputProps("excludedServiceIds")}
-              />
-            </Stack>
-
+            <ServiceRelationsFields
+              form={form}
+              otherServices={otherServices}
+              disabled={isSaving}
+            />
             <Divider label={t("kp.manage.service_requirements")} />
-            <Stack gap="md">
-              {form.values.requirements.length === 0 ? (
-                <Text c="dimmed" size="sm">
-                  {t("kp.manage.requirements_empty")}
-                </Text>
-              ) : null}
-              {form.values.requirements.map((requirement, index) => (
-                <Paper
-                  withBorder
-                  p="sm"
-                  radius="md"
-                  key={requirement.id ?? index}
-                >
-                  <Stack gap="sm">
-                    <Group justify="space-between" align="center">
-                      <Text fw={600} size="sm">
-                        {t("kp.manage.requirement_title", {
-                          number: index + 1,
-                        })}
-                      </Text>
-                      <ActionIcon
-                        aria-label={t("kp.manage.requirement_remove")}
-                        color="red"
-                        disabled={isSaving}
-                        onClick={() =>
-                          form.removeListItem("requirements", index)
-                        }
-                        size="sm"
-                        variant="subtle"
-                      >
-                        <IconTrash size={16} />
-                      </ActionIcon>
-                    </Group>
-                    <Group grow>
-                      <TextInput
-                        label={t("kp.manage.requirement_name")}
-                        disabled={isSaving}
-                        {...form.getInputProps(`requirements.${index}.name`)}
-                      />
-                      <Select
-                        allowDeselect={false}
-                        data={requirementTypeOptions}
-                        label={t("kp.manage.requirement_type")}
-                        disabled={isSaving}
-                        {...form.getInputProps(`requirements.${index}.type`)}
-                      />
-                      <NumberInput
-                        label={t("kp.manage.requirement_order")}
-                        min={0}
-                        disabled={isSaving}
-                        {...form.getInputProps(`requirements.${index}.order`)}
-                      />
-                    </Group>
-                    <Textarea
-                      label={t("kp.manage.requirement_description")}
-                      disabled={isSaving}
-                      {...form.getInputProps(
-                        `requirements.${index}.description`,
-                      )}
-                    />
-                  </Stack>
-                </Paper>
-              ))}
-              <Button
-                leftSection={<IconPlus size={16} />}
-                onClick={() =>
-                  form.insertListItem("requirements", emptyRequirement())
-                }
-                variant="light"
-              >
-                {t("kp.manage.requirement_add")}
-              </Button>
-            </Stack>
+            <ServiceRequirementsEditor form={form} disabled={isSaving} />
             <Group justify="flex-end" mt="sm">
               <Button
                 component={Link}

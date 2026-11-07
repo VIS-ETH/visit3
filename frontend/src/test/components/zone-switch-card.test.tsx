@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import ZoneSwitchCard from "../../components/booking/ZoneSwitchCard";
+import ZoneSwitchCard from "../../components/exhibitor-booking/ZoneSwitchCard";
 import {
   KpBookingStatus,
   type BookingUpgradeWaitlistEntryResponse,
@@ -91,9 +91,6 @@ let venueRequests = 0;
 
 const installHandlers = () => {
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(
       `${testBackendUrl}/api/kp/events/:eventId/booth-zones/available`,
       () => HttpResponse.json([currentZone, freeZone, fullZone, queuedZone]),
@@ -372,5 +369,41 @@ describe("the zone switch card", () => {
     expect(
       screen.queryByRole("button", { name: "kp.zone_switch.switch_action" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("counts services that stop being included in the price difference", async () => {
+    const serviceId = testBooking.services![0].service_id;
+    const includingZone: BoothZoneWithAvailabilityResponse = {
+      ...currentZone,
+      included_services: [{ service_id: serviceId, included_quantity: 1 }],
+    };
+    const plainZone: BoothZoneWithAvailabilityResponse = {
+      ...freeZone,
+      base_price: currentZone.base_price,
+    };
+    server.use(
+      http.get(
+        `${testBackendUrl}/api/kp/events/:eventId/booth-zones/available`,
+        () => HttpResponse.json([includingZone, plainZone]),
+      ),
+    );
+    const { user } = renderCard(openEvent, {
+      ...testBooking,
+      services: testBooking.services!.map((item) => ({
+        ...item,
+        included_quantity: 1,
+        charged_quantity: 0,
+        line_net: 0,
+      })),
+    });
+
+    const list = await openModal(user);
+
+    expect(zoneOption(list, plainZone.name)).not.toHaveTextContent(
+      "kp.zone_switch.price_same",
+    );
+    expect(zoneOption(list, plainZone.name)).toHaveTextContent(
+      "kp.zone_switch.price_difference",
+    );
   });
 });

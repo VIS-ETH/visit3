@@ -76,8 +76,11 @@ make clean            # remove generated artifacts
 make check            # backend + frontend lint, typecheck, and i18n checks
 make lint             # backend and frontend linters
 make typecheck        # backend pyright and frontend tsc -b
-make backend-check    # backend lint + typecheck
-make frontend-check   # frontend lint + typecheck + i18n checks
+make backend-check    # backend lint + typecheck + tests
+make frontend-check   # frontend lint + typecheck + i18n checks + tests
+make backend-test     # backend tests (SQLite, no services needed)
+make frontend-test    # frontend tests
+make backend-race-test # concurrency tests against a temporary Postgres container
 prek run --all-files  # run Git hooks manually
 ```
 
@@ -105,7 +108,7 @@ Docker Compose starts the backend, PostgreSQL, rclone S3, Keycloak, and the Noti
 |---|---|
 | Backend API | http://localhost:8000 |
 | API Docs | http://localhost:8000/docs |
-| MinIO | http://localhost:9000 |
+| S3 (rclone) | http://localhost:9000 |
 | Keycloak | http://localhost:8181 |
 | Notifications API | http://localhost:6781 |
 | PostgreSQL | localhost:5432 |
@@ -117,6 +120,10 @@ The backend follows `routes -> services -> repositories`.
 - `app/routes/` handles HTTP concerns
 - `app/services/` contains business logic and explicit authorization checks
 - `app/repositories/` handles database access
+
+Kontaktparty code is split by topic (events, booth zones, services, bookings, requirements, exports) in `app/routes/kp/`, `app/services/kp_service/`, `app/repositories/kp_repository/`, and `app/schemas/kp/`.
+
+Frontend code lives in `frontend/src/`: `pages/` for routes, `components/<area>/` for page parts (`kp-manage`, `exhibitor-booking`, `staff-bookings`, `company`, `venue`, …), `hooks/` and `utils/` for shared logic, and `test/` for Vitest tests.
 
 Migrations run automatically when the backend container starts.
 
@@ -233,6 +240,6 @@ yarn check:i18n-keys
 yarn check:i18n-literals
 ```
 
-`check:i18n-keys` scans `frontend/src`, schema validation messages, and split namespace files. It also verifies that EN and DE expose the same full key set.
+`check:i18n-keys` scans `frontend/src`, schema validation messages, and split namespace files. It verifies that EN and DE expose the same full key set and fails on keys that no code uses.
 
 Translation JSON are LLM-generated. Review generated copy for obvious mistakes before committing.

@@ -250,5 +250,13 @@ SAMPLE_CONTEXTS: dict[MailTemplateKey, MailContext] = {
 }
 
 
+REQUIRED_BODY_VARIABLES: dict[MailTemplateKey, str] = {
+    MailTemplateKey.ACCOUNT_CONFIRM_EMAIL: "confirm_url",
+    MailTemplateKey.PASSWORD_RESET: "reset_url",
+    MailTemplateKey.EMAIL_CHANGE_CONFIRM: "confirm_url",
+    MailTemplateKey.COMPANY_INVITE: "invite_url",
+}
+
+
 def allowed_variables(key: MailTemplateKey) -> frozenset[str]:
     return type(SAMPLE_CONTEXTS[key]).variable_names()

@@ -6,6 +6,7 @@ SAFE_FILENAME_CHARS = {" ", ".", "-", "_", "(", ")"}
 CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f]+")
 SEPARATOR_CHARS_RE = re.compile(r"[\\/]+")
 REPEATED_DASH_RE = re.compile(r"-{2,}")
+MAX_FILENAME_CHARS = 150
 
 
 def sanitize_download_filename(filename: str, default: str = "download") -> str:
@@ -16,6 +17,12 @@ def sanitize_download_filename(filename: str, default: str = "download") -> str:
         for character in value
     )
     safe = REPEATED_DASH_RE.sub("-", safe).strip(" .-")
+    if len(safe) > MAX_FILENAME_CHARS:
+        stem, dot, suffix = safe.rpartition(".")
+        if not dot or len(suffix) > 10:
+            stem, suffix = safe, ""
+        keep = MAX_FILENAME_CHARS - len(dot + suffix)
+        safe = stem[:keep].rstrip(" .-") + dot + suffix
     return safe or default
 
 

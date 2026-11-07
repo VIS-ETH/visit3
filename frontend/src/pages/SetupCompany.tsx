@@ -18,8 +18,9 @@ import { useSetupCompany } from "../orval/generated/company/company";
 import { getGetCurrentUserQueryKey } from "../orval/generated/user/user";
 import { useCurrentUser } from "../context/useCurrentUser";
 import { useTranslatedForm } from "../utils/translator";
-import { setupCompanySchema } from "../schemas/setupCompanySchema";
+import { companySchema } from "../schemas/companySchema";
 import { getSafeNextPath } from "../utils/navigation";
+import { useAsyncAction } from "../hooks/use-async-action";
 
 const SetupCompany = () => {
   const { t } = useTranslation();
@@ -33,23 +34,21 @@ const SetupCompany = () => {
     if (user?.company_id) navigate("/company", { replace: true });
   }, [user?.company_id, navigate]);
 
-  const form = useTranslatedForm<typeof setupCompanySchema>(
-    setupCompanySchema,
-    {
-      initialValues: { name: "" },
+  const form = useTranslatedForm<typeof companySchema>(companySchema, {
+    initialValues: { name: "" },
+  });
+
+  const { mutateAsync: setupCompany } = useSetupCompany();
+
+  const { run: submitSetup, isRunning: isPending } = useAsyncAction(
+    async (name: string) => {
+      await setupCompany({ data: { name } });
+      await queryClient.invalidateQueries({
+        queryKey: getGetCurrentUserQueryKey(),
+      });
+      navigate("/company", { replace: true });
     },
   );
-
-  const { mutate: setup, isPending } = useSetupCompany({
-    mutation: {
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({
-          queryKey: getGetCurrentUserQueryKey(),
-        });
-        navigate("/company", { replace: true });
-      },
-    },
-  });
 
   if (!user) {
     return (
@@ -94,10 +93,11 @@ const SetupCompany = () => {
               </Text>
             </Stack>
             <form
-              onSubmit={form.onSubmit((v) => setup({ data: { name: v.name } }))}
+              onSubmit={form.onSubmit((v) => void submitSetup(v.name.trim()))}
             >
               <Stack gap="md">
                 <TextInput
+                  disabled={isPending}
                   label={t("setup_company.name_label")}
                   placeholder={t("setup_company.name_placeholder")}
                   {...form.getInputProps("name")}

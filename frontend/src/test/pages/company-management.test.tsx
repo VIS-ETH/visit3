@@ -31,6 +31,7 @@ vi.mock("../../utils/navigation", async (importOriginal) => ({
   reloadAt: vi.fn(),
 }));
 import { server } from "../server";
+import { notificationsShow } from "../notifications";
 
 let listRequests: URL[] = [];
 let renameBodies: { companyId: string; body: unknown }[] = [];
@@ -98,9 +99,6 @@ beforeEach(() => {
   localStorage.setItem("token", createToken(3600));
 
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(`${testBackendUrl}/api/companies`, ({ request }) => {
       const url = new URL(request.url);
       listRequests.push(url);
@@ -678,13 +676,16 @@ describe("mailing a company", () => {
 
 describe("company confirmation", () => {
   it("confirms a company the organisers have not approved yet", async () => {
-    const confirmed: string[] = [];
+    const confirmed: { companyId: string; body: unknown }[] = [];
     companies = [{ ...acmeCompany, confirmed_at: null }, globexCompany];
     server.use(
       http.post(
         `${testBackendUrl}/api/companies/:companyId/confirm`,
-        ({ params }) => {
-          confirmed.push(String(params.companyId));
+        async ({ params, request }) => {
+          confirmed.push({
+            companyId: String(params.companyId),
+            body: await request.json(),
+          });
           return HttpResponse.json({
             id: acmeCompany.id,
             name: acmeCompany.name,
@@ -702,8 +703,41 @@ describe("company confirmation", () => {
     );
 
     await waitFor(() => {
-      expect(confirmed).toEqual([acmeCompany.id]);
+      expect(confirmed).toEqual([
+        { companyId: acmeCompany.id, body: { name: acmeCompany.name } },
+      ]);
     });
+  });
+
+  it("reloads the list when the company was renamed before confirming", async () => {
+    companies = [{ ...acmeCompany, confirmed_at: null }, globexCompany];
+    server.use(
+      http.post(`${testBackendUrl}/api/companies/:companyId/confirm`, () => {
+        companies = [
+          { ...acmeCompany, name: "Acme Renamed", confirmed_at: null },
+          globexCompany,
+        ];
+        return HttpResponse.json(
+          { statusCode: 409, code: "error.conflict", message: "conflict" },
+          { status: 409 },
+        );
+      }),
+    );
+    const { user } = renderPage();
+    const row = await acmeRow();
+
+    await user.click(
+      row.getByRole("button", { name: "company_management.confirm" }),
+    );
+
+    expect(await screen.findByText("Acme Renamed")).toBeInTheDocument();
+    expect(notificationsShow).toHaveBeenCalledTimes(1);
+    expect(notificationsShow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        color: "red",
+        message: "company_management.confirm_conflict",
+      }),
+    );
   });
 
   it("offers no confirmation for an approved company", async () => {
@@ -772,5 +806,213 @@ describe("new company members", () => {
         name: "company_management.members.acknowledge",
       }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("company list paging", () => {
+  const pagedCompany = (i: number): CompanyListResult => ({
+    id: `00000000-0000-0000-0000-${String(i).padStart(12, "0")}`,
+    name: `Company ${String(i).padStart(2, "0")}`,
+    confirmed_at: "2026-01-01T00:00:00Z",
+    users_count: 0,
+    bookings_count: 0,
+  });
+
+  beforeEach(() => {
+    companies = Array.from({ length: 26 }, (_, i) => pagedCompany(i + 1));
+    server.use(
+      http.get(`${testBackendUrl}/api/companies`, ({ request }) => {
+        const url = new URL(request.url);
+        listRequests.push(url);
+        const page = Number(url.searchParams.get("page") ?? 1);
+        const size = Number(url.searchParams.get("page_size") ?? 25);
+        return HttpResponse.json({
+          items: companies.slice((page - 1) * size, page * size),
+          total: companies.length,
+          page,
+          page_size: size,
+        });
+      }),
+      http.delete(
+        `${testBackendUrl}/api/company/:companyId/delete-keep-users`,
+        ({ params }) => {
+          companies = companies.filter((c) => c.id !== params.companyId);
+          return new HttpResponse(null, { status: 204 });
+        },
+      ),
+    );
+  });
+
+  const rowOf = async (name: string) => {
+    const cell = await screen.findByText(name);
+    return within(cell.closest("tr")!);
+  };
+
+  it("goes back a page after deleting the only company on the last page", async () => {
+    const { user } = renderPage();
+    await screen.findByText("Company 01");
+    await user.click(screen.getByRole("button", { name: "2" }));
+    const row = await rowOf("Company 26");
+
+    await user.click(
+      row.getByRole("button", { name: "company_management.delete" }),
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: "company_management.delete_modal.keep_users",
+      }),
+    );
+
+    expect(await screen.findByText("Company 01")).toBeInTheDocument();
+    expect(screen.queryByText("Company 26")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("company_management.no_companies_description"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("requests a new search on the first page right away", async () => {
+    const { user } = renderPage();
+    await screen.findByText("Company 01");
+    await user.click(screen.getByRole("button", { name: "2" }));
+    await screen.findByText("Company 26");
+
+    await user.type(
+      screen.getByPlaceholderText("company_management.search_placeholder"),
+      "Company 0",
+    );
+
+    await waitFor(() => expect(lastListParams().query).toBe("Company 0"));
+    const searchPages = listRequests
+      .filter((url) => url.searchParams.get("query") === "Company 0")
+      .map((url) => url.searchParams.get("page"));
+    expect(searchPages).toEqual(["1"]);
+  });
+});
+
+describe("inline rename keys", () => {
+  it("saves with Enter", async () => {
+    const { user } = renderPage();
+    const row = await acmeRow();
+
+    await user.click(
+      row.getByRole("button", { name: "company_management.rename" }),
+    );
+    const input = row.getByLabelText("company_management.rename");
+    await user.clear(input);
+    await user.type(input, "Renamed AG{Enter}");
+
+    await waitFor(() => {
+      expect(renameBodies).toEqual([
+        { companyId: acmeCompany.id, body: { name: "Renamed AG" } },
+      ]);
+    });
+  });
+
+  it("cancels with Escape", async () => {
+    const { user } = renderPage();
+    const row = await acmeRow();
+
+    await user.click(
+      row.getByRole("button", { name: "company_management.rename" }),
+    );
+    await user.type(
+      row.getByLabelText("company_management.rename"),
+      "X{Escape}",
+    );
+
+    expect(row.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(renameBodies).toEqual([]);
+  });
+});
+
+describe("company list filters", () => {
+  const renderAt = (route: string) =>
+    renderWithProviders(
+      <UserProvider user={adminUser} isLoading={false}>
+        <CompanyManagement />
+        <LocationProbe />
+      </UserProvider>,
+      { route },
+    );
+
+  const lastParam = (name: string) =>
+    listRequests[listRequests.length - 1].searchParams.get(name);
+
+  it("lists all companies by default", async () => {
+    renderAt("/");
+    await acmeRow();
+
+    expect(lastParam("filter")).toBe("all");
+    expect(lastParam("company")).toBeNull();
+    expect(
+      screen.getByRole("radio", { name: "company_management.filters.all" }),
+    ).toBeChecked();
+  });
+
+  it("filters unconfirmed companies on the first page", async () => {
+    companyTotal = 60;
+    const { user } = renderAt("/");
+    await acmeRow();
+    await user.click(screen.getByRole("button", { name: "2" }));
+    await waitFor(() => {
+      expect(lastParam("page")).toBe("2");
+    });
+
+    await user.click(
+      screen.getByRole("radio", {
+        name: "company_management.filters.unconfirmed",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(lastParam("filter")).toBe("unconfirmed");
+    });
+    expect(lastParam("page")).toBe("1");
+    expect(screen.getByText("/?filter=unconfirmed")).toBeInTheDocument();
+  });
+
+  it("opens with the companies new since the last visit", async () => {
+    const { user } = renderAt("/?filter=new");
+    await acmeRow();
+
+    expect(lastParam("filter")).toBe("new");
+    expect(
+      screen.getByRole("radio", { name: "company_management.filters.new" }),
+    ).toBeChecked();
+
+    await user.click(
+      screen.getByRole("radio", { name: "company_management.filters.all" }),
+    );
+
+    await waitFor(() => {
+      expect(lastParam("filter")).toBe("all");
+    });
+    expect(screen.getByText("/")).toBeInTheDocument();
+  });
+
+  it("shows a single linked company until the filter is cleared", async () => {
+    companies = [acmeCompany];
+    const { user } = renderAt(`/?company=${acmeCompany.id}`);
+    await acmeRow();
+
+    expect(lastParam("company")).toBe(acmeCompany.id);
+    expect(
+      screen.getByText("company_management.company_filter"),
+    ).toBeInTheDocument();
+
+    companies = [acmeCompany, globexCompany];
+    await user.click(
+      screen.getByRole("button", {
+        name: "company_management.clear_company_filter",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(lastParam("company")).toBeNull();
+    });
+    expect(
+      screen.queryByText("company_management.company_filter"),
+    ).not.toBeInTheDocument();
+    expect(await screen.findByText(globexCompany.name)).toBeInTheDocument();
   });
 });

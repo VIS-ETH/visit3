@@ -3,111 +3,43 @@ import {
   Button,
   Center,
   Group,
-  Loader,
-  Modal,
   Paper,
   Stack,
-  Table,
   Text,
-  TextInput,
   Title,
 } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
-import {
-  IconAlertCircle,
-  IconClock,
-  IconMail,
-  IconSettings,
-} from "@tabler/icons-react";
+import { IconClock, IconSettings } from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  useCreateCompanyInvite,
-  useGetMyCompany,
-  useGetMyCompanyMembers,
-  useUpdateMyCompany,
-} from "../orval/generated/company/company";
-import {
-  getGetUserProfileQueryKey,
-  useGetUserProfile,
-} from "../orval/generated/user/user";
+import { useGetMyCompany } from "../orval/generated/company/company";
+import { useGetUserProfile } from "../orval/generated/user/user";
+import CompanyInviteForm from "../components/company/CompanyInviteForm";
+import CompanyMembersTable from "../components/company/CompanyMembersTable";
 import CompanyProfileBadge from "../components/company/CompanyProfileBadge";
-import { useTranslatedForm } from "../utils/translator";
-import { companySchema } from "../schemas/companySchema";
-import { inviteSchema } from "../schemas/inviteSchema";
+import CompanySettingsModal from "../components/company/CompanySettingsModal";
+import ErrorAlert from "../components/ErrorAlert";
 
 const CompanyProfile = () => {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const [settingsOpened, setSettingsOpened] = useState(false);
+  const [settingsSession, setSettingsSession] = useState(0);
 
   const { data: userProfile } = useGetUserProfile();
-  const { data: company } = useGetMyCompany();
-  const {
-    data: members = [],
-    isLoading: membersLoading,
-    isError: membersError,
-  } = useGetMyCompanyMembers();
+  const { data: company, isError: companyError } = useGetMyCompany();
 
-  const companyForm = useTranslatedForm<typeof companySchema>(companySchema, {
-    initialValues: { name: "" },
-  });
-
-  const inviteForm = useTranslatedForm<typeof inviteSchema>(inviteSchema, {
-    initialValues: { email: "" },
-  });
-
-  const { mutate: updateCompany, isPending: isUpdating } = useUpdateMyCompany({
-    mutation: {
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({
-          queryKey: getGetUserProfileQueryKey(),
-        });
-        setSettingsOpened(false);
-        notifications.show({
-          color: "green",
-          title: t("company_profile.settings_success"),
-          message: "",
-        });
-      },
-    },
-  });
-
-  const { mutate: sendInvite, isPending: isSending } = useCreateCompanyInvite({
-    mutation: {
-      onSuccess: () => {
-        const email = inviteForm.values.email;
-        inviteForm.reset();
-        notifications.show({
-          color: "green",
-          title: t("company_profile.invite_success"),
-          message: email,
-        });
-      },
-    },
-  });
+  const companyName = company?.name ?? userProfile?.company?.name;
 
   const openSettings = () => {
-    const name = userProfile?.company?.name ?? "";
-    companyForm.setInitialValues({ name });
-    companyForm.setValues({ name });
-    companyForm.clearErrors();
+    setSettingsSession((session) => session + 1);
     setSettingsOpened(true);
   };
-
-  const missingCount = company?.missing_profile_fields.length ?? 0;
 
   return (
     <Center h="100%" w="100%" py="xl">
       <Stack w="100%" maw={700} gap="lg">
         <Group justify="space-between" align="center">
-          <Title order={2}>
-            {company?.name ??
-              userProfile?.company?.name ??
-              t("company_profile.title")}
-          </Title>
+          <Title order={2}>{companyName ?? t("company_profile.title")}</Title>
           <Button
             variant="light"
             leftSection={<IconSettings size={16} />}
@@ -117,48 +49,12 @@ const CompanyProfile = () => {
           </Button>
         </Group>
 
-        <Modal
+        <CompanySettingsModal
+          key={settingsSession}
           opened={settingsOpened}
-          onClose={() => {
-            if (!isUpdating) setSettingsOpened(false);
-          }}
-          title={t("company_profile.settings_title")}
-          centered
-          closeOnEscape={!isUpdating}
-          closeOnClickOutside={!isUpdating}
-          withCloseButton={!isUpdating}
-        >
-          <form
-            onSubmit={companyForm.onSubmit((v) =>
-              updateCompany({ data: { name: v.name } }),
-            )}
-          >
-            <Stack gap="md">
-              <TextInput
-                label={t("company_profile.name_label")}
-                placeholder={t("company_profile.name_placeholder")}
-                {...companyForm.getInputProps("name")}
-                disabled={isUpdating}
-              />
-              <Group justify="flex-end">
-                <Button
-                  variant="default"
-                  onClick={() => setSettingsOpened(false)}
-                  disabled={isUpdating}
-                >
-                  {t("common.cancel")}
-                </Button>
-                <Button
-                  type="submit"
-                  loading={isUpdating}
-                  disabled={isUpdating || !companyForm.isValid()}
-                >
-                  {t("company_profile.save")}
-                </Button>
-              </Group>
-            </Stack>
-          </form>
-        </Modal>
+          currentName={companyName ?? ""}
+          onClose={() => setSettingsOpened(false)}
+        />
 
         {company?.confirmed_at === null ? (
           <Alert
@@ -171,99 +67,41 @@ const CompanyProfile = () => {
           </Alert>
         ) : null}
 
-        <Paper withBorder p="xl" radius="md">
-          <Group justify="space-between" align="center" wrap="wrap">
-            <Stack gap={4}>
-              <Title order={4}>{t("company_profile.profile_title")}</Title>
-              <Text c="dimmed" size="sm">
-                {company?.profile_complete === true
-                  ? t("company_profile.profile_complete_hint")
-                  : t("company_profile.profile_incomplete_hint", {
-                      missing: missingCount,
-                    })}
-              </Text>
-            </Stack>
-            <Group gap="sm">
-              <CompanyProfileBadge
-                complete={company?.profile_complete === true}
-              />
-              <Button component={NavLink} to="/company/profile">
-                {t("company_profile.profile_link")}
-              </Button>
-            </Group>
-          </Group>
-        </Paper>
-
-        <Paper withBorder p="xl" radius="md">
-          <Stack gap="md">
-            <Title order={4}>
-              <IconMail
-                size={18}
-                style={{ marginRight: 6, verticalAlign: "middle" }}
-              />
-              {t("company_profile.invite_title")}
-            </Title>
-            <form
-              onSubmit={inviteForm.onSubmit((v) =>
-                sendInvite({ data: { email: v.email } }),
-              )}
-            >
-              <Group align="flex-end" gap="sm">
-                <TextInput
-                  style={{ flex: 1 }}
-                  label={t("company_profile.invite_email")}
-                  placeholder={t("company_profile.invite_email_placeholder")}
-                  {...inviteForm.getInputProps("email")}
-                />
-                <Button
-                  type="submit"
-                  loading={isSending}
-                  disabled={isSending || !inviteForm.isValid()}
-                >
-                  {t("company_profile.invite_button")}
+        {companyError ? (
+          <ErrorAlert />
+        ) : (
+          <Paper withBorder p="xl" radius="md">
+            <Group justify="space-between" align="center" wrap="wrap">
+              <Stack gap={4}>
+                <Title order={4}>{t("company_profile.profile_title")}</Title>
+                {company ? (
+                  <Text c="dimmed" size="sm">
+                    {company.profile_complete
+                      ? t("company_profile.profile_complete_hint")
+                      : t("company_profile.profile_incomplete_hint", {
+                          count: company.missing_profile_fields.length,
+                        })}
+                  </Text>
+                ) : null}
+              </Stack>
+              <Group gap="sm">
+                {company ? (
+                  <CompanyProfileBadge complete={company.profile_complete} />
+                ) : null}
+                <Button component={NavLink} to="/company/profile">
+                  {t("company_profile.profile_link")}
                 </Button>
               </Group>
-            </form>
-          </Stack>
-        </Paper>
-
-        <Title order={3}>{t("company_profile.members_title")}</Title>
-
-        {membersLoading ? (
-          <Center>
-            <Loader />
-          </Center>
-        ) : membersError ? (
-          <Alert icon={<IconAlertCircle />} color="red">
-            {t("server.error")}
-          </Alert>
-        ) : members.length === 0 ? (
-          <Text c="dimmed">{t("company_profile.no_members")}</Text>
-        ) : (
-          <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
-            <Table striped>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t("user_management.name")}</Table.Th>
-                  <Table.Th>{t("user_management.email")}</Table.Th>
-                  <Table.Th>{t("user_management.phone")}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {members.map((m) => (
-                  <Table.Tr key={m.id}>
-                    <Table.Td>
-                      {[m.first_name, m.last_name].filter(Boolean).join(" ") ||
-                        "-"}
-                    </Table.Td>
-                    <Table.Td>{m.email}</Table.Td>
-                    <Table.Td>{m.phone_number ?? "-"}</Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+            </Group>
           </Paper>
         )}
+
+        <CompanyInviteForm
+          confirmed={company ? company.confirmed_at !== null : undefined}
+        />
+
+        <Title order={3}>{t("company_profile.members_title")}</Title>
+        <CompanyMembersTable />
       </Stack>
     </Center>
   );

@@ -1,9 +1,11 @@
 export function safeFilenamePart(value: string) {
   return (
     value
+      .normalize("NFKD")
+      .replace(/\p{M}/gu, "")
       .trim()
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/[^\p{L}\p{N}]+/gu, "-")
       .replace(/^-|-$/g, "") || "download"
   );
 }

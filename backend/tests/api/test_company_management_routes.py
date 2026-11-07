@@ -12,15 +12,6 @@ OTHER_COMPANY_EMAIL = "beta@example.com"
 
 
 @pytest.fixture
-async def non_admin_staff_headers(
-    staff_user: User,
-    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
-    csrf_headers: dict[str, str],
-) -> dict[str, str]:
-    return {**await auth_headers(staff_user), **csrf_headers}
-
-
-@pytest.fixture
 async def other_company_user(create_user: Callable[..., Awaitable[User]]) -> User:
     return await create_user(
         email=OTHER_COMPANY_EMAIL, password=None, company_name=OTHER_COMPANY_NAME
@@ -32,13 +23,13 @@ async def test_company_page_reports_members_and_bookings(
     company_user: User,
     other_company_user: User,
     company_headers: dict[str, str],
-    non_admin_staff_headers: dict[str, str],
+    staff_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
 ):
     await register_booking(company_headers, kp_setup)
 
-    response = await client.get("/api/companies", headers=non_admin_staff_headers)
+    response = await client.get("/api/companies", headers=staff_headers)
 
     assert response.status_code == 200
     body = response.json()
@@ -113,12 +104,12 @@ async def test_company_page_searches_by_name(
 
 
 async def test_staff_renames_a_company(
-    client: AsyncClient, company_user: User, non_admin_staff_headers: dict[str, str]
+    client: AsyncClient, company_user: User, staff_headers: dict[str, str]
 ):
     response = await client.patch(
         f"/api/companies/{company_user.company_id}",
         json={"name": "  Acme Holding  "},
-        headers=non_admin_staff_headers,
+        headers=staff_headers,
     )
 
     assert response.status_code == 200
@@ -157,18 +148,18 @@ async def test_staff_adds_a_member_without_a_company(
     client: AsyncClient,
     company_user: User,
     create_user: Callable[..., Awaitable[User]],
-    non_admin_staff_headers: dict[str, str],
+    staff_headers: dict[str, str],
 ):
     newcomer = await create_user(email="newcomer@example.com", password=None)
 
     response = await client.post(
         f"/api/companies/{company_user.company_id}/members",
         json={"user_id": str(newcomer.id)},
-        headers=non_admin_staff_headers,
+        headers=staff_headers,
     )
     members = await client.get(
         f"/api/company/{company_user.company_id}/users",
-        headers=non_admin_staff_headers,
+        headers=staff_headers,
     )
 
     assert response.status_code == 200
@@ -283,3 +274,57 @@ async def test_removing_a_member_of_a_booked_company_keeps_the_last_one(
     )
 
     assert response.status_code == 200
+
+
+async def test_company_page_lists_unconfirmed_companies_first(
+    client: AsyncClient,
+    company_user: User,
+    other_company_user: User,
+    create_user: Callable[..., Awaitable[User]],
+    staff_headers: dict[str, str],
+):
+    await create_user(
+        email="zulu@example.com", company_name="Zulu AG", company_confirmed=False
+    )
+
+    response = await client.get("/api/companies", headers=staff_headers)
+
+    assert [item["name"] for item in response.json()["items"]] == [
+        "Zulu AG",
+        "Acme AG",
+        OTHER_COMPANY_NAME,
+    ]
+
+
+async def test_company_page_filters_unconfirmed_companies(
+    client: AsyncClient,
+    company_user: User,
+    other_company_user: User,
+    create_user: Callable[..., Awaitable[User]],
+    staff_headers: dict[str, str],
+):
+    await create_user(
+        email="zulu@example.com", company_name="Zulu AG", company_confirmed=False
+    )
+
+    response = await client.get(
+        "/api/companies?filter=unconfirmed", headers=staff_headers
+    )
+
+    assert response.json()["total"] == 1
+    assert [item["name"] for item in response.json()["items"]] == ["Zulu AG"]
+
+
+async def test_company_page_filters_a_single_company(
+    client: AsyncClient,
+    company_user: User,
+    other_company_user: User,
+    staff_headers: dict[str, str],
+):
+    response = await client.get(
+        f"/api/companies?company={other_company_user.company_id}",
+        headers=staff_headers,
+    )
+
+    assert response.json()["total"] == 1
+    assert [item["name"] for item in response.json()["items"]] == [OTHER_COMPANY_NAME]

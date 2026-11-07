@@ -24,15 +24,6 @@ async def pending_company_user(create_user: Callable[..., Awaitable[User]]) -> U
     )
 
 
-@pytest.fixture
-async def non_admin_staff_headers(
-    staff_user: User,
-    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
-    csrf_headers: dict[str, str],
-) -> dict[str, str]:
-    return {**await auth_headers(staff_user), **csrf_headers}
-
-
 async def company_members(
     client: AsyncClient, company_id: str, headers: dict[str, str]
 ) -> list[str]:
@@ -50,7 +41,9 @@ async def test_staff_confirms_a_pending_company(
         "/api/companies", params={"query": PENDING_COMPANY_NAME}, headers=staff_headers
     )
     confirmed = await client.post(
-        f"/api/companies/{company_id}/confirm", headers=staff_headers
+        f"/api/companies/{company_id}/confirm",
+        json={"name": PENDING_COMPANY_NAME},
+        headers=staff_headers,
     )
 
     assert [item["confirmed_at"] for item in pending.json()["items"]] == [None]
@@ -62,7 +55,9 @@ async def test_confirming_an_unknown_company_is_not_found(
     client: AsyncClient, staff_headers: dict[str, str]
 ):
     response = await client.post(
-        f"/api/companies/{uuid4()}/confirm", headers=staff_headers
+        f"/api/companies/{uuid4()}/confirm",
+        json={"name": PENDING_COMPANY_NAME},
+        headers=staff_headers,
     )
 
     assert response.status_code == 404
@@ -113,33 +108,31 @@ async def test_staff_cannot_delete_privileged_users(
     client: AsyncClient,
     staff_user: User,
     admin_user: User,
-    non_admin_staff_headers: dict[str, str],
+    staff_headers: dict[str, str],
     target: str,
 ):
     user = staff_user if target == "staff" else admin_user
 
-    response = await client.delete(
-        f"/api/users/{user.id}", headers=non_admin_staff_headers
-    )
+    response = await client.delete(f"/api/users/{user.id}", headers=staff_headers)
 
     assert response.status_code == 403
     assert response.json()["code"] == "error.not_allowed"
 
 
 async def test_admin_deletes_a_staff_user(
-    client: AsyncClient, staff_user: User, staff_headers: dict[str, str]
+    client: AsyncClient, staff_user: User, admin_headers: dict[str, str]
 ):
-    response = await client.delete(f"/api/users/{staff_user.id}", headers=staff_headers)
-    remaining = await client.get("/api/user/staff", headers=staff_headers)
+    response = await client.delete(f"/api/users/{staff_user.id}", headers=admin_headers)
+    remaining = await client.get("/api/user/staff", headers=admin_headers)
 
     assert response.status_code == 200
     assert staff_user.email not in [user["email"] for user in remaining.json()]
 
 
 async def test_deleting_yourself_is_refused(
-    client: AsyncClient, admin_user: User, staff_headers: dict[str, str]
+    client: AsyncClient, admin_user: User, admin_headers: dict[str, str]
 ):
-    response = await client.delete(f"/api/users/{admin_user.id}", headers=staff_headers)
+    response = await client.delete(f"/api/users/{admin_user.id}", headers=admin_headers)
 
     assert response.status_code == 403
     assert response.json()["identifier"].startswith("delete_user:self")
@@ -158,14 +151,14 @@ async def test_deleting_an_unknown_user_is_not_found(
 async def test_staff_without_admin_manages_company_users(
     client: AsyncClient,
     company_user: User,
-    non_admin_staff_headers: dict[str, str],
+    staff_headers: dict[str, str],
     method: str,
 ):
     response = await client.request(
         method,
         f"/api/users/{company_user.id}",
         json={"first_name": "Grace"} if method == "PATCH" else None,
-        headers=non_admin_staff_headers,
+        headers=staff_headers,
     )
 
     assert response.status_code == 200
@@ -175,13 +168,13 @@ async def test_staff_without_admin_manages_company_users(
 async def test_staff_without_admin_cannot_change_privilege_flags(
     client: AsyncClient,
     company_user: User,
-    non_admin_staff_headers: dict[str, str],
+    staff_headers: dict[str, str],
     flag: str,
 ):
     response = await client.patch(
         f"/api/users/{company_user.id}",
         json={flag: True},
-        headers=non_admin_staff_headers,
+        headers=staff_headers,
     )
 
     assert response.status_code == 403
@@ -189,25 +182,25 @@ async def test_staff_without_admin_cannot_change_privilege_flags(
 
 
 async def test_admin_grants_staff_rights(
-    client: AsyncClient, company_user: User, staff_headers: dict[str, str]
+    client: AsyncClient, company_user: User, admin_headers: dict[str, str]
 ):
     response = await client.patch(
         f"/api/users/{company_user.id}",
         json={"is_staff": True},
-        headers=staff_headers,
+        headers=admin_headers,
     )
-    listed = await client.get("/api/user/staff", headers=staff_headers)
+    listed = await client.get("/api/user/staff", headers=admin_headers)
 
     assert response.status_code == 200
     assert company_user.email in [user["email"] for user in listed.json()]
 
 
 async def test_admin_can_impersonate_a_company_user(
-    client: AsyncClient, company_user: User, staff_headers: dict[str, str]
+    client: AsyncClient, company_user: User, admin_headers: dict[str, str]
 ):
     response = await client.get(
         "/api/user/me",
-        headers={**staff_headers, IMPERSONATE_HEADER: str(company_user.id)},
+        headers={**admin_headers, IMPERSONATE_HEADER: str(company_user.id)},
     )
 
     assert response.status_code == 200
@@ -215,11 +208,11 @@ async def test_admin_can_impersonate_a_company_user(
 
 
 async def test_staff_without_admin_cannot_impersonate(
-    client: AsyncClient, company_user: User, non_admin_staff_headers: dict[str, str]
+    client: AsyncClient, company_user: User, staff_headers: dict[str, str]
 ):
     response = await client.get(
         "/api/user/me",
-        headers={**non_admin_staff_headers, IMPERSONATE_HEADER: str(company_user.id)},
+        headers={**staff_headers, IMPERSONATE_HEADER: str(company_user.id)},
     )
 
     assert response.status_code == 403
@@ -231,11 +224,11 @@ async def test_staff_without_admin_cannot_impersonate(
     [("not-a-uuid", "impersonate:invalid_uuid"), (None, "impersonate:user_not_found")],
 )
 async def test_impersonation_of_an_unusable_target_is_refused(
-    client: AsyncClient, staff_headers: dict[str, str], target: str, identifier: str
+    client: AsyncClient, admin_headers: dict[str, str], target: str, identifier: str
 ):
     response = await client.get(
         "/api/user/me",
-        headers={**staff_headers, IMPERSONATE_HEADER: target or str(uuid4())},
+        headers={**admin_headers, IMPERSONATE_HEADER: target or str(uuid4())},
     )
 
     assert response.status_code == 403
@@ -292,6 +285,7 @@ async def test_company_deletion_is_refused_while_upcoming_bookings_exist(
     company_user: User,
     company_headers: dict[str, str],
     staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
     mode: str,
@@ -299,7 +293,7 @@ async def test_company_deletion_is_refused_while_upcoming_bookings_exist(
     await register_booking(company_headers, kp_setup)
 
     response = await client.delete(
-        f"/api/company/{company_user.company_id}/{mode}", headers=staff_headers
+        f"/api/company/{company_user.company_id}/{mode}", headers=admin_headers
     )
     members = await company_members(client, str(company_user.company_id), staff_headers)
 
@@ -314,6 +308,7 @@ async def test_company_deletion_keeps_users_after_the_event_has_passed(
     company_user: User,
     company_headers: dict[str, str],
     staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
 ):
@@ -322,7 +317,7 @@ async def test_company_deletion_keeps_users_after_the_event_has_passed(
 
     response = await client.delete(
         f"/api/company/{company_user.company_id}/delete-keep-users",
-        headers=staff_headers,
+        headers=admin_headers,
     )
     companies = await client.get(
         "/api/company/management/companies", headers=staff_headers
@@ -342,6 +337,7 @@ async def test_company_deletion_removes_users_after_the_event_has_passed(
     company_user: User,
     company_headers: dict[str, str],
     staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
 ):
@@ -350,7 +346,7 @@ async def test_company_deletion_removes_users_after_the_event_has_passed(
 
     response = await client.delete(
         f"/api/company/{company_user.company_id}/delete-with-users",
-        headers=staff_headers,
+        headers=admin_headers,
     )
     users = await client.get("/api/user/companies", headers=staff_headers)
 
@@ -362,12 +358,12 @@ async def test_company_deletion_removes_users_after_the_event_has_passed(
 async def test_staff_without_admin_cannot_delete_a_company(
     client: AsyncClient,
     company_user: User,
-    non_admin_staff_headers: dict[str, str],
+    staff_headers: dict[str, str],
     mode: str,
 ):
     response = await client.delete(
         f"/api/company/{company_user.company_id}/{mode}",
-        headers=non_admin_staff_headers,
+        headers=staff_headers,
     )
 
     assert response.status_code == 403
@@ -424,11 +420,11 @@ async def test_removing_an_unknown_company_user_is_not_found(
 
 
 async def test_staff_without_admin_removes_a_company_user(
-    client: AsyncClient, company_user: User, non_admin_staff_headers: dict[str, str]
+    client: AsyncClient, company_user: User, staff_headers: dict[str, str]
 ):
     response = await client.delete(
         f"/api/companies/{company_user.company_id}/members/{company_user.id}",
-        headers=non_admin_staff_headers,
+        headers=staff_headers,
     )
 
     assert response.status_code == 200

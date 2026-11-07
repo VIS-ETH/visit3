@@ -1,6 +1,6 @@
 import { FileButton, type FileButtonProps } from "@mantine/core";
 import { useRef, useState } from "react";
-import { UPLOADS_AVAILABLE } from "../utils/uploads";
+import { uploadsAvailable } from "../utils/uploads";
 import UploadsUnavailableModal from "./UploadsUnavailableModal";
 
 type RepickableFileButtonProps = Omit<FileButtonProps, "resetRef" | "multiple">;
@@ -12,7 +12,7 @@ const RepickableFileButton = ({
   const resetRef = useRef<() => void>(null);
   const [noticeOpened, setNoticeOpened] = useState(false);
 
-  if (!UPLOADS_AVAILABLE) {
+  if (!uploadsAvailable()) {
     return (
       <>
         {props.children({ onClick: () => setNoticeOpened(true) })}

@@ -1,12 +1,12 @@
 import { FileInput, type FileInputProps } from "@mantine/core";
 import { useState } from "react";
-import { UPLOADS_AVAILABLE } from "../utils/uploads";
+import { uploadsAvailable } from "../utils/uploads";
 import UploadsUnavailableModal from "./UploadsUnavailableModal";
 
 const UploadFileInput = (props: FileInputProps) => {
   const [noticeOpened, setNoticeOpened] = useState(false);
 
-  if (UPLOADS_AVAILABLE) return <FileInput {...props} />;
+  if (uploadsAvailable()) return <FileInput {...props} />;
 
   return (
     <>

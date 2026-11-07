@@ -17,27 +17,27 @@ LAYOUT_DESCRIPTION = "Two tables along the wall, one standing table in front."
 
 async def create_service(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     event_id: str,
     **overrides: Any,
 ) -> Response:
     return await client.post(
         f"/api/kp/events/{event_id}/services",
         json={"name": "Tisch", **overrides},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
 
 async def create_zone(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     event_id: str,
     **overrides: Any,
 ) -> Response:
     return await client.post(
         f"/api/kp/events/{event_id}/booth-zones",
         json={"name": "Side hall", "color": "#ABCDEF", "capacity": 2, **overrides},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
 
@@ -72,11 +72,11 @@ async def other_company_headers(
 
 
 async def test_booth_element_keeps_its_category_and_unit_label(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     response = await create_service(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         category=BOOTH_ELEMENT,
         unit_label="Stück",
@@ -89,10 +89,10 @@ async def test_booth_element_keeps_its_category_and_unit_label(
 
 
 async def test_a_service_belongs_to_the_service_category_by_default(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     response = await client.get(
-        f"/api/kp/events/{kp_setup.event_id}/services", headers=staff_headers
+        f"/api/kp/events/{kp_setup.event_id}/services", headers=president_headers
     )
 
     assert response.status_code == 200
@@ -101,12 +101,12 @@ async def test_a_service_belongs_to_the_service_category_by_default(
 
 
 async def test_a_service_can_be_turned_into_a_booth_element(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     response = await client.patch(
         f"/api/kp/services/{kp_setup.service_id}",
         json={"category": BOOTH_ELEMENT, "unit_label": "Stück"},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 200
@@ -116,12 +116,12 @@ async def test_a_service_can_be_turned_into_a_booth_element(
 
 async def test_available_services_are_filtered_by_category(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
 ):
     element = await create_service(
-        client, staff_headers, kp_setup.event_id, category=BOOTH_ELEMENT
+        client, president_headers, kp_setup.event_id, category=BOOTH_ELEMENT
     )
 
     response = await client.get(
@@ -136,12 +136,12 @@ async def test_available_services_are_filtered_by_category(
 
 async def test_available_services_without_a_filter_return_every_category(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
 ):
     element = await create_service(
-        client, staff_headers, kp_setup.event_id, category=BOOTH_ELEMENT
+        client, president_headers, kp_setup.event_id, category=BOOTH_ELEMENT
     )
 
     response = await client.get(
@@ -157,11 +157,11 @@ async def test_available_services_without_a_filter_return_every_category(
 
 
 async def test_zone_is_created_with_its_included_services(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     response = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         included_services=[
             {"service_id": kp_setup.service_id, "included_quantity": 2},
@@ -175,18 +175,18 @@ async def test_zone_is_created_with_its_included_services(
 
 
 async def test_updating_a_zone_replaces_its_included_services(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     element = await create_service(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         category=BOOTH_ELEMENT,
         max_quantity_per_booking=4,
     )
     zone = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         included_services=[{"service_id": kp_setup.service_id, "included_quantity": 2}],
     )
@@ -198,7 +198,7 @@ async def test_updating_a_zone_replaces_its_included_services(
                 {"service_id": element.json()["id"], "included_quantity": 4}
             ]
         },
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 200
@@ -208,11 +208,11 @@ async def test_updating_a_zone_replaces_its_included_services(
 
 
 async def test_updating_a_zone_without_the_list_keeps_its_included_services(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     zone = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         included_services=[{"service_id": kp_setup.service_id, "included_quantity": 2}],
     )
@@ -220,7 +220,7 @@ async def test_updating_a_zone_without_the_list_keeps_its_included_services(
     response = await client.patch(
         f"/api/kp/booth-zones/{zone.json()['id']}",
         json={"capacity": 7},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 200
@@ -230,11 +230,11 @@ async def test_updating_a_zone_without_the_list_keeps_its_included_services(
 
 
 async def test_an_empty_list_clears_the_included_services(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     zone = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         included_services=[{"service_id": kp_setup.service_id, "included_quantity": 2}],
     )
@@ -242,7 +242,7 @@ async def test_an_empty_list_clears_the_included_services(
     response = await client.patch(
         f"/api/kp/booth-zones/{zone.json()['id']}",
         json={"included_services": []},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 200
@@ -250,18 +250,18 @@ async def test_an_empty_list_clears_the_included_services(
 
 
 async def test_an_included_service_must_belong_to_the_event(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     other_event = await client.post(
-        "/api/kp/create", json=kp_payload("Polymensa KP"), headers=staff_headers
+        "/api/kp/create", json=kp_payload("Polymensa KP"), headers=president_headers
     )
     foreign = await create_service(
-        client, staff_headers, other_event.json()["id"], name="Foreign table"
+        client, president_headers, other_event.json()["id"], name="Foreign table"
     )
 
     response = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         included_services=[
             {"service_id": foreign.json()["id"], "included_quantity": 1}
@@ -273,11 +273,11 @@ async def test_an_included_service_must_belong_to_the_event(
 
 
 async def test_an_included_service_must_exist(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     response = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         included_services=[
             {
@@ -292,11 +292,11 @@ async def test_an_included_service_must_exist(
 
 
 async def test_a_service_cannot_be_included_twice(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     response = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         included_services=[
             {"service_id": kp_setup.service_id, "included_quantity": 1},
@@ -309,11 +309,11 @@ async def test_a_service_cannot_be_included_twice(
 
 
 async def test_included_quantity_cannot_exceed_the_service_maximum(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     response = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         included_services=[
             {
@@ -328,11 +328,11 @@ async def test_included_quantity_cannot_exceed_the_service_maximum(
 
 
 async def test_service_maximum_cannot_drop_below_an_included_quantity(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         included_services=[
             {
@@ -345,7 +345,7 @@ async def test_service_maximum_cannot_drop_below_an_included_quantity(
     response = await client.patch(
         f"/api/kp/services/{kp_setup.service_id}",
         json={"max_quantity_per_booking": MAX_QUANTITY_PER_BOOKING - 1},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 400
@@ -353,11 +353,11 @@ async def test_service_maximum_cannot_drop_below_an_included_quantity(
 
 
 async def test_service_maximum_is_capped_at_the_global_ceiling(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     response = await create_service(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         max_quantity_per_booking=MAX_SERVICE_QUANTITY + 1,
     )
@@ -393,11 +393,11 @@ async def test_booked_quantity_is_capped_at_the_global_ceiling(
 
 
 async def test_included_quantity_is_capped_at_the_global_ceiling(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     response = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         included_services=[
             {
@@ -423,12 +423,12 @@ async def test_event_exposes_its_nametag_limit(
 
 
 async def test_nametag_limit_can_be_configured(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     response = await client.patch(
         f"/api/kp/events/{kp_setup.event_id}",
         json={"max_nametags_per_booking": 4},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 200
@@ -436,12 +436,12 @@ async def test_nametag_limit_can_be_configured(
 
 
 async def test_nametag_limit_must_be_at_least_one(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     response = await client.patch(
         f"/api/kp/events/{kp_setup.event_id}",
         json={"max_nametags_per_booking": 0},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert response.status_code == 422
@@ -449,11 +449,11 @@ async def test_nametag_limit_must_be_at_least_one(
 
 
 async def test_zone_layout_description_is_stored(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     zone = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         layout_description=LAYOUT_DESCRIPTION,
     )
@@ -461,7 +461,7 @@ async def test_zone_layout_description_is_stored(
     response = await client.patch(
         f"/api/kp/booth-zones/{zone.json()['id']}",
         json={"layout_description": "One table only."},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     assert zone.json()["layout_description"] == LAYOUT_DESCRIPTION
@@ -470,11 +470,11 @@ async def test_zone_layout_description_is_stored(
 
 
 async def test_zone_layout_description_is_limited_in_length(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, president_headers: dict[str, str], kp_setup: KpSetup
 ):
     response = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         layout_description="x" * 2001,
     )
@@ -486,6 +486,7 @@ async def test_zone_layout_description_is_limited_in_length(
 async def test_zone_layout_url_is_visible_to_staff_and_to_every_company(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     other_company_headers: dict[str, str],
     kp_setup: KpSetup,
@@ -493,7 +494,7 @@ async def test_zone_layout_url_is_visible_to_staff_and_to_every_company(
     await client.put(
         f"/api/kp/booth-zones/{kp_setup.booth_zone_id}/layout-file",
         files={"file": ("layout.png", b"\x89PNG\r\n\x1a\n", "image/png")},
-        headers=staff_headers,
+        headers=president_headers,
     )
 
     staff_zones = await client.get(
@@ -522,6 +523,7 @@ async def test_zone_layout_url_is_visible_to_staff_and_to_every_company(
 async def test_zones_embedded_in_bookings_carry_the_layout_url(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
@@ -529,7 +531,7 @@ async def test_zones_embedded_in_bookings_carry_the_layout_url(
     booking = (await register_booking(company_headers, kp_setup)).json()
     upgrade_zone = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         name="Gold",
         color="#AABBCC",
@@ -540,7 +542,7 @@ async def test_zones_embedded_in_bookings_carry_the_layout_url(
         await client.put(
             f"/api/kp/booth-zones/{zone_id}/layout-file",
             files={"file": ("layout.png", b"\x89PNG\r\n\x1a\n", "image/png")},
-            headers=staff_headers,
+            headers=president_headers,
         )
     await client.put(
         f"/api/kp/bookings/{booking['id']}/upgrade-waitlist",
@@ -585,6 +587,7 @@ async def test_zone_without_a_layout_file_has_no_layout_url(
 async def test_staff_zone_change_applies_the_new_zone_inclusions(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
@@ -592,7 +595,7 @@ async def test_staff_zone_change_applies_the_new_zone_inclusions(
     booking = (await register_booking(company_headers, kp_setup, quantity=1)).json()
     target = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         base_price=20000,
         included_services=[
@@ -621,6 +624,7 @@ async def test_staff_zone_change_applies_the_new_zone_inclusions(
 async def test_staff_zone_change_books_a_service_the_new_zone_includes(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     register_booking: Callable[..., Awaitable[Response]],
@@ -628,7 +632,7 @@ async def test_staff_zone_change_books_a_service_the_new_zone_includes(
     booking = (await register_booking(company_headers, kp_setup, quantity=1)).json()
     element = await create_service(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         category=BOOTH_ELEMENT,
         price=3000,
@@ -636,7 +640,7 @@ async def test_staff_zone_change_books_a_service_the_new_zone_includes(
     )
     target = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         included_services=[
             {"service_id": element.json()["id"], "included_quantity": 3}
@@ -663,13 +667,14 @@ async def test_staff_zone_change_books_a_service_the_new_zone_includes(
 async def test_staff_zone_change_drops_the_previous_zone_inclusions(
     client: AsyncClient,
     staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     company_headers: dict[str, str],
     kp_setup: KpSetup,
     complete_company_profile: Callable[..., Awaitable[Response]],
 ):
     included_zone = await create_zone(
         client,
-        staff_headers,
+        president_headers,
         kp_setup.event_id,
         base_price=20000,
         included_services=[

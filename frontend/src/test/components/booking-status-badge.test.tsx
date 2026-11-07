@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
 import { KpBookingStatus } from "../../orval/generated/fastAPI.schemas";
 import { KpBookingStatusBadge } from "../../components/KpBookingStatusBadge";
-import { KpBookingStatusHelp } from "../../components/KpBookingStatusHelp";
+import { KpBookingStatusHelp } from "../../components/exhibitor-booking/KpBookingStatusHelp";
 import { renderWithProviders } from "../render";
 
 describe("the booking status badge", () => {
@@ -24,12 +24,7 @@ describe("the booking status badge", () => {
       screen.getByRole("button", { name: "kp.booking.status_help_open_label" }),
     );
 
-    for (const status of [
-      "registered",
-      "confirmed",
-      "cancelled",
-      "rejected",
-    ]) {
+    for (const status of ["registered", "confirmed", "cancelled", "rejected"]) {
       expect(
         await screen.findByText(`kp.booking.status.${status}.label`),
       ).toBeInTheDocument();

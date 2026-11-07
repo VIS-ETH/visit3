@@ -18,6 +18,7 @@ from app.schemas.company import (
     AddCompanyMemberRequest,
     BookletPageResponse,
     BookletPageResult,
+    CompanyFilter,
     CompanyListResponse,
     CompanyListResult,
     CompanyPageResponse,
@@ -28,6 +29,7 @@ from app.schemas.company import (
     CompanySort,
     CompanyWithUsersResponse,
     CompanyWithUsersResult,
+    ConfirmCompanyRequest,
     CreateInviteRequest,
     InviteInfoResponse,
     InviteInfoResult,
@@ -328,10 +330,11 @@ async def search_companies(
     page_size: int = Query(default=25, ge=1, le=MAX_PAGE_SIZE),
     sort: CompanySort = CompanySort.NAME,
     direction: SortDirection = SortDirection.ASC,
-    only_changes: bool = False,
+    filter: CompanyFilter = CompanyFilter.ALL,
+    company: UUID | None = None,
 ) -> CompanyPageResult:
     return await company_service.search_companies(
-        query, page, page_size, sort, direction, only_changes
+        query, page, page_size, sort, direction, filter, company
     )
 
 
@@ -369,8 +372,9 @@ async def add_company_member(
 async def confirm_company(
     company_service: CompanyServiceDep,
     company_id: UUID,
+    request: ConfirmCompanyRequest,
 ) -> CompanyWithUsersResult:
-    return await company_service.confirm_company(company_id)
+    return await company_service.confirm_company(company_id, request.name)
 
 
 @companies_router.post(

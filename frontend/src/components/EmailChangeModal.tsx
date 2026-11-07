@@ -17,6 +17,8 @@ import {
 } from "../orval/generated/user/user";
 import { emailChangeSchema } from "../schemas/profileSchema";
 import { useTranslatedForm } from "../utils/translator";
+import { useAsyncAction } from "../hooks/use-async-action";
+import type { EmailChangeRequest } from "../orval/generated/fastAPI.schemas";
 
 interface EmailChangeModalProps {
   opened: boolean;
@@ -44,23 +46,24 @@ const EmailChangeModal = ({
     if (opened) reset();
   }, [opened, reset]);
 
-  const { mutate: requestEmailChange, isPending } = useRequestEmailChange({
-    mutation: {
-      onSuccess: async (updated) => {
-        await queryClient.invalidateQueries({
-          queryKey: getGetUserProfileQueryKey(),
-        });
-        notifications.show({
-          color: "green",
-          title: t("profile.email_change.sent_title"),
-          message: t("profile.email_change.sent_message", {
-            email: updated.pending_email,
-          }),
-        });
-        onClose();
-      },
+  const { mutateAsync: requestEmailChange } = useRequestEmailChange();
+
+  const { run: submitEmailChange, isRunning: isPending } = useAsyncAction(
+    async (data: EmailChangeRequest) => {
+      const updated = await requestEmailChange({ data });
+      await queryClient.invalidateQueries({
+        queryKey: getGetUserProfileQueryKey(),
+      });
+      notifications.show({
+        color: "green",
+        title: t("profile.email_change.sent_title"),
+        message: t("profile.email_change.sent_message", {
+          email: updated.pending_email,
+        }),
+      });
+      onClose();
     },
-  });
+  );
 
   const unchanged =
     form.values.email.trim().toLowerCase() === currentEmail.toLowerCase();
@@ -79,15 +82,16 @@ const EmailChangeModal = ({
       withCloseButton={!isPending}
     >
       <form
-        onSubmit={form.onSubmit((values) =>
-          requestEmailChange({
-            data: needsPassword
-              ? {
-                  email: values.email.trim(),
-                  current_password: values.currentPassword,
-                }
-              : { email: values.email.trim() },
-          }),
+        onSubmit={form.onSubmit(
+          (values) =>
+            void submitEmailChange(
+              needsPassword
+                ? {
+                    email: values.email.trim(),
+                    current_password: values.currentPassword,
+                  }
+                : { email: values.email.trim() },
+            ),
         )}
       >
         <Stack gap="md">

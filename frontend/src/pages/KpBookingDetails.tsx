@@ -1,57 +1,37 @@
 import {
   Alert,
-  Badge,
-  Button,
-  Center,
-  Divider,
   Group,
-  Loader,
   Paper,
   SimpleGrid,
   Stack,
   Text,
   Title,
 } from "@mantine/core";
-import {
-  IconAlertCircle,
-  IconDownload,
-  IconEyeCheck,
-  IconRefresh,
-} from "@tabler/icons-react";
-import { useContext, useState, type ReactNode } from "react";
+import { IconAlertCircle } from "@tabler/icons-react";
+import { useContext, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router";
 import BackButton from "../components/BackButton";
+import ErrorAlert from "../components/ErrorAlert";
 import { KpBookingStatusBadge } from "../components/KpBookingStatusBadge";
-import BookingActionBar from "../components/bookings/BookingActionBar";
-import BookingCompletenessCard from "../components/bookings/BookingCompletenessCard";
-import BookingEditPanel from "../components/bookings/BookingEditPanel";
-import BookingNametagsCard from "../components/bookings/BookingNametagsCard";
-import BookingOfferCard from "../components/bookings/BookingOfferCard";
-import BookingWaitlistCard from "../components/bookings/BookingWaitlistCard";
-import { UserContext } from "../context/useCurrentUser";
-import BookingStatusTimeline from "../components/bookings/BookingStatusTimeline";
+import PageLoader from "../components/PageLoader";
+import BookingActionBar from "../components/staff-bookings/BookingActionBar";
+import BookingCompletenessCard from "../components/staff-bookings/BookingCompletenessCard";
+import BookingEditPanel from "../components/staff-bookings/BookingEditPanel";
+import BookingNametagsCard from "../components/staff-bookings/BookingNametagsCard";
+import BookingOfferCard from "../components/staff-bookings/BookingOfferCard";
+import BookingServicesCard from "../components/staff-bookings/BookingServicesCard";
+import BookingStatusTimeline from "../components/staff-bookings/BookingStatusTimeline";
+import BookingWaitlistCard from "../components/staff-bookings/BookingWaitlistCard";
 import VenueMapViewer from "../components/venue/VenueMapViewer";
-import {
-  KpBookingStatus,
-  KpEventServiceRequirementType,
-  type RequirementFileResponse,
-  type ServiceRequirementResponse,
-} from "../orval/generated/fastAPI.schemas";
-import {
-  getStaffBookingRequirementFileDownloadUrl,
-  useListStaffBookingRequirementFiles,
-  useGetEventBooking,
-} from "../orval/generated/kp/kp";
-import {
-  addedQuantityByBookingServiceId,
-  hasNewAdditions,
-} from "../utils/booking-status";
-import { formatPrice } from "../utils/price-utils";
-import { useBookingActions } from "../components/bookings/useBookingActions";
-import { getApiErrorCode } from "../api/errors";
+import { UserContext } from "../context/useCurrentUser";
+import { KpBookingStatus } from "../orval/generated/fastAPI.schemas";
+import { useGetEventBooking } from "../orval/generated/kp/kp";
+import { getApiErrorCode, getApiErrorStatus } from "../api/errors";
+import { formatMoney } from "../utils/money";
 
 const NOT_ALLOWED_CODE = "error.not_allowed";
+const INLINE_ERROR_STATUSES = [403, 404];
 
 const DetailField = ({ label, value }: { label: string; value: ReactNode }) => (
   <Stack gap={2}>
@@ -66,97 +46,6 @@ const DetailField = ({ label, value }: { label: string; value: ReactNode }) => (
   </Stack>
 );
 
-const StaffRequirementRow = ({
-  bookingServiceId,
-  hasLoadError,
-  isChecking,
-  requirementFile,
-  requirement,
-}: {
-  bookingServiceId: string;
-  hasLoadError: boolean;
-  isChecking: boolean;
-  requirementFile?: RequirementFileResponse;
-  requirement: ServiceRequirementResponse;
-}) => {
-  const { t } = useTranslation();
-  const [isDownloading, setIsDownloading] = useState(false);
-  const isTextRequirement =
-    requirement.type === KpEventServiceRequirementType.text;
-  const requirementTypeLabels: Record<KpEventServiceRequirementType, string> = {
-    [KpEventServiceRequirementType.text]: t("kp.booking.requirement_type_text"),
-    [KpEventServiceRequirementType.file]: t("kp.booking.requirement_type_file"),
-    [KpEventServiceRequirementType.image]: t(
-      "kp.booking.requirement_type_image",
-    ),
-    [KpEventServiceRequirementType.pdf]: t("kp.booking.requirement_type_pdf"),
-    [KpEventServiceRequirementType.video]: t(
-      "kp.booking.requirement_type_video",
-    ),
-  };
-
-  const handleDownload = async () => {
-    if (!requirementFile) return;
-    setIsDownloading(true);
-    try {
-      const response = await getStaffBookingRequirementFileDownloadUrl(
-        bookingServiceId,
-        requirement.id,
-      );
-      window.open(response.url, "_blank", "noopener,noreferrer");
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
-  if (isTextRequirement) {
-    return null;
-  }
-
-  return (
-    <Group justify="space-between" align="center" wrap="nowrap">
-      <Stack gap={2}>
-        <Group gap="xs">
-          <Text fw={500} size="sm">
-            {requirement.name}
-          </Text>
-          <Badge variant="light" size="sm">
-            {requirementTypeLabels[requirement.type]}
-          </Badge>
-        </Group>
-        <Text c="dimmed" size="xs">
-          {requirementFile?.stored_file.original_filename ??
-            (hasLoadError
-              ? t("kp.manage.booking_requirement_load_error")
-              : t("kp.manage.booking_requirement_missing"))}
-        </Text>
-      </Stack>
-      {requirementFile ? (
-        <Button
-          leftSection={<IconDownload size={16} />}
-          loading={isDownloading}
-          onClick={handleDownload}
-          size="xs"
-          variant="light"
-        >
-          {t("kp.manage.booking_requirement_download")}
-        </Button>
-      ) : (
-        <Badge
-          color={hasLoadError ? "red" : isChecking ? "gray" : "yellow"}
-          variant="light"
-        >
-          {hasLoadError
-            ? t("kp.manage.booking_requirement_load_error_badge")
-            : isChecking
-              ? t("kp.manage.booking_requirement_checking")
-              : t("kp.manage.booking_requirement_missing_badge")}
-        </Badge>
-      )}
-    </Group>
-  );
-};
-
 const KpBookingDetails = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -169,26 +58,17 @@ const KpBookingDetails = () => {
     isLoading,
   } = useGetEventBooking(id ?? "", bookingId ?? "", {
     query: { enabled: Boolean(id && bookingId), retry: false },
+    request: { quietStatuses: INLINE_ERROR_STATUSES },
   });
   const isForbidden = getApiErrorCode(error) === NOT_ALLOWED_CODE;
-  const actions = useBookingActions(id ?? "");
+  const isMissing = !isError || getApiErrorStatus(error) === 404;
   const isPresident = useContext(UserContext)?.user?.is_kp_president ?? false;
-  const {
-    data: requirementFiles,
-    isLoading: isRequirementFilesLoading,
-    isError: isRequirementFilesError,
-    refetch: refetchRequirementFiles,
-  } = useListStaffBookingRequirementFiles(id ?? "", bookingId ?? "", {
-    query: { enabled: Boolean(id && bookingId), retry: false },
-  });
 
   if (!id || !bookingId) {
     return (
       <Stack gap="md">
         <BackButton to="/kp" />
-        <Alert icon={<IconAlertCircle />} color="red">
-          {t("kp.manage.booking_detail_not_found")}
-        </Alert>
+        <ErrorAlert>{t("kp.manage.booking_detail_not_found")}</ErrorAlert>
       </Stack>
     );
   }
@@ -197,9 +77,7 @@ const KpBookingDetails = () => {
     return (
       <Stack gap="md">
         <BackButton to={backToBookings} />
-        <Center py="xl">
-          <Loader />
-        </Center>
+        <PageLoader />
       </Stack>
     );
   }
@@ -208,21 +86,22 @@ const KpBookingDetails = () => {
     return (
       <Stack gap="md">
         <BackButton to={backToBookings} />
-        <Alert
-          icon={<IconAlertCircle />}
-          color={isForbidden ? "yellow" : "red"}
-          title={isForbidden ? t("not_allowed.title") : undefined}
-        >
-          {isForbidden
-            ? t("kp.manage.booking_detail_forbidden")
-            : t("kp.manage.booking_detail_not_found")}
-        </Alert>
+        {isForbidden ? (
+          <Alert
+            icon={<IconAlertCircle />}
+            color="yellow"
+            title={t("not_allowed.title")}
+          >
+            {t("kp.manage.booking_detail_forbidden")}
+          </Alert>
+        ) : (
+          <ErrorAlert>
+            {isMissing ? t("kp.manage.booking_detail_not_found") : undefined}
+          </ErrorAlert>
+        )}
       </Stack>
     );
   }
-
-  const bookingServices = booking.services ?? [];
-  const addedQuantities = addedQuantityByBookingServiceId(booking);
 
   return (
     <Stack gap="md">
@@ -267,7 +146,7 @@ const KpBookingDetails = () => {
         />
       ) : null}
 
-      <BookingEditPanel booking={booking} eventId={id} />
+      <BookingEditPanel key={booking.id} booking={booking} eventId={id} />
 
       <BookingWaitlistCard booking={booking} />
 
@@ -289,11 +168,11 @@ const KpBookingDetails = () => {
             />
             <DetailField
               label={t("kp.manage.booking_total")}
-              value={`CHF ${formatPrice(booking.net_total)}`}
+              value={formatMoney(booking.net_total)}
             />
             <DetailField
               label={t("kp.manage.booking_gross_total")}
-              value={`CHF ${formatPrice(booking.price.gross)}`}
+              value={formatMoney(booking.price.gross)}
             />
             <DetailField
               label={t("kp.manage.booking_nametags")}
@@ -323,108 +202,7 @@ const KpBookingDetails = () => {
         </Stack>
       </Paper>
 
-      <Paper withBorder p="lg" radius="md">
-        <Stack gap="md">
-          <Group justify="space-between" align="center">
-            <Title order={4}>{t("kp.manage.booking_services")}</Title>
-            {hasNewAdditions(booking) ? (
-              <Button
-                color="gray"
-                leftSection={<IconEyeCheck size={16} />}
-                loading={actions.isAcknowledging}
-                onClick={() => {
-                  void actions
-                    .acknowledgeAdditions(booking.id)
-                    .catch(() => undefined);
-                }}
-                size="xs"
-                variant="subtle"
-              >
-                {t("kp.manage.booking_additions_acknowledge")}
-              </Button>
-            ) : null}
-          </Group>
-          {isRequirementFilesError ? (
-            <Alert icon={<IconAlertCircle />} color="red">
-              <Group justify="space-between" align="center" wrap="nowrap">
-                <Text size="sm">
-                  {t("kp.manage.booking_requirement_load_error")}
-                </Text>
-                <Button
-                  leftSection={<IconRefresh size={16} />}
-                  onClick={() => {
-                    void refetchRequirementFiles();
-                  }}
-                  size="xs"
-                  variant="light"
-                >
-                  {t("kp.manage.booking_requirement_retry")}
-                </Button>
-              </Group>
-            </Alert>
-          ) : null}
-          {bookingServices.length > 0 ? (
-            <Stack gap="md">
-              {bookingServices.map((bookingService, index) => (
-                <Stack gap="sm" key={bookingService.id}>
-                  {index > 0 ? <Divider /> : null}
-                  <Group justify="space-between" align="flex-start">
-                    <Stack gap={2}>
-                      <Text fw={600}>{bookingService.service.name}</Text>
-                      {bookingService.service.description ? (
-                        <Text c="dimmed" size="sm">
-                          {bookingService.service.description}
-                        </Text>
-                      ) : null}
-                    </Stack>
-                    <Group gap="xs" wrap="nowrap">
-                      {addedQuantities.has(bookingService.id) ? (
-                        <Badge color="orange" variant="dot">
-                          {t("kp.manage.booking_service_added", {
-                            quantity: addedQuantities.get(bookingService.id),
-                          })}
-                        </Badge>
-                      ) : null}
-                      <Badge variant="light">
-                        {t("kp.manage.booking_service_quantity", {
-                          quantity: bookingService.quantity,
-                        })}
-                      </Badge>
-                    </Group>
-                  </Group>
-
-                  {bookingService.service.requirements.some(
-                    (requirement) =>
-                      requirement.type !== KpEventServiceRequirementType.text,
-                  ) ? (
-                    <Stack gap="xs">
-                      <Text c="dimmed" fw={500} size="sm">
-                        {t("kp.manage.booking_service_requirements")}
-                      </Text>
-                      {bookingService.service.requirements.map(
-                        (requirement) => (
-                          <StaffRequirementRow
-                            bookingServiceId={bookingService.id}
-                            hasLoadError={isRequirementFilesError}
-                            isChecking={isRequirementFilesLoading}
-                            key={requirement.id}
-                            requirementFile={
-                              requirementFiles?.files[requirement.id]
-                            }
-                            requirement={requirement}
-                          />
-                        ),
-                      )}
-                    </Stack>
-                  ) : null}
-                </Stack>
-              ))}
-            </Stack>
-          ) : (
-            <Text c="dimmed">{t("kp.manage.booking_services_empty")}</Text>
-          )}
-        </Stack>
-      </Paper>
+      <BookingServicesCard booking={booking} eventId={id} />
     </Stack>
   );
 };

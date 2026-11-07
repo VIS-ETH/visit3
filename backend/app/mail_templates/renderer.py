@@ -44,6 +44,8 @@ ALLOWED_FILTERS = frozenset(
 )
 
 environment = SandboxedEnvironment(autoescape=True, undefined=StrictUndefined)
+subject_environment = SandboxedEnvironment(autoescape=False, undefined=StrictUndefined)
+MAX_SUBJECT_CHARACTERS = 250
 
 
 def _unsupported(node: nodes.Node) -> str | None:
@@ -75,21 +77,24 @@ class RenderedMail:
     text: str
 
 
+def used_variables(source: str, identifier: str, field: str) -> set[str]:
+    return find_undeclared_variables(parse_template(source, identifier, field))
+
+
 def unknown_variables(
     source: str, allowed: frozenset[str], identifier: str, field: str
 ) -> set[str]:
-    return (
-        find_undeclared_variables(parse_template(source, identifier, field)) - allowed
-    )
+    return used_variables(source, identifier, field) - allowed
 
 
 def render_fragment(
     source: str, variables: Mapping[str, str], identifier: str, field: str
 ) -> str:
     parsed = parse_template(source, identifier, field)
+    renderer = subject_environment if field.startswith("subject") else environment
     try:
-        rendered = environment.from_string(parsed).render(**variables)
-    except TemplateError as error:
+        rendered = renderer.from_string(parsed).render(**variables)
+    except (TemplateError, TypeError, ValueError, ArithmeticError) as error:
         raise MailTemplateInvalid(identifier, str(error), field)
     if len(rendered) > MAX_OUTPUT_CHARACTERS:
         raise MailTemplateInvalid(identifier, "output too large", field)
@@ -125,7 +130,7 @@ def header_safe(text: str) -> str:
             " " if unicodedata.category(character) == "Cc" else character
             for character in text
         ).split()
-    )
+    )[:MAX_SUBJECT_CHARACTERS]
 
 
 def render_mail(

@@ -49,6 +49,7 @@ def repository_with(offers: list[KpEventBooking]) -> AsyncMock:
     kp_repository = AsyncMock()
     kp_repository.list_pending_offers.return_value = offers
     kp_repository.update_booking.side_effect = lambda booking, _: booking
+    kp_repository.lock_booking.side_effect = {offer.id: offer for offer in offers}.get
     kp_repository.lock_model_by_id.return_value = None
     return kp_repository
 

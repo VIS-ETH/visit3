@@ -4,6 +4,9 @@ import { http, HttpResponse } from "msw";
 import { Route, Routes } from "react-router";
 import CompanyJoin from "../../pages/CompanyJoin";
 import { UserProvider } from "../../context/UserContext";
+import type { UserResponse } from "../../orval/generated/fastAPI.schemas";
+import { companyUser } from "../fixtures/users";
+import { createToken } from "../jwt";
 import { server } from "../server";
 import { testBackendUrl } from "../constants";
 import { renderWithProviders } from "../render";
@@ -24,11 +27,12 @@ const mockInvite = (accountExists: boolean) => {
   );
 };
 
-const renderJoin = () =>
+const renderJoin = (currentUser?: UserResponse) =>
   renderWithProviders(
-    <UserProvider user={undefined} isLoading={false}>
+    <UserProvider user={currentUser} isLoading={false}>
       <Routes>
         <Route path="/company/join/:token" element={<CompanyJoin />} />
+        <Route path="/company" element={<p data-testid="company-page" />} />
       </Routes>
     </UserProvider>,
     { route: joinRoute },
@@ -37,9 +41,6 @@ const renderJoin = () =>
 beforeEach(() => {
   registerBodies = [];
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.post(`${testBackendUrl}/api/auth/refresh`, () =>
       HttpResponse.json({}, { status: 401 }),
     ),
@@ -128,5 +129,73 @@ describe("Company invite landing", () => {
     renderJoin();
 
     expect(await screen.findByText("error.invite_expired")).toBeInTheDocument();
+  });
+
+  it("shows a server error instead of a missing invite when loading fails", async () => {
+    server.use(
+      http.get(`${testBackendUrl}/api/company/invite/:token`, () =>
+        HttpResponse.json(
+          { statusCode: 500, code: "error.internal", message: "boom" },
+          { status: 500 },
+        ),
+      ),
+    );
+
+    renderJoin();
+
+    expect(await screen.findByText("error.load_failed")).toBeInTheDocument();
+    expect(
+      screen.queryByText("error.invite_not_found"),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("Company invite for a signed-in user", () => {
+  const memberOf = (companyId: string): UserResponse => ({
+    ...companyUser,
+    company_id: companyId,
+  });
+
+  beforeEach(() => {
+    localStorage.setItem("token", createToken(3600));
+  });
+
+  it("explains that the user already belongs to another company", async () => {
+    mockInvite(true);
+    server.use(
+      http.post(`${testBackendUrl}/api/company/invite/:token/accept`, () =>
+        HttpResponse.json(
+          { statusCode: 403, code: "error.not_allowed", message: "no" },
+          { status: 403 },
+        ),
+      ),
+    );
+
+    const { user } = renderJoin(memberOf("other-company"));
+    await user.click(
+      await screen.findByRole("button", { name: "company_join.button" }),
+    );
+
+    expect(
+      await screen.findByText("company_join.already_in_company"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("error.invite_not_found"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens the company when the invite was already accepted", async () => {
+    server.use(
+      http.get(`${testBackendUrl}/api/company/invite/:token`, () =>
+        HttpResponse.json(
+          { statusCode: 404, code: "error.invite_not_found", message: "gone" },
+          { status: 404 },
+        ),
+      ),
+    );
+
+    renderJoin(memberOf("example-ag"));
+
+    expect(await screen.findByTestId("company-page")).toBeInTheDocument();
   });
 });

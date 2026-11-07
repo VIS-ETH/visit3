@@ -261,7 +261,7 @@ async def test_expired_rotation_records_survive_cleanup_until_they_expire(
 ):
     user = await create_user(email="cleanup@example.com")
     token = await auth_service.create_refresh_token(user)
-    await auth_service.token_repository.rotate_refresh_token(user.id, token)
+    await auth_service.token_repository.rotate_refresh_token(token)
     await db_session.execute(
         update(RefreshToken)
         .where(col(RefreshToken.token) == hash_str(token))

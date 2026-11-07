@@ -20,10 +20,10 @@ from app.schemas.kp import (
     RejectBookingInput,
     UpdateBookingStatusInput,
 )
-from app.services.kp_service import (
+from app.services.kp_service import KpService
+from app.services.kp_service.booking_status import (
     COMPANY_BOOKING_TRANSITIONS,
     STAFF_BOOKING_TRANSITIONS,
-    KpService,
 )
 from tests.unit.conftest import complete_company_profile, complete_company_snapshot
 

@@ -1,18 +1,16 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from app.core.auth_context import require_kp_president_user
 from app.core.exceptions import (
     KpBoothZoneEventMismatch,
     KpBoothZoneNotFound,
-    KpEventNotFound,
     KpVenueBoothNumberDuplicate,
     KpVenueLayoutNameExists,
     KpVenueLayoutNotFound,
     KpVenueOutOfBounds,
 )
-from app.core.utils import bounded_filename, safe_suffix
 from app.models.kp_event import KpEvent, KpEventBoothZone
 from app.models.user import User
 from app.models.venue import (
@@ -45,7 +43,9 @@ from app.services.booth_zone_view import (
     booth_zones_with_availability,
 )
 from app.services.download_urls import DownloadUrls
+from app.services.event_lookup import require_event
 from app.services.storage_service import StorageService, UploadKind, UploadStream
+from app.services.stored_files import StoredFiles
 
 BACKGROUND_MIME_TYPES = {"image/png", "image/jpeg", "image/webp"}
 BACKGROUND_CONTEXT = "venue_layout_background"
@@ -82,14 +82,14 @@ class VenueService:
         self.venue_repository = venue_repository
         self.kp_repository = kp_repository
         self.storage_service = storage_service
+        self.stored_files = StoredFiles(storage_service, kp_repository)
         self.download_urls = DownloadUrls(storage_service)
         self.current_user = current_user
 
     async def _get_event(self, event_id: UUID) -> KpEvent:
-        event = await self.kp_repository.get_by_id(event_id)
-        if event is None:
-            raise KpEventNotFound(f"venue:event_not_found:{event_id}")
-        return event
+        return await require_event(
+            self.kp_repository, event_id, f"venue:event_not_found:{event_id}"
+        )
 
     async def _get_layout(self, layout_id: UUID) -> KpVenueLayout:
         layout = await self.venue_repository.get_layout_by_id(layout_id)
@@ -259,9 +259,7 @@ class VenueService:
         layout = await self._get_layout(layout_id)
         stored_file = layout.background_stored_file
         await self.venue_repository.delete_layout(layout)
-        if stored_file is not None:
-            await self.storage_service.delete_object(stored_file.storage_key)
-            await self.kp_repository.delete_stored_file(stored_file)
+        await self.stored_files.discard(stored_file)
 
     async def upload_background(
         self,
@@ -288,34 +286,18 @@ class VenueService:
             allowed_mime_types=BACKGROUND_MIME_TYPES,
         )
         old_stored_file = layout.background_stored_file
-        storage_key = (
-            f"kp/venue-layouts/{layout_id}/background/{uuid4()}{safe_suffix(filename)}"
+        updated = await self.stored_files.save(
+            f"kp/venue-layouts/{layout_id}/background",
+            filename,
+            content,
+            mime_type,
+            lambda stored_file: (
+                self.venue_repository.set_layout_background_stored_file_id(
+                    layout, stored_file.id
+                )
+            ),
         )
-        stored_object = await self.storage_service.upload_bytes(
-            key=storage_key,
-            content=content,
-            filename=filename,
-            content_type=mime_type,
-        )
-        try:
-            stored_file = await self.kp_repository.upsert_stored_file(
-                storage_key=stored_object.key,
-                original_filename=bounded_filename(filename),
-                mime_type=stored_object.mime_type,
-                size_bytes=stored_object.size_bytes,
-                sha256=stored_object.sha256,
-                etag=stored_object.etag,
-                stored_file=None,
-            )
-            updated = await self.venue_repository.set_layout_background_stored_file_id(
-                layout, stored_file.id
-            )
-        except Exception:
-            await self.storage_service.delete_object(stored_object.key)
-            raise
-        if old_stored_file is not None:
-            await self.storage_service.delete_object(old_stored_file.storage_key)
-            await self.kp_repository.delete_stored_file(old_stored_file)
+        await self.stored_files.discard(old_stored_file)
         return await self._build_single_layout(updated)
 
     async def delete_background(self, layout_id: UUID) -> VenueLayoutResult:
@@ -327,8 +309,7 @@ class VenueService:
         updated = await self.venue_repository.set_layout_background_stored_file_id(
             layout, None
         )
-        await self.storage_service.delete_object(stored_file.storage_key)
-        await self.kp_repository.delete_stored_file(stored_file)
+        await self.stored_files.discard(stored_file)
         return await self._build_single_layout(updated)
 
     async def replace_zone_shapes(

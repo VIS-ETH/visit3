@@ -301,6 +301,15 @@ def auth_headers(
 
 @pytest.fixture
 async def staff_headers(
+    staff_user: User,
+    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
+    csrf_headers: dict[str, str],
+) -> dict[str, str]:
+    return {**await auth_headers(staff_user), **csrf_headers}
+
+
+@pytest.fixture
+async def admin_headers(
     admin_user: User,
     auth_headers: Callable[[User], Awaitable[dict[str, str]]],
     csrf_headers: dict[str, str],
@@ -318,15 +327,15 @@ async def company_headers(
 
 
 @pytest.fixture
-async def kp_setup(client: AsyncClient, staff_headers: dict[str, str]) -> KpSetup:
+async def kp_setup(client: AsyncClient, president_headers: dict[str, str]) -> KpSetup:
     event = await client.post(
-        "/api/kp/create", json=kp_payload(), headers=staff_headers
+        "/api/kp/create", json=kp_payload(), headers=president_headers
     )
     event_id = event.json()["id"]
     booth_zone = await client.post(
         f"/api/kp/events/{event_id}/booth-zones",
         json={"name": "Main hall", "capacity": 5, "base_price": 10000},
-        headers=staff_headers,
+        headers=president_headers,
     )
     service = await client.post(
         f"/api/kp/events/{event_id}/services",
@@ -335,7 +344,7 @@ async def kp_setup(client: AsyncClient, staff_headers: dict[str, str]) -> KpSetu
             "price": 5000,
             "max_quantity_per_booking": MAX_QUANTITY_PER_BOOKING,
         },
-        headers=staff_headers,
+        headers=president_headers,
     )
     return KpSetup(
         event_id=event_id,
@@ -388,18 +397,22 @@ def register_booking(
 
 
 @pytest.fixture
-async def president_headers(
-    create_user: Callable[..., Awaitable[User]],
-    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
-    csrf_headers: dict[str, str],
-) -> dict[str, str]:
-    president = await create_user(
+async def president_user(create_user: Callable[..., Awaitable[User]]) -> User:
+    return await create_user(
         email="president@example.com",
         is_staff=True,
         is_company=False,
         roles=(KP_PRESIDENT_ROLE,),
     )
-    return {**await auth_headers(president), **csrf_headers}
+
+
+@pytest.fixture
+async def president_headers(
+    president_user: User,
+    auth_headers: Callable[[User], Awaitable[dict[str, str]]],
+    csrf_headers: dict[str, str],
+) -> dict[str, str]:
+    return {**await auth_headers(president_user), **csrf_headers}
 
 
 @pytest.fixture

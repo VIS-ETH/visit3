@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
-import { useScrollToHash } from "../../utils/use-scroll-to-hash";
+import { useScrollToHash } from "../../hooks/use-scroll-to-hash";
 import { renderWithProviders } from "../render";
 
 const INPUT_ID = "late-input";

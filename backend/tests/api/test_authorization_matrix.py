@@ -57,6 +57,7 @@ class Persona(StrEnum):
 class Access(StrEnum):
     AUTHENTICATED = "authenticated"
     COMPANY = "company"
+    CONFIRMED_COMPANY = "confirmed-company"
     BOOKING_COMPANY = "booking-company"
     COMPANY_PROFILE = "company-profile"
     UNASSIGNED_COMPANY = "unassigned-company"
@@ -120,7 +121,7 @@ ROUTE_ACCESS: dict[str, Access] = {
     "DELETE /api/company/{company_id}/profile/logo": Access.STAFF,
     "POST /api/company/{company_id}/profile/booklet-page": Access.STAFF,
     "PATCH /api/company/me": Access.COMPANY,
-    "POST /api/company/invite": Access.COMPANY,
+    "POST /api/company/invite": Access.CONFIRMED_COMPANY,
     "GET /api/company/management/companies": Access.STAFF,
     "GET /api/company/{company_id}/users": Access.STAFF,
     "GET /api/company/{company_id}/with-users": Access.STAFF,
@@ -202,6 +203,7 @@ ROUTE_ACCESS: dict[str, Access] = {
     "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/file/download": Access.BOOKING_COMPANY,
     "GET /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/text": Access.BOOKING_COMPANY,
     "PUT /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/text": Access.BOOKING_COMPANY,
+    "DELETE /api/kp/booking-services/{booking_service_id}/requirements/{requirement_id}/text": Access.BOOKING_COMPANY,
     "GET /api/kp/staff/booking-services/{booking_service_id}/requirements/{requirement_id}/file": Access.STAFF,
     "GET /api/kp/staff/booking-services/{booking_service_id}/requirements/{requirement_id}/file/download": Access.STAFF,
     "GET /api/kp/staff/events/{event_id}/bookings/{booking_id}/requirement-files": Access.STAFF,
@@ -215,6 +217,7 @@ ROUTE_ACCESS: dict[str, Access] = {
     "GET /api/kp/events/{event_id}/exports/nametags/download": Access.STAFF,
     "GET /api/kp/bookings/{booking_id}/nametags/download": Access.STAFF,
     "GET /api/kp/nametags/{name_tag_id}/download": Access.STAFF,
+    "GET /api/kp/events/{event_id}/exports/nametags/preview": Access.STAFF,
     "GET /api/kp/events/{event_id}/exports/bookings/download": Access.STAFF,
     "GET /api/kp/events/{event_id}/exports/bookings/by-zone/download": Access.STAFF,
     "GET /api/kp/events/{event_id}/exports/waitlist-companies/download": Access.STAFF,
@@ -312,6 +315,7 @@ KP_ROUTE_SUBJECT: dict[str, KpSubject] = {
     "GET /api/kp/events/{event_id}/exports/nametags/download": KpSubject.BOOKINGS,
     "GET /api/kp/bookings/{booking_id}/nametags/download": KpSubject.BOOKINGS,
     "GET /api/kp/nametags/{name_tag_id}/download": KpSubject.BOOKINGS,
+    "GET /api/kp/events/{event_id}/exports/nametags/preview": KpSubject.BOOKINGS,
     "GET /api/kp/events/{event_id}/exports/bookings/download": KpSubject.BOOKINGS,
     "GET /api/kp/events/{event_id}/exports/bookings/by-zone/download": KpSubject.BOOKINGS,
     "GET /api/kp/events/{event_id}/exports/waitlist-companies/download": KpSubject.BOOKINGS,
@@ -338,6 +342,8 @@ REQUEST_BODIES: dict[str, dict[str, Any]] = {
     "PATCH /api/company/me": {"name": "Matrix Holding {persona}"},
     "PATCH /api/companies/{company_id}": {"name": "Matrix Company {persona}"},
     "POST /api/companies/{company_id}/members": {"user_id": "{unassigned_user_id}"},
+    "POST /api/companies/{company_id}/confirm": {"name": "Acme AG"},
+    "POST /api/changes/seen": {"as_of": "2099-01-01T00:00:00Z"},
     "PUT /api/company/me/profile": company_profile_payload(),
     "PUT /api/company/{company_id}/profile": company_profile_payload(),
     "POST /api/company/me/profile/booklet-page": company_profile_payload(),
@@ -486,6 +492,7 @@ STAFF_PERSONAS = {Persona.STAFF, Persona.PRESIDENT, Persona.ADMIN}
 EXPECTATIONS: dict[Access, dict[Persona, Expected]] = {
     Access.AUTHENTICATED: _expectations(AUTHENTICATED_PERSONAS),
     Access.COMPANY: _expectations({Persona.COMPANY, Persona.UNCONFIRMED}),
+    Access.CONFIRMED_COMPANY: _expectations({Persona.COMPANY}),
     Access.BOOKING_COMPANY: _expectations({Persona.COMPANY}),
     Access.COMPANY_PROFILE: _expectations({Persona.COMPANY, Persona.UNCONFIRMED}),
     Access.UNASSIGNED_COMPANY: _expectations(set()),

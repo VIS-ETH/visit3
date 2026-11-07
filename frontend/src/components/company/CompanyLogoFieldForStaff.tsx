@@ -1,4 +1,4 @@
-import { notifications } from "@mantine/notifications";
+import { notifySuccess } from "../../utils/notify";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
@@ -32,10 +32,7 @@ const CompanyLogoFieldForStaff = ({
       mutation: {
         onSuccess: (profile) => {
           storeProfile(profile);
-          notifications.show({
-            color: "green",
-            message: t("company_profile_form.logo_upload_success"),
-          });
+          notifySuccess(t("company_profile_form.logo_upload_success"));
         },
       },
     });
@@ -45,10 +42,7 @@ const CompanyLogoFieldForStaff = ({
       mutation: {
         onSuccess: (profile) => {
           storeProfile(profile);
-          notifications.show({
-            color: "green",
-            message: t("company_profile_form.logo_remove_success"),
-          });
+          notifySuccess(t("company_profile_form.logo_remove_success"));
         },
       },
     });

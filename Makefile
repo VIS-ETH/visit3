@@ -11,12 +11,18 @@ FIX_GRPC_IMPORTS = find $(PROTOS_DST) -type d -exec touch {}/__init__.py \; && $
 EXTRACT_OPENAPI_DOCS = $(UV_SYNC_BACKEND_CODEGEN) && $(PYTHON_BACKEND) ./scripts/extract_docs.py $(DOCS_FILE)/visit.json
 GENERATE_ORVAL_CLIENT = cd frontend && corepack enable && yarn install --immutable && yarn orval --config src/orval/orvalConfig.ts
 
+RACE_TEST_CONTAINER = visit-race-test
+RACE_TEST_POSTGRES_IMAGE = postgres:16
+RACE_TEST_PORT = 55433
+RACE_TEST_ENV = SIP_POSTGRES_DB_SERVER=localhost SIP_POSTGRES_DB_PORT=$(RACE_TEST_PORT) SECRET_KEY=$$(openssl rand -hex 32)
+RACE_TEST_URL = postgresql+asyncpg://postgres:postgres@localhost:$(RACE_TEST_PORT)/postgres
+
 PROTOS_DST = ./backend/app/generated
 PROTOS_PREFIX = app.generated
 
 PROTOS := $(shell find ./servis -name "*.proto" -not -path "./servis/google/*")
 
-.PHONY: generate clean check lint typecheck frontend-check frontend-lint frontend-typecheck frontend-i18n frontend-test backend-check backend-lint backend-lint-all backend-typecheck backend-typecheck-all generate-grpc clean-grpc generate-orval clean-orval
+.PHONY: generate clean check lint typecheck frontend-check frontend-lint frontend-typecheck frontend-i18n frontend-test backend-check backend-lint backend-test backend-lint-all backend-typecheck backend-typecheck-all backend-race-test generate-grpc clean-grpc generate-orval clean-orval
 
 generate:
 	$(MAKE) generate-grpc
@@ -45,7 +51,7 @@ frontend-i18n:
 frontend-test:
 	cd frontend && yarn test
 
-backend-check: backend-lint backend-typecheck
+backend-check: backend-lint backend-typecheck backend-test
 
 backend-lint:
 	cd backend && uv run ruff check app
@@ -58,6 +64,18 @@ backend-lint-all:
 
 backend-typecheck-all:
 	cd backend && uv run pyright .
+
+backend-test:
+	cd backend && uv run pytest
+
+backend-race-test:
+	docker stop $(RACE_TEST_CONTAINER) >/dev/null 2>&1 || true
+	docker run -d --rm --name $(RACE_TEST_CONTAINER) -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:$(RACE_TEST_PORT):5432 $(RACE_TEST_POSTGRES_IMAGE) >/dev/null
+	trap 'docker stop $(RACE_TEST_CONTAINER) >/dev/null' EXIT; \
+	until docker exec $(RACE_TEST_CONTAINER) pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; do sleep 1; done; \
+	cd backend && set -a && . ./.env.example && set +a && \
+	$(RACE_TEST_ENV) uv run alembic upgrade head && \
+	TEST_POSTGRES_URL=$(RACE_TEST_URL) uv run pytest tests/races
 
 generate-grpc: clean-grpc
 	mkdir -p $(PROTOS_DST)

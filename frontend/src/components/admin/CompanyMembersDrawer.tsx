@@ -1,11 +1,9 @@
 import {
   ActionIcon,
-  Alert,
   Anchor,
   Button,
   Drawer,
   Group,
-  Loader,
   Select,
   Stack,
   Table,
@@ -13,9 +11,8 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
-import { notifications } from "@mantine/notifications";
+import { notifySuccess } from "../../utils/notify";
 import {
-  IconAlertCircle,
   IconEyeCheck,
   IconPencil,
   IconTrash,
@@ -25,8 +22,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
-import { getApiErrorCode } from "../../api/errors";
-import { getImpersonatingUserId } from "../../api/utils";
+import { getInlineErrorCode, inlineErrorRequest } from "../../api/errors";
 import {
   getGetCompanyUsersQueryKey,
   getSearchCompaniesQueryKey,
@@ -35,22 +31,19 @@ import {
   useGetCompanyUsers,
   useRemoveCompanyUser,
 } from "../../orval/generated/company/company";
-import {
-  UserFilter,
-  type UserResponse,
-} from "../../orval/generated/fastAPI.schemas";
-import {
-  getListUsersQueryKey,
-  useListUsers,
-} from "../../orval/generated/user/user";
+import type { UserResponse } from "../../orval/generated/fastAPI.schemas";
+import { getListUsersQueryKey } from "../../orval/generated/user/user";
 import { getDisplayName } from "../../utils/display";
-import BookingNewAdditionsBadge from "../bookings/BookingNewAdditionsBadge";
+import BookingNewAdditionsBadge from "../staff-bookings/BookingNewAdditionsBadge";
 import { useCurrentUser } from "../../context/useCurrentUser";
 import UserEditDrawer from "./UserEditDrawer";
 import { useImpersonate } from "./useImpersonate";
+import { useMemberCandidates } from "./useMemberCandidates";
+import { useAsyncAction } from "../../hooks/use-async-action";
+import ErrorAlert from "../ErrorAlert";
+import PageLoader from "../PageLoader";
 
 const SEARCH_DEBOUNCE_MS = 300;
-const CANDIDATE_PAGE_SIZE = 20;
 
 interface CompanyMembersDrawerProps {
   company: { id: string; name: string } | null;
@@ -68,7 +61,7 @@ const CompanyMembersDrawer = ({
   const [candidateId, setCandidateId] = useState<string | null>(null);
   const [candidateSearch, setCandidateSearch] = useState("");
   const [editedUser, setEditedUser] = useState<UserResponse | null>(null);
-  const { canImpersonate, impersonate } = useImpersonate();
+  const { canImpersonate, canImpersonateUser, impersonate } = useImpersonate();
   const isAdmin = useCurrentUser().user?.is_admin ?? false;
   const [debouncedCandidateSearch] = useDebouncedValue(
     candidateSearch,
@@ -80,87 +73,59 @@ const CompanyMembersDrawer = ({
     setCandidateId(null);
   }, [companyId]);
 
-  const { data: members, isLoading } = useGetCompanyUsers(companyId, {
+  const {
+    data: members,
+    isLoading,
+    isError,
+  } = useGetCompanyUsers(companyId, {
     query: { enabled: companyId !== "" },
   });
 
-  const { data: candidatePage } = useListUsers(
-    {
-      query: debouncedCandidateSearch.trim() || undefined,
-      filter: UserFilter.company,
-      page: 1,
-      page_size: CANDIDATE_PAGE_SIZE,
-    },
-    { query: { enabled: companyId !== "" } },
+  const { data: unassignedUsers } = useMemberCandidates(
+    debouncedCandidateSearch,
+    companyId !== "",
   );
 
-  const candidates = (candidatePage?.items ?? [])
-    .filter((user) => !user.company_id)
-    .map((user) => ({
-      value: user.id,
-      label: `${getDisplayName(user.first_name, user.last_name, user.email)} (${user.email})`,
-    }));
+  const candidates = (unassignedUsers ?? []).map((user) => ({
+    value: user.id,
+    label: `${getDisplayName(user.first_name, user.last_name, user.email)} (${user.email})`,
+  }));
 
-  const refresh = async () => {
-    await queryClient.invalidateQueries({
-      queryKey: getGetCompanyUsersQueryKey(companyId),
-    });
-    await queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
-    await queryClient.invalidateQueries({
-      queryKey: getSearchCompaniesQueryKey(),
-    });
-  };
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: getGetCompanyUsersQueryKey(companyId),
+      }),
+      queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() }),
+      queryClient.invalidateQueries({ queryKey: getSearchCompaniesQueryKey() }),
+    ]);
 
-  const { mutate: addMember, isPending: isAdding } = useAddCompanyMember({
-    mutation: {
-      onSuccess: async () => {
-        await refresh();
-        setCandidateId(null);
-        notifications.show({
-          color: "green",
-          message: t("company_management.members.added"),
-        });
-      },
-      onError: (error) => {
-        setErrorCode(getApiErrorCode(error) ?? "server.error");
-      },
-    },
+  const { mutateAsync: addMember } = useAddCompanyMember({
+    request: inlineErrorRequest,
+  });
+  const { mutateAsync: acknowledge } = useAcknowledgeCompanyNewMembers({
+    request: inlineErrorRequest,
+  });
+  const { mutateAsync: removeMember } = useRemoveCompanyUser({
+    request: inlineErrorRequest,
   });
 
-  const { mutate: acknowledge, isPending: isAcknowledging } =
-    useAcknowledgeCompanyNewMembers({
-      mutation: {
-        onSuccess: async () => {
-          await refresh();
-          notifications.show({
-            color: "green",
-            message: t("company_management.members.acknowledged"),
-          });
-        },
-        onError: (error) => {
-          setErrorCode(getApiErrorCode(error) ?? "server.error");
-        },
-      },
-    });
+  const [activeAction, setActiveAction] = useState<string | null>(null);
+  const { run: runMemberAction, isRunning } = useAsyncAction(
+    async (key: string, action: () => Promise<unknown>, successKey: string) => {
+      setActiveAction(key);
+      setErrorCode(null);
+      await action();
+      await refresh();
+      notifySuccess(t(successKey));
+    },
+    (error) => setErrorCode(getInlineErrorCode(error)),
+  );
+  const isActive = (key: string) => isRunning && activeAction === key;
 
   const hasNewMembers = (members ?? []).some((member) =>
     Boolean(member.new_in_company_since),
   );
-
-  const { mutate: removeMember, isPending: isRemoving } = useRemoveCompanyUser({
-    mutation: {
-      onSuccess: async () => {
-        await refresh();
-        notifications.show({
-          color: "green",
-          message: t("company_management.members.removed"),
-        });
-      },
-      onError: (error) => {
-        setErrorCode(getApiErrorCode(error) ?? "server.error");
-      },
-    },
-  });
 
   return (
     <Drawer
@@ -172,15 +137,7 @@ const CompanyMembersDrawer = ({
       })}
     >
       <Stack gap="md">
-        {errorCode ? (
-          <Alert
-            color="red"
-            icon={<IconAlertCircle />}
-            title={t("error.title")}
-          >
-            {t(errorCode)}
-          </Alert>
-        ) : null}
+        {errorCode ? <ErrorAlert>{t(errorCode)}</ErrorAlert> : null}
 
         <UserEditDrawer
           canEditPrivileges={isAdmin}
@@ -205,11 +162,15 @@ const CompanyMembersDrawer = ({
             <Button
               color="gray"
               leftSection={<IconEyeCheck size={16} />}
-              loading={isAcknowledging}
-              onClick={() => {
-                setErrorCode(null);
-                acknowledge({ companyId });
-              }}
+              disabled={isRunning}
+              loading={isActive("acknowledge")}
+              onClick={() =>
+                void runMemberAction(
+                  "acknowledge",
+                  () => acknowledge({ companyId }),
+                  "company_management.members.acknowledged",
+                )
+              }
               size="xs"
               variant="subtle"
             >
@@ -219,7 +180,9 @@ const CompanyMembersDrawer = ({
         </Group>
 
         {isLoading ? (
-          <Loader />
+          <PageLoader />
+        ) : isError ? (
+          <ErrorAlert />
         ) : members && members.length > 0 ? (
           <Table highlightOnHover>
             <Table.Tbody>
@@ -243,7 +206,7 @@ const CompanyMembersDrawer = ({
                           <ActionIcon
                             aria-label={t("user_management.impersonate")}
                             color="blue"
-                            disabled={getImpersonatingUserId() === member.id}
+                            disabled={!canImpersonateUser(member)}
                             onClick={() => impersonate(member)}
                             variant="light"
                           >
@@ -264,11 +227,16 @@ const CompanyMembersDrawer = ({
                         <ActionIcon
                           aria-label={t("company_management.members.remove")}
                           color="red"
-                          disabled={isRemoving}
-                          onClick={() => {
-                            setErrorCode(null);
-                            removeMember({ companyId, userId: member.id });
-                          }}
+                          disabled={isRunning}
+                          loading={isActive(member.id)}
+                          onClick={() =>
+                            void runMemberAction(
+                              member.id,
+                              () =>
+                                removeMember({ companyId, userId: member.id }),
+                              "company_management.members.removed",
+                            )
+                          }
                           variant="light"
                         >
                           <IconTrash size={16} />
@@ -297,12 +265,21 @@ const CompanyMembersDrawer = ({
         />
         <Group justify="flex-end">
           <Button
-            disabled={!candidateId}
-            loading={isAdding}
+            disabled={!candidateId || isRunning}
+            loading={isActive("add")}
             onClick={() => {
               if (!candidateId) return;
-              setErrorCode(null);
-              addMember({ companyId, data: { user_id: candidateId } });
+              void runMemberAction(
+                "add",
+                async () => {
+                  await addMember({
+                    companyId,
+                    data: { user_id: candidateId },
+                  });
+                  setCandidateId(null);
+                },
+                "company_management.members.added",
+              );
             }}
           >
             {t("company_management.members.add_submit")}

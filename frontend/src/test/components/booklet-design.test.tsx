@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { File as NodeFile } from "node:buffer";
-import ExportsTab from "../../components/ExportsTab";
-import BookletDesignSection from "../../components/kp/BookletDesignSection";
+import ExportsTab from "../../components/kp-manage/ExportsTab";
+import BookletDesignSection from "../../components/kp-manage/BookletDesignSection";
 import type {
   BookletBackgroundResponse,
   UserResponse,
@@ -37,9 +37,6 @@ beforeEach(() => {
   previews = 0;
   localStorage.setItem("token", createToken(3600));
   server.use(
-    http.get(`${testBackendUrl}/api/csrftoken`, () =>
-      HttpResponse.json({ token: "csrf-1" }),
-    ),
     http.get(backgroundUrl, () => HttpResponse.json(background)),
     http.put(backgroundUrl, async ({ request }) => {
       const file = (await request.formData()).get("file");
@@ -189,5 +186,19 @@ describe("the exports tab", () => {
     expect(
       screen.queryByText("kp.dashboard.booklet.title"),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows an error instead of an endless placeholder when the preview fails", async () => {
+    server.use(
+      http.post(previewUrl, () =>
+        HttpResponse.json({ statusCode: 500 }, { status: 500 }),
+      ),
+    );
+    const { container } = renderSection();
+
+    expect(
+      await screen.findByText("error.load_failed", {}, SLOW_WAIT),
+    ).toBeInTheDocument();
+    expect(container.querySelector(".mantine-Skeleton-root")).toBeNull();
   });
 });

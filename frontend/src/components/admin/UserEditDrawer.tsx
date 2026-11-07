@@ -7,15 +7,21 @@ import {
   Switch,
   TextInput,
 } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
+import { notifySuccess } from "../../utils/notify";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import type { UserResponse } from "../../orval/generated/fastAPI.schemas";
+import type {
+  UpdateCompanyUserRequest,
+  UserResponse,
+} from "../../orval/generated/fastAPI.schemas";
 import {
+  getGetCurrentUserQueryKey,
   getListUsersQueryKey,
   useUpdateCompanyUser,
 } from "../../orval/generated/user/user";
+import { useCurrentUser } from "../../context/useCurrentUser";
+import { useAsyncAction } from "../../hooks/use-async-action";
 import { useTranslatedForm } from "../../utils/translator";
 import CompanySelect from "./CompanySelect";
 import {
@@ -38,6 +44,7 @@ const UserEditDrawer = ({
 }: UserEditDrawerProps) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { user: currentUser } = useCurrentUser();
 
   const form = useTranslatedForm<typeof adminUserSchema>(adminUserSchema, {
     initialValues: emptyAdminUserFormValues,
@@ -53,28 +60,35 @@ const UserEditDrawer = ({
     clearErrors();
   }, [user, setValues, resetDirty, clearErrors]);
 
-  const { mutate: save, isPending: isSaving } = useUpdateCompanyUser({
-    mutation: {
-      onSuccess: async (updated) => {
-        await queryClient.invalidateQueries({
-          queryKey: getListUsersQueryKey(),
-        });
-        notifications.show({
-          color: "green",
-          message: updated.pending_email
-            ? t("user_management.edit.email_pending", {
-                email: updated.pending_email,
-              })
-            : t("user_management.edit.saved"),
-        });
-        onClose();
-      },
+  const { mutateAsync: updateUser } = useUpdateCompanyUser();
+
+  const { run: save, isRunning: isSaving } = useAsyncAction(
+    async (userId: string, data: UpdateCompanyUserRequest) => {
+      const updated = await updateUser({ userId, data });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() }),
+        userId === currentUser?.id
+          ? queryClient.invalidateQueries({
+              queryKey: getGetCurrentUserQueryKey(),
+            })
+          : undefined,
+      ]);
+      notifySuccess(
+        updated.pending_email
+          ? t("user_management.edit.email_pending", {
+              email: updated.pending_email,
+            })
+          : t("user_management.edit.saved"),
+      );
+      onClose();
     },
-  });
+  );
 
   return (
     <Drawer
-      onClose={onClose}
+      onClose={() => {
+        if (!isSaving) onClose();
+      }}
       opened={user !== null}
       position="right"
       title={t("user_management.edit.title")}
@@ -82,10 +96,7 @@ const UserEditDrawer = ({
       <form
         onSubmit={form.onSubmit((values) => {
           if (!user) return;
-          save({
-            userId: user.id,
-            data: toAdminUserRequest(values, canEditPrivileges),
-          });
+          void save(user.id, toAdminUserRequest(values, canEditPrivileges));
         })}
       >
         <Stack gap="md">

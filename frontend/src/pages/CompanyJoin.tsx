@@ -1,14 +1,12 @@
-import {
-  Alert,
-  Button,
-  Center,
-  Loader,
-  Stack,
-  Text,
-  Title,
-} from "@mantine/core";
+import { Alert, Button, Center, Stack, Text, Title } from "@mantine/core";
 import { IconAlertCircle, IconBuilding } from "@tabler/icons-react";
-import { NavLink, useLocation, useNavigate, useParams } from "react-router";
+import {
+  Navigate,
+  NavLink,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -16,9 +14,18 @@ import {
   useGetCompanyInviteInfo,
 } from "../orval/generated/company/company";
 import { getGetCurrentUserQueryKey } from "../orval/generated/user/user";
-import { getApiErrorCode } from "../api/errors";
+import { getApiErrorCode, getApiErrorStatus } from "../api/errors";
 import CompanyJoinSignup from "../components/company/CompanyJoinSignup";
+import ErrorAlert from "../components/ErrorAlert";
+import PageLoader from "../components/PageLoader";
 import { useCurrentUser } from "../context/useCurrentUser";
+
+const HANDLED_STATUSES = [400, 403, 404] as const;
+
+const isHandledStatus = (error: unknown) => {
+  const status = getApiErrorStatus(error);
+  return status !== undefined && HANDLED_STATUSES.some((s) => s === status);
+};
 
 const CompanyJoin = () => {
   const { t } = useTranslation();
@@ -35,6 +42,7 @@ const CompanyJoin = () => {
     isError,
   } = useGetCompanyInviteInfo(token!, {
     query: { enabled: !!token, retry: false },
+    request: { quietStatuses: HANDLED_STATUSES },
   });
 
   const {
@@ -50,6 +58,7 @@ const CompanyJoin = () => {
         navigate("/company", { replace: true });
       },
     },
+    request: { quietStatuses: HANDLED_STATUSES },
   });
 
   const loginHref = `/login?next=${encodeURIComponent(location.pathname)}`;
@@ -63,13 +72,29 @@ const CompanyJoin = () => {
         currentEmail: user?.email ?? "",
       });
     }
-    return t("error.invite_not_found");
+    if (code === "error.invite_not_found") return t("error.invite_not_found");
+    if (code === "error.not_allowed" && user?.company_id) {
+      return t("company_join.already_in_company");
+    }
+    return t("server.error");
   };
 
   if (isLoading) {
+    return <PageLoader />;
+  }
+
+  if (
+    isError &&
+    user?.company_id &&
+    getApiErrorCode(inviteError) === "error.invite_not_found"
+  ) {
+    return <Navigate to="/company" replace />;
+  }
+
+  if (isError && !isHandledStatus(inviteError)) {
     return (
       <Center py="xl">
-        <Loader />
+        <ErrorAlert />
       </Center>
     );
   }
@@ -96,14 +121,16 @@ const CompanyJoin = () => {
           {t("company_join.title")}
         </Title>
         <Text ta="center" c="dimmed">
-          {t("company_join.joining")} <strong>{invite.company_name}</strong>
+          {t("company_join.joining", { company: invite.company_name })}
         </Text>
         {user ? (
           <Stack w="100%" gap="sm">
             {acceptError ? (
-              <Alert icon={<IconAlertCircle />} color="red">
-                {inviteErrorText(acceptError)}
-              </Alert>
+              <ErrorAlert>
+                {isHandledStatus(acceptError)
+                  ? inviteErrorText(acceptError)
+                  : t("server.error")}
+              </ErrorAlert>
             ) : null}
             <Button
               size="lg"

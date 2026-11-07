@@ -184,7 +184,7 @@ async def test_a_parallel_requirement_answer_is_saved_once(
     client: AsyncClient,
     kp_setup: KpSetup,
     company_headers: dict[str, str],
-    staff_headers: dict[str, str],
+    president_headers: dict[str, str],
     complete_company_profile: Callable[..., Awaitable[Response]],
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -202,7 +202,7 @@ async def test_a_parallel_requirement_answer_is_saved_once(
                 }
             ],
         },
-        headers=staff_headers,
+        headers=president_headers,
     )
     booking = await client.post(
         f"/api/kp/events/{kp_setup.event_id}/bookings/register",
@@ -350,20 +350,20 @@ async def upload_booklet_background(
 
 async def test_a_replaced_booklet_background_survives_a_failed_cleanup(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     storage_service: AsyncMock,
 ):
     await upload_booklet_background(
-        client, staff_headers, kp_setup.event_id, make_pdf()
+        client, admin_headers, kp_setup.event_id, make_pdf()
     )
     storage_service.delete_object.side_effect = StorageDeleteFailed("cleanup")
 
     response = await upload_booklet_background(
-        client, staff_headers, kp_setup.event_id, make_pdf(fill="#eeeeee")
+        client, admin_headers, kp_setup.event_id, make_pdf(fill="#eeeeee")
     )
     stored = await client.get(
-        booklet_background_url(kp_setup.event_id), headers=staff_headers
+        booklet_background_url(kp_setup.event_id), headers=admin_headers
     )
 
     assert response.status_code == 200
@@ -372,20 +372,20 @@ async def test_a_replaced_booklet_background_survives_a_failed_cleanup(
 
 async def test_a_booklet_background_reset_survives_a_failed_cleanup(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     storage_service: AsyncMock,
 ):
     await upload_booklet_background(
-        client, staff_headers, kp_setup.event_id, make_pdf()
+        client, admin_headers, kp_setup.event_id, make_pdf()
     )
     storage_service.delete_object.side_effect = StorageDeleteFailed("cleanup")
 
     response = await client.delete(
-        booklet_background_url(kp_setup.event_id), headers=staff_headers
+        booklet_background_url(kp_setup.event_id), headers=admin_headers
     )
     stored = await client.get(
-        booklet_background_url(kp_setup.event_id), headers=staff_headers
+        booklet_background_url(kp_setup.event_id), headers=admin_headers
     )
 
     assert response.status_code == 200
@@ -394,7 +394,7 @@ async def test_a_booklet_background_reset_survives_a_failed_cleanup(
 
 async def test_a_storage_outage_on_booklet_upload_carries_a_request_id(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     storage_service: AsyncMock,
     caplog: pytest.LogCaptureFixture,
@@ -403,10 +403,10 @@ async def test_a_storage_outage_on_booklet_upload_carries_a_request_id(
 
     with caplog.at_level(logging.ERROR):
         response = await upload_booklet_background(
-            client, staff_headers, kp_setup.event_id, make_pdf()
+            client, admin_headers, kp_setup.event_id, make_pdf()
         )
     stored = await client.get(
-        booklet_background_url(kp_setup.event_id), headers=staff_headers
+        booklet_background_url(kp_setup.event_id), headers=admin_headers
     )
 
     request_id = response.headers["x-request-id"]
@@ -419,17 +419,17 @@ async def test_a_storage_outage_on_booklet_upload_carries_a_request_id(
 
 async def test_a_storage_outage_on_booklet_preview_carries_a_request_id(
     client: AsyncClient,
-    staff_headers: dict[str, str],
+    admin_headers: dict[str, str],
     kp_setup: KpSetup,
     storage_service: AsyncMock,
 ):
     await upload_booklet_background(
-        client, staff_headers, kp_setup.event_id, make_pdf()
+        client, admin_headers, kp_setup.event_id, make_pdf()
     )
     storage_service.download_bytes.side_effect = StorageDownloadFailed("outage")
 
     response = await client.post(
-        f"/api/kp/events/{kp_setup.event_id}/booklet/preview", headers=staff_headers
+        f"/api/kp/events/{kp_setup.event_id}/booklet/preview", headers=admin_headers
     )
 
     assert response.status_code == 500
@@ -438,10 +438,10 @@ async def test_a_storage_outage_on_booklet_preview_carries_a_request_id(
 
 
 async def test_a_client_error_carries_no_request_id_in_the_body(
-    client: AsyncClient, staff_headers: dict[str, str], kp_setup: KpSetup
+    client: AsyncClient, admin_headers: dict[str, str], kp_setup: KpSetup
 ):
     response = await upload_booklet_background(
-        client, staff_headers, kp_setup.event_id, b"not a pdf"
+        client, admin_headers, kp_setup.event_id, b"not a pdf"
     )
 
     assert response.status_code == 400
