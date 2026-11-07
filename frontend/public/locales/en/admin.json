@@ -350,7 +350,6 @@
   },
   "changes": {
     "title": "What happened since your last visit",
-    "since": "Changes since {{since}}",
     "none": "Nothing new.",
     "show_all": "Show all {{total}}",
     "show_event": "Show all in {{event}}",

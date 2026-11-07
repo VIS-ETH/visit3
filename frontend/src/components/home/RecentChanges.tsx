@@ -149,14 +149,7 @@ const RecentChanges = () => {
     <Paper withBorder p="lg" radius="md">
       <Stack gap="md">
         <Group justify="space-between" align="flex-start" wrap="wrap">
-          <Stack gap={2}>
-            <Title order={3}>{t("changes.title")}</Title>
-            <Text c="dimmed" size="sm">
-              {t("changes.since", {
-                since: formatDateTime(changes.since),
-              })}
-            </Text>
-          </Stack>
+          <Title order={3}>{t("changes.title")}</Title>
           <Button
             leftSection={<IconChecks size={16} />}
             loading={isMarking}
